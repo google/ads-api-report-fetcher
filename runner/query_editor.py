@@ -38,7 +38,7 @@ class QueryElements:
     fields: List[str]
     column_names: List[str]
     pointers: Optional[Dict[str, str]]
-    nested_fields: Optional[Union[Any, List[Any]]]
+    nested_fields: Optional[Dict[int, str]]
     resource_indices: Optional[Dict[str, str]]
 
 
@@ -65,6 +65,7 @@ def get_query_elements(path: str) -> QueryElements:
     nested_fields = {}
     resource_indices = {}
 
+    field_index = 0
     for line in query_lines:
         # exclude SELECT keyword
         if line.upper().startswith("SELECT"):
@@ -84,28 +85,18 @@ def get_query_elements(path: str) -> QueryElements:
                                 utils.get_element(fields_with_nested, 0))
         else:
             field_name = utils.get_element(resource_elements, 0)
-        try:
+        if len(line_elements) > 1:
             pointers[field_name] = utils.get_element(line_elements, 1)
-        except:
-            pass
-        try:
-            nested_field = utils.get_element(fields_with_nested, 1)
-            if nested_fields.get(field_name):
-                nested_fields.get(field_name).append(nested_field)
-            else:
-                nested_fields[field_name] = [nested_field]
-        except:
-            pass
+        if len(fields_with_nested) > 1:
+            nested_fields[field_index] = utils.get_element(
+                fields_with_nested, 1)
         fields.append(field_name)
-        try:
-            column_name = utils.get_element(line_elements_raw, 1)
-        except:
-            column_name = field_name
-        try:
+        field_index += 1
+        column_name = utils.get_element(
+            line_elements_raw, 1) if len(line_elements_raw) > 1 else field_name
+        if len(resource_elements) > 1:
             resource_indices[field_name] = utils.get_element(
                 resource_elements, 1)
-        except:
-            pass
         column_names.append(column_name)
     return QueryElements(query_text=query_text,
                          fields=fields,

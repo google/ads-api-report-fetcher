@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Callable, Dict, Sequence
+from typing import Any, Callable, Dict, Optional, Sequence
+import operator
 from google.ads.googleads.v9.services.types.google_ads_service import GoogleAdsRow  # type: ignore
 from google.ads.googleads.v9.services.services.google_ads_service.client import GoogleAdsServiceClient  #type: ignore
 from google.ads.googleads.client import GoogleAdsClient  # type: ignore
@@ -40,5 +41,16 @@ def get_customer_ids(service: GoogleAdsServiceClient,
 
 
 def parse_ads_row(row: GoogleAdsRow, getter: Callable,
-                  parser: parsers.BaseParser) -> Sequence[Any]:
-    return [parser.parse(r) or r for r in getter(row)]
+                  parser: parsers.BaseParser,
+                  nested_fields: Optional[Dict[int, str]]) -> Sequence[Any]:
+    final_rows = []
+    for i, r in enumerate(getter(row)):
+        if nested_fields:
+            if nested_fields.get(i):
+                try:
+                    r = operator.attrgetter(nested_fields[i])(r)
+                except:
+                    raise ValueError(f"{nested_fields[i]} is incorrect")
+        parsed_element = parser.parse(r) or r
+        final_rows.append(parsed_element)
+    return final_rows

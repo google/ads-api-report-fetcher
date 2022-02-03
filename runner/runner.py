@@ -64,7 +64,8 @@ def process_query(query: str, customer_ids: Dict[str, str],
                                             query=query_text)
         for batch in response:
             results = [
-                api_handler.parse_ads_row(row, getter, parser)
+                api_handler.parse_ads_row(row, getter, parser,
+                                          query_elements.nested_fields)
                 for row in batch.results
             ]
             logging.info(

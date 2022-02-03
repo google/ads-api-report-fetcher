@@ -74,19 +74,6 @@ class EmptyAttributeParser(BaseParser):
             return super().parse(request)
 
 
-class NestedFieldsParser(BaseParser):
-    def parse(self, request):
-        if hasattr(request, 'campaign_budget'):
-            budget = getattr(request, "campaign_budget")
-            if budget:
-                return getattr(getattr(request, "campaign_budget"),
-                               "amount_micros")
-            else:
-                return -1
-        else:
-            return super().parse(request)
-
-
 class GoogleAdsRowParser(BaseParser):
     def __init__(self, nested_fields=None):
         self.nested_fields = nested_fields
@@ -94,7 +81,7 @@ class GoogleAdsRowParser(BaseParser):
 
     def _init_parsers(self):
         parser_chain = BaseParser(None)
-        for parser in EmptyAttributeParser, NestedFieldsParser, AttributeParser, RepeatedCompositeParser, RepeatedParser:
+        for parser in EmptyAttributeParser, AttributeParser, RepeatedCompositeParser, RepeatedParser:
             new_parser = parser(parser_chain)
             parser_chain = new_parser
         return parser_chain
