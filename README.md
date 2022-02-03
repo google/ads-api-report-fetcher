@@ -1,9 +1,16 @@
-# Ads API Reports Fetcher  
+# Ads API Reports Fetcher
 
 ## Disclaimer
 This is not an officially supported Google product.
 
 Copyright 2022 Google LLC. This solution, including any related sample code or data, is made available on an “as is,” “as available,” and “with all faults” basis, solely for illustrative purposes, and without warranty or representation of any kind. This solution is experimental, unsupported and provided solely for your convenience. Your use of it is subject to your agreements with Google, as applicable, and may constitute a beta feature as defined under those agreements. To the extent that you make any data available to Google in connection with your use of the solution, you represent and warrant that you have all necessary and appropriate rights, consents and permissions to permit Google to use and process that data. By using any portion of this solution, you acknowledge, assume and accept all risks, known and unknown, associated with its usage, including with respect to your deployment of any portion of this solution in your systems, or usage in connection with your business, if at all.
+
+## Overview
+
+Ads API Reports Fetcher simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
+by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
+The library allows you to define GAQL query alonside aliases and custom extractors and specify where the results of such query should be stored. You can find and example queries in `examples` folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned `GoogleAdsRow` object and transform them into the structure suitable for writing data.
+
 
 ## Getting started
 

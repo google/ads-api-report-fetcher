@@ -52,7 +52,12 @@ def get_query_elements(path: str) -> QueryElements:
         Various elements parsed from a query (text, fields, column_names, etc).
     """
     with open(path, "r") as f:
-        query_lines = f.readlines()
+        query_lines_ = f.readlines()
+
+    query_lines = [
+        line for line in query_lines_
+        if not line.startswith("#") and line.strip() != ""
+    ]
     query_text = QueryTextFormatter.format_ads_query("".join(query_lines))
     fields = []
     column_names = []
