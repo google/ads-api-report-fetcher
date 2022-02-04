@@ -24,7 +24,7 @@ parser.add_argument("--bq_project", dest="project")
 parser.add_argument("--bq_dataset", dest="dataset")
 args = parser.parse_args()
 
-bq_client = bigquery.Client()
+bq_client = bigquery.Client(project=args.project)
 
 
 def run_post_processing_query(path: str, bq_client: bigquery.Client,
