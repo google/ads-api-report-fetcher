@@ -1,10 +1,5 @@
 # Ads API Reports Fetcher
 
-## Disclaimer
-This is not an officially supported Google product.
-
-Copyright 2022 Google LLC. This solution, including any related sample code or data, is made available on an “as is,” “as available,” and “with all faults” basis, solely for illustrative purposes, and without warranty or representation of any kind. This solution is experimental, unsupported and provided solely for your convenience. Your use of it is subject to your agreements with Google, as applicable, and may constitute a beta feature as defined under those agreements. To the extent that you make any data available to Google in connection with your use of the solution, you represent and warrant that you have all necessary and appropriate rights, consents and permissions to permit Google to use and process that data. By using any portion of this solution, you acknowledge, assume and accept all risks, known and unknown, associated with its usage, including with respect to your deployment of any portion of this solution in your systems, or usage in connection with your business, if at all.
-
 ## Overview
 
 Ads API Reports Fetcher simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
@@ -92,7 +87,8 @@ python runner/runner.py path/to/sql/google_ads_queries/*.sql \
     --bq_project=$BQ_PROJECT \
     --bq_dataset=$BQ_DATASET \
     --start_date=$START_DATE \
-    --end_date=$END_DATE
+    --end_date=$END_DATE \
+    --path-to-api-config=path/to/google-ads.yaml
 ```
 
 6. Run `post_processor.py` script to prepare tables in BigQuery to be used in a dashboard
@@ -102,3 +98,9 @@ python runner/post_processor.py path/to/bq_queries/*.sql \
     --bq_project=$BQ_PROJECT \
     --bq_dataset=$BQ_DATASET \
 ```
+
+## Disclaimer
+This is not an officially supported Google product.
+
+Copyright 2022 Google LLC. This solution, including any related sample code or data, is made available on an “as is,” “as available,” and “with all faults” basis, solely for illustrative purposes, and without warranty or representation of any kind. This solution is experimental, unsupported and provided solely for your convenience. Your use of it is subject to your agreements with Google, as applicable, and may constitute a beta feature as defined under those agreements. To the extent that you make any data available to Google in connection with your use of the solution, you represent and warrant that you have all necessary and appropriate rights, consents and permissions to permit Google to use and process that data. By using any portion of this solution, you acknowledge, assume and accept all risks, known and unknown, associated with its usage, including with respect to your deployment of any portion of this solution in your systems, or usage in connection with your business, if at all.
+
