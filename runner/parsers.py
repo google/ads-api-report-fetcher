@@ -14,7 +14,7 @@
 
 import proto  #type: ignore
 import re
-from utils import ResourceFormatter
+from .utils import ResourceFormatter
 
 
 class BaseParser:

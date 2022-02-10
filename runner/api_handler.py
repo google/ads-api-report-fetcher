@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any, Callable, Dict, Optional, Sequence
+import re
 import operator
 from google.ads.googleads.v9.services.types.google_ads_service import GoogleAdsRow  # type: ignore
 from google.ads.googleads.v9.services.services.google_ads_service.client import GoogleAdsServiceClient  #type: ignore
 from google.ads.googleads.client import GoogleAdsClient  # type: ignore
-import parsers
+from . import parsers
 
 
 def get_customer_ids(service: GoogleAdsServiceClient,
@@ -40,17 +41,21 @@ def get_customer_ids(service: GoogleAdsServiceClient,
     return customer_ids
 
 
-def parse_ads_row(row: GoogleAdsRow, getter: Callable,
-                  parser: parsers.BaseParser,
-                  nested_fields: Optional[Dict[int, str]]) -> Sequence[Any]:
+def parse_ads_row(
+        row: GoogleAdsRow, getter: Callable, parser: parsers.BaseParser,
+        customizers: Optional[Dict[int, Dict[str, str]]]) -> Sequence[Any]:
     final_rows = []
     for i, r in enumerate(getter(row)):
-        if nested_fields:
-            if nested_fields.get(i):
-                try:
-                    r = operator.attrgetter(nested_fields[i])(r)
-                except:
-                    raise ValueError(f"{nested_fields[i]} is incorrect")
+        if customizers:
+            if customizers.get(i):
+                caller = customizers.get(i)
+                if caller.get("type") == "nested_field":
+                    try:
+                        r = operator.attrgetter(caller.get("value"))(r)
+                    except:
+                        raise ValueError(f"{caller} is incorrect")
+                elif caller.get("type") == "resource_index":
+                    r = re.split("~", r)[caller.get("value")]
         parsed_element = parser.parse(r) or r
         final_rows.append(parsed_element)
     return final_rows

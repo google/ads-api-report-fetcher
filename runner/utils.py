@@ -36,18 +36,6 @@ class ResourceFormatter:
             return element
 
 
-def get_element(elements, position):
-    return f'{elements[position].strip().replace(",", "")}'
-
-
-def extract_resource(field):
-    return re.sub('"', '', re.split(": ", str(field).strip())[1])
-
-
-def extract_id_from_resource(resource, id, delimeter="~"):
-    return re.split(delimeter, resource)[id]
-
-
 TYPE_MAPPING = {
     list: "REPEATED",
     str: "STRING",

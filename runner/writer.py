@@ -23,8 +23,8 @@ from pathlib import Path
 import csv
 import time
 import pandas as pd  # type: ignore
-from formatter import BigQueryFormatter
-import utils
+from .formatter import BigQueryFormatter
+from . import utils
 
 
 class AbsWriter(abc.ABC):
@@ -186,6 +186,6 @@ class DestinationFormatter:
                          new_extension: str = "") -> str:
         return Path(path_object).name.replace(current_extension, new_extension)
 
+
 class ZeroRowException(Exception):
     pass
-

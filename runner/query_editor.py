@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import abc
 import dataclasses
 import re
 
-import utils
-from formatter import QueryTextFormatter
+from .formatter import QueryTextFormatter
 
 
 @dataclasses.dataclass
@@ -29,17 +28,12 @@ class QueryElements:
         query_text: Text of the query that needs to be parsed.
         fields: Ads API fields that need to be feched.
         column_names: friendly names for fields which are used when saving data
-        pointers: Attributes of fields that need to be be extracted.
-        nested_fields: Multiple elements that need to be fetched from a single
-            resource.
-        resource_indices: Position of element in resource_name.
+        customizers: Attributes of fields that need to be be extracted.
     """
     query_text: str
     fields: List[str]
     column_names: List[str]
-    pointers: Optional[Dict[str, str]]
-    nested_fields: Optional[Dict[int, str]]
-    resource_indices: Optional[Dict[str, str]]
+    customizers: Optional[Dict[int, Dict[str, str]]]
 
 
 def get_query_elements(path: str) -> QueryElements:
@@ -61,9 +55,7 @@ def get_query_elements(path: str) -> QueryElements:
     query_text = QueryTextFormatter.format_ads_query("".join(query_lines))
     fields = []
     column_names = []
-    pointers = {}
-    nested_fields = {}
-    resource_indices = {}
+    customizers = {}
 
     field_index = 0
     for line in query_lines:
@@ -73,34 +65,57 @@ def get_query_elements(path: str) -> QueryElements:
         # exclude everything that goes after FROM statement
         if line.upper().startswith("FROM"):
             break
-        # get fields and aliases
-        line_elements_raw = re.split(" [Aa][Ss] ", line)
-        # extract unselectable fields
-        resource_elements = re.split("~", line_elements_raw[0])
-        line_elements = re.split("->", line_elements_raw[0])
-        fields_with_nested = re.split(":", line_elements[0])
-        # if there's `type` element rename it to `type_` in order to fetch it
-        if len(resource_elements) == 1:
-            field_name = re.sub("\\.type", ".type_",
-                                utils.get_element(fields_with_nested, 0))
-        else:
-            field_name = utils.get_element(resource_elements, 0)
-        if len(line_elements) > 1:
-            pointers[field_name] = utils.get_element(line_elements, 1)
-        if len(fields_with_nested) > 1:
-            nested_fields[field_index] = utils.get_element(
-                fields_with_nested, 1)
-        fields.append(field_name)
+        field_elements, alias = extract_fields_and_aliases(line)
+        field_name, customizer_type, customizer_value = query_parser_chain(
+            field_elements)
+        field_name = field_name.strip().replace(",", "")
+        if customizer_type:
+            customizers[field_index] = {
+                "type": customizer_type,
+                "value": customizer_value
+            }
+        fields.append(format_type_field_name(field_name))
         field_index += 1
-        column_name = utils.get_element(
-            line_elements_raw, 1) if len(line_elements_raw) > 1 else field_name
-        if len(resource_elements) > 1:
-            resource_indices[field_name] = utils.get_element(
-                resource_elements, 1)
+        column_name = alias.strip().replace(",", "") if alias else field_name
         column_names.append(column_name)
     return QueryElements(query_text=query_text,
                          fields=fields,
                          column_names=column_names,
-                         pointers=pointers,
-                         nested_fields=nested_fields,
-                         resource_indices=resource_indices)
+                         customizers=customizers)
+
+
+def extract_fields_and_aliases(query_line: str) -> Tuple[str, Optional[str]]:
+    field_raw, *alias = re.split(" [Aa][Ss] ", query_line)
+    return field_raw, alias[0] if alias else None
+
+
+def extract_resource_element(line_elements: str) -> List[str]:
+    return re.split("~", line_elements)
+
+
+def extract_pointer(line_elements: str) -> List[str]:
+    return re.split("->", line_elements)
+
+
+def extract_nested_resource(line_elements: str) -> List[str]:
+    return re.split(":", line_elements)
+
+
+def format_type_field_name(field_name):
+    return re.sub("\\.type", ".type_", field_name)
+
+
+def query_parser_chain(line_elements: str):
+    resources = extract_resource_element(line_elements)
+    pointers = extract_pointer(line_elements)
+    nested_fields = extract_nested_resource(line_elements)
+    if len(resources) > 1:
+        field_name, resource_index = resources
+        return field_name, "resource_index", int(resource_index)
+    if len(pointers) > 1:
+        field_name, pointer = pointers
+        return field_name, "pointer", pointer
+    if len(nested_fields) > 1:
+        field_name, nested_field = nested_fields
+        return field_name, "nested_field", nested_field
+    return line_elements, None, None
