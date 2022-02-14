@@ -15,13 +15,14 @@
 from concurrent import futures
 from typing import Any, Callable, Dict, Sequence
 import sys
+import argparse
+from pathlib import Path
 import logging
 
 from google.ads.googleads.v9.services.services.google_ads_service.client import GoogleAdsServiceClient  #type: ignore
 from google.ads.googleads.errors import GoogleAdsException  #type: ignore
 from operator import attrgetter
 
-from . import arg_parser
 from . import parsers
 from . import writer
 from . import api_handler
@@ -31,8 +32,8 @@ from . import query_editor
 
 def process_query(query: str, customer_ids: Dict[str, str],
                   api_client: GoogleAdsServiceClient,
-                  parser: parsers.BaseParser,
-                  writer_client: writer.AbsWriter) -> None:
+                  parser: parsers.BaseParser, writer_client: writer.AbsWriter,
+                  args: argparse.Namespace) -> None:
     query_elements = query_editor.get_query_elements(query)
     query_text = query_elements.query_text.format(start_date=args.start_date,
                                                   end_date=args.end_date)
@@ -61,8 +62,25 @@ def process_query(query: str, customer_ids: Dict[str, str],
         raise writer.ZeroRowException
 
 
-if __name__ == "__main__":
-    args = arg_parser.parse_cli_args()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("query", nargs="+")
+    parser.add_argument("--customer_id", dest="customer_id")
+    parser.add_argument("--save", dest="save", default="csv")
+    parser.add_argument("--destination-folder", dest="destination_folder")
+    parser.add_argument("--bq_project", dest="project")
+    parser.add_argument("--bq_dataset", dest="dataset")
+    parser.add_argument("--start_date", dest="start_date")
+    parser.add_argument("--end_date", dest="end_date")
+    parser.add_argument("-c",
+                        "--path-to-api-config",
+                        dest="config",
+                        default=str(Path.home() / "google-ads.yaml"))
+    parser.add_argument("--log",
+                        "--loglevel",
+                        dest="loglevel",
+                        default="warning")
+    args = parser.parse_args()
 
     logging.basicConfig(
         format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
@@ -86,7 +104,7 @@ if __name__ == "__main__":
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
             executor.submit(process_query, query, customer_ids, ga_service,
-                            google_ads_row_parser, writer_client): query
+                            google_ads_row_parser, writer_client, args): query
             for query in args.query
         }
         for future in futures.as_completed(future_to_query):
@@ -112,3 +130,7 @@ if __name__ == "__main__":
                             )
             except Exception as e:
                 print(f"{query} generated an exception: {str(e)}")
+
+
+if __name__ == "__main__":
+    main()

@@ -18,14 +18,6 @@ import argparse
 from itertools import repeat
 from google.cloud import bigquery  #type: ignore
 
-parser = argparse.ArgumentParser()
-parser.add_argument("query", nargs="+")
-parser.add_argument("--bq_project", dest="project")
-parser.add_argument("--bq_dataset", dest="dataset")
-args = parser.parse_args()
-
-bq_client = bigquery.Client(project=args.project)
-
 
 def run_post_processing_query(path: str, bq_client: bigquery.Client,
                               project: str, dataset: str) -> None:
@@ -40,16 +32,29 @@ def run_post_processing_query(path: str, bq_client: bigquery.Client,
         print(f"Error launching {path} query!" f"{str(e)}")
 
 
-with futures.ThreadPoolExecutor() as executor:
-    future_to_query = {
-        executor.submit(run_post_processing_query, query, bq_client,
-                        args.project, args.dataset): query
-        for query in args.query
-    }
-    for future in futures.as_completed(future_to_query):
-        query = future_to_query[future]
-        try:
-            result = future.result()
-            print(f"{query} executed successfully")
-        except Exception as e:
-            print(f"{query} generated an exception: {e}")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("query", nargs="+")
+    parser.add_argument("--bq_project", dest="project")
+    parser.add_argument("--bq_dataset", dest="dataset")
+    args = parser.parse_args()
+
+    bq_client = bigquery.Client(project=args.project)
+
+    with futures.ThreadPoolExecutor() as executor:
+        future_to_query = {
+            executor.submit(run_post_processing_query, query, bq_client,
+                            args.project, args.dataset): query
+            for query in args.query
+        }
+        for future in futures.as_completed(future_to_query):
+            query = future_to_query[future]
+            try:
+                result = future.result()
+                print(f"{query} executed successfully")
+            except Exception as e:
+                print(f"{query} generated an exception: {e}")
+
+
+if __name__ == "__main__":
+    main()

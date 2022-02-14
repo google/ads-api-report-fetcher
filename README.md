@@ -53,7 +53,7 @@ pip install -r requirements.txt
 
     2.7. Add login_customer_id and client_customer_id (MMC under which Developer token was generated) to `google-ads.yaml`. **ID should be in 11111111 format, do not add dashes as separator**.
 
-3. clone this repository
+3. clone this repository & install library
 
 Before cloning this repository you need to do the following:
 
@@ -63,6 +63,21 @@ Before cloning this repository you need to do the following:
 ```
 git clone https://professional-services.googlesource.com/solutions/ads-api-reports-fetcher
 ```
+
+Switch to `ads-api-reports-fetcher` folder and install library:
+
+```
+cd ads-api-reports-fetcher
+pip install -e .
+```
+
+Two commands will be available for using in terminal:
+
+* `fetch-reports`  - to get data from Ads API based on provided query
+   and a set of parameters
+* `post-process-queries` - to execute any post-processing queries based on
+   results of `fetch-reports` command.
+
 
 4. Specify enviromental variables
 
@@ -77,11 +92,10 @@ export END_DATE=
 `START_DATE` and `END_DATE` should be specified in `YYYY-MM-DD` format (i.e. 2022-01-01).
 `CUSTOMER_ID` should be specifed in `1234567890` format (no dashes between digits).
 
-5. Run `runner.py` script to fetch Google Ads data and store them in BigQuery
+5. Run `fetch-reports` command to fetch Google Ads data and store them in BigQuery
 
 ```
-cd ads-api-reports-fetcher
-python runner/runner.py path/to/sql/google_ads_queries/*.sql \
+fetch-reports path/to/sql/google_ads_queries/*.sql \
     --customer_id=$CUSTOMER_ID \
     --save=bq \
     --bq_project=$BQ_PROJECT \
@@ -91,10 +105,11 @@ python runner/runner.py path/to/sql/google_ads_queries/*.sql \
     --path-to-api-config=path/to/google-ads.yaml
 ```
 
-6. Run `post_processor.py` script to prepare tables in BigQuery to be used in a dashboard
+6. Run `post-process-queries` command to prepare tables in BigQuery based on data
+fetched by `fetch-reports` command.
 
 ```
-python runner/post_processor.py path/to/bq_queries/*.sql \
+post-process-queries path/to/bq_queries/*.sql \
     --bq_project=$BQ_PROJECT \
     --bq_dataset=$BQ_DATASET \
 ```
