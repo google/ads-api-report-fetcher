@@ -16,7 +16,6 @@ python3 -m venv ads-api-fetcher
 source ads-api-fetcher/bin/activate
 pip install -r requirements.txt
 ```
-
 2. authenticate google ads to create `google-ads.yaml` file
 
     2.1. Create `google-ads.yaml` file in your home directory with the following content
@@ -53,15 +52,11 @@ pip install -r requirements.txt
 
     2.7. Add login_customer_id and client_customer_id (MMC under which Developer token was generated) to `google-ads.yaml`. **ID should be in 11111111 format, do not add dashes as separator**.
 
+
 3. clone this repository & install library
 
-Before cloning this repository you need to do the following:
-
-* Visit https://professional-services.googlesource.com/new-password and login with your account
-* Once authenticated please copy all lines in box and paste them in the terminal.
-
 ```
-git clone https://professional-services.googlesource.com/solutions/ads-api-reports-fetcher
+git clone https://github.com/google/ads-api-reports-fetcher.git
 ```
 
 Switch to `ads-api-reports-fetcher` folder and install library:
