@@ -23,6 +23,7 @@ from pathlib import Path
 import csv
 import time
 import pandas as pd  # type: ignore
+from tabulate import tabulate
 from .formatter import BigQueryFormatter
 from . import utils
 
@@ -36,6 +37,30 @@ class AbsWriter(abc.ABC):
     @abc.abstractmethod
     def _define_header(self, results, header):
         pass
+
+
+class StdoutWriter(AbsWriter):
+    def __init__(self, page_size=10, **kwargs):
+        self.page_size = page_size
+
+    def write(self, results, destination, header):
+        proceed = True
+        results_generator = self._paginate_rows(results, self.page_size)
+        message = f"showing results for query {destination}"
+        print("=" * len(message))
+        print(message)
+        print("=" * len(message))
+        print(tabulate(next(results_generator), headers=header))
+
+    def _define_header(self, results, header):
+        pass
+
+    def _paginate_rows(self, results, page_size):
+        for i in range(0, len(results), page_size):
+            print(
+                f"showing rows {i+1}-{i+page_size} out of total {len(results)} rows"
+            )
+            yield results[i:(i + page_size)]
 
 
 class CsvWriter(AbsWriter):
@@ -171,6 +196,7 @@ class WriterFactory:
     def load_writer_options(self):
         self.write_options["bq"] = BigQueryWriter
         self.write_options["csv"] = CsvWriter
+        self.write_options["console"] = StdoutWriter
 
     def create_writer(self, writer_option, **kwargs):
         if writer_option in self.write_options:

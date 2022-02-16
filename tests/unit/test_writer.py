@@ -74,7 +74,8 @@ def writer_factory():
 def test_writer_factory_load(writer_factory):
     assert writer_factory.write_options == {
         "bq": writer.BigQueryWriter,
-        "csv": writer.CsvWriter
+        "csv": writer.CsvWriter,
+        "console": writer.StdoutWriter
     }
 
 
