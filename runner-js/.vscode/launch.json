@@ -1,0 +1,50 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Node: CLI (cli.ts)",
+      "type": "node", //pwa-node, node-terminal
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "args": [
+        "src/cli.ts",
+        "./queries/campaign.sql",
+        "--customer=3532705401",
+        "--output=csv",
+        "--dump-schema",
+        "--destination-folder=output",
+        "--start_date=2022-01-01",
+        "--end_date=2022-02-10"
+      ],
+      "runtimeArgs": [
+        "--nolazy",
+        "-r",
+        "ts-node/register"
+      ],
+      "sourceMaps": true,
+    }, {
+      "name": "Run Mocha Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+      "args": [
+        "--require", "ts-node/register",
+        "--require", "test/fixtures.ts",
+        "-u", "tdd",
+        "--timeout", "999999",
+        "--colors",
+        "${workspaceFolder}/test/**/*.ts"
+      ],
+      "protocol": "inspector",
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart",
+      "sourceMaps": true,
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+*.log
+.tmp/
+node_modules/
+.nyc_output/
+.tmp/
+output/
+coverage/
