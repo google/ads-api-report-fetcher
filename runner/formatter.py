@@ -44,26 +44,3 @@ class BigQueryFormatter(AbsFormatter):
                     formatted_row.append(field)
             formatted_rows.append(formatted_row)
         return formatted_rows
-
-
-class QueryTextFormatter:
-    @staticmethod
-    def format_ads_query(query: str) -> str:
-        query = QueryTextFormatter._remove_alias(query)
-        query = QueryTextFormatter._remove_pointers(query)
-        query = QueryTextFormatter._remove_nested_fields(query)
-        return query
-
-    @staticmethod
-    def _remove_alias(query: str) -> str:
-        return re.sub("\s+[Aa][Ss]\s+(\w+)", "", query)
-
-    @staticmethod
-    def _remove_pointers(query: str) -> str:
-        query = re.sub("->(\w+)|->", "", query)
-        query = re.sub("~(\w+)|->", "", query)
-        return query
-
-    @staticmethod
-    def _remove_nested_fields(query: str) -> str:
-        return re.sub(":((\w+)\.*){1,}", "", query)

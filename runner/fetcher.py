@@ -27,14 +27,30 @@ from . import parsers
 from . import writer
 from . import api_handler
 from . import api_clients
-from . import query_editor
+from .query_editor import AdsQueryEditor
 
 
 def process_query(query: str, customer_ids: Dict[str, str],
                   api_client: GoogleAdsServiceClient,
                   parser: parsers.BaseParser, writer_client: writer.AbsWriter,
                   args: argparse.Namespace) -> None:
-    query_elements = query_editor.get_query_elements(query)
+    """Reads query, extract results and stores them in a specified location.
+
+    Attributes:
+        query: Path to a file that contains query text.
+        customer_ids: All accounts for which query will be executed.
+        api_client: Client used to perform authentication to Ads API.
+        parser: Parser responsible for extracting elements from each row of
+            Ads API response.
+        writer_client: Client responsible for writing data to local/remote
+            location.
+        args: Arguments that need to be passed to a query
+    """
+
+    with open(query, "r") as f:
+        raw_query_text = f.read()
+    query_elements = AdsQueryEditor(raw_query_text).get_query_elements()
+    print(query_elements.resource_name)
     query_text = query_elements.query_text.format(start_date=args.start_date,
                                                   end_date=args.end_date)
     getter = attrgetter(*query_elements.fields)
@@ -52,6 +68,10 @@ def process_query(query: str, customer_ids: Dict[str, str],
                 "[Query: %s] customer_id: %s, nrows - %d, size in bytes - %d",
                 query, customer_id, len(results), sys.getsizeof(results))
             total_results.extend(results)
+
+        if query_elements.resource_name.endswith("_constant"):
+            print("Running only once")
+            break
 
     logging.info("[Query: %s] total size in bytes - %d", query,
                  sys.getsizeof(total_results))
