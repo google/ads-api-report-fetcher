@@ -1,25 +1,30 @@
 {
-  "name": "ads-api-report-fetcher",
+  "name": "google-ads-api-report-fetcher",
   "version": "1.0.0",
-  "description": "",
+  "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "index.js",
   "bin": {
-    "ads-fetcher": "cli-bin.js"
+    "gaarf": "cli-bin.js"
   },
+  "type": "commonjs",
   "scripts": {
     "clean": "shx rm -rf dist/*",
     "tsc": "tsc",
+    "start": "node -r ts-node/register src/cli.ts $@",
     "build": "npm run tsc",
-    "test": "mocha --ui tdd --require ts-node/register --require test/fixtures.ts --timeout 10s test/**/*.ts",
-    "test:coverage": "nyc --reporter=text mocha --ui tdd --require ts-node/register --require test/fixtures.ts --timeout 10s test/**/*.ts"
+    "test": "mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts",
+    "test:coverage": "nyc --reporter=text mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts"
   },
-  "keywords": ["Google Ads API"],
+  "keywords": [
+    "Google Ads API"
+  ],
   "author": "Google Inc. (gTech gPS CSE team)",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/bigquery": "^5.11.0",
     "csv": "^6.0.5",
     "csv-stringify": "^6.0.5",
+    "find-up": "^5.0.0",
     "google-ads-api": "^9.0.0",
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
@@ -31,6 +36,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/lodash": "^4.14.178",
     "@types/mocha": "^9.1.0",
+    "@types/yargs": "^17.0.8",
     "mocha": "^9.2.0",
     "nyc": "^15.1.0",
     "shx": "^0.3.4",

@@ -1,7 +1,9 @@
 *.log
 .tmp/
+.work
 node_modules/
 .nyc_output/
 .tmp/
 output/
 coverage/
+dist/test/

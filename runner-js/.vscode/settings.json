@@ -13,14 +13,14 @@
     "editor.formatOnPaste": false,
   },
   "[cpp]": { "editor.defaultFormatter": "xaver.clang-format" },
-  "mocha.files.glob": "test/**/*.tests.ts",
+  "mocha.files.glob": "src/test/**/*.tests.ts",
   "mocha.options": {
     "ui": "tdd",
     "timeout": "5s"
   },
   "mocha.requires": [
     "ts-node/register",
-    "test/fixtures.ts"
+    "src/test/fixtures.ts"
   ],
   "mocha.coverage": {
     "enable": true,

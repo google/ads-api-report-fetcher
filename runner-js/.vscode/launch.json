@@ -35,11 +35,11 @@
       "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
         "--require", "ts-node/register",
-        "--require", "test/fixtures.ts",
+        "--require", "src/test/fixtures.ts",
         "-u", "tdd",
         "--timeout", "999999",
         "--colors",
-        "${workspaceFolder}/test/**/*.ts"
+        "${workspaceFolder}/src/test/**/*.ts"
       ],
       "protocol": "inspector",
       "console": "internalConsole",

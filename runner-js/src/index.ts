@@ -1,6 +1,7 @@
-export {AdsQueryEditor} from './ads-query-editor';
-export {AdsQueryExecutor} from './ads-query-executor';
-export {BigQueryWriter} from './bq-writer';
-export {CsvWriter} from './csv-writer';
+export {AdsQueryEditor} from './lib/ads-query-editor';
+export {AdsQueryExecutor} from './lib/ads-query-executor';
+export {GoogleAdsApiClient} from './lib/api-client';
+export {BigQueryWriter} from './lib/bq-writer';
+export {CsvWriter} from './lib/csv-writer';
 
-export * from './types';
+export * from './lib/types';
