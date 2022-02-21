@@ -53,17 +53,10 @@ pip install -r requirements.txt
     2.7. Add login_customer_id and client_customer_id (MMC under which Developer token was generated) to `google-ads.yaml`. **ID should be in 11111111 format, do not add dashes as separator**.
 
 
-3. clone this repository & install library
+3. install library
 
 ```
-git clone https://github.com/google/ads-api-reports-fetcher.git
-```
-
-Switch to `ads-api-reports-fetcher` folder and install library:
-
-```
-cd ads-api-reports-fetcher
-pip install -e .
+pip install google-ads-api-report-fetcher
 ```
 
 Two commands will be available for using in terminal:
@@ -77,7 +70,7 @@ Two commands will be available for using in terminal:
 4. Specify enviromental variables
 
 ```
-export CUSTOMER_ID=
+export ACCOUNT_ID=
 export BQ_PROJECT=
 export BQ_DATASET=
 export START_DATE=
@@ -91,13 +84,13 @@ export END_DATE=
 
 ```
 fetch-reports path/to/sql/google_ads_queries/*.sql \
-    --customer_id=$CUSTOMER_ID \
-    --save=bq \
-    --bq_project=$BQ_PROJECT \
-    --bq_dataset=$BQ_DATASET \
-    --start_date=$START_DATE \
-    --end_date=$END_DATE \
-    --path-to-api-config=path/to/google-ads.yaml
+    --account=$ACCOUNT_ID \
+    --output=bq \
+    --bq.project=$BQ_PROJECT \
+    --bq.dataset=$BQ_DATASET \
+    --sql.start_date=$START_DATE \
+    --sql.end_date=$END_DATE \
+    --ads-config=path/to/google-ads.yaml
 ```
 
 6. Run `post-process-queries` command to prepare tables in BigQuery based on data
@@ -105,8 +98,8 @@ fetched by `fetch-reports` command.
 
 ```
 post-process-queries path/to/bq_queries/*.sql \
-    --bq_project=$BQ_PROJECT \
-    --bq_dataset=$BQ_DATASET \
+    --bq.project=$BQ_PROJECT \
+    --bq.dataset=$BQ_DATASET \
 ```
 
 ## Disclaimer

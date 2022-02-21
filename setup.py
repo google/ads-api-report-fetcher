@@ -5,13 +5,13 @@ HERE = pathlib.Path(__file__).parent
 
 README = (HERE / "README.md").read_text()
 
-setup(name="ads-api-reports-fetcher",
+setup(name="google-ads-api-report-fetcher",
       version="0.1",
       description="Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
       long_description=README,
       long_description_content_type="text/markdown",
       url="https://github.com/google/ads-api-reports-fetcher",
-      author="gPS Team",
+      author="Google Inc. (gTech gPS CSE team)",
       author_email="no-reply@google.com",
       license="Apache 2.0",
       classifiers=[
