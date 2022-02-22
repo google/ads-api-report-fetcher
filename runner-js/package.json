@@ -22,12 +22,14 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/bigquery": "^5.11.0",
+    "chalk": "^4.1.2",
     "csv": "^6.0.5",
     "csv-stringify": "^6.0.5",
     "find-up": "^5.0.0",
     "google-ads-api": "^9.0.0",
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
+    "table": "^6.8.0",
     "yargs": "^17.3.1"
   },
   "devDependencies": {

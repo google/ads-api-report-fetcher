@@ -1,12 +1,30 @@
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import chalk from 'chalk';
 import findUp from 'find-up';
 import fs from 'fs';
+import yaml from 'js-yaml';
 import _ from 'lodash';
 import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
 import {AdsQueryExecutor} from './lib/ads-query-executor';
-import {GoogleAdsApiClient} from './lib/api-client';
+import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/api-client';
 import {BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
@@ -89,7 +107,6 @@ const argv =
             'Execute ads queries and output results to csv files, one per script')
         .epilog('(c) Google 2022. Not officially supported product.')
         .parseSync()
-// const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
 
 
 function getWriter(): IResultWriter {
@@ -98,6 +115,7 @@ function getWriter(): IResultWriter {
     return new NullWriter();
   }
   if (output === 'console') {
+    // TODO:
     return new ConsoleWriter(<ConsoleWriterOptions>argv.console);
   }
   if (output === 'csv') {
@@ -109,9 +127,8 @@ function getWriter(): IResultWriter {
       throw new Error(
           `For BigQuery writer (---output=bq) we should specify at least a project and a dataset id`);
     }
-    let projectId =
-        (<any>argv.bq).project  //['bq']['project'];// argv['bq.project'];
-    let dataset = (<any>argv.bq).dataset;  //['bq.dataset'];
+    let projectId = (<any>argv.bq).project
+    let dataset = (<any>argv.bq).dataset;
     if (!projectId) {
       console.warn(`bq.project option should be specified (GCP project id)`);
       process.exit(-1);
@@ -128,22 +145,26 @@ function getWriter(): IResultWriter {
     opts.dumpSchema = (<any>argv.bq)['dump-schema'];
     return new BigQueryWriter(projectId, dataset, opts);
   }
-  if (output === 'console') {
-  }
   throw new Error(`Unknown output format: '${output}'`);
 }
 
 async function main() {
-  console.log(argv);
+  console.log(chalk.gray(JSON.stringify(argv, null, 2)));
+
+  // TODO: support ads api settings in main config and as cli arguments
   let configFilePath = <string>argv.adsConfig;
   if (!configFilePath) {
     if (fs.existsSync('google-ads.yaml')) {
       configFilePath = 'google-ads.yaml';
     } else {
-      throw new Error(
-          `Config file was not specified, pass 'ads-config' agrument`);
+      console.log(chalk.red(
+          `Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in th current folder`));
+      process.exit(-1);
     }
+    // TODO: support searching google-ads.yaml in user home folder (?)
   }
+  let adsConfig = loadAdsConfig(configFilePath, argv.account);
+  let client = new GoogleAdsApiClient(adsConfig, argv.account);
 
   // NOTE: a note regarding files argument
   // normaly on * nix OSes (at least in bash and zsh) passing an argument
@@ -156,20 +177,19 @@ async function main() {
   // from outside zsh/bash) then we have to handle items in `files` argument and
   // expand them using glob rules
   if (!argv.files || !argv.files.length) {
-    console.log(
-        `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`);
+    console.log(chalk.redBright(
+        `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
     return;
   }
-
   let scriptPaths = argv.files;
-  let client = new GoogleAdsApiClient(configFilePath, argv.account);
+
   console.log('Fetching customer ids');
   let customers = await client.getCustomerIds();
   console.log(`Customers to process:`);
   console.log(customers);
 
   let params = <Record<string, any>>argv['sql'] || {};
-  let writer = getWriter();  // NOTE: create write from argv
+  let writer = getWriter();  // NOTE: create writer from argv
   let executor = new AdsQueryExecutor(client);
 
   console.log(`Found ${scriptPaths.length} script to process`);
@@ -178,17 +198,36 @@ async function main() {
     console.log(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    // if script has 'constant' in its name, break the loop over customers (it
-    // shouldn't depend on one)
-    if (path.basename(scriptPath).indexOf('constant') >= 0) {
-      await executor.execute(
-          scriptName, queryText, [customers[0]], params, writer);
-    } else {
-      await executor.execute(scriptName, queryText, customers, params, writer);
-    }
+    await executor.execute(scriptName, queryText, customers, params, writer);
     console.log();
   }
-  console.log('All done!');
+
+  console.log(chalk.green('All done!'));
+}
+
+function loadAdsConfig(
+    configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {
+  if (!fs.existsSync(configFilepath)) {
+    console.log(chalk.red(`Config file ${configFilepath} does not exist`));
+    process.exit(-1);
+  }
+  try {
+    const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
+    console.log(chalk.gray('Using ads config:'));
+    console.log(doc);
+    return {
+      developer_token: doc['developer_token'],
+      client_id: doc['client_id'],
+      client_secret: doc['client_secret'],
+      refresh_token: doc['refresh_token'],
+      login_customer_id: doc['login_customer_id'],
+      customer_id: customerId || doc['customer_id'] || doc['login_customer_id']
+    };
+  } catch (e) {
+    console.log(chalk.red(
+        `Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+    process.exit(-1);
+  }
 }
 
 main().catch(console.error);
