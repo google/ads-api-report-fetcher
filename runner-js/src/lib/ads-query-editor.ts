@@ -1,3 +1,19 @@
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import _ from 'lodash';
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 
@@ -17,10 +33,12 @@ export class AdsQueryEditor {
   private cleanupQueryText(query: string): string {
     let queryLines = [];
     for (let line of query.split('\n')) {
+      // lines that start with '#' are treated as comments
       if (line.startsWith('#') || line.trim() == '') {
         continue;
       }
-      line = line.replace(/\-\-(.*)/g, '').trim();
+      // remove comments, we support '--' and '//' as comment line starters
+      line = line.replace(/(\-\-|\/\/)(.*)/g, '').trim();
       if (line.length > 0) queryLines.push(line);
     }
     query = queryLines.join('\n\r');

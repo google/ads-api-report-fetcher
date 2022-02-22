@@ -1,4 +1,19 @@
 "use strict";
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -76,19 +91,6 @@ class AdsRowParser {
                 }
             }
         }
-        // for (let i = 0; i < query.fields.length; i++) {
-        //   let field = query.fields[i];
-        //   let value: any = row_values_arr[i];
-        //   if (_.isNumber(value)) {
-        //     let enumTypeName = (<any>fields.enumFields)[field];
-        //     if (enumTypeName) {
-        //       let enumType = (<any>enums)[enumTypeName];
-        //       if (enumType) {
-        //         row_values_arr[i] = enumType[value];
-        //       }
-        //     }
-        //   }
-        // }
         return row_values_arr;
     }
     getValueWithCustomizer(value, customizer, query) {
@@ -113,9 +115,6 @@ class AdsRowParser {
                 throw new Error(`InvalidQuerySyntax: unknown function ${customizer.function}`);
             value = func(value);
         }
-        // else if (customizer.type === CustomizerType.Pointer) {
-        //   value = navigateObject(value, customizer.value);
-        // }
         return value;
     }
 }

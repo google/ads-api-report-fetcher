@@ -1,3 +1,19 @@
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import _ from 'lodash';
 
 import {AdsQueryEditor} from './ads-query-editor';
@@ -25,6 +41,12 @@ export class AdsQueryExecutor {
       console.log(`Processing customer ${customerId}`);
       // TODO: should we parallelirize?
       let result = await this.executeOne(query, customerId, writer);
+      // if resource has '_constant' in its name, break the loop over customers
+      // (it doesn't depend on them)
+      if (query.resource.name.endsWith('_constant')) {
+        console.log('Detected constant resource script (breaking loop over customers)')
+        break;
+      }
     }
     await writer.endScript();
   }
@@ -40,6 +62,13 @@ export class AdsQueryExecutor {
       console.log(`Processing customer ${customerId}`);
       let result = await this.executeOne(query, customerId, writer);
       yield result;
+      // if resource has '_constant' in its name, break the loop over customers
+      // (it doesn't depend on them)
+      if (query.resource.name.endsWith('_constant')) {
+        console.log(
+            'Detected constant resource script (breaking loop over customers)')
+        break;
+      }
     }
     await writer.endScript();
   }
@@ -51,8 +80,9 @@ export class AdsQueryExecutor {
     let parsedRows: any[] = [];
     let rows = await this.client.executeQuery(query.queryText, customerId);
     for (let row of rows) {
-      console.log('raw row:');
-      console.log(row);
+      // TODO: use ConsoleWriter instead
+      //console.log('raw row:');
+      //console.log(row);
       let parsedRow = this.parser.parseRow(row, query);
       // console.log('parsed row:');
       // console.log(parsedRow);
