@@ -93,7 +93,7 @@ class AdsQueryEditor:
                               flags=re.IGNORECASE)[0]).strip()
 
     def extract_query_lines(self, query_text: str) -> List[str]:
-        selected_fields = re.sub("SELECT|FROM .*",
+        selected_fields = re.sub(r"\bSELECT\b|FROM .*",
                                  "",
                                  query_text,
                                  flags=re.IGNORECASE).split(",")
