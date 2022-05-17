@@ -10,10 +10,11 @@ def ads_query_editor():
 // Comment
 
 SELECT
-	customer.id, --customer_id
-	campaign.type AS campaign_type, campaign.id:nested AS campaign,
-	ad_group.id~1 AS ad_group,
-	ad_group_ad.id->asset AS ad,
+    customer.id, --customer_id
+    campaign.type AS campaign_type, campaign.id:nested AS campaign,
+    ad_group.id~1 AS ad_group,
+    ad_group_ad.id->asset AS ad,
+    campaign.selective_optimization AS selective_optimization,
 from ad_group_ad
 """
     return query_editor.AdsQueryEditor(query)
@@ -27,19 +28,20 @@ def sample_query(ads_query_editor):
 def test_extract_correct_fields(sample_query):
     assert sample_query.fields == [
         "customer.id", "campaign.type_", "campaign.id", "ad_group.id",
-        "ad_group_ad.id"
+        "ad_group_ad.id", "campaign.selective_optimization"
     ]
 
 
 def test_extract_correct_aliases(sample_query):
     assert sample_query.column_names == [
-        "customer_id", "campaign_type", "campaign", "ad_group", "ad"
+        "customer_id", "campaign_type", "campaign", "ad_group", "ad",
+        "selective_optimization"
     ]
 
 
 def test_extract_correct_text(sample_query):
     assert sample_query.query_text.lower(
-    ) == "select customer.id, campaign.type, campaign.id, ad_group.id, ad_group_ad.id from ad_group_ad"
+    ) == "select customer.id, campaign.type, campaign.id, ad_group.id, ad_group_ad.id, campaign.selective_optimization from ad_group_ad"
 
 
 def test_extract_custom_callers(sample_query):
@@ -64,7 +66,7 @@ def test_format_query(ads_query_editor, sample_query):
         sample_query.query_text)
     assert formatted_query == [
         "customer.id", "campaign.type", "campaign.id", "ad_group.id",
-        "ad_group_ad.id"
+        "ad_group_ad.id", "campaign.selective_optimization"
     ]
 
 
