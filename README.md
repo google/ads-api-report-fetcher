@@ -1,106 +1,80 @@
-# Ads API Reports Fetcher
+# Google Ads API Reports Fetcher (gaarf)
 
 ## Overview
 
-Ads API Reports Fetcher simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
+Google Ads API Reports Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
-The library allows you to define GAQL query alonside aliases and custom extractors and specify where the results of such query should be stored. You can find and example queries in `examples` folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned `GoogleAdsRow` object and transform them into the structure suitable for writing data.
+The library allows you to define GAQL query alonside aliases and custom extractors and specify where the results of such query should be stored. You can find example queries in [examples](examples) folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned results and transform them into the structure suitable for writing data.
 
 
 ## Getting started
 
-1. create virtual enviroment
+Ads API Reports Fetcher has two versions - Python and Node.js.
+Please explore the relevant section to install and run the tool:
 
-```
-python3 -m venv ads-api-fetcher
-source ads-api-fetcher/bin/activate
-pip install -r requirements.txt
-```
-2. authenticate google ads to create `google-ads.yaml` file
+* [Getting started with gaarf in Python](py/README.md)
+* [Getting started with gaarf in Node.js](js/README.md)
 
-    2.1. Create `google-ads.yaml` file in your home directory with the following content
-    (or copy from `configs` folder):
+## Writing Queries
 
-    ```
-    developer_token:
-    client_id:
-    client_secret:
-    refresh_token:
-    login_customer_id:
-    client_customer_id:
-    use_proto_plus: True
-    ```
-    2.2. [Get Google Ads Developer Token](https://developers.google.com/google-ads/api/docs/first-call/dev-token). Add developer token id to `google-ads.yaml` file.
+Google Ads API Reports Fetcher provides an extended syntax on writing GAQL queries.\
+Please refer to [How to write queries](docs/how-to-write-queries.md) section to learn the query syntax.
 
-    2.3. [Generate OAuth2 credentials for **desktop application**](https://developers.google.com/adwords/api/docs/guides/authentication#generate_oauth2_credentials)
-    * Click the download icon next to the credentials that you just created and save file to your computer
-    *  Add client_id and client_secret value to `google-ads.yaml` file
+## Running gaarf
 
-    2.4. Download python source file to perform desktop authentication
+If `gaarf` is installed globally you can run it with the following command.
 
-    ```
-    curl -0 https://raw.githubusercontent.com/googleads/google-ads-python/868bf36689f1ca4310bdead9c46eed61b8ad1d11/examples/authentication/authenticate_in_desktop_application.py
-    ```
-
-    2.5. Run desktop authentication with downloaded credentials file:
-    ```
-    python authenticate_in_desktop_application.py --client_secrets_path=/path/to/secrets.json
-    ```
-    * Copy generated refresh token and add it to `google-ads.yaml` file.
-
-    2.6. [Enable Google Ads API in your project](https://developers.google.com/google-ads/api/docs/first-call/oauth-cloud-project#enable_the_in_your_project)
-
-    2.7. Add login_customer_id and client_customer_id (MMC under which Developer token was generated) to `google-ads.yaml`. **ID should be in 11111111 format, do not add dashes as separator**.
-
-
-3. install library
-
-```
-pip install google-ads-api-report-fetcher
+```shell
+gaarf <files> [options]
 ```
 
-Two commands will be available for using in terminal:
+### Options
+The required positional arguments are a list of files with Ads queries (GAQL).
+On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
 
-* `fetch-reports`  - to get data from Ads API based on provided query
-   and a set of parameters
-* `post-process-queries` - to execute any post-processing queries based on
-   results of `fetch-reports` command.
+> If you run the tool on a *nix OS then your shell (like zsh/bash) probably
+> supports file names expansion (see [bash](https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html),
+> [zsh](https://zsh.sourceforge.io/Doc/Release/Expansion.html), 14.8 Filename Generation).
+> And so it does expansion of glob pattern (file mask) into a list of files.
 
+Options:
+* `ads-config` - a path to yaml file with config for Google Ads,
+               by default assuming 'google-ads.yaml' in the current folder
+* `account` - ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
+* `output` - output type,
+           values:
+           * `csv` - write data to CSV files
+           * `bq` or `bigquery` - write data to BigQuery
 
-4. Specify enviromental variables
+Options specific for CSV writer:
+* `csv.destination-folder` - output folder where csv files will be created
 
+Options specific for BigQuery writer:
+* `bq.project` - GCP project id
+* `bq.dataset` - BigQuery dataset id where tables with output data will be created
+* `bq.table-template`  - template for tables names, `{script}` references script name (*JS version only*)
+* `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*JS version only*)
+
+All parameters whose names start with the `sql.` prefix are passed to queries as params object.
+For example if we pass parameters: `--sql.start_date=2021-12-01 --sql.end_date=2022-02-28`
+then inside sql we can use `start_date` and `end_date`:
+```sql
+    AND segments.date >= "{start_date}"
+    AND segments.date <= "{end_date}"
 ```
-export ACCOUNT_ID=
-export BQ_PROJECT=
-export BQ_DATASET=
-export START_DATE=
-export END_DATE=
+
+### Postprocessing
+
+(*Python version only*) Once report have been fetched you might use `gaarf-postprocess` (utility that is installed with `gaarf`) to run queries in BigQuery based on collected data 
+
+```shell
+gaarf-postprocess <files> [options]
 ```
 
-`START_DATE` and `END_DATE` should be specified in `YYYY-MM-DD` format (i.e. 2022-01-01).
-`CUSTOMER_ID` should be specifed in `1234567890` format (no dashes between digits).
+Options:
+* `bq.project` - GCP project id
+* `bq.dataset` - BigQuery dataset id where tables with output data will be created
 
-5. Run `fetch-reports` command to fetch Google Ads data and store them in BigQuery
-
-```
-fetch-reports path/to/sql/google_ads_queries/*.sql \
-    --account=$ACCOUNT_ID \
-    --output=bq \
-    --bq.project=$BQ_PROJECT \
-    --bq.dataset=$BQ_DATASET \
-    --sql.start_date=$START_DATE \
-    --sql.end_date=$END_DATE \
-    --ads-config=path/to/google-ads.yaml
-```
-
-6. Run `post-process-queries` command to prepare tables in BigQuery based on data
-fetched by `fetch-reports` command.
-
-```
-post-process-queries path/to/bq_queries/*.sql \
-    --bq.project=$BQ_PROJECT \
-    --bq.dataset=$BQ_DATASET \
-```
 
 ## Disclaimer
 This is not an officially supported Google product.

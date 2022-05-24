@@ -21,7 +21,7 @@ setup(name="google-ads-api-report-fetcher",
           "Operating System :: OS Independent",
           "License :: OSI Approved :: Apache Software License"
       ],
-      packages=find_packages(include=["runner", "runner.*"]),
+      packages=find_packages(include=["gaarf", "gaarf.*"]),
       install_requires=[
           "google-ads==14.1.0", "google-cloud-bigquery==2.26.0",
           "pandas==1.3.4", "pyarrow==6.0.1", "tabulate"
@@ -30,7 +30,7 @@ setup(name="google-ads-api-report-fetcher",
       tests_requires=["pytest"],
       entry_points={
           "console_scripts": [
-              "fetch-reports=runner.fetcher:main",
-              "post-process-queries=runner.post_processor:main",
+              "gaarf=gaarf.fetcher:main",
+              "gaarf-postprocess=gaarf.post_processor:main",
           ]
       })

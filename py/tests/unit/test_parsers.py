@@ -1,6 +1,6 @@
 import pytest
 from dataclasses import dataclass
-import runner.parsers as parsers
+import gaarf.parsers as parsers
 
 
 @dataclass

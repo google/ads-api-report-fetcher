@@ -1,5 +1,5 @@
 import pytest
-import runner.writer as writer
+import gaarf.writer as writer
 from google.cloud.bigquery import SchemaField
 
 

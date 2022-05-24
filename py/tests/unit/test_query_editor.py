@@ -1,5 +1,5 @@
 import pytest
-import runner.query_editor as query_editor
+import gaarf.query_editor as query_editor
 
 
 @pytest.fixture
