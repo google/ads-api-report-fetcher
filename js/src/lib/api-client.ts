@@ -24,19 +24,20 @@ export interface IGoogleAdsApiClient {
   getCustomerIds(): Promise<string[]>
 }
 
-export type GoogleAdsApiConfig = CustomerOptions & ClientOptions;
+export type GoogleAdsApiConfig = CustomerOptions&ClientOptions;
 
 export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
   customers: Record<string, Customer>;
   ads_cfg: GoogleAdsApiConfig;
+  isChildCustomer: boolean;
 
-  constructor(
-      adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
+  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
     customerId = customerId || adsConfig.customer_id;
     if (!customerId) {
       throw new Error(`No customer id was specified`);
     }
+    customerId = customerId?.toString();
     this.ads_cfg = adsConfig;
     this.client = new GoogleAdsApi({
       client_id: adsConfig.client_id,
@@ -51,6 +52,8 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     });
     // also put the customer as the default one
     this.customers[''] = this.customers[customerId];
+    this.isChildCustomer =
+        customerId !== adsConfig.login_customer_id?.toString()
   }
 
   async executeQuery(query: string, customerId?: string|undefined|null):
@@ -62,9 +65,8 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
       customer = this.customers[customerId];
       if (!customer) {
         customer = this.client.Customer({
-          customer_id: customerId,  // child
-          login_customer_id:
-              this.ads_cfg.login_customer_id,  // MCC
+          customer_id: customerId,                            // child
+          login_customer_id: this.ads_cfg.login_customer_id,  // MCC
           refresh_token: this.ads_cfg.refresh_token
         });
         this.customers[customerId] = customer;
@@ -83,6 +85,9 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   }
 
   async getCustomerIds(): Promise<string[]> {
+    if (this.isChildCustomer) {
+      return Object.keys(this.customers).filter(k => !!k);
+    }
     const query_customer_ids = `SELECT
           customer_client.id,
           customer_client.manager

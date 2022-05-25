@@ -96,6 +96,10 @@ const argv =
             ],
             'BigQuery writer options:')
         .group('csv.destination-folder', 'CSV writer options:')
+        .option('skip-constants', {
+          type: 'boolean',
+          description: 'do not execute scripts for constant resources'
+        })
         .config(configObj)
         .config()
         .help()
@@ -139,7 +143,6 @@ function getWriter(): IResultWriter {
       process.exit(-1);
     }
     let opts: BigQueryWriterOptions = {};
-
     opts.datasetLocation = (<any>argv.bq).location;
     opts.tableTemplate = (<any>argv.bq)['table-template'];
     opts.dumpSchema = (<any>argv.bq)['dump-schema'];
@@ -149,6 +152,9 @@ function getWriter(): IResultWriter {
 }
 
 async function main() {
+  if (argv.account) {
+    argv.account = argv.account.toString();
+  }
   console.log(chalk.gray(JSON.stringify(argv, null, 2)));
 
   // TODO: support ads api settings in main config and as cli arguments
@@ -158,7 +164,7 @@ async function main() {
       configFilePath = 'google-ads.yaml';
     } else {
       console.log(chalk.red(
-          `Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in th current folder`));
+          `Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in the current folder`));
       process.exit(-1);
     }
     // TODO: support searching google-ads.yaml in user home folder (?)
@@ -166,8 +172,8 @@ async function main() {
   let adsConfig = loadAdsConfig(configFilePath, argv.account);
   let client = new GoogleAdsApiClient(adsConfig, argv.account);
 
-  // NOTE: a note regarding files argument
-  // normaly on * nix OSes (at least in bash and zsh) passing an argument
+  // NOTE: a note regarding the 'files' argument
+  // normaly on *nix OSes (at least in bash and zsh) passing an argument
   // with mask like *.sql will expand it to a list of files (see
   // https://zsh.sourceforge.io/Doc/Release/Expansion.html, 14.8 Filename
   // Generation,
@@ -191,14 +197,16 @@ async function main() {
   let params = <Record<string, any>>argv['sql'] || {};
   let writer = getWriter();  // NOTE: create writer from argv
   let executor = new AdsQueryExecutor(client);
-
+  let options = {
+    skipConstants: argv.skipConstants
+  };
   console.log(`Found ${scriptPaths.length} script to process`);
   for (let scriptPath of scriptPaths) {
     let queryText = fs.readFileSync(scriptPath.trim(), 'utf-8');
     console.log(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    await executor.execute(scriptName, queryText, customers, params, writer);
+    await executor.execute(scriptName, queryText, customers, params, writer, options);
     console.log();
   }
 
@@ -220,8 +228,8 @@ function loadAdsConfig(
       client_id: doc['client_id'],
       client_secret: doc['client_secret'],
       refresh_token: doc['refresh_token'],
-      login_customer_id: doc['login_customer_id'],
-      customer_id: customerId || doc['customer_id'] || doc['login_customer_id']
+      login_customer_id: doc['login_customer_id']?.toString(),
+      customer_id: (customerId || doc['customer_id'] || doc['login_customer_id'])?.toString()
     };
   } catch (e) {
     console.log(chalk.red(

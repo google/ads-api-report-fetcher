@@ -20,6 +20,7 @@
   },
   "mocha.requires": [
     "ts-node/register",
+    //"ts-node/esm",
     "src/test/fixtures.ts"
   ],
   "mocha.coverage": {
@@ -32,4 +33,10 @@
     "runCoverageAfterFileSave": false,
     "reporters": []
   },
+  "mocha.sideBarOptions": {
+    "lens": true,
+    "decoration": true,
+    "autoUpdateTime": 2000,
+    "showDebugTestStatus": true
+  }
 }

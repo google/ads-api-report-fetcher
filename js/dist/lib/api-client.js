@@ -19,10 +19,12 @@ exports.GoogleAdsApiClient = void 0;
 const google_ads_api_1 = require("google-ads-api");
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
+        var _a;
         customerId = customerId || adsConfig.customer_id;
         if (!customerId) {
             throw new Error(`No customer id was specified`);
         }
+        customerId = customerId === null || customerId === void 0 ? void 0 : customerId.toString();
         this.ads_cfg = adsConfig;
         this.client = new google_ads_api_1.GoogleAdsApi({
             client_id: adsConfig.client_id,
@@ -37,6 +39,8 @@ class GoogleAdsApiClient {
         });
         // also put the customer as the default one
         this.customers[''] = this.customers[customerId];
+        this.isChildCustomer =
+            customerId !== ((_a = adsConfig.login_customer_id) === null || _a === void 0 ? void 0 : _a.toString());
     }
     async executeQuery(query, customerId) {
         let customer;
@@ -67,6 +71,9 @@ class GoogleAdsApiClient {
     }
     async getCustomerIds() {
         var _a;
+        if (this.isChildCustomer) {
+            return Object.keys(this.customers).filter(k => !!k);
+        }
         const query_customer_ids = `SELECT
           customer_client.id,
           customer_client.manager

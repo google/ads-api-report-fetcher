@@ -21,6 +21,9 @@ import {AdsRowParser} from './ads-row-parser';
 import {IGoogleAdsApiClient} from './api-client';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
+export interface AdsQueryExecutorOptions {
+  skipConstants?: boolean|undefined;
+}
 export class AdsQueryExecutor {
   client: IGoogleAdsApiClient;
   editor: AdsQueryEditor;
@@ -34,8 +37,15 @@ export class AdsQueryExecutor {
 
   async execute(
       scriptName: string, queryText: string, customers: string[],
-      params: Record<string, any>, writer: IResultWriter) {
+      params: Record<string, any>, writer: IResultWriter,
+      options?: AdsQueryExecutorOptions) {
+    let skipConstants = !!options?.skipConstants;
     let query = this.editor.parseQuery(queryText, params);
+    let isConstResource = query.resource.isConstant;
+    if (skipConstants && isConstResource) {
+      console.log(`Skipping constant resource ${query.resource.name}`);
+      return;
+    }
     await writer.beginScript(scriptName, query);
     for (let customerId of customers) {
       console.log(`Processing customer ${customerId}`);
@@ -43,8 +53,9 @@ export class AdsQueryExecutor {
       let result = await this.executeOne(query, customerId, writer);
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
-      if (query.resource.name.endsWith('_constant')) {
-        console.log('Detected constant resource script (breaking loop over customers)')
+      if (isConstResource) {
+        console.log(
+            'Detected constant resource script (breaking loop over customers)')
         break;
       }
     }
@@ -54,9 +65,16 @@ export class AdsQueryExecutor {
   async *
       executeGen(
           scriptName: string, queryText: string, customers: string[],
-          params: Record<string, any>, writer: IResultWriter):
+          params: Record<string, any>, writer: IResultWriter,
+          options?: AdsQueryExecutorOptions):
           AsyncGenerator<QueryResult, void, QueryResult> {
+    let skipConstants = !!options?.skipConstants;
     let query = this.editor.parseQuery(queryText, params);
+    let isConstResource = query.resource.isConstant;
+    if (skipConstants && isConstResource) {
+      console.log(`Skipping constant resource ${query.resource.name}`);
+      return;
+    }
     await writer.beginScript(scriptName, query);
     for (let customerId of customers) {
       console.log(`Processing customer ${customerId}`);
@@ -64,7 +82,7 @@ export class AdsQueryExecutor {
       yield result;
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
-      if (query.resource.name.endsWith('_constant')) {
+      if (skipConstants) {
         console.log(
             'Detected constant resource script (breaking loop over customers)')
         break;
@@ -81,8 +99,8 @@ export class AdsQueryExecutor {
     let rows = await this.client.executeQuery(query.queryText, customerId);
     for (let row of rows) {
       // TODO: use ConsoleWriter instead
-      //console.log('raw row:');
-      //console.log(row);
+      // console.log('raw row:');
+      // console.log(row);
       let parsedRow = this.parser.parseRow(row, query);
       // console.log('parsed row:');
       // console.log(parsedRow);

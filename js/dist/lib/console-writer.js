@@ -30,6 +30,7 @@ class ConsoleWriter {
         this.rows = [];
     }
     endCustomer() {
+        // TODO:
         let cc = { wrapWord: true, alignment: 'center' };
         let text = (0, table_1.table)(this.rows, {
             border: (0, table_1.getBorderCharacters)('void'),

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { BigQuery, Dataset, Table, TableOptions } from '@google-cloud/bigquery';
+import {BigQuery, Dataset, Table, TableOptions} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import fs from 'fs';
 import _ from 'lodash';
-
 import {FieldType, FieldTypeKind, IResultWriter, isEnumType, QueryElements, QueryResult} from './types';
 
 const MAX_ROWS = 50000;
@@ -40,9 +39,11 @@ export class BigQueryWriter implements IResultWriter {
   bigquery: BigQuery;
   datasetId: string;
   datasetLocation?: string;
+  customerId: string|undefined;
+  schema: bigquery.ITableSchema|undefined;
   tableId: string|undefined;
   dataset: Dataset|undefined;
-  table: Table|undefined;
+  // table: Table|undefined;
   rows: any[][] = [];
   query: QueryElements|undefined;
   tableTemplate?: string;
@@ -72,8 +73,8 @@ export class BigQueryWriter implements IResultWriter {
     }
     this.dataset = await this.getDataset();
     this.query = query;
-    let schema = this.createSchema(query);
-    this.table = await this.createTable(schema);
+    let schema: bigquery.ITableSchema = this.createSchema(query);
+    this.schema = schema;
     if (this.dumpSchema) {
       console.log(schema);
       let schemaJson = JSON.stringify(schema, undefined, 2)
@@ -96,29 +97,50 @@ export class BigQueryWriter implements IResultWriter {
     return dataset;
   }
 
-  private async createTable(schema: bigquery.ITableSchema): Promise<Table> {
-    try {
-      const table = this.dataset!.table(this.tableId!);
-      await table.delete({ignoreNotFound: true});
-    } catch (e) {
-      console.log(`Failed to delete the table ${this.tableId}`);
-      throw e;
+  async endScript(): Promise<void> {
+    if (!this.query?.resource.isConstant) {
+      /*
+      Create a view to union all customer tables:
+      CREATE OR REPLACE VIEW `dataset.resource` AS
+        SELECT * FROM `dataset.resource_*`;
+      Unfortunately BQ always creates a based empty table for templated
+      (customer) table, so we have to drop it first.
+      */
+      await this.dataset!.table(this.tableId!).delete({ignoreNotFound: true});
+      await this.dataset?.query({
+        query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${
+            this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${
+            this.tableId}_*\``
+      });
+      console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
     }
-    let [table] = await this.dataset!.createTable(this.tableId!, {schema});
-    return table
-  }
-
-  endScript(): Promise<void>|void {
     this.tableId = undefined;
-    this.table = undefined;
+    // this.table = undefined;
     this.query = undefined;
   }
 
   beginCustomer(customerId: string): Promise<void>|void {
+    this.customerId = customerId;
     this.rows = [];
   }
 
   async endCustomer(): Promise<void> {
+    // let started = new Date();
+
+    //  remove customer's table (to make sure you have only fresh data)
+    // NOTE: for constant resources we don't use templated table (table per customer)
+    let tableFullName = this.query?.resource.isConstant ?
+        this.tableId! :
+        this.tableId! + '_' + this.customerId;
+
+    try {
+      console.log(`\tRemoving table '${tableFullName}'`);
+      await this.dataset!.table(tableFullName).delete({ignoreNotFound: true});
+    } catch (e) {
+      console.log(`Deletion of table '${tableFullName}' failed: ${e}`);
+      throw e;
+    }
+
     if (this.rows.length > 0) {
       // upload data to BQ
       try {
@@ -155,7 +177,17 @@ export class BigQueryWriter implements IResultWriter {
             }
             return rowObj;
           });
-          await this.table?.insert(rows, {});
+          let templateSuffix = undefined;
+          if (!this.query?.resource.isConstant) {
+            // we'll create table as
+            templateSuffix = '_' + this.customerId;
+          }
+          let table = this.dataset!.table(this.tableId!);
+          await table!.insert(rows, {
+            templateSuffix: templateSuffix,
+            schema: this.schema,
+          });
+          console.log(`\tInserted ${rowsChunk.length} rows`);
         }
       } catch (e) {
         console.log(`Failed to insert rows into '${this.datasetId}.${
@@ -175,13 +207,28 @@ export class BigQueryWriter implements IResultWriter {
             console.log(`error: ${err.errors[0].message}`);
           }
         } else if (e.code === 404) {
-          // ApiError: Table 162551664177:adsapi_yt_js.campaign not found.
+          // ApiError: "Table 162551664177:dataset.table not found"
+          console.log(`ERROR: Table ${this.tableId} not found. WHY?`);
+          const table = this.dataset!.table(this.tableId!);
+          let exists = await table.exists();
+          console.log(`Table exists: ${exists}`);
         }
         throw e;
       }
-      console.log(`${this.rows.length} rows inserted into '${this.datasetId}.${
-          this.tableId}' table`);
+      console.log(
+          `${this.rows.length} rows inserted into '${tableFullName}' table`);
+    } else {
+      // no rows found for the customer, as so no table was created, create an
+      // empty one
+      try {
+        await this.dataset!.createTable(tableFullName, {schema: this.schema});
+      } catch (e) {
+        console.log(`Creation of empty table '${tableFullName}' failed: ${e}`);
+        throw e;
+      }
     }
+    this.customerId = undefined;
+    // TODO: get elapsed seconds: let delta = new Date() - started;
   }
 
   createSchema(query: QueryElements): bigquery.ITableSchema {

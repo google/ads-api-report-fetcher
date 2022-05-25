@@ -4,3 +4,4 @@ __pycache__
 *.log
 .venv
 .DS_Store
+node_modules/

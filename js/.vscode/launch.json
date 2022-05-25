@@ -14,13 +14,8 @@
       ],
       "args": [
         "src/cli.ts",
-        "./queries/campaign.sql",
-        "--customer=3532705401",
-        "--output=csv",
-        "--dump-schema",
-        "--destination-folder=output",
-        "--start_date=2022-01-01",
-        "--end_date=2022-02-10"
+        "./queries/campaign_settings.sql",
+        "--output=bq"
       ],
       "runtimeArgs": [
         "--nolazy",

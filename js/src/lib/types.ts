@@ -84,6 +84,7 @@ export interface ResourceInfo {
   typeName: string;  // "CampaignCriterion"
   //fullName: string;  // "google.ads.googleads.v9.resources.CampaignCriterion"
   typeMeta: ProtoTypeMeta;  // resource type description
+  isConstant: boolean;
 }
 export interface FieldType {
   repeated?: boolean;

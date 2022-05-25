@@ -32,6 +32,7 @@ exports.OAUTH_SCOPES = [
 ];
 class BigQueryWriter {
     constructor(projectId, dataset, options) {
+        // table: Table|undefined;
         this.rows = [];
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
@@ -56,7 +57,7 @@ class BigQueryWriter {
         this.dataset = await this.getDataset();
         this.query = query;
         let schema = this.createSchema(query);
-        this.table = await this.createTable(schema);
+        this.schema = schema;
         if (this.dumpSchema) {
             console.log(schema);
             let schemaJson = JSON.stringify(schema, undefined, 2);
@@ -78,28 +79,46 @@ class BigQueryWriter {
         }
         return dataset;
     }
-    async createTable(schema) {
-        try {
-            const table = this.dataset.table(this.tableId);
-            await table.delete({ ignoreNotFound: true });
+    async endScript() {
+        var _a, _b;
+        if (!((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant)) {
+            /*
+            Create a view to union all customer tables:
+            CREATE OR REPLACE VIEW `dataset.resource` AS
+              SELECT * FROM `dataset.resource_*`;
+            Unfortunately BQ always creates a based empty table for templated
+            (customer) table, so we have to drop it first.
+            */
+            await this.dataset.table(this.tableId).delete({ ignoreNotFound: true });
+            await ((_b = this.dataset) === null || _b === void 0 ? void 0 : _b.query({
+                query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${this.tableId}_*\``
+            }));
+            console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
         }
-        catch (e) {
-            console.log(`Failed to delete the table ${this.tableId}`);
-            throw e;
-        }
-        let [table] = await this.dataset.createTable(this.tableId, { schema });
-        return table;
-    }
-    endScript() {
         this.tableId = undefined;
-        this.table = undefined;
+        // this.table = undefined;
         this.query = undefined;
     }
     beginCustomer(customerId) {
+        this.customerId = customerId;
         this.rows = [];
     }
     async endCustomer() {
-        var _a;
+        // let started = new Date();
+        var _a, _b;
+        //  remove customer's table (to make sure you have only fresh data)
+        // NOTE: for constant resources we don't use templated table (table per customer)
+        let tableFullName = ((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant) ?
+            this.tableId :
+            this.tableId + '_' + this.customerId;
+        try {
+            console.log(`\tRemoving table '${tableFullName}'`);
+            await this.dataset.table(tableFullName).delete({ ignoreNotFound: true });
+        }
+        catch (e) {
+            console.log(`Deletion of table '${tableFullName}' failed: ${e}`);
+            throw e;
+        }
         if (this.rows.length > 0) {
             // upload data to BQ
             try {
@@ -138,7 +157,17 @@ class BigQueryWriter {
                         }
                         return rowObj;
                     });
-                    await ((_a = this.table) === null || _a === void 0 ? void 0 : _a.insert(rows, {}));
+                    let templateSuffix = undefined;
+                    if (!((_b = this.query) === null || _b === void 0 ? void 0 : _b.resource.isConstant)) {
+                        // we'll create table as
+                        templateSuffix = '_' + this.customerId;
+                    }
+                    let table = this.dataset.table(this.tableId);
+                    await table.insert(rows, {
+                        templateSuffix: templateSuffix,
+                        schema: this.schema,
+                    });
+                    console.log(`\tInserted ${rowsChunk.length} rows`);
                 }
             }
             catch (e) {
@@ -158,12 +187,29 @@ class BigQueryWriter {
                     }
                 }
                 else if (e.code === 404) {
-                    // ApiError: Table 162551664177:adsapi_yt_js.campaign not found.
+                    // ApiError: "Table 162551664177:dataset.table not found"
+                    console.log(`ERROR: Table ${this.tableId} not found. WHY?`);
+                    const table = this.dataset.table(this.tableId);
+                    let exists = await table.exists();
+                    console.log(`Table exists: ${exists}`);
                 }
                 throw e;
             }
-            console.log(`${this.rows.length} rows inserted into '${this.datasetId}.${this.tableId}' table`);
+            console.log(`${this.rows.length} rows inserted into '${tableFullName}' table`);
         }
+        else {
+            // no rows found for the customer, as so no table was created, create an
+            // empty one
+            try {
+                await this.dataset.createTable(tableFullName, { schema: this.schema });
+            }
+            catch (e) {
+                console.log(`Creation of empty table '${tableFullName}' failed: ${e}`);
+                throw e;
+            }
+        }
+        this.customerId = undefined;
+        // TODO: get elapsed seconds: let delta = new Date() - started;
     }
     createSchema(query) {
         let schema = { fields: [] };

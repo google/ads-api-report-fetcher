@@ -123,13 +123,15 @@ class AdsQueryEditor {
         let match = query.match(/ FROM ([^\s]+)/i);
         if (!match || !match.length)
             throw new Error(`Could not parse resource from the query`);
-        let resourceTypeFrom = this.getResource(match[1]);
+        let resourceName = match[1];
+        let resourceTypeFrom = this.getResource(resourceName);
         if (!resourceTypeFrom)
-            throw new Error(`Could not find resource ${match[1]} specified in FROM in protobuf schema`);
+            throw new Error(`Could not find resource ${resourceName} specified in FROM in protobuf schema`);
         let resourceInfo = {
-            name: match[1],
+            name: resourceName,
             typeName: resourceTypeFrom.name,
-            typeMeta: resourceTypeFrom
+            typeMeta: resourceTypeFrom,
+            isConstant: resourceName.endsWith('_constant')
         };
         // initialize columns types
         let columnTypes = [];

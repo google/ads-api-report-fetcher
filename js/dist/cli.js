@@ -83,6 +83,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     'bq.location'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
+    .option('skip-constants', {
+    type: 'boolean',
+    description: 'do not execute scripts for constant resources'
+})
     .config(configObj)
     .config()
     .help()
@@ -126,6 +130,9 @@ function getWriter() {
     throw new Error(`Unknown output format: '${output}'`);
 }
 async function main() {
+    if (argv.account) {
+        argv.account = argv.account.toString();
+    }
     console.log(chalk_1.default.gray(JSON.stringify(argv, null, 2)));
     // TODO: support ads api settings in main config and as cli arguments
     let configFilePath = argv.adsConfig;
@@ -134,15 +141,15 @@ async function main() {
             configFilePath = 'google-ads.yaml';
         }
         else {
-            console.log(chalk_1.default.red(`Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in th current folder`));
+            console.log(chalk_1.default.red(`Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in the current folder`));
             process.exit(-1);
         }
         // TODO: support searching google-ads.yaml in user home folder (?)
     }
     let adsConfig = loadAdsConfig(configFilePath, argv.account);
     let client = new api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
-    // NOTE: a note regarding files argument
-    // normaly on * nix OSes (at least in bash and zsh) passing an argument
+    // NOTE: a note regarding the 'files' argument
+    // normaly on *nix OSes (at least in bash and zsh) passing an argument
     // with mask like *.sql will expand it to a list of files (see
     // https://zsh.sourceforge.io/Doc/Release/Expansion.html, 14.8 Filename
     // Generation,
@@ -163,17 +170,21 @@ async function main() {
     let params = argv['sql'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
+    let options = {
+        skipConstants: argv.skipConstants
+    };
     console.log(`Found ${scriptPaths.length} script to process`);
     for (let scriptPath of scriptPaths) {
         let queryText = fs_1.default.readFileSync(scriptPath.trim(), 'utf-8');
         console.log(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-        await executor.execute(scriptName, queryText, customers, params, writer);
+        await executor.execute(scriptName, queryText, customers, params, writer, options);
         console.log();
     }
     console.log(chalk_1.default.green('All done!'));
 }
 function loadAdsConfig(configFilepath, customerId) {
+    var _a, _b;
     if (!fs_1.default.existsSync(configFilepath)) {
         console.log(chalk_1.default.red(`Config file ${configFilepath} does not exist`));
         process.exit(-1);
@@ -187,8 +198,8 @@ function loadAdsConfig(configFilepath, customerId) {
             client_id: doc['client_id'],
             client_secret: doc['client_secret'],
             refresh_token: doc['refresh_token'],
-            login_customer_id: doc['login_customer_id'],
-            customer_id: customerId || doc['customer_id'] || doc['login_customer_id']
+            login_customer_id: (_a = doc['login_customer_id']) === null || _a === void 0 ? void 0 : _a.toString(),
+            customer_id: (_b = (customerId || doc['customer_id'] || doc['login_customer_id'])) === null || _b === void 0 ? void 0 : _b.toString()
         };
     }
     catch (e) {
