@@ -14,15 +14,14 @@
 
 from typing import Any, Sequence
 import abc
-import proto  #type: ignore
-import re
+import proto  # type: ignore
 
 
 class AbsFormatter(abc.ABC):
     @abc.abstractstaticmethod
     def format(self, rows: Sequence[Sequence[Any]],
                delimiter: str) -> Sequence[Sequence[Any]]:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class BigQueryFormatter(AbsFormatter):
@@ -44,3 +43,11 @@ class BigQueryFormatter(AbsFormatter):
                     formatted_row.append(field)
             formatted_rows.append(formatted_row)
         return formatted_rows
+
+
+class ResultsFormatter:
+    @staticmethod
+    def format(results: Sequence[Any]):
+        if type(results[0]) in (int, float, str, bool):
+            results = [[result] for result in results]
+        return results
