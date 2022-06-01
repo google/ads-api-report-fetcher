@@ -34,26 +34,3 @@ class ResourceFormatter:
             return int(element)
         except:
             return element
-
-
-TYPE_MAPPING = {
-    list: "REPEATED",
-    str: "STRING",
-    int: "INT64",
-    float: "FLOAT64",
-    bool: "BOOL",
-    proto.marshal.collections.repeated.RepeatedComposite: "REPEATED",
-    proto.marshal.collections.repeated.Repeated: "REPEATED"
-}
-
-
-def get_bq_schema(types):
-    schema = []
-    for key, value in types.items():
-        element_type = TYPE_MAPPING.get(value.get("element_type"))
-        schema.append(
-            bigquery.SchemaField(
-                name=key,
-                field_type="STRING" if not element_type else element_type,
-                mode="REPEATED" if value.get("repeated") else "NULLABLE"))
-    return schema

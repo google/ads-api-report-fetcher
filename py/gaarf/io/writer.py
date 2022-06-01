@@ -18,14 +18,11 @@ import os
 import proto  # type: ignore
 from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
-from google.cloud import bigquery  #type: ignore
 from pathlib import Path
 import csv
-import time
 import pandas as pd  # type: ignore
 from tabulate import tabulate
-from .formatter import BigQueryFormatter
-from . import utils
+from .formatter import BigQueryFormatter, ResultsFormatter  # type: ignore
 
 
 class AbsWriter(abc.ABC):
@@ -44,7 +41,7 @@ class StdoutWriter(AbsWriter):
         self.page_size = page_size
 
     def write(self, results, destination, header):
-        proceed = True
+        results = ResultsFormatter.format(results)
         results_generator = self._paginate_rows(results, self.page_size)
         message = f"showing results for query {destination}"
         print("=" * len(message))
@@ -57,9 +54,8 @@ class StdoutWriter(AbsWriter):
 
     def _paginate_rows(self, results, page_size):
         for i in range(0, len(results), page_size):
-            print(
-                f"showing rows {i+1}-{i+page_size} out of total {len(results)} rows"
-            )
+            print(f"showing rows {i+1}-{i+page_size} out of total "
+                  f"{len(results)} rows")
             yield results[i:(i + page_size)]
 
 
@@ -79,6 +75,7 @@ class CsvWriter(AbsWriter):
         return f"[CSV] - data are saved to {self.destination_folder} destination_folder."
 
     def write(self, results, destination, header) -> str:
+        results = ResultsFormatter.format(results)
         header = self._define_header(results, header)
         destination = DestinationFormatter.format_extension(
             destination, new_extension=".csv")
@@ -110,9 +107,10 @@ class BigQueryWriter(AbsWriter):
         return f"[BigQuery] - {self.dataset_id} at {self.location} location."
 
     def write(self, results, destination, header) -> str:
+        results = ResultsFormatter.format(results)
         formatted_results = BigQueryFormatter.format(results, "|")
         schema = self._define_header(formatted_results, header)
-        bq_dataset = self._create_or_get_dataset()
+        self._create_or_get_dataset()
         destination = DestinationFormatter.format_extension(destination)
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
                                           schema)
@@ -131,7 +129,7 @@ class BigQueryWriter(AbsWriter):
 
     def _define_header(self, results, header):
         result_types = self._get_result_types(results, header)
-        return utils.get_bq_schema(result_types)
+        return self._get_bq_schema(result_types)
 
     def _get_result_types(
             self, elements: Sequence[Any],
@@ -156,6 +154,27 @@ class BigQueryWriter(AbsWriter):
                 "repeated": repeated
             }
         return result_types
+
+    def _get_bq_schema(self, types):
+        TYPE_MAPPING = {
+            list: "REPEATED",
+            str: "STRING",
+            int: "INT64",
+            float: "FLOAT64",
+            bool: "BOOL",
+            proto.marshal.collections.repeated.RepeatedComposite: "REPEATED",
+            proto.marshal.collections.repeated.Repeated: "REPEATED"
+        }
+
+        schema = []
+        for key, value in types.items():
+            element_type = TYPE_MAPPING.get(value.get("element_type"))
+            schema.append(
+                bigquery.SchemaField(
+                    name=key,
+                    field_type="STRING" if not element_type else element_type,
+                    mode="REPEATED" if value.get("repeated") else "NULLABLE"))
+        return schema
 
     def _create_or_get_dataset(self):
         try:

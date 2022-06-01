@@ -1,16 +1,23 @@
 import pytest
-import gaarf.writer as writer
-from google.cloud.bigquery import SchemaField
+import gaarf.io.writer as writer  # type: ignore
+from google.cloud.bigquery import SchemaField  # type: ignore
 
 
 @pytest.fixture
 def csv_writer():
-    return writer.CsvWriter("/fake_folder")
+    return writer.CsvWriter("/tmp")
 
 
 @pytest.fixture
 def bq_writer():
     return writer.BigQueryWriter("fake_project", "fake_dataset")
+
+
+@pytest.fixture
+def single_column_data():
+    results = [1, 2, 3]
+    columns = ["column_1"]
+    return results, columns
 
 
 @pytest.fixture
@@ -20,9 +27,14 @@ def sample_data():
     return results, columns
 
 
-def test_csv_writer_get_header(csv_writer, sample_data):
-    _, header = sample_data
-    assert header == ["column_1", "column_2", "column_3"]
+def test_csv_writer_single_column(csv_writer, single_column_data):
+    tmp_file = "/tmp/test.csv"
+    results, columns = single_column_data
+    expected = ["column_1", "1", "2", "3"]
+    csv_writer.write(results, "test.csv", columns)
+    with open(tmp_file, "r") as f:
+        file = f.readlines()
+    assert [row.strip() for row in file] == expected
 
 
 def test_bq_get_results_types(bq_writer, sample_data):
@@ -91,4 +103,4 @@ def test_writer_factory_inits(writer_factory):
 
 def test_null_writer_raises_unknown_writer_error(writer_factory):
     with pytest.raises(ValueError):
-        null_writer = writer_factory.create_writer("non-existing-option")
+        writer_factory.create_writer("non-existing-option")
