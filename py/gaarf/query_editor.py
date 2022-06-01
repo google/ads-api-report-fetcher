@@ -23,23 +23,28 @@ class QueryElements:
     """Contains raw query and parsed elements.
 
     Attributes:
+        query_title: Title of the query that needs to be parsed.
         query_text: Text of the query that needs to be parsed.
         fields: Ads API fields that need to be feched.
         column_names: friendly names for fields which are used when saving data
         customizers: Attributes of fields that need to be be extracted.
     """
+    query_title: str
     query_text: str
     fields: List[str]
     column_names: List[str]
     customizers: Optional[Dict[int, Dict[str, str]]]
     resource_name: str
+    is_constant_resource: bool
 
 
-class AdsQueryEditor:
-    def __init__(self, query: str):
-        self.query = query
+class QuerySpecification:
+    def __init__(self, title: str, text: str, args: Dict[Any, Any] = None):
+        self.title = title
+        self.text = text
+        self.args = args
 
-    def get_query_elements(self) -> QueryElements:
+    def generate(self) -> QueryElements:
         """Reads query from a file and returns different elements of a query.
 
         Args:
@@ -49,9 +54,13 @@ class AdsQueryEditor:
             Various elements parsed from a query (text, fields, column_names, etc).
         """
 
-        query_lines = self.cleanup_query_text(self.query)
-        resource_name = self.extract_resource_from_query(self.query)
+        query_lines = self.cleanup_query_text(self.text)
+        resource_name = self.extract_resource_from_query(self.text)
+        is_constant_resource = True if resource_name.endswith(
+            "_constant") else False
         query_text = self.normalize_query(" ".join(query_lines))
+        if self.args:
+            query_text = query_text.format(**self.args)
         fields = []
         column_names = []
         customizers = {}
@@ -73,11 +82,13 @@ class AdsQueryEditor:
             column_name = alias.strip().replace(",",
                                                 "") if alias else field_name
             column_names.append(self.normalize_column_name(column_name))
-        return QueryElements(query_text=query_text,
+        return QueryElements(query_title=self.title,
+                             query_text=query_text,
                              fields=fields,
                              column_names=column_names,
                              customizers=customizers,
-                             resource_name=resource_name)
+                             resource_name=resource_name,
+                             is_constant_resource=is_constant_resource)
 
     def cleanup_query_text(self, query: str) -> List[str]:
         query_lines = query.split("\n")
