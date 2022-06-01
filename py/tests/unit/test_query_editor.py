@@ -3,7 +3,7 @@ import gaarf.query_editor as query_editor
 
 
 @pytest.fixture
-def ads_query_editor():
+def query_specification():
     query = """
 -- Comment
 # Comment
@@ -17,12 +17,18 @@ SELECT
     campaign.selective_optimization AS selective_optimization,
 from ad_group_ad
 """
-    return query_editor.AdsQueryEditor(query)
+    return query_editor.QuerySpecification(title="sample_query",
+                                           text=query,
+                                           args=None)
 
 
 @pytest.fixture
-def sample_query(ads_query_editor):
-    return ads_query_editor.get_query_elements()
+def sample_query(query_specification):
+    return query_specification.generate()
+
+
+def test_correct_title(sample_query):
+    assert sample_query.query_title == "sample_query"
 
 
 def test_extract_correct_fields(sample_query):
@@ -61,8 +67,8 @@ def test_extract_custom_callers(sample_query):
     }
 
 
-def test_format_query(ads_query_editor, sample_query):
-    formatted_query = ads_query_editor.extract_query_lines(
+def test_format_query(query_specification, sample_query):
+    formatted_query = query_specification.extract_query_lines(
         sample_query.query_text)
     assert formatted_query == [
         "customer.id", "campaign.type", "campaign.id", "ad_group.id",
@@ -72,3 +78,7 @@ def test_format_query(ads_query_editor, sample_query):
 
 def test_extract_correct_resource(sample_query):
     assert sample_query.resource_name == "ad_group_ad"
+
+
+def test_is_constant_resource(sample_query):
+    assert sample_query.is_constant_resource == False

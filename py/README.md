@@ -14,7 +14,7 @@ The library allows you to define GAQL query alonside aliases and custom extracto
 ```
 python3 -m venv ads-api-fetcher
 source ads-api-fetcher/bin/activate
-pip install -r requirements.txt
+pip install google-ads-api-report-fetcher
 ```
 2. authenticate google ads to create `google-ads.yaml` file
 
