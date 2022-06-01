@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Sequence
+from operator import attrgetter
 import proto  #type: ignore
 import re
 from .utils import ResourceFormatter
@@ -88,3 +90,28 @@ class GoogleAdsRowParser(BaseParser):
 
     def parse(self, request):
         return self.parser.parse(request)
+
+    def parse_ads_row(self, row, query_specification) -> Sequence[Any]:
+        final_rows = []
+        extracted_rows = self._get_attributes_from_row(row,
+                                                       query_specification)
+        customizers = query_specification.customizers
+        for i, r in enumerate(extracted_rows):
+            if customizers:
+                if customizers.get(i):
+                    caller = customizers.get(i)
+                    if caller.get("type") == "nested_field":
+                        try:
+                            r = attrgetter(caller.get("value"))(r)
+                        except:
+                            raise ValueError(f"{caller} is incorrect")
+                    elif caller.get("type") == "resource_index":
+                        r = re.split("~", r)[caller.get("value")]
+            parsed_element = self.parser.parse(r) or r
+            final_rows.append(parsed_element)
+        return final_rows if len(final_rows) > 1 else final_rows[0]
+
+    def _get_attributes_from_row(self, row, query_specification):
+        getter = attrgetter(*query_specification.fields)
+        rows = getter(row)
+        return rows if isinstance(rows, tuple) else (rows, )
