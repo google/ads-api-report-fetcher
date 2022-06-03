@@ -44,7 +44,7 @@ class CsvWriter {
             fs_1.default.rmSync(this.filename);
         }
     }
-    endScript() {
+    endScript(customers) {
         this.filename = undefined;
     }
     beginCustomer(customerId) {
@@ -80,7 +80,7 @@ class CsvWriter {
 exports.CsvWriter = CsvWriter;
 class NullWriter {
     beginScript(scriptName, query) { }
-    endScript() { }
+    endScript(customers) { }
     beginCustomer(customerId) { }
     endCustomer() { }
     addRow(parsedRow) { }

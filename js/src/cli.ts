@@ -28,6 +28,8 @@ import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/api-client';
 import {BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
+import { getFileContent } from './lib/file-utils';
+import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
@@ -41,7 +43,7 @@ const argv =
         .positional('files', {
           array: true,
           type: 'string',
-          description: 'list of files with Ads queries'
+          description: 'List of files with Ads queries (can be gcs:// resources)'
         })
         // .command(
         //     'bigquery <files>', 'Execute BigQuery queries',
@@ -202,7 +204,7 @@ async function main() {
   };
   console.log(`Found ${scriptPaths.length} script to process`);
   for (let scriptPath of scriptPaths) {
-    let queryText = fs.readFileSync(scriptPath.trim(), 'utf-8');
+    let queryText = await getFileContent(scriptPath);
     console.log(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
@@ -212,6 +214,9 @@ async function main() {
 
   console.log(chalk.green('All done!'));
 }
+
+
+
 
 function loadAdsConfig(
     configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {

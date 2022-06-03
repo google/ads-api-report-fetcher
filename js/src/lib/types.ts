@@ -123,7 +123,7 @@ export interface QueryResult {
 
 export interface IResultWriter {
   beginScript(scriptName: string, query: QueryElements): Promise<void>|void;
-  endScript(): Promise<void>|void;
+  endScript(customers: string[]): Promise<void>|void;
   beginCustomer(customerId: string): Promise<void>|void;
   endCustomer(): Promise<void>|void;
   addRow(parsedRow: any[]): void;

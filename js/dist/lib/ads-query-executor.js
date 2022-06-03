@@ -44,7 +44,7 @@ class AdsQueryExecutor {
                 break;
             }
         }
-        await writer.endScript();
+        await writer.endScript(customers);
     }
     async *executeGen(scriptName, queryText, customers, params, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
@@ -66,7 +66,7 @@ class AdsQueryExecutor {
                 break;
             }
         }
-        await writer.endScript();
+        await writer.endScript(customers);
     }
     async executeOne(query, customerId, writer) {
         await writer.beginCustomer(customerId);

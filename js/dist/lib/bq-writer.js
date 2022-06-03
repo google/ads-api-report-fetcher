@@ -79,8 +79,8 @@ class BigQueryWriter {
         }
         return dataset;
     }
-    async endScript() {
-        var _a, _b;
+    async endScript(customers) {
+        var _a;
         if (!((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant)) {
             /*
             Create a view to union all customer tables:
@@ -90,9 +90,9 @@ class BigQueryWriter {
             (customer) table, so we have to drop it first.
             */
             await this.dataset.table(this.tableId).delete({ ignoreNotFound: true });
-            await ((_b = this.dataset) === null || _b === void 0 ? void 0 : _b.query({
-                query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${this.tableId}_*\``
-            }));
+            await this.dataset.query({
+                query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${this.tableId}_*\` WHERE _TABLE_SUFFIX in (${customers.map(s => "'" + s + "'").join(',')})`
+            });
             console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
         }
         this.tableId = undefined;
@@ -123,6 +123,7 @@ class BigQueryWriter {
             // upload data to BQ
             try {
                 // insert rows by chunks (there's a limit for insert)
+                let table = this.dataset.table(this.tableId);
                 for (let i = 0, j = this.rows.length; i < j; i += MAX_ROWS) {
                     let rowsChunk = this.rows.slice(i, i + MAX_ROWS);
                     let rows = rowsChunk.map(row => {
@@ -162,7 +163,6 @@ class BigQueryWriter {
                         // we'll create table as
                         templateSuffix = '_' + this.customerId;
                     }
-                    let table = this.dataset.table(this.tableId);
                     await table.insert(rows, {
                         templateSuffix: templateSuffix,
                         schema: this.schema,
@@ -202,9 +202,10 @@ class BigQueryWriter {
             // empty one
             try {
                 await this.dataset.createTable(tableFullName, { schema: this.schema });
+                console.log(`\Created empty table '${tableFullName}'`);
             }
             catch (e) {
-                console.log(`Creation of empty table '${tableFullName}' failed: ${e}`);
+                console.log(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
                 throw e;
             }
         }

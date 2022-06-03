@@ -97,7 +97,7 @@ export class BigQueryWriter implements IResultWriter {
     return dataset;
   }
 
-  async endScript(): Promise<void> {
+  async endScript(customers: string[]): Promise<void> {
     if (!this.query?.resource.isConstant) {
       /*
       Create a view to union all customer tables:
@@ -107,10 +107,10 @@ export class BigQueryWriter implements IResultWriter {
       (customer) table, so we have to drop it first.
       */
       await this.dataset!.table(this.tableId!).delete({ignoreNotFound: true});
-      await this.dataset?.query({
+      await this.dataset!.query({
         query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${
             this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${
-            this.tableId}_*\``
+            this.tableId}_*\` WHERE _TABLE_SUFFIX in (${customers.map(s => "'"+s+"'").join(',')})`
       });
       console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
     }
@@ -145,6 +145,7 @@ export class BigQueryWriter implements IResultWriter {
       // upload data to BQ
       try {
         // insert rows by chunks (there's a limit for insert)
+        let table = this.dataset!.table(this.tableId!);
         for (let i = 0, j = this.rows.length; i < j; i += MAX_ROWS) {
           let rowsChunk = this.rows.slice(i, i + MAX_ROWS);
           let rows = rowsChunk.map(row => {
@@ -182,7 +183,6 @@ export class BigQueryWriter implements IResultWriter {
             // we'll create table as
             templateSuffix = '_' + this.customerId;
           }
-          let table = this.dataset!.table(this.tableId!);
           await table!.insert(rows, {
             templateSuffix: templateSuffix,
             schema: this.schema,
@@ -221,9 +221,10 @@ export class BigQueryWriter implements IResultWriter {
       // no rows found for the customer, as so no table was created, create an
       // empty one
       try {
-        await this.dataset!.createTable(tableFullName, {schema: this.schema});
+        await this.dataset!.createTable(tableFullName, { schema: this.schema });
+        console.log(`\Created empty table '${tableFullName}'`);
       } catch (e) {
-        console.log(`Creation of empty table '${tableFullName}' failed: ${e}`);
+        console.log(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
         throw e;
       }
     }

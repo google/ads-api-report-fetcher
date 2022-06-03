@@ -30,6 +30,7 @@ const api_client_1 = require("./lib/api-client");
 const bq_writer_1 = require("./lib/bq-writer");
 const console_writer_1 = require("./lib/console-writer");
 const csv_writer_1 = require("./lib/csv-writer");
+const file_utils_1 = require("./lib/file-utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
@@ -38,7 +39,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .positional('files', {
     array: true,
     type: 'string',
-    description: 'list of files with Ads queries'
+    description: 'List of files with Ads queries (can be gcs:// resources)'
 })
     // .command(
     //     'bigquery <files>', 'Execute BigQuery queries',
@@ -175,7 +176,7 @@ async function main() {
     };
     console.log(`Found ${scriptPaths.length} script to process`);
     for (let scriptPath of scriptPaths) {
-        let queryText = fs_1.default.readFileSync(scriptPath.trim(), 'utf-8');
+        let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         console.log(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         await executor.execute(scriptName, queryText, customers, params, writer, options);

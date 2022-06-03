@@ -59,7 +59,7 @@ export class AdsQueryExecutor {
         break;
       }
     }
-    await writer.endScript();
+    await writer.endScript(customers);
   }
 
   async *
@@ -88,7 +88,7 @@ export class AdsQueryExecutor {
         break;
       }
     }
-    await writer.endScript();
+    await writer.endScript(customers);
   }
 
   async executeOne(

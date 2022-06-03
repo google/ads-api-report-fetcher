@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+
+const cli = require('./dist/cli-bq');
+
+// TODO: move to ESM one day
+//import * as cli from './dist/cli.js';

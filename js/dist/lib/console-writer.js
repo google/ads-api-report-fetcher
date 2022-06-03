@@ -23,7 +23,7 @@ class ConsoleWriter {
     beginScript(scriptName, query) {
         this.query = query;
     }
-    endScript() {
+    endScript(customers) {
         this.query = undefined;
     }
     beginCustomer(customerId) {

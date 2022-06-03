@@ -53,7 +53,7 @@ export class CsvWriter implements IResultWriter {
     }
   }
 
-  endScript() {
+  endScript(customers: string[]) {
     this.filename = undefined;
   }
   beginCustomer(customerId: string) {
@@ -95,7 +95,7 @@ export class CsvWriter implements IResultWriter {
 
 export class NullWriter implements IResultWriter {
   beginScript(scriptName: string, query: QueryElements): void|Promise<void> {}
-  endScript(): void|Promise<void> {}
+  endScript(customers: string[]): void|Promise<void> {}
   beginCustomer(customerId: string): void|Promise<void> {}
   endCustomer(): void|Promise<void> {}
   addRow(parsedRow: any[]): void {}

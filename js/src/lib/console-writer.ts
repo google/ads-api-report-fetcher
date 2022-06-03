@@ -29,7 +29,7 @@ export class ConsoleWriter implements IResultWriter {
   beginScript(scriptName: string, query: QueryElements): void|Promise<void> {
     this.query = query;
   }
-  endScript(): void|Promise<void> {
+  endScript(customers: string[]): void|Promise<void> {
     this.query = undefined;
   }
   beginCustomer(customerId: string): void|Promise<void> {
