@@ -68,8 +68,8 @@ class BigQueryExecutor {
         }
         try {
             let [values] = await this.bigquery.query(query);
-            console.log(`Query '${scriptName}' executed successfully`);
-            if (dataset && values && values.length) {
+            console.log(`Query '${scriptName}' executed successfully (${values.length} rows)`);
+            if (dataset && values.length) {
                 // write down query's results into a table in BQ
                 let table = query.destination;
                 const MAX_ROWS = 50000;

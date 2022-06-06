@@ -37,22 +37,13 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'string',
     description: 'BigQuery dataset or dataset.table to put query result into'
 })
-    // .option('dataset-dst', {
-    //   type: 'string',
-    //   description:
-    //       'Destination BigQuery dataset id where output tables will be created'
-    // })
     // .option(
     //     'location',
     //     {type: 'string', description: 'BigQuery dataset location'})
-    // .option('table-template', {
-    //   type: 'string',
-    //   description:
-    //       'Template for tables names, you can use {script} macro inside'
-    // })
-    .group(['project', 'dataset', 'dataset-dst', 'location'], 'BigQuery options:')
+    .group(['project', 'target'], 'BigQuery options:')
     .help()
-    .example('$0 queries/**/*.sql --project=myproject --dataset=myds', 'Execute BigQuery queries and create table for each script\'s result (table per script)')
+    .example('$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable', 'Execute BigQuery queries and create table for each script\'s result (table per script) with a macro substitution')
+    .example('$0 bq-queries/**/*.sql --project=myproject ', 'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
 async function main() {
@@ -64,7 +55,7 @@ async function main() {
     let scriptPaths = argv.files;
     let projectId = argv.project || '';
     let target = argv.target;
-    //let dataset = (<any>argv.bq).dataset;
+    // let dataset = (<any>argv.bq).dataset;
     let sqlParams = argv['sql'] || {};
     let macroParams = argv['macro'] || {};
     let executor = new bq_executor_1.BigQueryExecutor(projectId);

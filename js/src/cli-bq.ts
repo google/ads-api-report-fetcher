@@ -28,7 +28,8 @@ const argv =
         .positional('files', {
           array: true,
           type: 'string',
-          description: 'List of files with BigQuery queries (can be gcs:// resources)'
+          description:
+              'List of files with BigQuery queries (can be gcs:// resources)'
         })
         .option(
             'project',
@@ -38,24 +39,17 @@ const argv =
           description:
               'BigQuery dataset or dataset.table to put query result into'
         })
-        // .option('dataset-dst', {
-        //   type: 'string',
-        //   description:
-        //       'Destination BigQuery dataset id where output tables will be created'
-        // })
         // .option(
         //     'location',
         //     {type: 'string', description: 'BigQuery dataset location'})
-        // .option('table-template', {
-        //   type: 'string',
-        //   description:
-        //       'Template for tables names, you can use {script} macro inside'
-        // })
-        .group(['project', 'dataset', 'dataset-dst', 'location'], 'BigQuery options:')
+        .group(['project', 'target'], 'BigQuery options:')
         .help()
         .example(
-            '$0 queries/**/*.sql --project=myproject --dataset=myds',
-            'Execute BigQuery queries and create table for each script\'s result (table per script)')
+            '$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable',
+            'Execute BigQuery queries and create table for each script\'s result (table per script) with a macro substitution')
+        .example(
+            '$0 bq-queries/**/*.sql --project=myproject ',
+            'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
         .epilog('(c) Google 2022. Not officially supported product.')
         .parseSync()
 
@@ -69,7 +63,6 @@ async function main() {
   let scriptPaths = argv.files;
   let projectId = argv.project || '';
   let target = argv.target;
-  //let dataset = (<any>argv.bq).dataset;
   let sqlParams = <Record<string, any>>argv['sql'] || {};
   let macroParams = <Record<string, any>>argv['macro'] || {};
   let executor = new BigQueryExecutor(projectId);
