@@ -4,8 +4,8 @@
 
 Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
-The library allows you to define GAQL queries alonside aliases and custom extractors and specify where the results of such query should be stored. 
-You can find example queries in [examples](examples) folder. 
+The library allows you to define GAQL queries alonside aliases and custom extractors and specify where the results of such query should be stored.
+You can find example queries in [examples](examples) folder.
 Based on such a query the library fill extract the correct GAQL query, automatically extract all necessary fields from schema
 and transform them into a structure suitable for writing data.
 
@@ -20,7 +20,7 @@ Please explore the relevant section to install and run the tool:
 * [Getting started with gaarf in Python](py/README.md)
 * [Getting started with gaarf in Node.js](js/README.md)
 
-Both versions have similar command line arguments and query syntax. 
+Both versions have similar command line arguments and query syntax.
 
 
 ## Writing Queries
@@ -47,7 +47,7 @@ On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
 > And so it does expansion of glob pattern (file mask) into a list of files.
 
 Options:
-* `ads-config` - a path to yaml file with config for Google Ads,  
+* `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
 * `account` - Ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
 * `output` - output type,
@@ -97,6 +97,9 @@ Options:
 * `target` - a target dataset to create a table with query's result, if omitted query's result aren't inserted anywhere
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
+
+There are prefined macros that can be passed without values:
+* `date_iso` - returns current date in YYYYMMDD format (how to pass: `--macro.date_iso`).
 
 Basically there're two main use-cases: with passing `target` parameter and without. If a target supplied it should be
 a dataset name (either existing or non-existing one) where a table for each script will be created (the name of the table will be the script file base name).
