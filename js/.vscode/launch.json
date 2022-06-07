@@ -14,7 +14,7 @@
       ],
       "args": [
         "src/cli.ts",
-        "./queries/campaign_settings.sql",
+        "./../../ads-queries/ad_matching.sql",
         "--output=bq"
       ],
       "runtimeArgs": [
@@ -23,16 +23,44 @@
         "ts-node/register"
       ],
       "sourceMaps": true,
-    }, {
+    },
+    {
+      "name": "Node: CLI (cli-bg.ts)",
+      "type": "node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "args": [
+        "src/cli-bq.ts",
+        "./../../bq-queries/campaign_settings.sql",
+        "--project=segy-adsapi",
+        "--target=csa1",
+        "--sql.param1=value1",
+        "--macro.ads_ds=csa_ads"
+      ],
+      "runtimeArgs": [
+        "--nolazy",
+        "-r",
+        "ts-node/register"
+      ],
+      "sourceMaps": true,
+    },
+    {
       "name": "Run Mocha Tests",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
-        "--require", "ts-node/register",
-        "--require", "src/test/fixtures.ts",
-        "-u", "tdd",
-        "--timeout", "999999",
+        "--require",
+        "ts-node/register",
+        "--require",
+        "src/test/fixtures.ts",
+        "-u",
+        "tdd",
+        "--timeout",
+        "999999",
         "--colors",
         "${workspaceFolder}/src/test/**/*.ts"
       ],

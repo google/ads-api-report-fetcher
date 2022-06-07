@@ -48,6 +48,15 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     //       move to the defaul command's suboptions
     //       But having them at root level is better for TS typings
     .option('ads-config', { type: 'string', description: 'path to yaml config for Google Ads' })
+    .option('ads', { hidden: true })
+    .option('ads.developer_token', { type: 'string', description: 'Ads API developer token' })
+    .option('ads.client_id', { type: 'string', description: 'OAuth client_id' })
+    .option('ads.client_secret', { type: 'string', description: 'OAuth client_secret' })
+    .option('ads.refresh_token', { type: 'string', description: 'OAuth refresh token' })
+    .option('ads.login_customer_id', {
+    type: 'string',
+    description: 'Ads API login account (can be the same as account argument)'
+})
     .option('account', {
     alias: ['customer', 'customer-id', 'customer_id'],
     type: 'string',
@@ -131,23 +140,41 @@ function getWriter() {
     throw new Error(`Unknown output format: '${output}'`);
 }
 async function main() {
+    var _a, _b;
     if (argv.account) {
         argv.account = argv.account.toString();
     }
     console.log(chalk_1.default.gray(JSON.stringify(argv, null, 2)));
-    // TODO: support ads api settings in main config and as cli arguments
+    let adsConfig;
     let configFilePath = argv.adsConfig;
-    if (!configFilePath) {
-        if (fs_1.default.existsSync('google-ads.yaml')) {
-            configFilePath = 'google-ads.yaml';
+    if (configFilePath) {
+        // try to use ads config from extenral file (ads-config arg)
+        adsConfig = loadAdsConfig(configFilePath, argv.account);
+    }
+    else {
+        // try to use ads config from explicit cli arguments
+        if (argv.ads) {
+            let ads_cfg = argv.ads;
+            adsConfig = {
+                client_id: ads_cfg.client_id || '',
+                client_secret: ads_cfg.client_secret || '',
+                developer_token: ads_cfg.developer_token || '',
+                refresh_token: ads_cfg.refresh_token || '',
+                login_customer_id: (_a = (ads_cfg.login_customer_id || argv.account || '')) === null || _a === void 0 ? void 0 : _a.toString(),
+                customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
+            };
+        }
+        else if (fs_1.default.existsSync('google-ads.yaml')) {
+            adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
         }
         else {
-            console.log(chalk_1.default.red(`Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in the current folder`));
+            // TODO: support searching google-ads.yaml in user home folder (?)
+            console.log(chalk_1.default.red(`Neither Ads API config file was not specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via .gaarfrc config)`));
             process.exit(-1);
         }
-        // TODO: support searching google-ads.yaml in user home folder (?)
     }
-    let adsConfig = loadAdsConfig(configFilePath, argv.account);
+    console.log(chalk_1.default.gray('Using ads config:'));
+    console.log(adsConfig);
     let client = new api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
@@ -171,9 +198,7 @@ async function main() {
     let params = argv['sql'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
-    let options = {
-        skipConstants: argv.skipConstants
-    };
+    let options = { skipConstants: argv.skipConstants };
     console.log(`Found ${scriptPaths.length} script to process`);
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
@@ -192,8 +217,6 @@ function loadAdsConfig(configFilepath, customerId) {
     }
     try {
         const doc = js_yaml_1.default.load(fs_1.default.readFileSync(configFilepath, 'utf8'));
-        console.log(chalk_1.default.gray('Using ads config:'));
-        console.log(doc);
         return {
             developer_token: doc['developer_token'],
             client_id: doc['client_id'],

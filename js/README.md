@@ -27,7 +27,8 @@ node ads-api-fetcher/runner-js/dist/cli.js <files> [options]
 
 
 #### Config files
-Besides passing options explicitly you can use config files.
+Besides passing options explicitly (see the root [README.me](../README.md) for
+full description) you can use config files.
 By default the tool will try to find `.gaarfrc` starting from the current folder
 up to the root. If found, options from that file will be used if they weren't
 supplied via command line.
@@ -55,6 +56,20 @@ Besides an implicitly used .rc-file you can specify a config file explicitly
 via `--config` option. In that case options from `--config` file will be merge
 with .rc file.
 
+##### Ads API config
+There are two mechanisms for supplying Ads API configuration (developer token, etc ).
+Either via a separated yaml-file whose name is set in `ads-config` argument or
+via separated CLI arguments starting `ads.*` (e.g. `--ads.client_id`) or
+via `.gaarfrc` file (`ads` object):
+```json
+{
+ "ads": {
+   "client_id": "...",
+   "developer_token": ".."
+ },
+ "output": "bq",
+}
+```
 
 See more help with `--help` option.
 

@@ -55,7 +55,6 @@ async function main() {
     let scriptPaths = argv.files;
     let projectId = argv.project || '';
     let target = argv.target;
-    // let dataset = (<any>argv.bq).dataset;
     let sqlParams = argv['sql'] || {};
     let macroParams = argv['macro'] || {};
     let executor = new bq_executor_1.BigQueryExecutor(projectId);

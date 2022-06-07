@@ -28,7 +28,7 @@ import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/api-client';
 import {BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
-import { getFileContent } from './lib/file-utils';
+import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
 
@@ -43,7 +43,8 @@ const argv =
         .positional('files', {
           array: true,
           type: 'string',
-          description: 'List of files with Ads queries (can be gcs:// resources)'
+          description:
+              'List of files with Ads queries (can be gcs:// resources)'
         })
         // .command(
         //     'bigquery <files>', 'Execute BigQuery queries',
@@ -54,6 +55,23 @@ const argv =
         .option(
             'ads-config',
             {type: 'string', description: 'path to yaml config for Google Ads'})
+        .option('ads', {hidden: true})
+        .option(
+            'ads.developer_token',
+            {type: 'string', description: 'Ads API developer token'})
+        .option(
+            'ads.client_id', {type: 'string', description: 'OAuth client_id'})
+        .option(
+            'ads.client_secret',
+            {type: 'string', description: 'OAuth client_secret'})
+        .option(
+            'ads.refresh_token',
+            {type: 'string', description: 'OAuth refresh token'})
+        .option('ads.login_customer_id', {
+          type: 'string',
+          description:
+              'Ads API login account (can be the same as account argument)'
+        })
         .option('account', {
           alias: ['customer', 'customer-id', 'customer_id'],
           type: 'string',
@@ -159,19 +177,37 @@ async function main() {
   }
   console.log(chalk.gray(JSON.stringify(argv, null, 2)));
 
-  // TODO: support ads api settings in main config and as cli arguments
+  let adsConfig: GoogleAdsApiConfig;
   let configFilePath = <string>argv.adsConfig;
-  if (!configFilePath) {
-    if (fs.existsSync('google-ads.yaml')) {
-      configFilePath = 'google-ads.yaml';
+  if (configFilePath) {
+    // try to use ads config from extenral file (ads-config arg)
+    adsConfig = loadAdsConfig(configFilePath, argv.account);
+  } else {
+    // try to use ads config from explicit cli arguments
+    if (argv.ads) {
+      let ads_cfg = <any>argv.ads;
+      adsConfig = {
+        client_id: ads_cfg.client_id || '',
+        client_secret: ads_cfg.client_secret || '',
+        developer_token: ads_cfg.developer_token || '',
+        refresh_token: ads_cfg.refresh_token || '',
+        login_customer_id:
+            (ads_cfg.login_customer_id || argv.account || '')?.toString(),
+        customer_id:
+            (argv.account || ads_cfg.login_customer_id || '')?.toString(),
+      }
+    } else if (fs.existsSync('google-ads.yaml')) {
+      adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
     } else {
+      // TODO: support searching google-ads.yaml in user home folder (?)
       console.log(chalk.red(
-          `Ads API config file was not specified (use 'ads-config' agrument) and hasn't found in the current folder`));
+          `Neither Ads API config file was not specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via .gaarfrc config)`));
       process.exit(-1);
     }
-    // TODO: support searching google-ads.yaml in user home folder (?)
   }
-  let adsConfig = loadAdsConfig(configFilePath, argv.account);
+  console.log(chalk.gray('Using ads config:'));
+  console.log(adsConfig);
+
   let client = new GoogleAdsApiClient(adsConfig, argv.account);
 
   // NOTE: a note regarding the 'files' argument
@@ -199,23 +235,20 @@ async function main() {
   let params = <Record<string, any>>argv['sql'] || {};
   let writer = getWriter();  // NOTE: create writer from argv
   let executor = new AdsQueryExecutor(client);
-  let options = {
-    skipConstants: argv.skipConstants
-  };
+  let options = {skipConstants: argv.skipConstants};
   console.log(`Found ${scriptPaths.length} script to process`);
   for (let scriptPath of scriptPaths) {
     let queryText = await getFileContent(scriptPath);
     console.log(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    await executor.execute(scriptName, queryText, customers, params, writer, options);
+    await executor.execute(
+        scriptName, queryText, customers, params, writer, options);
     console.log();
   }
 
   console.log(chalk.green('All done!'));
 }
-
-
 
 
 function loadAdsConfig(
@@ -226,15 +259,15 @@ function loadAdsConfig(
   }
   try {
     const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
-    console.log(chalk.gray('Using ads config:'));
-    console.log(doc);
     return {
       developer_token: doc['developer_token'],
       client_id: doc['client_id'],
       client_secret: doc['client_secret'],
       refresh_token: doc['refresh_token'],
       login_customer_id: doc['login_customer_id']?.toString(),
-      customer_id: (customerId || doc['customer_id'] || doc['login_customer_id'])?.toString()
+      customer_id:
+          (customerId || doc['customer_id'] || doc['login_customer_id'])
+              ?.toString()
     };
   } catch (e) {
     console.log(chalk.red(

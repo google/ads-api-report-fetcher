@@ -1,8 +1,8 @@
-# Google Ads API Reports Fetcher (gaarf)
+# Google Ads API Report Fetcher (gaarf)
 
 ## Overview
 
-Google Ads API Reports Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
+Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
 The library allows you to define GAQL queries alonside aliases and custom extractors and specify where the results of such query should be stored. 
 You can find example queries in [examples](examples) folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned results and transform them into the structure suitable for writing data.
@@ -10,7 +10,7 @@ You can find example queries in [examples](examples) folder. Based on this query
 
 ## Getting started
 
-Ads API Reports Fetcher has two versions - Python and Node.js.
+Google Ads API Report Fetcher has two versions - Python and Node.js.
 Please explore the relevant section to install and run the tool:
 
 * [Getting started with gaarf in Python](py/README.md)
@@ -19,7 +19,7 @@ Please explore the relevant section to install and run the tool:
 
 ## Writing Queries
 
-Google Ads API Reports Fetcher provides an extended syntax on writing GAQL queries.\
+Google Ads API Report Fetcher provides an extended syntax on writing GAQL queries.\
 Please refer to [How to write queries](docs/how-to-write-queries.md) section to learn the query syntax.
 
 
@@ -78,7 +78,7 @@ gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
 
 ### Postprocessing
 
-Once reports have been fetched you might use `gaarf-bq` (utility that is installed with `gaarf`) to run queries in BigQuery based on collected data in BigQuery.
+Once reports have been fetched you might use `gaarf-bq` (utility that is installed alonside with `gaarf`) to run queries in BigQuery based on collected data in BigQuery.
 Essensially it's a simple tool for executing BigQuery queries from files, optionally creating tables for query results.
 
 

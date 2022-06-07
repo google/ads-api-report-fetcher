@@ -24,8 +24,6 @@ exports.OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/bigquery.readonly',
 ];
 class BigQueryExecutor {
-    //tableId: string|undefined;
-    //dataset: Dataset|undefined;
     constructor(projectId, options) {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
@@ -35,10 +33,8 @@ class BigQueryExecutor {
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
     }
     substituteMacros(queryText, macros) {
-        // replace(/["']/g, "")
         for (let pair of Object.entries(macros)) {
             queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
-            //queryText.replace(/{${pair[0]}}/g, pair[1])
         }
         return queryText;
     }
@@ -58,12 +54,11 @@ class BigQueryExecutor {
                 queryText,
         };
         if (dataset) {
-            //query.defaultDataset = dataset;
             query.destination = dataset.table(scriptName);
             query.createDisposition = 'CREATE_IF_NEEDED';
             // TODO: support WRITE_APPEND (if target='dataset.table' or specify
             // disposition explicitly)
-            query.writeDisposition = 'WRITE_TRUNCATE';
+            query.writeDisposition = (params === null || params === void 0 ? void 0 : params.writeDisposition) || 'WRITE_TRUNCATE';
             //query.location = 'US';
         }
         try {
