@@ -232,7 +232,7 @@ async function main() {
   console.log(`Customers to process:`);
   console.log(customers);
 
-  let params = <Record<string, any>>argv['sql'] || {};
+  let macros = <Record<string, any>>argv['macro'] || {};
   let writer = getWriter();  // NOTE: create writer from argv
   let executor = new AdsQueryExecutor(client);
   let options = {skipConstants: argv.skipConstants};
@@ -243,7 +243,7 @@ async function main() {
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
     await executor.execute(
-        scriptName, queryText, customers, params, writer, options);
+        scriptName, queryText, customers, macros, writer, options);
     console.log();
   }
 

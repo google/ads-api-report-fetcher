@@ -25,7 +25,7 @@ const helpers_1 = require("yargs/helpers");
 const bq_executor_1 = require("./lib/bq-executor");
 const file_utils_1 = require("./lib/file-utils");
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-    .scriptName('gaarf')
+    .scriptName('gaarf-bq')
     .command('$0 <files..>', 'Execute BigQuery queries', {})
     .positional('files', {
     array: true,

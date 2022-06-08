@@ -17,6 +17,7 @@ exports.BigQueryExecutor = exports.OAUTH_SCOPES = void 0;
  * limitations under the License.
  */
 const bigquery_1 = require("@google-cloud/bigquery");
+const utils_1 = require("./utils");
 exports.OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/cloud-platform',
     'https://www.googleapis.com/auth/cloud-platform.read-only',
@@ -32,12 +33,6 @@ class BigQueryExecutor {
         });
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
     }
-    substituteMacros(queryText, macros) {
-        for (let pair of Object.entries(macros)) {
-            queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
-        }
-        return queryText;
-    }
     async execute(scriptName, queryText, params) {
         let dataset;
         if (params === null || params === void 0 ? void 0 : params.target) {
@@ -48,10 +43,13 @@ class BigQueryExecutor {
             }
             dataset = await this.getDataset(params.target);
         }
+        let res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
+        if (res.unknown_params.length) {
+            throw new Error(`The following parameters used in query weren't not specified: ` +
+                res.unknown_params);
+        }
         let query = {
-            query: (params === null || params === void 0 ? void 0 : params.macroParams) ?
-                this.substituteMacros(queryText, params === null || params === void 0 ? void 0 : params.macroParams) :
-                queryText,
+            query: res.queryText
         };
         if (dataset) {
             query.destination = dataset.table(scriptName);

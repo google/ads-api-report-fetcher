@@ -1,3 +1,7 @@
+# Google Ads API Report Fetcher (gaarf)
+Node.js version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
+Please see the full documentation in the root [README](https://github.com/google/ads-api-report-fetcher/blob/main/README.md).
+
 
 # Usage
 >You need [Node.js](https://nodejs.org/) to run the tool.
@@ -39,7 +43,7 @@ Example of `.gaarfrc`:
  "ads-config": ".config/google-ads.yaml",
  "output": "bq",
  "csv.destination-folder": "output",
- "sql": {
+ "macro": {
    "start_date": "2022-01-01",
    "end_date": "2022-02-10"
  },
@@ -50,7 +54,7 @@ Example of `.gaarfrc`:
 }
 ```
 Please note that options with nested values, like 'bq.project', can be specified
-either as objects (see "sql") or as flatten names ("bq.project").
+either as objects (see "macro") or as flatten names ("bq.project").
 
 Besides an implicitly used .rc-file you can specify a config file explicitly
 via `--config` option. In that case options from `--config` file will be merge

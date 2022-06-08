@@ -195,7 +195,7 @@ async function main() {
     let customers = await client.getCustomerIds();
     console.log(`Customers to process:`);
     console.log(customers);
-    let params = argv['sql'] || {};
+    let macros = argv['macro'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     let options = { skipConstants: argv.skipConstants };
@@ -204,7 +204,7 @@ async function main() {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         console.log(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-        await executor.execute(scriptName, queryText, customers, params, writer, options);
+        await executor.execute(scriptName, queryText, customers, macros, writer, options);
         console.log();
     }
     console.log(chalk_1.default.green('All done!'));

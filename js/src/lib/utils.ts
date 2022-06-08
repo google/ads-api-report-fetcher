@@ -74,3 +74,21 @@ export function tryParseNumber(str: any): number|undefined {
     return isNaN(num) ? undefined : num;
   }
 }
+
+export function substituteMacros(
+    queryText: string, macros?: Record<string, any>):
+    {queryText: string, unknown_params: string[]} {
+  // for (let pair of Object.entries(macros)) {
+  //   queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
+  // }
+  macros = macros || {};
+  let unknown_params: string[] = [];
+  queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
+    if (!macros!.hasOwnProperty(name)) {
+      unknown_params.push(name);
+    }
+    return macros![name];
+  });
+
+  return {queryText, unknown_params};
+}

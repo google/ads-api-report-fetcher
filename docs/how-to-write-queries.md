@@ -1,6 +1,6 @@
 # How to write queries
 
-Ads API Reports Fetcher uses [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)
+Google Ads API Report Fetcher uses [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)
 syntax with some extended capabilities.
 
 
@@ -16,7 +16,7 @@ FROM ad_group
 When running this query and saving the results we get pretty long and unreadable
 column names - `ad_group.id` and `ad_group.name`.
 
-Things might be more complicated that if you want to extract and save such objects
+Things might be more complicated if you want to extract and save such objects
 as unselectable elements, complex messages and resource names.
 
 In order to simplify data extraction and processing when querying data from Ads API
@@ -25,7 +25,6 @@ we introduce additional syntax (see an example below):
 ```
 SELECT
     resource.attribute AS column_name_1,
-    resource.attribute->asset AS column_name_2,
     resource.attribute:nested.resource AS column_name_3
     resource.attribute~1 AS column_name_4
 FROM resource
@@ -34,10 +33,9 @@ FROM resource
 ## Elements:
 
 * Aliases (`AS column_name`)
-* Pointers (`->element`)
 * Nested resources (`:nested.resource.name`)
 * Resource indices (`~position`)
-
+* Functions (`:$func`) - only in Node.js
 
 ### Aliases
 
@@ -54,23 +52,10 @@ SELECT
 FROM campaign
 ```
 
-### Pointers
-
-Pointers are used to get attributes that are specified in the reports but
-marked as unselectable (i.e. [ad_group_ad.ad.responsive_display_ad.marketing_images.asset](https://developers.google.com/google-ads/api/fields/v9/ad_group_ad#ad_group_ad.ad.responsive_display_ad.marketing_images.asset)).
-
-In order to extract such attribute we use `->` syntax (and specify alias for
-better readability):
-
-```
-SELECT
-    ad_group_ad.ad.responsive_display_ad.marketing_images->asset AS asset_id
-FROM ad_group_ad
-```
 
 ### Nested Resources
 
-Nested resources return namy attributes and you want to get a particular one.
+Nested resources return many attributes and you want to get a particular one.
 One particular example is working with `change_event` - `change_event.new_resource`
 consists of various changes made to an entity and looks something like that:
 
@@ -98,9 +83,10 @@ FROM change_event
 
 Resource indices are used to extract a particular element from data type
 *RESOURCE_NAME*. I.e., if we want to get resource name for `campaign_audience_view.resource_name`
-and save it somewhere, the saved result will contain a string *customers/{customer_id}/campaignAudienceViews/{campaign_id}~{criterion_id}*. Usually we want to get only the last element from (`criterion_id`) and
+and save it somewhere, the saved result will contain a string *customers/{customer_id}/campaignAudienceViews/{campaign_id}~{criterion_id}*. 
+Usually we want to get only the last element from (`criterion_id`) and
 it can be extracted with `~N` syntax  where *N* is a position of an element you want to extract
-(indexing is staring from 0).
+(indexing is starting from 0).
 
 If the resource you're selecting looks like this `customers/111/campaignAudienceViews/222~333`
 you can specify `campaign_audience_view.resource_name~1` to extract the second element (`333`).

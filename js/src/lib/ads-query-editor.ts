@@ -18,6 +18,7 @@ import _ from 'lodash';
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 
 import {Customizer, CustomizerType, FieldType, FieldTypeKind, isEnumType, ProtoTypeMeta, QueryElements, ResourceInfo} from './types';
+import { substituteMacros } from './utils';
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0];  // e.g. "v9"
@@ -81,9 +82,9 @@ export class AdsQueryEditor {
     return functions;
   }
 
-  parseQuery(query: string, params?: Record<string, any>): QueryElements {
+  parseQuery(query: string, macros?: Record<string, any>): QueryElements {
     query = this.cleanupQueryText(query);
-    let queryNormalized = this.normalizeQuery(query, params || {});
+    let queryNormalized = this.normalizeQuery(query, macros || {});
     let selectFields = query.replace(/(^\s*SELECT)|(\s*FROM .*)/gi, '')
                            .split(',')
                            .filter(function(field) {
@@ -388,7 +389,7 @@ export class AdsQueryEditor {
     return {field: selectExpr};
   }
 
-  normalizeQuery(query: string, params: Record<string, any>): string {
+  normalizeQuery(query: string, macros: Record<string, any>): string {
     query = this.removeAliases(query)
     query = this.removeCustomizers(query)
     // remove section FUNCTIONS
@@ -396,19 +397,14 @@ export class AdsQueryEditor {
     // cut off the last comma (after last column before FROM)
     query = query.replace(/,\s*FROM /gi, ' FROM ');
     // parse parameters and detected unspecified ones
-    let unknown_params: string[] = [];
-    query = query.replace(/\{([^}]+)\}/g, (ss, name) => {
-      if (!params.hasOwnProperty(name)) {
-        unknown_params.push(name);
-      }
-      return params[name];
-    });
-    if (unknown_params.length) {
+    //let unknown_params: string[] = [];
+    let res = substituteMacros(query, macros);
+    if (res.unknown_params.length) {
       throw new Error(
           `The following parameters used in query and was not specified: ` +
-          unknown_params);
+          res.unknown_params);
     }
-    return query
+    return res.queryText;
   }
 
   private removeAliases(query: string): string {

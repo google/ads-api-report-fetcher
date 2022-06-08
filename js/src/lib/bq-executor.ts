@@ -15,6 +15,7 @@
  */
 import {BigQuery, Dataset, Query, SimpleQueryRowsResponse, Table, TableOptions} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
+import { substituteMacros } from './utils';
 
 export var OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
@@ -45,13 +46,6 @@ export class BigQueryExecutor {
     this.datasetLocation = options?.datasetLocation;
   }
 
-  substituteMacros(queryText: string, macros: Record<string, any>): string {
-    for (let pair of Object.entries(macros)) {
-      queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
-    }
-    return queryText;
-  }
-
   async execute(
       scriptName: string, queryText: string,
       params?: BigQueryExecutorParams): Promise<any[]> {
@@ -63,10 +57,14 @@ export class BigQueryExecutor {
       }
       dataset = await this.getDataset(params!.target);
     }
+    let res = substituteMacros(queryText, params?.macroParams);
+    if (res.unknown_params.length) {
+      throw new Error(
+          `The following parameters used in query weren't not specified: ` +
+          res.unknown_params);
+    }
     let query: Query = {
-      query: params?.macroParams ?
-          this.substituteMacros(queryText, params?.macroParams) :
-          queryText,
+      query: res.queryText
     };
     if (dataset) {
       query.destination = dataset.table(scriptName);

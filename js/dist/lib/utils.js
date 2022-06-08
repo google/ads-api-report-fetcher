@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.substituteMacros = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 function traverseObject(object, visitor, path) {
     path = path || [];
@@ -80,4 +80,19 @@ function tryParseNumber(str) {
     }
 }
 exports.tryParseNumber = tryParseNumber;
+function substituteMacros(queryText, macros) {
+    // for (let pair of Object.entries(macros)) {
+    //   queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
+    // }
+    macros = macros || {};
+    let unknown_params = [];
+    queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
+        if (!macros.hasOwnProperty(name)) {
+            unknown_params.push(name);
+        }
+        return macros[name];
+    });
+    return { queryText, unknown_params };
+}
+exports.substituteMacros = substituteMacros;
 //# sourceMappingURL=utils.js.map

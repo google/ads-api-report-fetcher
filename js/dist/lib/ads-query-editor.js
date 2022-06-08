@@ -22,6 +22,7 @@ exports.AdsQueryEditor = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 const types_1 = require("./types");
+const utils_1 = require("./utils");
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
 const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
@@ -86,9 +87,9 @@ class AdsQueryEditor {
         }
         return functions;
     }
-    parseQuery(query, params) {
+    parseQuery(query, macros) {
         query = this.cleanupQueryText(query);
-        let queryNormalized = this.normalizeQuery(query, params || {});
+        let queryNormalized = this.normalizeQuery(query, macros || {});
         let selectFields = query.replace(/(^\s*SELECT)|(\s*FROM .*)/gi, '')
             .split(',')
             .filter(function (field) {
@@ -362,7 +363,7 @@ class AdsQueryEditor {
         }
         return { field: selectExpr };
     }
-    normalizeQuery(query, params) {
+    normalizeQuery(query, macros) {
         query = this.removeAliases(query);
         query = this.removeCustomizers(query);
         // remove section FUNCTIONS
@@ -370,18 +371,13 @@ class AdsQueryEditor {
         // cut off the last comma (after last column before FROM)
         query = query.replace(/,\s*FROM /gi, ' FROM ');
         // parse parameters and detected unspecified ones
-        let unknown_params = [];
-        query = query.replace(/\{([^}]+)\}/g, (ss, name) => {
-            if (!params.hasOwnProperty(name)) {
-                unknown_params.push(name);
-            }
-            return params[name];
-        });
-        if (unknown_params.length) {
+        //let unknown_params: string[] = [];
+        let res = (0, utils_1.substituteMacros)(query, macros);
+        if (res.unknown_params.length) {
             throw new Error(`The following parameters used in query and was not specified: ` +
-                unknown_params);
+                res.unknown_params);
         }
-        return query;
+        return res.queryText;
     }
     removeAliases(query) {
         return query.replace(/\s+[Aa][Ss]\s+(\w+)/g, '');

@@ -12,6 +12,9 @@
     "node" : ">=15.0.0"
   },
   "repository": "google/ads-api-report-fetcher/js",
+  "publishConfig":{
+    "registry":"https://wombat-dressing-room.appspot.com"
+  },
   "scripts": {
     "clean": "shx rm -rf dist/*",
     "tsc": "tsc",

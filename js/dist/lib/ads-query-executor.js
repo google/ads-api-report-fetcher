@@ -24,9 +24,9 @@ class AdsQueryExecutor {
         this.editor = new ads_query_editor_1.AdsQueryEditor();
         this.parser = new ads_row_parser_1.AdsRowParser();
     }
-    async execute(scriptName, queryText, customers, params, writer, options) {
+    async execute(scriptName, queryText, customers, macros, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
-        let query = this.editor.parseQuery(queryText, params);
+        let query = this.editor.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             console.log(`Skipping constant resource ${query.resource.name}`);

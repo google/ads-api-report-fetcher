@@ -7,3 +7,5 @@ node_modules/
 output/
 coverage/
 dist/test/
+.npmrc
+.nycrc

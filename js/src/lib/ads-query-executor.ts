@@ -37,10 +37,10 @@ export class AdsQueryExecutor {
 
   async execute(
       scriptName: string, queryText: string, customers: string[],
-      params: Record<string, any>, writer: IResultWriter,
+      macros: Record<string, any>, writer: IResultWriter,
       options?: AdsQueryExecutorOptions) {
     let skipConstants = !!options?.skipConstants;
-    let query = this.editor.parseQuery(queryText, params);
+    let query = this.editor.parseQuery(queryText, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       console.log(`Skipping constant resource ${query.resource.name}`);

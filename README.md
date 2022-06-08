@@ -5,7 +5,11 @@
 Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
 The library allows you to define GAQL queries alonside aliases and custom extractors and specify where the results of such query should be stored. 
-You can find example queries in [examples](examples) folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned results and transform them into the structure suitable for writing data.
+You can find example queries in [examples](examples) folder. 
+Based on such a query the library fill extract the correct GAQL query, automatically extract all necessary fields from schema
+and transform them into a structure suitable for writing data.
+
+Currently the tool supports two types of output: CSV files and BigQuery tables.
 
 
 ## Getting started
@@ -15,6 +19,8 @@ Please explore the relevant section to install and run the tool:
 
 * [Getting started with gaarf in Python](py/README.md)
 * [Getting started with gaarf in Node.js](js/README.md)
+
+Both versions have similar command line arguments and query syntax. 
 
 
 ## Writing Queries
@@ -41,7 +47,7 @@ On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
 > And so it does expansion of glob pattern (file mask) into a list of files.
 
 Options:
-* `ads-config` - a path to yaml file with config for Google Ads,
+* `ads-config` - a path to yaml file with config for Google Ads,  
                by default assuming 'google-ads.yaml' in the current folder
 * `account` - Ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
 * `output` - output type,
@@ -58,8 +64,8 @@ Options specific for BigQuery writer:
 * `bq.table-template`  - template for tables names, `{script}` references script base name (*JS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*JS version only*)
 
-All parameters whose names start with the `sql.` prefix are passed to queries as params object.
-For example if we pass parameters: `--sql.start_date=2021-12-01 --sql.end_date=2022-02-28`
+All parameters whose names start with the `macro.` prefix are passed to queries as params object.
+For example if we pass parameters: `--macro.start_date=2021-12-01 --macro.end_date=2022-02-28`
 then inside sql we can use `start_date` and `end_date` parameters in curly brackets:
 ```sql
     AND segments.date >= "{start_date}"
@@ -70,8 +76,8 @@ Full example:
 ```
 gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
   --account=1234567890 --output=bq \
-  --sql.start_date=2021-12-01 \
-  --sql.end_date=2022-02-28 \
+  --macro.start_date=2021-12-01 \
+  --macro.end_date=2022-02-28 \
   --bq.project=my_project \
   --bq.dataset=my_dataset
 ```

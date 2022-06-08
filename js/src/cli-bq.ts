@@ -23,7 +23,7 @@ import {getFileContent} from './lib/file-utils';
 
 const argv =
     yargs(hideBin(process.argv))
-        .scriptName('gaarf')
+        .scriptName('gaarf-bq')
         .command('$0 <files..>', 'Execute BigQuery queries', {})
         .positional('files', {
           array: true,
