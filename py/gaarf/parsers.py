@@ -14,8 +14,10 @@
 
 from typing import Any, Sequence
 from operator import attrgetter
-import proto  #type: ignore
 import re
+import proto  # type: ignore
+from proto.marshal.collections.repeated import (  # type: ignore
+    Repeated, RepeatedComposite)  # type: ignore
 from .utils import ResourceFormatter
 
 
@@ -31,59 +33,54 @@ class BaseParser:
 
 class RepeatedParser(BaseParser):
     def parse(self, request):
-        if type(request) == proto.marshal.collections.repeated.Repeated and \
-            "customer" in str(request):
+        if isinstance(request, Repeated) and "customer" in str(request):
             elements = []
-            for v in request:
-                element = ResourceFormatter.get_resource_id(v)
+            for request_element in request:
+                element = ResourceFormatter.get_resource_id(request_element)
                 elements.append(ResourceFormatter.clean_resource_id(element))
             return elements
-        else:
-            return super().parse(request)
+        return super().parse(request)
 
 
 class RepeatedCompositeParser(BaseParser):
     def parse(self, request):
-        if type(request
-                ) == proto.marshal.collections.repeated.RepeatedComposite:
+        if isinstance(request, RepeatedComposite):
             elements = []
-            for v in request:
-                resource = ResourceFormatter.get_resource(v)
+            for request_element in request:
+                resource = ResourceFormatter.get_resource(request_element)
                 element = ResourceFormatter.get_resource_id(resource)
                 elements.append(ResourceFormatter.clean_resource_id(element))
             return elements
-        else:
-            return super().parse(request)
+        return super().parse(request)
 
 
 class AttributeParser(BaseParser):
     def parse(self, request):
         if hasattr(request, "name"):
             return request.name
-        elif hasattr(request, "text"):
+        if hasattr(request, "text"):
             return request.text
-        elif hasattr(request, "value"):
+        if hasattr(request, "value"):
             return request.value
-        else:
-            return super().parse(request)
+        return super().parse(request)
 
 
 class EmptyAttributeParser(BaseParser):
     def parse(self, request):
         if issubclass(type(request), proto.Message):
             return "Not set"
-        else:
-            return super().parse(request)
+        return super().parse(request)
 
 
-class GoogleAdsRowParser(BaseParser):
+class GoogleAdsRowParser:
     def __init__(self, nested_fields=None):
         self.nested_fields = nested_fields
         self.parser = self._init_parsers()
 
     def _init_parsers(self):
         parser_chain = BaseParser(None)
-        for parser in EmptyAttributeParser, AttributeParser, RepeatedCompositeParser, RepeatedParser:
+        for parser in [EmptyAttributeParser, AttributeParser,
+                       RepeatedCompositeParser, RepeatedParser]:
             new_parser = parser(parser_chain)
             parser_chain = new_parser
         return parser_chain
@@ -103,7 +100,7 @@ class GoogleAdsRowParser(BaseParser):
                     if caller.get("type") == "nested_field":
                         try:
                             r = attrgetter(caller.get("value"))(r)
-                        except:
+                        except AttributeError:
                             raise ValueError(f"{caller} is incorrect")
                     elif caller.get("type") == "resource_index":
                         r = re.split("~", r)[caller.get("value")]

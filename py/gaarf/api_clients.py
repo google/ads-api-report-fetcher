@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from google.ads.googleads.client import GoogleAdsClient  #type: ignore
-from google.ads.googleads.v9.services.services.google_ads_service.client import GoogleAdsServiceClient  #type: ignore
 from pathlib import Path
+from google.ads.googleads.client import GoogleAdsClient  # type: ignore
 
 
 class BaseClient:

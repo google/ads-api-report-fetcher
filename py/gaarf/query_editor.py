@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-import abc
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import dataclasses
 import re
 
@@ -51,7 +50,8 @@ class QuerySpecification:
             path: Path to a file with a query.
 
         Returns:
-            Various elements parsed from a query (text, fields, column_names, etc).
+            Various elements parsed from a query (text, fields,
+            column_names, etc).
         """
 
         query_lines = self.cleanup_query_text(self.text)
@@ -69,8 +69,8 @@ class QuerySpecification:
         query_lines = self.extract_query_lines(" ".join(query_lines))
         for line in query_lines:
             field_elements, alias = self.extract_fields_and_aliases(line)
-            field_name, customizer_type, customizer_value = self.extract_fields_and_customizers(
-                field_elements)
+            field_name, customizer_type, customizer_value = \
+                self.extract_fields_and_customizers(field_elements)
             field_name = field_name.strip().replace(",", "")
             if customizer_type:
                 customizers[field_index] = {

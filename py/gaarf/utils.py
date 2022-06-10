@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.import proto
 
-from typing import Sequence
 import re
-import proto  # type: ignore
-from google.cloud import bigquery  # type: ignore
 
 
 class ResourceFormatter:
@@ -32,5 +29,5 @@ class ResourceFormatter:
         element = re.sub('"', '', str(element))
         try:
             return int(element)
-        except:
+        except ValueError:
             return element
