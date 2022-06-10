@@ -32,7 +32,7 @@ setup(
     tests_requires=["pytest"],
     entry_points={
         "console_scripts": [
-            "gaarf=gaarf.fetcher:main",
+            "gaarf=gaarf_cli:main",
             "gaarf-bq=cli_bq:main",
         ]
     })
