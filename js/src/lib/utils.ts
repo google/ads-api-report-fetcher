@@ -75,18 +75,36 @@ export function tryParseNumber(str: any): number|undefined {
   }
 }
 
+/**
+ *
+ * @returns Return current date as YYYYMMDD
+ */
+export function getCurrentDateISO(): string {
+  let now = new Date();
+  let month = now.getMonth() + 1;
+  let day = now.getDate();
+  let iso = now.getFullYear() +
+      (month < 10 ? '0' + month.toString() : month.toString()) +
+      (day < 10 ? '0' + day : day);
+  return iso;
+}
+
+export const MACRO_DATE_ISO = 'date_iso';
+
 export function substituteMacros(
     queryText: string, macros?: Record<string, any>):
     {queryText: string, unknown_params: string[]} {
-  // for (let pair of Object.entries(macros)) {
-  //   queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
-  // }
   macros = macros || {};
   let unknown_params: string[] = [];
   queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
+    if (name === MACRO_DATE_ISO && !macros![MACRO_DATE_ISO]) {
+      return getCurrentDateISO();
+    }
     if (!macros!.hasOwnProperty(name)) {
       unknown_params.push(name);
+      return ss;
     }
+
     return macros![name];
   });
 

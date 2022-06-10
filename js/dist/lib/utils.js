@@ -89,6 +89,7 @@ function substituteMacros(queryText, macros) {
     queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
         if (!macros.hasOwnProperty(name)) {
             unknown_params.push(name);
+            return ss;
         }
         return macros[name];
     });
