@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import dataclasses
-from typing import Any, Dict, Sequence
+from typing import Any, Dict
 from google.cloud import bigquery  # type: ignore
-import datetime
 
 
 @dataclasses.dataclass
@@ -27,34 +26,17 @@ class BigQueryExecutorParams:
 
 
 class BigQueryParamsParser:
-
-    common_macros = {"date_iso": datetime.date.today().strftime("%Y%m%d")}
-
-    def __init__(self, macros: Sequence[Any]):
-        self.macros = macros
+    def __init__(self, params: Dict[str, Any], target: str = "",
+                 write_disposition: str = ""):
+        self.params = params
+        self.target = target
+        self.write_disposition = write_disposition
 
     def parse(self):
-        return self._parse_macros(self.macros)
-
-    def _parse_macros(self, macros: Sequence[Any]) -> BigQueryExecutorParams:
-        parsed_macros = {}
-        if macros:
-            raw_macros = [macro.split("=", maxsplit=1) for macro in macros]
-            for macro in raw_macros:
-                parsed_macros.update(self._identify_macro_pair(macro))
-            parsed_macros.update(self.common_macros)
-        return BigQueryExecutorParams(sql_params={},
-                                      macro_params=parsed_macros,
-                                      target="",
-                                      write_disposition="")
-
-    def _identify_macro_pair(self, macro: Sequence[str]) -> Dict[str, Any]:
-        macro_idenfifier = "--macro."
-        key = macro[0].replace(macro_idenfifier, "")
-        if len(macro) == 2:
-            return {key: macro[1]}
-        raise ValueError(f"macro {key} is invalid,"
-                         "--macro.key=value is the correct format")
+        return BigQueryExecutorParams(sql_params=self.params.get("sql"),
+                                      macro_params=self.params.get("macro"),
+                                      target=self.target,
+                                      write_disposition=self.write_disposition)
 
 
 class BigQueryExecutor:

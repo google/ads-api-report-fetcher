@@ -2,6 +2,7 @@ import argparse
 from concurrent import futures
 from gaarf.io import reader  # type: ignore
 from gaarf.bq_executor import BigQueryExecutor, BigQueryParamsParser
+from cli_utils import ParamsParser
 
 
 def main():
@@ -13,8 +14,9 @@ def main():
     main_args = args[0]
     query_args = args[1]
 
+    params = ParamsParser(["macro", "sql"]).parse(query_args)
     bq_executor = BigQueryExecutor(main_args.project)
-    query_params = BigQueryParamsParser(query_args).parse()
+    query_params = BigQueryParamsParser(params).parse()
     reader_client = reader.FileReader()
 
     with futures.ThreadPoolExecutor() as executor:
