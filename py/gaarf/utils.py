@@ -12,22 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.import proto
 
-import re
+from .query_editor import QuerySpecification
+from .query_executor import AdsReportFetcher
 
 
-class ResourceFormatter:
-    @staticmethod
-    def get_resource(element):
-        return re.split(": ", str(element).strip())[1]
-
-    @staticmethod
-    def get_resource_id(element):
-        return re.split("/", str(element))[-1]
-
-    @staticmethod
-    def clean_resource_id(element):
-        element = re.sub('"', '', str(element))
-        try:
-            return int(element)
-        except ValueError:
-            return element
+def get_customer_ids(ads_client, customer_id):
+    query = """
+    SELECT customer_client.id FROM customer_client
+    WHERE customer_client.manager = FALSE
+    """
+    query_specification = QuerySpecification(query).generate()
+    report_fetcher = AdsReportFetcher(ads_client)
+    return report_fetcher.fetch(query_specification, customer_id)

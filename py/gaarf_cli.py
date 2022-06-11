@@ -7,10 +7,8 @@ import traceback
 
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 
-from gaarf import api_clients
+from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
-from gaarf.query_executor import AdsQueryExecutor
-from gaarf.fetcher import process_query
 
 
 def main():
@@ -46,19 +44,15 @@ def main():
     writer_factory = writer.WriterFactory()
     writer_client = writer_factory.create_writer(args.save, **vars(args))
     reader_client = reader.FileReader()
-    query_executor = AdsQueryExecutor(
-        ads_client, """
-        SELECT customer_client.id FROM customer_client
-        WHERE customer_client.manager = FALSE
-        """, None)
-    customer_ids = query_executor.execute(args.customer_id)
+    customer_ids = utils.get_customer_ids(ads_client, args.customer_id)
+    ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
     logging.info("Total number of customer_ids is %d, accounts=[%s]",
                  len(customer_ids), ",".join(map(str, customer_ids)))
 
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
-            executor.submit(process_query, query, customer_ids, ads_client,
+            executor.submit(ads_query_executor.execute, query, customer_ids,
                             reader_client, writer_client, vars(args)): query
             for query in args.query
         }

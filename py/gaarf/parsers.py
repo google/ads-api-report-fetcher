@@ -18,7 +18,6 @@ import re
 import proto  # type: ignore
 from proto.marshal.collections.repeated import (  # type: ignore
     Repeated, RepeatedComposite)  # type: ignore
-from .utils import ResourceFormatter
 
 
 class BaseParser:
@@ -112,3 +111,21 @@ class GoogleAdsRowParser:
         getter = attrgetter(*query_specification.fields)
         rows = getter(row)
         return rows if isinstance(rows, tuple) else (rows, )
+
+
+class ResourceFormatter:
+    @staticmethod
+    def get_resource(element):
+        return re.split(": ", str(element).strip())[1]
+
+    @staticmethod
+    def get_resource_id(element):
+        return re.split("/", str(element))[-1]
+
+    @staticmethod
+    def clean_resource_id(element):
+        element = re.sub('"', '', str(element))
+        try:
+            return int(element)
+        except ValueError:
+            return element

@@ -38,9 +38,10 @@ class QueryElements:
 
 
 class QuerySpecification:
-    def __init__(self, title: str, text: str, args: Dict[Any, Any] = None):
-        self.title = title
+    def __init__(self, text: str, title: str = None,
+                 args: Dict[Any, Any] = None):
         self.text = text
+        self.title = title
         self.args = args
 
     def generate(self) -> QueryElements:
@@ -56,8 +57,7 @@ class QuerySpecification:
 
         query_lines = self.cleanup_query_text(self.text)
         resource_name = self.extract_resource_from_query(self.text)
-        is_constant_resource = True if resource_name.endswith(
-            "_constant") else False
+        is_constant_resource = bool(resource_name.endswith("_constant"))
         query_text = self.normalize_query(" ".join(query_lines))
         if self.args:
             query_text = query_text.format(**self.args)
