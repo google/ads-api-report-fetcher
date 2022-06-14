@@ -103,6 +103,7 @@ class GoogleAdsRowParser:
                             raise ValueError(f"{caller} is incorrect")
                     elif caller.get("type") == "resource_index":
                         r = re.split("~", r)[caller.get("value")]
+                        r = re.split("/", r)[-1]
             parsed_element = self.parser.parse(r) or r
             final_rows.append(parsed_element)
         return final_rows if len(final_rows) > 1 else final_rows[0]
