@@ -1,22 +1,29 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from . import parsers
 from . import api_clients
-from .query_editor import QuerySpecification
+from .query_editor import QuerySpecification, QueryElements
 from .io import writer, reader  # type: ignore
 
 
 class AdsReportFetcher:
-    def __init__(self, api_client):
+    def __init__(self, api_client: api_clients.BaseClient,
+                 customer_ids: Union[List[str], str]):
         self.api_client = api_client
+        self.customer_ids = [
+            customer_ids
+        ] if not isinstance(customer_ids, list) else customer_ids
 
-    def fetch(self, query_specification, customer_ids):
+    def fetch(
+        self,
+        query_specification: Union[str, QueryElements],
+    ):
         total_results = []
-        if not isinstance(customer_ids, list):
-            customer_ids = [
-                customer_ids,
-            ]
-        for customer_id in customer_ids:
+        if not isinstance(query_specification, QueryElements):
+            query_specification = QuerySpecification(
+                str(query_specification)).generate()
+
+        for customer_id in self.customer_ids:
             results = self._parse_ads_response(query_specification,
                                                customer_id)
             total_results.extend(results)
@@ -49,7 +56,7 @@ class AdsQueryExecutor:
 
     def execute(self,
                 query: str,
-                customer_ids: List[str],
+                customer_ids: Union[List[str], str],
                 reader_client: reader.AbsReader,
                 writer_client: writer.AbsWriter,
                 args: Dict[Any, Any] = None) -> None:
@@ -67,8 +74,8 @@ class AdsQueryExecutor:
         query_text = reader_client.read(query)
         query_specification = QuerySpecification(query_text, query,
                                                  args).generate()
-        report_fetcher = AdsReportFetcher(self.api_client)
-        results = report_fetcher.fetch(query_specification, customer_ids)
+        report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
+        results = report_fetcher.fetch(query_specification)
         if len(results) > 0:
             writer_client.write(results, query_specification.query_title,
                                 query_specification.column_names)
