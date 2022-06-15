@@ -90,6 +90,7 @@ it can be extracted with `~N` syntax  where *N* is a position of an element you 
 
 If the resource you're selecting looks like this `customers/111/campaignAudienceViews/222~333`
 you can specify `campaign_audience_view.resource_name~1` to extract the second element (`333`).
+If you specify `campaign_audience_view.resource_name~0` you'll get '222' (the last resource id before ~).
 
 ```
 SELECT

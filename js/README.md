@@ -20,13 +20,13 @@ gaarf <files> [options]
 Documentation on available options see in the root [README.md](../README.md).
 
 ### Running from folder
-if you cloned the repo into "ads-api-fetcher" folder:
+if you cloned the repo into "ads-api-fetcher" folder (don't forget to run `npm i` first):
 ```shell
-ads-api-fetcher/runner-js/cli-bin <files> [options]
+ads-api-fetcher/js/gaarf <files> [options]
 ```
 or
 ```shell
-node ads-api-fetcher/runner-js/dist/cli.js <files> [options]
+node ads-api-fetcher/js/dist/cli.js <files> [options]
 ```
 
 
@@ -59,6 +59,7 @@ either as objects (see "macro") or as flatten names ("bq.project").
 Besides an implicitly used .rc-file you can specify a config file explicitly
 via `--config` option. In that case options from `--config` file will be merge
 with .rc file.
+
 
 ##### Ads API config
 There are two mechanisms for supplying Ads API configuration (developer token, etc ).

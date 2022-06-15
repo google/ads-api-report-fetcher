@@ -4,8 +4,8 @@
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "index.js",
   "bin": {
-    "gaarf": "cli-bin",
-    "gaarf-bq": "cli-bin-bq"
+    "gaarf": "gaarf",
+    "gaarf-bq": "gaarf-bq"
   },
   "type": "commonjs",
   "engines" : { 
