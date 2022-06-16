@@ -1,106 +1,74 @@
-# Ads API Reports Fetcher
+# Google Ads API Report Fetcher (gaarf)
 
-## Overview
-
-Ads API Reports Fetcher simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
-by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
-The library allows you to define GAQL query alonside aliases and custom extractors and specify where the results of such query should be stored. You can find and example queries in `examples` folder. Based on this query the library fill extract the correct GAQL query, automatically extract all necessary fields from returned `GoogleAdsRow` object and transform them into the structure suitable for writing data.
-
+Python version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
+Please see the full documentation in the root [README](https://github.com/google/ads-api-report-fetcher/blob/main/README.md).
 
 ## Getting started
 
-1. create virtual enviroment
+### Prerequisites
+
+* Python 3.8+
+* pip installed
+* Google Ads API enabled
+* `google-ads.yaml` file. Learn how to create one [here](../docs/how-to-authenticate-ads-api.md).
+
+### Installation and running
+
+1. create virtual enviroment and install the tool
 
 ```
-python3 -m venv ads-api-fetcher
-source ads-api-fetcher/bin/activate
+python3 -m venv gaarf
+source gaarf/bin/activate
 pip install google-ads-api-report-fetcher
 ```
-2. authenticate google ads to create `google-ads.yaml` file
+2.  Run the tool with `gaarf` command:
 
-    2.1. Create `google-ads.yaml` file in your home directory with the following content
-    (or copy from `configs` folder):
-
-    ```
-    developer_token:
-    client_id:
-    client_secret:
-    refresh_token:
-    login_customer_id:
-    client_customer_id:
-    use_proto_plus: True
-    ```
-    2.2. [Get Google Ads Developer Token](https://developers.google.com/google-ads/api/docs/first-call/dev-token). Add developer token id to `google-ads.yaml` file.
-
-    2.3. [Generate OAuth2 credentials for **desktop application**](https://developers.google.com/adwords/api/docs/guides/authentication#generate_oauth2_credentials)
-    * Click the download icon next to the credentials that you just created and save file to your computer
-    *  Add client_id and client_secret value to `google-ads.yaml` file
-
-    2.4. Download python source file to perform desktop authentication
-
-    ```
-    curl -0 https://raw.githubusercontent.com/googleads/google-ads-python/868bf36689f1ca4310bdead9c46eed61b8ad1d11/examples/authentication/authenticate_in_desktop_application.py
-    ```
-
-    2.5. Run desktop authentication with downloaded credentials file:
-    ```
-    python authenticate_in_desktop_application.py --client_secrets_path=/path/to/secrets.json
-    ```
-    * Copy generated refresh token and add it to `google-ads.yaml` file.
-
-    2.6. [Enable Google Ads API in your project](https://developers.google.com/google-ads/api/docs/first-call/oauth-cloud-project#enable_the_in_your_project)
-
-    2.7. Add login_customer_id and client_customer_id (MMC under which Developer token was generated) to `google-ads.yaml`. **ID should be in 11111111 format, do not add dashes as separator**.
-
-
-3. install library
-
-```
-pip install google-ads-api-report-fetcher
+```shell
+gaarf <files> [options]
 ```
 
-Two commands will be available for using in terminal:
-
-* `gaarf`  - to get data from Ads API based on provided query
-   and a set of parameters
-* `gaarf-process` - to execute any post-processing queries based on
-   results of `fetch-reports` command.
+Documentation on available options see in the root [README.md](../README.md).
 
 
-4. Specify enviromental variables
+## Using as a library
 
+Once `google-ads-api-report-fetcher` is installed you can use it as a library.
+
+
+```python
+from gaarf.api_clients import GoogleAdsApiClient
+from gaarf.query_executor import AdsReportFetcher, AdsQueryExecutor
+from gaarf.io import writer
+
+# initialize Google Ads API client
+client = GoogleAdsApiClient(path_to_config="google-ads.yaml", version="v10")
+
+customer_ids = ['1', '2']
+
+# Fetch report and store results in a variable
+# initialize report fetcher to get reports
+report_fetcher = AdsReportFetcher(client, customer_ids)
+
+# create query text
+query_text = "SELECT campaign.id AS campaign_id FROM campaign"
+
+# Execute query and campaigns variable
+campaigns = report_fetcher.fetch(query_text)
+
+# Fetch report and save it to CSV
+# initialize query_executor to fetch report and store them in local/remote storage
+query_executor = AdsQueryExecutor(client)
+
+# initialize writer
+csv_writer = writer.CsvWriter(".tmp")
+
+# specify path to GAQL query
+query_path = "path/to/query.sql"
+
+# execute query from file and save to csv
+query_executor.execute(query_path, customer_ids, reader_client, csv_writer)
 ```
-export ACCOUNT_ID=
-export BQ_PROJECT=
-export BQ_DATASET=
-export START_DATE=
-export END_DATE=
-```
 
-`START_DATE` and `END_DATE` should be specified in `YYYY-MM-DD` format (i.e. 2022-01-01).
-`CUSTOMER_ID` should be specifed in `1234567890` format (no dashes between digits).
-
-5. Run `gaarf` command to fetch Google Ads data and store them in BigQuery
-
-```
-gaarf path/to/sql/google_ads_queries/*.sql \
-    --account=$ACCOUNT_ID \
-    --output=bq \
-    --bq.project=$BQ_PROJECT \
-    --bq.dataset=$BQ_DATASET \
-    --sql.start_date=$START_DATE \
-    --sql.end_date=$END_DATE \
-    --ads-config=path/to/google-ads.yaml
-```
-
-6. Run `gaarf-postprocess` command to prepare tables in BigQuery based on data
-fetched by `gaarf` command.
-
-```
-gaarf-postprocess path/to/bq_queries/*.sql \
-    --bq.project=$BQ_PROJECT \
-    --bq.dataset=$BQ_DATASET \
-```
 
 ## Disclaimer
 This is not an officially supported Google product.
