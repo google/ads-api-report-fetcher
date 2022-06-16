@@ -22,5 +22,5 @@ def get_customer_ids(ads_client, customer_id):
     WHERE customer_client.manager = FALSE
     """
     query_specification = QuerySpecification(query).generate()
-    report_fetcher = AdsReportFetcher(ads_client)
-    return report_fetcher.fetch(query_specification, customer_id)
+    report_fetcher = AdsReportFetcher(ads_client, customer_id)
+    return report_fetcher.fetch(query_specification)
