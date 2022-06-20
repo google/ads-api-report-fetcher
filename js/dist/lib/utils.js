@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.substituteMacros = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.substituteMacros = exports.MACRO_DATE_ISO = exports.getCurrentDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 function traverseObject(object, visitor, path) {
     path = path || [];
@@ -80,13 +80,28 @@ function tryParseNumber(str) {
     }
 }
 exports.tryParseNumber = tryParseNumber;
+/**
+ *
+ * @returns Return current date as YYYYMMDD
+ */
+function getCurrentDateISO() {
+    let now = new Date();
+    let month = now.getMonth() + 1;
+    let day = now.getDate();
+    let iso = now.getFullYear() +
+        (month < 10 ? '0' + month.toString() : month.toString()) +
+        (day < 10 ? '0' + day : day);
+    return iso;
+}
+exports.getCurrentDateISO = getCurrentDateISO;
+exports.MACRO_DATE_ISO = 'date_iso';
 function substituteMacros(queryText, macros) {
-    // for (let pair of Object.entries(macros)) {
-    //   queryText = queryText.replaceAll(`{${pair[0]}}`, pair[1]);
-    // }
     macros = macros || {};
     let unknown_params = [];
     queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
+        if (name === exports.MACRO_DATE_ISO && !macros[exports.MACRO_DATE_ISO]) {
+            return getCurrentDateISO();
+        }
         if (!macros.hasOwnProperty(name)) {
             unknown_params.push(name);
             return ss;

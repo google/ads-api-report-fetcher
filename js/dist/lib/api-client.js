@@ -20,6 +20,9 @@ const google_ads_api_1 = require("google-ads-api");
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
         var _a;
+        if (!adsConfig) {
+            throw new Error('GoogleAdsApiConfig instance was not passed');
+        }
         customerId = customerId || adsConfig.customer_id;
         if (!customerId) {
             throw new Error(`No customer id was specified`);

@@ -32,7 +32,10 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   ads_cfg: GoogleAdsApiConfig;
   isChildCustomer: boolean;
 
-  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
+  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string | undefined) {
+    if (!adsConfig) {
+      throw new Error('GoogleAdsApiConfig instance was not passed')
+    }
     customerId = customerId || adsConfig.customer_id;
     if (!customerId) {
       throw new Error(`No customer id was specified`);

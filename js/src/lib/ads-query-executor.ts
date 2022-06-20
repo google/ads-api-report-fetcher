@@ -50,7 +50,13 @@ export class AdsQueryExecutor {
     for (let customerId of customers) {
       console.log(`Processing customer ${customerId}`);
       // TODO: should we parallelirize?
-      let result = await this.executeOne(query, customerId, writer);
+      try {
+        let result = await this.executeOne(query, customerId, writer);
+
+      } catch (e) {
+        console.log(`An error occured during executing script '${scriptName}' for ${customerId} customer: ${e}`);
+        // we're swallowing the exception
+      }
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
       if (isConstResource) {
