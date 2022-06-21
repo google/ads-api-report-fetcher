@@ -1,8 +1,9 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Sequence, Union
 
 from . import parsers
 from . import api_clients
 from .query_editor import QuerySpecification, QueryElements
+from .report import GaarfReport
 from .io import writer, reader  # type: ignore
 
 
@@ -17,7 +18,7 @@ class AdsReportFetcher:
     def fetch(
         self,
         query_specification: Union[str, QueryElements],
-    ):
+    ) -> GaarfReport:
         total_results = []
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
@@ -30,9 +31,11 @@ class AdsReportFetcher:
             if query_specification.is_constant_resource:
                 print("Running only once")
                 break
-        return total_results
+        return GaarfReport(results=total_results,
+                           column_names=query_specification.column_names)
 
-    def _parse_ads_response(self, query_specification, customer_id):
+    def _parse_ads_response(self, query_specification: QueryElements,
+                            customer_id: str) -> Sequence[Any]:
         parser = parsers.GoogleAdsRowParser()
         total_results = []
         response = self.api_client.get_response(
@@ -77,7 +80,6 @@ class AdsQueryExecutor:
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification)
         if len(results) > 0:
-            writer_client.write(results, query_specification.query_title,
-                                query_specification.column_names)
+            writer_client.write(results, query_specification.query_title)
         else:
             raise writer.ZeroRowException

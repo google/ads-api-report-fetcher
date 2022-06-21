@@ -24,7 +24,7 @@ class AbsFormatter(abc.ABC):
         raise NotImplementedError
 
 
-class BigQueryFormatter(AbsFormatter):
+class ArrayFormatter(AbsFormatter):
     @staticmethod
     def format(rows: Sequence[Sequence[Any]],
                delimiter: str) -> Sequence[Sequence[Any]]:

@@ -23,4 +23,4 @@ def get_customer_ids(ads_client, customer_id):
     """
     query_specification = QuerySpecification(query).generate()
     report_fetcher = AdsReportFetcher(ads_client, customer_id)
-    return report_fetcher.fetch(query_specification)
+    return report_fetcher.fetch(query_specification).to_list()

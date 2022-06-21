@@ -1,6 +1,7 @@
 import pytest
-import gaarf.io.writer as writer  # type: ignore
 from google.cloud.bigquery import SchemaField  # type: ignore
+import gaarf.io.writer as writer  # type: ignore
+from gaarf.report import GaarfReport
 
 
 @pytest.fixture
@@ -17,28 +18,36 @@ def bq_writer():
 def single_column_data():
     results = [1, 2, 3]
     columns = ["column_1"]
-    return results, columns
+    return GaarfReport(results, columns)
 
 
 @pytest.fixture
 def sample_data():
     results = [(1, "two", [3, 4])]
     columns = ["column_1", "column_2", "column_3"]
-    return results, columns
+    return GaarfReport(results, columns)
 
 
 def test_csv_writer_single_column(csv_writer, single_column_data):
     tmp_file = "/tmp/test.csv"
-    results, columns = single_column_data
     expected = ["column_1", "1", "2", "3"]
-    csv_writer.write(results, "test.csv", columns)
+    csv_writer.write(single_column_data, "test.csv")
+    with open(tmp_file, "r") as f:
+        file = f.readlines()
+    assert [row.strip() for row in file] == expected
+
+
+def test_csv_writer_multi_column(csv_writer, sample_data):
+    tmp_file = "/tmp/test.csv"
+    expected = ["column_1,column_2,column_3", '1,two,3|4']
+    csv_writer.write(sample_data, "test.csv")
     with open(tmp_file, "r") as f:
         file = f.readlines()
     assert [row.strip() for row in file] == expected
 
 
 def test_bq_get_results_types(bq_writer, sample_data):
-    results, columns = sample_data
+    results, columns = sample_data.results, sample_data.column_names
     result_types = bq_writer._get_result_types(results, columns)
     assert result_types == {
         'column_1': {
@@ -56,10 +65,10 @@ def test_bq_get_results_types(bq_writer, sample_data):
     }
 
 
-def test_bq_get_correct_header(bq_writer, sample_data):
-    results, columns = sample_data
-    header = bq_writer._define_header(results, columns)
-    assert header == [
+def test_bq_get_correct_schema(bq_writer, sample_data):
+    results, columns = sample_data.results, sample_data.column_names
+    schema = bq_writer._define_schema(results, columns)
+    assert schema == [
         SchemaField('column_1', 'INT64', 'NULLABLE', None, (), None),
         SchemaField('column_2', 'STRING', 'NULLABLE', None, (), None),
         SchemaField('column_3', 'INT64', 'REPEATED', None, (), None)

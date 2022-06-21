@@ -52,8 +52,12 @@ report_fetcher = AdsReportFetcher(client, customer_ids)
 # create query text
 query_text = "SELECT campaign.id AS campaign_id FROM campaign"
 
-# Execute query and campaigns variable
+# Execute query and store campaigns variable
 campaigns = report_fetcher.fetch(query_text)
+
+# convert `campaigns` to common data structures
+campaigns_list = campaigns.to_list()
+campaigns_df = campaigns.to_pandas()
 
 # Fetch report and save it to CSV
 # initialize query_executor to fetch report and store them in local/remote storage

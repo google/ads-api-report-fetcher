@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Sequence
+from typing import Any, Tuple, Sequence, Union
 from operator import attrgetter
 import re
 import proto  # type: ignore
@@ -78,8 +78,10 @@ class GoogleAdsRowParser:
 
     def _init_parsers(self):
         parser_chain = BaseParser(None)
-        for parser in [EmptyAttributeParser, AttributeParser,
-                       RepeatedCompositeParser, RepeatedParser]:
+        for parser in [
+                EmptyAttributeParser, AttributeParser, RepeatedCompositeParser,
+                RepeatedParser
+        ]:
             new_parser = parser(parser_chain)
             parser_chain = new_parser
         return parser_chain
@@ -87,7 +89,8 @@ class GoogleAdsRowParser:
     def parse(self, request):
         return self.parser.parse(request)
 
-    def parse_ads_row(self, row, query_specification) -> Sequence[Any]:
+    def parse_ads_row(self, row,
+                      query_specification) -> Sequence[Any]:
         final_rows = []
         extracted_rows = self._get_attributes_from_row(row,
                                                        query_specification)
@@ -108,7 +111,8 @@ class GoogleAdsRowParser:
             final_rows.append(parsed_element)
         return final_rows if len(final_rows) > 1 else final_rows[0]
 
-    def _get_attributes_from_row(self, row, query_specification):
+    def _get_attributes_from_row(
+            self, row, query_specification) -> Tuple[Any, ...]:
         getter = attrgetter(*query_specification.fields)
         rows = getter(row)
         return rows if isinstance(rows, tuple) else (rows, )
@@ -116,15 +120,15 @@ class GoogleAdsRowParser:
 
 class ResourceFormatter:
     @staticmethod
-    def get_resource(element):
+    def get_resource(element: str) -> str:
         return re.split(": ", str(element).strip())[1]
 
     @staticmethod
-    def get_resource_id(element):
+    def get_resource_id(element: str) -> str:
         return re.split("/", str(element))[-1]
 
     @staticmethod
-    def clean_resource_id(element):
+    def clean_resource_id(element: str) -> Union[int, str]:
         element = re.sub('"', '', str(element))
         try:
             return int(element)

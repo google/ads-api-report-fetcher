@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.import csv
 
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Sequence, Tuple
 import abc
 import os
 import proto  # type: ignore
@@ -22,32 +22,35 @@ from pathlib import Path
 import csv
 import pandas as pd  # type: ignore
 from tabulate import tabulate
-from .formatter import BigQueryFormatter, ResultsFormatter  # type: ignore
+from ..report import GaarfReport
+from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
 
 class AbsWriter(abc.ABC):
     @abc.abstractmethod
-    def write(self, results: Sequence[Any], destination: str,
-              header: Sequence[str]) -> str:
+    def write(self, results: GaarfReport, destination: str) -> str:
         pass
 
-    @abc.abstractmethod
-    def _define_header(self, results, header):
-        pass
+    def get_columns_results(
+            self, results: GaarfReport) -> Tuple[Sequence[str], Sequence[Any]]:
+        column_names = results.column_names
+        results = ArrayFormatter.format(
+            ResultsFormatter.format(results.to_list()), "|")
+        return column_names, results
 
 
 class StdoutWriter(AbsWriter):
     def __init__(self, page_size=10, **kwargs):
         self.page_size = page_size
 
-    def write(self, results, destination, header):
-        results = ResultsFormatter.format(results)
+    def write(self, results, destination):
+        column_names, results = self.get_columns_results(results)
         results_generator = self._paginate_rows(results, self.page_size)
         message = f"showing results for query {destination}"
         print("=" * len(message))
         print(message)
         print("=" * len(message))
-        print(tabulate(next(results_generator), headers=header))
+        print(tabulate(next(results_generator), headers=column_names))
 
     def _define_header(self, results, header):
         pass
@@ -74,9 +77,8 @@ class CsvWriter(AbsWriter):
     def __str__(self):
         return f"[CSV] - data are saved to {self.destination_folder} destination_folder."
 
-    def write(self, results, destination, header) -> str:
-        results = ResultsFormatter.format(results)
-        header = self._define_header(results, header)
+    def write(self, results, destination) -> str:
+        column_names, results = self.get_columns_results(results)
         destination = DestinationFormatter.format_extension(
             destination, new_extension=".csv")
         with open(os.path.join(self.destination_folder, destination),
@@ -85,12 +87,9 @@ class CsvWriter(AbsWriter):
                                 delimiter=self.delimiter,
                                 quotechar=self.quotechar,
                                 quoting=self.quoting)
-            writer.writerow(header)
+            writer.writerow(column_names)
             writer.writerows(results)
         return f"[CSV] - at {destination}"
-
-    def _define_header(self, results, header):
-        return header
 
 
 class BigQueryWriter(AbsWriter):
@@ -106,10 +105,9 @@ class BigQueryWriter(AbsWriter):
     def __str__(self):
         return f"[BigQuery] - {self.dataset_id} at {self.location} location."
 
-    def write(self, results, destination, header) -> str:
-        results = ResultsFormatter.format(results)
-        formatted_results = BigQueryFormatter.format(results, "|")
-        schema = self._define_header(formatted_results, header)
+    def write(self, results, destination) -> str:
+        column_names, results = self.get_columns_results(results)
+        schema = self._define_schema(results, column_names)
         self._create_or_get_dataset()
         destination = DestinationFormatter.format_extension(destination)
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
@@ -118,7 +116,7 @@ class BigQueryWriter(AbsWriter):
             write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
             schema=schema)
 
-        df = pd.DataFrame(formatted_results, columns=header)
+        df = pd.DataFrame(results, columns=column_names)
         try:
             self.client.load_table_from_dataframe(dataframe=df,
                                                   destination=table,
@@ -127,7 +125,7 @@ class BigQueryWriter(AbsWriter):
             raise ValueError(f"Unable to save data to BigQuery! {str(e)}")
         return f"[BigQuery] - at {self.dataset_id}.{destination}"
 
-    def _define_header(self, results, header):
+    def _define_schema(self, results, header):
         result_types = self._get_result_types(results, header)
         return self._get_bq_schema(result_types)
 
@@ -201,9 +199,6 @@ class NullWriter(AbsWriter):
 
     def write(self):
         print("Unknown writer type!")
-
-    def _define_header(self):
-        pass
 
 
 class WriterFactory:
