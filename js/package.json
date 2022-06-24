@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "1.1.0",
+  "version": "1.3.2",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -57,6 +57,6 @@
     "nyc": "^15.1.0",
     "shx": "^0.3.4",
     "ts-node": "^10.8.0",
-    "typescript": "^4.6.4"
+    "typescript": "^4.7.4"
   }
 }

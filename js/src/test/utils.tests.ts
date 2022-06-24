@@ -16,7 +16,7 @@
 
 import assert from 'assert';
 
-import {substituteMacros} from './../lib/utils';
+import {getElapsed, substituteMacros} from './../lib/utils';
 
 suite('substituteMacros', () => {
   test('support empty params', async function () {
@@ -49,4 +49,12 @@ suite('substituteMacros', () => {
     assert.deepEqual(res.unknown_params.length, 0);
   });
 
+  test('getElapsed', () => {
+    let started = new Date(2022, 5, 24, 12, 39, 44, 100);
+    let now = new Date(2022, 5, 24, 12, 39, 44, 100);
+    assert.equal(getElapsed(started, now), '00:00:00.000');
+    assert.equal(
+        getElapsed(started, new Date(2022, 5, 24, 22, 49, 45, 111)),
+        '10:10:01.011');
+  })
 });

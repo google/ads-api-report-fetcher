@@ -17,7 +17,6 @@
 import assert from 'assert';
 
 import {AdsQueryExecutor} from '../lib/ads-query-executor';
-import {NullWriter} from '../lib/csv-writer';
 import {QueryResult} from '../lib/types';
 
 import {MockGoogleAdsApiClient} from './helpers';
@@ -42,15 +41,12 @@ suite('AdsQueryExecutor', () => {
     let customerId = '1';
     let client = new MockGoogleAdsApiClient([customerId]);
     client.setupResult(mockResult);
-    let writer = new NullWriter();
     let executor = new AdsQueryExecutor(client);
 
-    // act
+    // act (using executeGen)
     let result =
         <QueryResult>(
-            await executor
-                .executeGen('test', queryText, [customerId], {}, writer)
-                .next())
+            await executor.executeGen('test', queryText, [customerId]).next())
             .value;
 
     // assert
@@ -95,16 +91,11 @@ suite('AdsQueryExecutor', () => {
     let customerId = '1';
     let client = new MockGoogleAdsApiClient([customerId]);
     client.setupResult(mockResult);
-    let writer = new NullWriter();
     let executor = new AdsQueryExecutor(client);
 
-    // act
-    let result =
-        <QueryResult>(
-            await executor
-                .executeGen('test', queryText, [customerId], {}, writer)
-                .next())
-            .value;
+    // act (using executeOne)
+    let query = executor.parseQuery(queryText);
+    let result = await executor.executeOne(query, <string>customerId);
 
     // assert
     assert.deepEqual(result.rows[0][0], ['AD_GROUP_AD', 'AD_GROUP'])
@@ -134,16 +125,11 @@ suite('AdsQueryExecutor', () => {
     let customerId = '1';
     let client = new MockGoogleAdsApiClient([customerId]);
     client.setupResult(mock_result);
-    let writer = new NullWriter();
     let executor = new AdsQueryExecutor(client);
 
-    // act
-    let result =
-        <QueryResult>(
-            await executor
-                .executeGen('test', queryText, [customerId], {}, writer)
-                .next())
-            .value;
+    // act (using executeOne)
+    let query = executor.parseQuery(queryText);
+    let result = await executor.executeOne(query, <string>customerId);
 
     // assert
     assert(result.rows.length);
@@ -166,21 +152,17 @@ suite('AdsQueryExecutor', () => {
     let customerId = '1';
     let client = new MockGoogleAdsApiClient([customerId]);
     client.setupResult(mockResult);
-    let writer = new NullWriter();
     let executor = new AdsQueryExecutor(client);
 
-    // act
-    let result = <QueryResult>(await executor
-                                   .executeGen(
-                                       'campaign_audience_view', queryText,
-                                       [customerId], {}, writer)
-                                   .next())
-                     .value;
-
-    // assert
-    let row = result.rows[0];
-    assert.deepEqual(
-        result.query.columnNames, ['res_name', 'res_base', 'res_id']);
-    assert.deepStrictEqual(row, [resName, campaignId, resId]);
+    // act (using executeGen with for-await)
+    for await (const result of executor.executeGen(
+        'campaign_audience_view', queryText, [customerId])) {
+      // assert
+      let row = result.rows[0];
+      assert.deepEqual(
+          result.query.columnNames, ['res_name', 'res_base', 'res_id']);
+      assert.deepStrictEqual(row, [resName, campaignId, resId]);
+      break;
+    }
   })
 });

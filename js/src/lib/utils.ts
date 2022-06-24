@@ -110,3 +110,27 @@ export function substituteMacros(
 
   return {queryText, unknown_params};
 }
+
+function prepend(value: number, num?: number): string {
+  let value_str = value.toString();
+  num = num || 2;
+  if (value_str.length < num) {
+    while (value_str.length < num) {
+      value_str = '0' + value_str;
+    }
+  }
+  return value_str;
+}
+export function getElapsed(started: Date, now?: Date): string {
+  let ms = ((now ? now.valueOf() : Date.now()) - started.valueOf());
+  let seconds = ms / 1000;
+  ms = Math.floor(ms % 1000);
+  let minutes = seconds / 60;
+  seconds = Math.floor(seconds % 60);
+  let hours = minutes / 60;
+  minutes = Math.floor(minutes % 60);
+  hours = Math.floor(hours % 24);
+
+  return prepend(hours) + ':' + prepend(minutes) + ':' + prepend(seconds) +
+    '.' + prepend(ms, 3);
+}

@@ -92,4 +92,4 @@ class GoogleAdsApiClient {
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;
-//# sourceMappingURL=api-client.js.map
+//# sourceMappingURL=ads-api-client.js.map

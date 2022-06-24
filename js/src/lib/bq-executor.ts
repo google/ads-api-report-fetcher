@@ -60,8 +60,8 @@ export class BigQueryExecutor {
     let res = substituteMacros(queryText, params?.macroParams);
     if (res.unknown_params.length) {
       throw new Error(
-          `The following parameters used in query weren't not specified: ` +
-          res.unknown_params);
+          `The following parameters used in '${
+              scriptName}' query weren't not specified: ${res.unknown_params}`);
     }
     let query: Query = {
       query: res.queryText

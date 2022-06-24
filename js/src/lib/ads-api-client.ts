@@ -24,7 +24,18 @@ export interface IGoogleAdsApiClient {
   getCustomerIds(): Promise<string[]>
 }
 
-export type GoogleAdsApiConfig = CustomerOptions&ClientOptions;
+// export type GoogleAdsApiConfig = CustomerOptions&ClientOptions;
+export type GoogleAdsApiConfig = {
+  // ClientOptions:
+  client_id: string;
+  client_secret: string;
+  developer_token: string;
+  // CustomerOptions:
+  customer_id?: string;
+  refresh_token: string;
+  login_customer_id?: string;
+  linked_customer_id?: string;
+}
 
 export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
@@ -32,7 +43,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   ads_cfg: GoogleAdsApiConfig;
   isChildCustomer: boolean;
 
-  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string | undefined) {
+  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
     if (!adsConfig) {
       throw new Error('GoogleAdsApiConfig instance was not passed')
     }

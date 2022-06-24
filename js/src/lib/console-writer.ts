@@ -23,23 +23,30 @@ export interface ConsoleWriterOptions {}
 // TODO:
 export class ConsoleWriter implements IResultWriter {
   query: QueryElements|undefined;
-  rows: any[]|undefined;
+  rowsByCustomer: Record<string, any[][]> = {};
 
   constructor(options?: ConsoleWriterOptions) {}
   beginScript(scriptName: string, query: QueryElements): void|Promise<void> {
     this.query = query;
   }
-  endScript(customers: string[]): void|Promise<void> {
+
+  endScript(): void|Promise<void> {
     this.query = undefined;
   }
+
   beginCustomer(customerId: string): void|Promise<void> {
-    this.rows = [];
+    this.rowsByCustomer[customerId] = [];
   }
-  endCustomer(): void | Promise<void> {
+
+  addRow(customerId: string, parsedRow: any[], rawRow: any[]): void {
+    this.rowsByCustomer[customerId].push(parsedRow);
+  }
+
+  endCustomer(customerId: string): void|Promise<void> {
     // TODO:
     let cc: ColumnUserConfig = {wrapWord: true, alignment: 'center'};
-
-    let text = table(this.rows!, {
+    let rows = this.rowsByCustomer[customerId];
+    let text = table(rows, {
       border: getBorderCharacters('void'),
       columnDefault: {paddingLeft: 0, paddingRight: 1},
       drawHorizontalLine: () => false
@@ -49,10 +56,6 @@ export class ConsoleWriter implements IResultWriter {
       // singleLine: true
     });
     console.log(text);
-
-    this.rows = [];
-  }
-  addRow(parsedRow: any[]): void {
-    this.rows!.push(parsedRow);
+    this.rowsByCustomer[customerId] = [];
   }
 }

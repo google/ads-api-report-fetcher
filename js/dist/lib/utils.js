@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.substituteMacros = exports.MACRO_DATE_ISO = exports.getCurrentDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.getElapsed = exports.substituteMacros = exports.MACRO_DATE_ISO = exports.getCurrentDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 function traverseObject(object, visitor, path) {
     path = path || [];
@@ -111,4 +111,27 @@ function substituteMacros(queryText, macros) {
     return { queryText, unknown_params };
 }
 exports.substituteMacros = substituteMacros;
+function prepend(value, num) {
+    let value_str = value.toString();
+    num = num || 2;
+    if (value_str.length < num) {
+        while (value_str.length < num) {
+            value_str = '0' + value_str;
+        }
+    }
+    return value_str;
+}
+function getElapsed(started, now) {
+    let ms = ((now ? now.valueOf() : Date.now()) - started.valueOf());
+    let seconds = ms / 1000;
+    ms = Math.floor(ms % 1000);
+    let minutes = seconds / 60;
+    seconds = Math.floor(seconds % 60);
+    let hours = minutes / 60;
+    minutes = Math.floor(minutes % 60);
+    hours = Math.floor(hours % 24);
+    return prepend(hours) + ':' + prepend(minutes) + ':' + prepend(seconds) +
+        '.' + prepend(ms, 3);
+}
+exports.getElapsed = getElapsed;
 //# sourceMappingURL=utils.js.map

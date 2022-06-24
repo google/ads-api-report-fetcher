@@ -29,7 +29,8 @@ export class CsvWriter implements IResultWriter {
   filename: string|undefined;
   appending = false;
   customerRows = 0;
-  rows: any[][] = [];
+  //rows: any[][] = [];
+  rowsByCustomer: Record<string, any[][]> = {};
   query: QueryElements|undefined;
 
   constructor(options?: CsvWriterOptions) {
@@ -53,50 +54,55 @@ export class CsvWriter implements IResultWriter {
     }
   }
 
-  endScript(customers: string[]) {
+  endScript() {
     this.filename = undefined;
   }
+  
   beginCustomer(customerId: string) {
-    this.rows = [];
+    //this.rows = [];
+    this.rowsByCustomer[customerId] = [];
   }
-  endCustomer() {
-    if (!this.rows.length) {
+
+  addRow(customerId: string, parsedRow: any[], rawRow: any[]) {
+    if (!parsedRow || parsedRow.length == 0) return;
+    //this.rows.push(parsedRow);
+    this.rowsByCustomer[customerId].push(parsedRow);
+  }
+
+  endCustomer(customerId: string) {
+    let rows = this.rowsByCustomer[customerId];
+    if (!rows.length) {
       return;
     }
     let csvOptions: csvStringify.Options = {
-      header: !this.appending,
-      quoted: false,
-      columns: this.query!.columnNames,
-      cast: {
-        boolean: (value: boolean, context: csvStringify.CastingContext) =>
-            value ? 'true' : 'false'
-      }
-    };
-    let csv = stringify(this.rows, csvOptions);
+          header: !this.appending,
+          quoted: false,
+          columns: this.query!.columnNames,
+          cast: {
+            boolean: (value: boolean, context: csvStringify.CastingContext) =>
+                value ? 'true' : 'false'
+          }
+        };
+    let csv = stringify(rows, csvOptions);
     fs.writeFileSync(
         this.filename!, csv,
         {encoding: 'utf-8', flag: this.appending ? 'a' : 'w'});
 
-    if (this.rows.length > 0) {
+    if (rows.length > 0) {
       console.log(
           (this.appending ? 'Updated ' : 'Created ') + this.filename +
-          ` with ${this.rows.length} rows`);
+          ` with ${rows.length} rows`);
     }
 
     this.appending = true;
-    this.rows = [];
-  }
-
-  addRow(parsedRow: any[]) {
-    if (!parsedRow || parsedRow.length == 0) return;
-    this.rows.push(parsedRow);
+    this.rowsByCustomer[customerId] = [];
   }
 }
 
 export class NullWriter implements IResultWriter {
   beginScript(scriptName: string, query: QueryElements): void|Promise<void> {}
-  endScript(customers: string[]): void|Promise<void> {}
   beginCustomer(customerId: string): void|Promise<void> {}
-  endCustomer(): void|Promise<void> {}
-  addRow(parsedRow: any[]): void {}
+  addRow(customerId: string, parsedRow: any[], rawRow: any[]): void {}
+  endCustomer(customerId: string): void|Promise<void> {}
+  endScript(): void|Promise<void> {}
 }

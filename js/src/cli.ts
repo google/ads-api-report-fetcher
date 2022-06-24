@@ -23,14 +23,15 @@ import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
-import {AdsQueryExecutor} from './lib/ads-query-executor';
-import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/api-client';
+import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/ads-api-client';
+import {AdsQueryExecutor, AdsQueryExecutorOptions} from './lib/ads-query-executor';
 import {BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
+import { getElapsed } from './lib/utils';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
@@ -81,6 +82,11 @@ const argv =
           choices: ['csv', 'bq', 'bigquery', 'console'],
           alias: 'o',
           description: 'output writer to use'
+        })
+        .option('sync', {
+          type: 'boolean',
+          description:
+              'Queries will be executed for each customer synchronously (otherwise in parallel)'
         })
         .option('csv.destination-folder', {
           type: 'string',
@@ -229,14 +235,19 @@ async function main() {
 
   console.log('Fetching customer ids');
   let customers = await client.getCustomerIds();
-  console.log(`Customers to process:`);
+  console.log(`Customers to process (${customers}):`);
   console.log(customers);
 
   let macros = <Record<string, any>>argv['macro'] || {};
   let writer = getWriter();  // NOTE: create writer from argv
   let executor = new AdsQueryExecutor(client);
-  let options = {skipConstants: argv.skipConstants};
+  let options: AdsQueryExecutorOptions = {
+    skipConstants: argv.skipConstants,
+    sync: argv.sync
+  };
   console.log(`Found ${scriptPaths.length} script to process`);
+
+  let started = new Date();
   for (let scriptPath of scriptPaths) {
     let queryText = await getFileContent(scriptPath);
     console.log(`Processing query from ${scriptPath}`);
@@ -246,8 +257,8 @@ async function main() {
         scriptName, queryText, customers, macros, writer, options);
     console.log();
   }
-
-  console.log(chalk.green('All done!'));
+  let elapsed = getElapsed(started);
+  console.log(chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
 }
 
 

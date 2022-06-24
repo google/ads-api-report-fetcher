@@ -16,7 +16,7 @@
 
 import _ from 'lodash';
 
-import {IGoogleAdsApiClient} from '../lib/api-client';
+import {IGoogleAdsApiClient} from '../lib/ads-api-client';
 
 export class MockGoogleAdsApiClient implements IGoogleAdsApiClient {
   customerIds: string[];

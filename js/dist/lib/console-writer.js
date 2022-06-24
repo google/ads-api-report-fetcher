@@ -19,20 +19,26 @@ exports.ConsoleWriter = void 0;
 const table_1 = require("table");
 // TODO:
 class ConsoleWriter {
-    constructor(options) { }
+    constructor(options) {
+        this.rowsByCustomer = {};
+    }
     beginScript(scriptName, query) {
         this.query = query;
     }
-    endScript(customers) {
+    endScript() {
         this.query = undefined;
     }
     beginCustomer(customerId) {
-        this.rows = [];
+        this.rowsByCustomer[customerId] = [];
     }
-    endCustomer() {
+    addRow(customerId, parsedRow, rawRow) {
+        this.rowsByCustomer[customerId].push(parsedRow);
+    }
+    endCustomer(customerId) {
         // TODO:
         let cc = { wrapWord: true, alignment: 'center' };
-        let text = (0, table_1.table)(this.rows, {
+        let rows = this.rowsByCustomer[customerId];
+        let text = (0, table_1.table)(rows, {
             border: (0, table_1.getBorderCharacters)('void'),
             columnDefault: { paddingLeft: 0, paddingRight: 1 },
             drawHorizontalLine: () => false
@@ -41,10 +47,7 @@ class ConsoleWriter {
             // singleLine: true
         });
         console.log(text);
-        this.rows = [];
-    }
-    addRow(parsedRow) {
-        this.rows.push(parsedRow);
+        this.rowsByCustomer[customerId] = [];
     }
 }
 exports.ConsoleWriter = ConsoleWriter;

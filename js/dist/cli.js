@@ -25,12 +25,13 @@ const js_yaml_1 = __importDefault(require("js-yaml"));
 const path_1 = __importDefault(require("path"));
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
+const ads_api_client_1 = require("./lib/ads-api-client");
 const ads_query_executor_1 = require("./lib/ads-query-executor");
-const api_client_1 = require("./lib/api-client");
 const bq_writer_1 = require("./lib/bq-writer");
 const console_writer_1 = require("./lib/console-writer");
 const csv_writer_1 = require("./lib/csv-writer");
 const file_utils_1 = require("./lib/file-utils");
+const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
@@ -66,6 +67,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     choices: ['csv', 'bq', 'bigquery', 'console'],
     alias: 'o',
     description: 'output writer to use'
+})
+    .option('sync', {
+    type: 'boolean',
+    description: 'Queries will be executed for each customer synchronously (otherwise in parallel)'
 })
     .option('csv.destination-folder', {
     type: 'string',
@@ -175,7 +180,7 @@ async function main() {
     }
     console.log(chalk_1.default.gray('Using ads config:'));
     console.log(adsConfig);
-    let client = new api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
+    let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
     // with mask like *.sql will expand it to a list of files (see
@@ -193,13 +198,17 @@ async function main() {
     let scriptPaths = argv.files;
     console.log('Fetching customer ids');
     let customers = await client.getCustomerIds();
-    console.log(`Customers to process:`);
+    console.log(`Customers to process (${customers}):`);
     console.log(customers);
     let macros = argv['macro'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
-    let options = { skipConstants: argv.skipConstants };
+    let options = {
+        skipConstants: argv.skipConstants,
+        sync: argv.sync
+    };
     console.log(`Found ${scriptPaths.length} script to process`);
+    let started = new Date();
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         console.log(`Processing query from ${scriptPath}`);
@@ -207,7 +216,8 @@ async function main() {
         await executor.execute(scriptName, queryText, customers, macros, writer, options);
         console.log();
     }
-    console.log(chalk_1.default.green('All done!'));
+    let elapsed = (0, utils_1.getElapsed)(started);
+    console.log(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
 function loadAdsConfig(configFilepath, customerId) {
     var _a, _b;

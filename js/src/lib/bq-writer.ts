@@ -18,6 +18,7 @@ import {BigQuery, Dataset, Table, TableOptions} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import fs from 'fs';
 import _ from 'lodash';
+
 import {FieldType, FieldTypeKind, IResultWriter, isEnumType, QueryElements, QueryResult} from './types';
 
 const MAX_ROWS = 50000;
@@ -33,21 +34,22 @@ export interface BigQueryWriterOptions {
   tableTemplate?: string|undefined;
   datasetLocation?: string|undefined;
   dumpSchema?: boolean;
+  keepData?: boolean;
 }
 
 export class BigQueryWriter implements IResultWriter {
   bigquery: BigQuery;
   datasetId: string;
   datasetLocation?: string;
-  customerId: string|undefined;
+  customers: string[];
   schema: bigquery.ITableSchema|undefined;
   tableId: string|undefined;
   dataset: Dataset|undefined;
-  // table: Table|undefined;
-  rows: any[][] = [];
+  rowsByCustomer: Record<string, any[][]>;
   query: QueryElements|undefined;
-  tableTemplate?: string;
-  dumpSchema?: boolean;
+  tableTemplate: string|undefined;
+  dumpSchema: boolean;
+  keepData: boolean;
 
   constructor(
       projectId: string, dataset: string, options?: BigQueryWriterOptions) {
@@ -59,10 +61,15 @@ export class BigQueryWriter implements IResultWriter {
     this.datasetId = dataset;
     this.datasetLocation = options?.datasetLocation;
     this.tableTemplate = options?.tableTemplate;
-    this.dumpSchema = options?.dumpSchema;
+    this.dumpSchema = options?.dumpSchema || false;
+    this.keepData = options?.keepData || false;
+    this.customers = [];
+    this.rowsByCustomer = {};
   }
 
   async beginScript(scriptName: string, query: QueryElements): Promise<void> {
+    if (!scriptName)
+      throw new Error(`scriptName (used as name for table) was not specified`);
     // a script's results go to a separate table with same name as a file
     if (this.tableTemplate) {
       this.tableId = this.tableTemplate.replace(/\{script\}/i, scriptName);
@@ -79,6 +86,9 @@ export class BigQueryWriter implements IResultWriter {
       console.log(schema);
       let schemaJson = JSON.stringify(schema, undefined, 2)
       fs.writeFileSync(scriptName + '.json', schemaJson);
+    }
+    if (!this.query.resource.isConstant) {
+      await this.dataset!.table(this.tableId).delete({ignoreNotFound: true});
     }
   }
 
@@ -97,8 +107,14 @@ export class BigQueryWriter implements IResultWriter {
     return dataset;
   }
 
-  async endScript(customers: string[]): Promise<void> {
-    if (!this.query?.resource.isConstant) {
+  async endScript(): Promise<void> {
+    if (!this.tableId) {
+      throw new Error(`No table id is set. Did you call beginScript method?`);
+    }
+    if (!this.query) {
+      throw new Error(`No query is set. Did you call beginScript method?`);
+    }
+    if (!this.query.resource.isConstant) {
       /*
       Create a view to union all customer tables:
       CREATE OR REPLACE VIEW `dataset.resource` AS
@@ -106,49 +122,59 @@ export class BigQueryWriter implements IResultWriter {
       Unfortunately BQ always creates a based empty table for templated
       (customer) table, so we have to drop it first.
       */
-      await this.dataset!.table(this.tableId!).delete({ignoreNotFound: true});
+      await this.dataset!.table(this.tableId).delete({ignoreNotFound: true});
       await this.dataset!.query({
         query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${
             this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${
-            this.tableId}_*\` WHERE _TABLE_SUFFIX in (${customers.map(s => "'"+s+"'").join(',')})`
+            this.tableId}_*\` WHERE _TABLE_SUFFIX in (${
+            this.customers.map(s => '\'' + s + '\'').join(',')})`
       });
       console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
     }
     this.tableId = undefined;
-    // this.table = undefined;
     this.query = undefined;
+    if (!this.keepData) this.customers = [];
   }
 
-  beginCustomer(customerId: string): Promise<void>|void {
-    this.customerId = customerId;
-    this.rows = [];
+  beginCustomer(customerId: string): Promise<void> | void {
+    if (this.rowsByCustomer[customerId]) {
+      throw new Error(`Customer id ${customerId} already exist`);
+    }
+    this.customers.push(customerId);
+    this.rowsByCustomer[customerId] = [];
   }
 
-  async endCustomer(): Promise<void> {
-    // let started = new Date();
+  async endCustomer(customerId: string): Promise<void> {
+    if (!this.tableId) {
+      throw new Error(`No table id is set. Did you call beginScript method?`);
+    }
+    if (!customerId) {
+      throw new Error(`No customer id is specified`);
+    }
+    // NOTE: for constant resources we don't use templated tables (table per
+    // customer)
+    let tableFullName = this.query?.resource.isConstant ?
+        this.tableId :
+        this.tableId + '_' + customerId;
 
     //  remove customer's table (to make sure you have only fresh data)
-    // NOTE: for constant resources we don't use templated table (table per customer)
-    let tableFullName = this.query?.resource.isConstant ?
-        this.tableId! :
-        this.tableId! + '_' + this.customerId;
-
     try {
-      console.log(`\tRemoving table '${tableFullName}'`);
+      console.log(`\t[${customerId}] Removing table '${tableFullName}'`);
       await this.dataset!.table(tableFullName).delete({ignoreNotFound: true});
     } catch (e) {
-      console.log(`Deletion of table '${tableFullName}' failed: ${e}`);
+      console.log(
+          `[${customerId}] Deletion of table '${tableFullName}' failed: ${e}`);
       throw e;
     }
-
-    if (this.rows.length > 0) {
+    let rows = this.rowsByCustomer[customerId];
+    if (rows.length > 0) {
       // upload data to BQ
       try {
         // insert rows by chunks (there's a limit for insert)
-        let table = this.dataset!.table(this.tableId!);
-        for (let i = 0, j = this.rows.length; i < j; i += MAX_ROWS) {
-          let rowsChunk = this.rows.slice(i, i + MAX_ROWS);
-          let rows = rowsChunk.map(row => {
+        let table = this.dataset!.table(this.tableId);
+        for (let i = 0, j = rows.length; i < j; i += MAX_ROWS) {
+          let rowsChunk = rows.slice(i, i + MAX_ROWS);
+          let rows2insert = rowsChunk.map(row => {
             let rowObj: Record<string, any> = {};
             for (let i = 0; i < row.length; i++) {
               let colName = this.query!.columnNames[i];
@@ -181,17 +207,17 @@ export class BigQueryWriter implements IResultWriter {
           let templateSuffix = undefined;
           if (!this.query?.resource.isConstant) {
             // we'll create table as
-            templateSuffix = '_' + this.customerId;
+            templateSuffix = '_' + customerId;
           }
-          await table!.insert(rows, {
+          await table!.insert(rows2insert, {
             templateSuffix: templateSuffix,
             schema: this.schema,
           });
-          console.log(`\tInserted ${rowsChunk.length} rows`);
+          console.log(`\t[${customerId}] Inserted ${rowsChunk.length} rows`);
         }
       } catch (e) {
-        console.log(`Failed to insert rows into '${this.datasetId}.${
-            this.tableId}' table`);
+        console.log(`[${customerId}] Failed to insert rows into '${
+            tableFullName}' table`);
         if (e.name === 'PartialFailureError') {
           // Some rows failed to insert, while others may have succeeded.
           const max_errors_to_show = 10;
@@ -200,36 +226,38 @@ export class BigQueryWriter implements IResultWriter {
                   e.errors.length})` :
               e.errors.length + ' error(s)';
           console.log(`Some rows failed to insert (${msgDetail}):`);
+          // show first 10 rows with errors
           for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
             let err = e.errors[i];
             console.log(`#${i} row: `);
             console.log(err.row);
-            console.log(`error: ${err.errors[0].message}`);
+            console.log(`Error: ${err.errors[0].message}`);
           }
         } else if (e.code === 404) {
           // ApiError: "Table 162551664177:dataset.table not found"
-          console.log(`ERROR: Table ${this.tableId} not found. WHY?`);
-          const table = this.dataset!.table(this.tableId!);
+          // This is unexpected but theriotically can happen (and did) due to eventually consistency of BigQuery
+          console.log(`ERROR: Table ${tableFullName} not found.`);
+          const table = this.dataset!.table(this.tableId);
           let exists = await table.exists();
           console.log(`Table exists: ${exists}`);
         }
         throw e;
       }
-      console.log(
-          `${this.rows.length} rows inserted into '${tableFullName}' table`);
+      console.log(`\t[${customerId}] ${rows.length} rows inserted into '${
+          tableFullName}' table`);
     } else {
-      // no rows found for the customer, as so no table was created, create an
-      // empty one
+      // no rows found for the customer, as so no table was created,
+      // create an empty one, so we could use it for a union view
       try {
-        await this.dataset!.createTable(tableFullName, { schema: this.schema });
-        console.log(`\Created empty table '${tableFullName}'`);
+        await this.dataset!.createTable(tableFullName, {schema: this.schema});
+        console.log(`\t[${customerId}] Created empty table '${tableFullName}'`);
       } catch (e) {
-        console.log(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
+        console.log(
+            `\tCreation of empty table '${tableFullName}' failed: ${e}`);
         throw e;
       }
     }
-    this.customerId = undefined;
-    // TODO: get elapsed seconds: let delta = new Date() - started;
+    if (!this.keepData) this.rowsByCustomer[customerId] = [];
   }
 
   createSchema(query: QueryElements): bigquery.ITableSchema {
@@ -269,8 +297,8 @@ export class BigQueryWriter implements IResultWriter {
     return 'STRING';
   }
 
-  addRow(parsedRow: any[]): void {
+  addRow(customerId: string, parsedRow: any[]): void {
     if (!parsedRow || parsedRow.length == 0) return;
-    this.rows.push(parsedRow);
+    this.rowsByCustomer[customerId].push(parsedRow);
   }
 }

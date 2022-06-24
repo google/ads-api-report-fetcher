@@ -26,7 +26,8 @@ class CsvWriter {
     constructor(options) {
         this.appending = false;
         this.customerRows = 0;
-        this.rows = [];
+        //rows: any[][] = [];
+        this.rowsByCustomer = {};
         this.destination = options === null || options === void 0 ? void 0 : options.destinationFolder;
     }
     beginScript(scriptName, query) {
@@ -44,14 +45,22 @@ class CsvWriter {
             fs_1.default.rmSync(this.filename);
         }
     }
-    endScript(customers) {
+    endScript() {
         this.filename = undefined;
     }
     beginCustomer(customerId) {
-        this.rows = [];
+        //this.rows = [];
+        this.rowsByCustomer[customerId] = [];
     }
-    endCustomer() {
-        if (!this.rows.length) {
+    addRow(customerId, parsedRow, rawRow) {
+        if (!parsedRow || parsedRow.length == 0)
+            return;
+        //this.rows.push(parsedRow);
+        this.rowsByCustomer[customerId].push(parsedRow);
+    }
+    endCustomer(customerId) {
+        let rows = this.rowsByCustomer[customerId];
+        if (!rows.length) {
             return;
         }
         let csvOptions = {
@@ -62,28 +71,23 @@ class CsvWriter {
                 boolean: (value, context) => value ? 'true' : 'false'
             }
         };
-        let csv = (0, sync_1.stringify)(this.rows, csvOptions);
+        let csv = (0, sync_1.stringify)(rows, csvOptions);
         fs_1.default.writeFileSync(this.filename, csv, { encoding: 'utf-8', flag: this.appending ? 'a' : 'w' });
-        if (this.rows.length > 0) {
+        if (rows.length > 0) {
             console.log((this.appending ? 'Updated ' : 'Created ') + this.filename +
-                ` with ${this.rows.length} rows`);
+                ` with ${rows.length} rows`);
         }
         this.appending = true;
-        this.rows = [];
-    }
-    addRow(parsedRow) {
-        if (!parsedRow || parsedRow.length == 0)
-            return;
-        this.rows.push(parsedRow);
+        this.rowsByCustomer[customerId] = [];
     }
 }
 exports.CsvWriter = CsvWriter;
 class NullWriter {
     beginScript(scriptName, query) { }
-    endScript(customers) { }
     beginCustomer(customerId) { }
-    endCustomer() { }
-    addRow(parsedRow) { }
+    addRow(customerId, parsedRow, rawRow) { }
+    endCustomer(customerId) { }
+    endScript() { }
 }
 exports.NullWriter = NullWriter;
 //# sourceMappingURL=csv-writer.js.map
