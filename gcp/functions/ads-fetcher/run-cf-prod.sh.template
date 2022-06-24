@@ -1,0 +1,8 @@
+# example of calling CF Gen1 (deployed under "ads-fetcher" name):
+curl -G https://us-central1-<YOUR_PROJECT_ID>.cloudfunctions.net/ads-fetcher \
+  -H "Authorization: bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d script_path=gs://<YOUR_PROJECT_GCS>/path/to/script \
+  -d project_id=<YOUR_PROJECT_ID> \
+  -d dataset=<YOUR_DATASET> \
+  -d customer_id=<YOUR_ADS_CUSTOMER_ID>

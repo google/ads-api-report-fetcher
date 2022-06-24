@@ -1,0 +1,18 @@
+{
+  "extends": "./node_modules/gts/tsconfig-google.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "build",
+    "lib": ["ES2021"],
+    "moduleResolution": "node",            /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+    "noImplicitReturns": false,             /* Report error when not all code paths in function return a value. */
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,                     /* Skip type checking of declaration files. */
+    "esModuleInterop": true                  /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": ["build/**/*", "node_modules"]
+}

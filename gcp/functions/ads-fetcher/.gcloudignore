@@ -1,0 +1,7 @@
+.vscode/
+coverage/
+.eslintignore
+.eslintrc.json
+.gitignore
+.prettierrc.js
+*.sh
