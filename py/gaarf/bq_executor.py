@@ -15,28 +15,34 @@
 import dataclasses
 from typing import Any, Dict
 from google.cloud import bigquery  # type: ignore
+from jinja2 import Template
 
 
 @dataclasses.dataclass
 class BigQueryExecutorParams:
     sql_params: Dict[str, Any]
     macro_params: Dict[str, Any]
+    template_params: Dict[str, Any]
     target: str
     write_disposition: str
 
 
 class BigQueryParamsParser:
-    def __init__(self, params: Dict[str, Any], target: str = "",
+    def __init__(self,
+                 params: Dict[str, Any],
+                 target: str = "",
                  write_disposition: str = ""):
         self.params = params
         self.target = target
         self.write_disposition = write_disposition
 
     def parse(self):
-        return BigQueryExecutorParams(sql_params=self.params.get("sql"),
-                                      macro_params=self.params.get("macro"),
-                                      target=self.target,
-                                      write_disposition=self.write_disposition)
+        return BigQueryExecutorParams(
+            sql_params=self.params.get("sql"),
+            macro_params=self.params.get("macro"),
+            template_params=self.params.get("template"),
+            target=self.target,
+            write_disposition=self.write_disposition)
 
 
 class BigQueryExecutor:
@@ -45,6 +51,8 @@ class BigQueryExecutor:
 
     def execute(self, script_name: str, query_text: str,
                 params: BigQueryExecutorParams) -> None:
+        query_text = self._expand_jinja(query_text,
+                                        **params.template_params)
         formatted_query = query_text.format(**params.macro_params)
         job = self.client.query(formatted_query)
         try:
@@ -52,3 +60,10 @@ class BigQueryExecutor:
             print(f"{script_name} launched successfully")
         except Exception as e:
             print(f"Error launching {script_name} query!" f"{str(e)}")
+
+    def _expand_jinja(self, query_text, **template_params):
+        for key, value in template_params.items():
+            if len(splitted_param := value.split(",")) > 1:
+                template_params[key] = splitted_param
+        template = Template(query_text)
+        return template.render(template_params)
