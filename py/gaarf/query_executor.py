@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Sequence, Union
+from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 
 from . import parsers
 from . import api_clients
@@ -25,8 +26,13 @@ class AdsReportFetcher:
                 str(query_specification)).generate()
 
         for customer_id in self.customer_ids:
-            results = self._parse_ads_response(query_specification,
-                                               customer_id)
+            try:
+                results = self._parse_ads_response(query_specification,
+                                                   customer_id)
+            except GoogleAdsException:
+                print("Cannot execute query for "
+                      f"{query_specification.query_title} "
+                      f"for customer_id {customer_id}")
             total_results.extend(results)
             if query_specification.is_constant_resource:
                 print("Running only once")
