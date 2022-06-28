@@ -95,20 +95,20 @@ export function substituteMacros(
     queryText: string, macros?: Record<string, any>):
     {queryText: string, unknown_params: string[]} {
   macros = macros || {};
-  let unknown_params: string[] = [];
+  let unknown_params: Record<string, boolean> = {};
   queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
     if (name === MACRO_DATE_ISO && !macros![MACRO_DATE_ISO]) {
       return getCurrentDateISO();
     }
     if (!macros!.hasOwnProperty(name)) {
-      unknown_params.push(name);
+      unknown_params[name] = true;
       return ss;
     }
 
     return macros![name];
   });
 
-  return {queryText, unknown_params};
+  return {queryText, unknown_params: Object.keys(unknown_params)};
 }
 
 function prepend(value: number, num?: number): string {

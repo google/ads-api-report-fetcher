@@ -97,18 +97,18 @@ exports.getCurrentDateISO = getCurrentDateISO;
 exports.MACRO_DATE_ISO = 'date_iso';
 function substituteMacros(queryText, macros) {
     macros = macros || {};
-    let unknown_params = [];
+    let unknown_params = {};
     queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
         if (name === exports.MACRO_DATE_ISO && !macros[exports.MACRO_DATE_ISO]) {
             return getCurrentDateISO();
         }
         if (!macros.hasOwnProperty(name)) {
-            unknown_params.push(name);
+            unknown_params[name] = true;
             return ss;
         }
         return macros[name];
     });
-    return { queryText, unknown_params };
+    return { queryText, unknown_params: Object.keys(unknown_params) };
 }
 exports.substituteMacros = substituteMacros;
 function prepend(value, num) {

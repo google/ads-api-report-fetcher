@@ -115,10 +115,14 @@ const argv =
           description:
               'flag that enables dumping json files with schemas for tables'
         })
+        .option('bq.no-union-view', {
+          type: 'boolean',
+          description: 'disable creation of union views (combining data from customer\'s table'
+        })
         .group(
             [
               'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
-              'bq.location'
+              'bq.location', 'bq.no-union-view'
             ],
             'BigQuery writer options:')
         .group('csv.destination-folder', 'CSV writer options:')
@@ -172,6 +176,7 @@ function getWriter(): IResultWriter {
     opts.datasetLocation = (<any>argv.bq).location;
     opts.tableTemplate = (<any>argv.bq)['table-template'];
     opts.dumpSchema = (<any>argv.bq)['dump-schema'];
+    opts.noUnionView = ((<any>argv.bq))['no-union-view'];
     return new BigQueryWriter(projectId, dataset, opts);
   }
   throw new Error(`Unknown output format: '${output}'`);

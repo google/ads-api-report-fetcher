@@ -13,5 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export * from './gaarf';
-export * from './gaarf-bq';
+import type { HttpFunction } from '@google-cloud/functions-framework/build/src/functions';
+export declare const main: HttpFunction;

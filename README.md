@@ -84,7 +84,7 @@ gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
 
 ### Postprocessing
 
-Once reports have been fetched you might use `gaarf-bq` (utility that is installed alonside with `gaarf`) to run queries in BigQuery based on collected data in BigQuery.
+Once reports have been fetched you might use `gaarf-bq` (utility that installed alonside with `gaarf`) to run queries in BigQuery based on collected data in there.
 Essensially it's a simple tool for executing BigQuery queries from files, optionally creating tables for query results.
 
 
@@ -98,12 +98,12 @@ Options:
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
 
-There are prefined macros that can be passed without values:
-* `date_iso` - returns current date in YYYYMMDD format (how to pass: `--macro.date_iso`).
+There are prefined macros that can be used in queries without passing via command line:
+* `date_iso` - replaced onto current date in YYYYMMDD format
 
 Basically there're two main use-cases: with passing `target` parameter and without. If a target supplied it should be
 a dataset name (either existing or non-existing one) where a table for each script will be created (the name of the table will be the script file base name).
-So you can write a select script that extract data from other BigQuery tables and the results will be put into a new table.
+So you can write a select script that extracts data from other BigQuery tables and the results will be put into a new table.
 If a target isn't supplied than no table will be created. It's useful if your script contains DDL statements (e.g. create or replace view).
 
 There are two type of parameters that you can pass to a script: macro and sql-parameter. First one is just a substitution in script text.

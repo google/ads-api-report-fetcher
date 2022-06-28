@@ -108,8 +108,10 @@ class BigQueryWriter {
         }
         this.tableId = undefined;
         this.query = undefined;
-        if (!this.keepData)
+        if (!this.keepData) {
             this.customers = [];
+            this.rowsByCustomer = {};
+        }
     }
     beginCustomer(customerId) {
         if (this.rowsByCustomer[customerId]) {

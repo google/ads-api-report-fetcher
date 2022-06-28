@@ -35,6 +35,7 @@ export interface BigQueryWriterOptions {
   datasetLocation?: string|undefined;
   dumpSchema?: boolean;
   keepData?: boolean;
+  noUnionView?: boolean;
 }
 
 export class BigQueryWriter implements IResultWriter {
@@ -50,6 +51,7 @@ export class BigQueryWriter implements IResultWriter {
   tableTemplate: string|undefined;
   dumpSchema: boolean;
   keepData: boolean;
+  noUnionView: boolean;
 
   constructor(
       projectId: string, dataset: string, options?: BigQueryWriterOptions) {
@@ -63,6 +65,7 @@ export class BigQueryWriter implements IResultWriter {
     this.tableTemplate = options?.tableTemplate;
     this.dumpSchema = options?.dumpSchema || false;
     this.keepData = options?.keepData || false;
+    this.noUnionView = options?.noUnionView || false;
     this.customers = [];
     this.rowsByCustomer = {};
   }
@@ -114,9 +117,9 @@ export class BigQueryWriter implements IResultWriter {
     if (!this.query) {
       throw new Error(`No query is set. Did you call beginScript method?`);
     }
-    if (!this.query.resource.isConstant) {
+    if (!this.query.resource.isConstant && !this.noUnionView) {
       /*
-      Create a view to union all customer tables:
+      Create a view to union all customer tables (if not disabled excplicitly):
       CREATE OR REPLACE VIEW `dataset.resource` AS
         SELECT * FROM `dataset.resource_*`;
       Unfortunately BQ always creates a based empty table for templated
@@ -133,7 +136,10 @@ export class BigQueryWriter implements IResultWriter {
     }
     this.tableId = undefined;
     this.query = undefined;
-    if (!this.keepData) this.customers = [];
+    if (!this.keepData) {
+      this.customers = [];
+      this.rowsByCustomer = {};
+    }
   }
 
   beginCustomer(customerId: string): Promise<void> | void {

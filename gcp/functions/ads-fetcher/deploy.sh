@@ -1,7 +1,7 @@
 # Cloud Function deployment script
 # NOTE: it's an example, adjust it to your needs
 
-gcloud beta functions deploy ads-fetcher \
+gcloud beta functions deploy gaarf \
   --trigger-http \
   --entry-point=main \
   --runtime=nodejs16 \
@@ -12,6 +12,17 @@ gcloud beta functions deploy ads-fetcher \
   --source=.
 
 #  --env-vars-file .env.yaml
-# --timeout=540s
+#  --timeout=540s
 #For GCF 1st gen functions, cannot be more than 540s.
 #For GCF 2nd gen functions, cannot be more than 3600s. 
+
+
+gcloud beta functions deploy gaarf-bq \
+  --trigger-http \
+  --entry-point=main_bq \
+  --runtime=nodejs16 \
+  --timeout=540s \
+  --memory=512MB \
+  --region=us-central1 \
+  --allow-unauthenticated \
+  --source=.
