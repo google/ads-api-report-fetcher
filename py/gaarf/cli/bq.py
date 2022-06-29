@@ -14,7 +14,7 @@ def main():
     main_args = args[0]
     query_args = args[1]
 
-    params = ParamsParser(["macro", "sql"]).parse(query_args)
+    params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
     bq_executor = BigQueryExecutor(main_args.project)
     query_params = BigQueryParamsParser(params).parse()
     reader_client = reader.FileReader()
