@@ -2,7 +2,7 @@ import argparse
 from concurrent import futures
 from gaarf.io import reader  # type: ignore
 from gaarf.bq_executor import BigQueryExecutor, BigQueryParamsParser
-from cli_utils import ParamsParser
+from .utils import ParamsParser
 
 
 def main():
