@@ -10,7 +10,12 @@ RUN npm i google-ads-api-report-fetcher -g
 #RUN cd js && npm i -ci
 #WORKDIR /app/js
 
+# Installing from local source:
+#COPY ./dist .
+#COPY ./node_modules .
+#COPY gaarf .
+#COPY gaarf-bq .
+
 ENV GOOGLE_APPLICATION_CREDENTIALS /app/service_account.json
 
 ENTRYPOINT ["gaarf"]
-CMD ["ads-scripts/*.sql"]

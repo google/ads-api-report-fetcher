@@ -106,39 +106,6 @@ use `executeGen` method (it's a async generator):
   }
 ```
 
-## Docker
-You can run Gaarf as a Docker container. At the moment we don't publish container images so you'll need to build it on you own.
-
-### Build a container image
-If you cloned the repo then you can just run `docker build` (see below) inside it (in js folder) with the local [Dockerfile](Dockerfile). Otherwise you can just download [Dockerfile](Dockerfile) into an empty folder:
-```
-curl -L https://raw.githubusercontent.com/google/ads-api-report-fetcher/main/js/Dockerfile > Dockerfile
-```
-
-To build an image with name 'gaarf' (the name is up to you but it'll use to run later) run the following command in a folder with `Dockerfile`:
-```
-sudo docker build . -t gaarf
-```
-Now you can run a container from this image.
-
-### Run a container
-For running a container you'll need: a list of ads scripts, a config with Ads API and other parameters, a service account key file to authenticate in Google Cloud APIs. You can either embed them into the image on build or supply in runtime when you run a container.
-
-The aforementioned `Dockerfile` assumes the following:
-* Ads scripts are placed in the `ads-scripts/` folder
-* an Application Default Credentials is set with a service account key file as `/app/service_account.json`
-
-So you can map your local files onto these pathes so that Gaarf inside a container will find them. Or copy them before building, so they will be embeded into the image.
-
-This is an example of mapping local files into container, assuming you have `.gaarfrc` and `service_account.json` in the current folder:
-```
-sudo docker run --mount type=bind,source="$(pwd)/.gaarfrc",target=/app/.gaarfrc \
-  --mount type=bind,source="$(pwd)/ads-scripts",target=/app/ads-scripts \
-  --mount type=bind,source="$(pwd)/service_account.json",target=/app/service_account.json \
-  gaarf ./ads-scripts/*.sql
-```
-
-
 # Development
 ## Run typescript directly
 ```

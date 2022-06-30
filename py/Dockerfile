@@ -12,5 +12,4 @@ RUN pip install google-ads-api-report-fetcher
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /app/service_account.json
 
-ENTRYPOINT ["./gaarf"]
-CMD ["ads-scripts/*.sql"]
+ENTRYPOINT ["gaarf"]
