@@ -23,7 +23,7 @@ import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
-import {GoogleAdsApiClient, GoogleAdsApiConfig} from './lib/ads-api-client';
+import {GoogleAdsApiClient, GoogleAdsApiConfig, loadAdsConfigYaml} from './lib/ads-api-client';
 import {AdsQueryExecutor, AdsQueryExecutorOptions} from './lib/ads-query-executor';
 import {BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
@@ -31,7 +31,7 @@ import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
-import { getElapsed } from './lib/utils';
+import {getElapsed} from './lib/utils';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
@@ -117,7 +117,8 @@ const argv =
         })
         .option('bq.no-union-view', {
           type: 'boolean',
-          description: 'disable creation of union views (combining data from customer\'s table'
+          description:
+              'disable creation of union views (combining data from customer\'s table'
         })
         .group(
             [
@@ -240,7 +241,7 @@ async function main() {
 
   console.log('Fetching customer ids');
   let customers = await client.getCustomerIds();
-  console.log(`Customers to process (${customers}):`);
+  console.log(`Customers to process (${customers.length}):`);
   console.log(customers);
 
   let macros = <Record<string, any>>argv['macro'] || {};
@@ -263,28 +264,17 @@ async function main() {
     console.log();
   }
   let elapsed = getElapsed(started);
-  console.log(chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
+  console.log(
+      chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
 }
 
-
-function loadAdsConfig(
-    configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {
+function loadAdsConfig(configFilepath: string, customerId?: string|undefined) {
   if (!fs.existsSync(configFilepath)) {
     console.log(chalk.red(`Config file ${configFilepath} does not exist`));
     process.exit(-1);
   }
   try {
-    const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
-    return {
-      developer_token: doc['developer_token'],
-      client_id: doc['client_id'],
-      client_secret: doc['client_secret'],
-      refresh_token: doc['refresh_token'],
-      login_customer_id: doc['login_customer_id']?.toString(),
-      customer_id:
-          (customerId || doc['customer_id'] || doc['login_customer_id'])
-              ?.toString()
-    };
+    return loadAdsConfigYaml(configFilepath, customerId);
   } catch (e) {
     console.log(chalk.red(
         `Failed to load Ads API configuration from ${configFilepath}: ${e}`));

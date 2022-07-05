@@ -71,7 +71,7 @@ async function main() {
     console.log(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    executor.execute(scriptName, queryText, {sqlParams, macroParams, target})
+    await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
   }
 }
 

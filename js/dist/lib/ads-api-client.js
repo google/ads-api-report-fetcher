@@ -14,12 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GoogleAdsApiClient = void 0;
+exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
+const fs_1 = __importDefault(require("fs"));
 const google_ads_api_1 = require("google-ads-api");
+const js_yaml_1 = __importDefault(require("js-yaml"));
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
-        var _a;
         if (!adsConfig) {
             throw new Error('GoogleAdsApiConfig instance was not passed');
         }
@@ -42,8 +46,6 @@ class GoogleAdsApiClient {
         });
         // also put the customer as the default one
         this.customers[''] = this.customers[customerId];
-        this.isChildCustomer =
-            customerId !== ((_a = adsConfig.login_customer_id) === null || _a === void 0 ? void 0 : _a.toString());
     }
     async executeQuery(query, customerId) {
         let customer;
@@ -73,23 +75,38 @@ class GoogleAdsApiClient {
         }
     }
     async getCustomerIds() {
-        var _a;
-        if (this.isChildCustomer) {
-            return Object.keys(this.customers).filter(k => !!k);
-        }
         const query_customer_ids = `SELECT
           customer_client.id,
           customer_client.manager
-        FROM customer_client`;
+        FROM customer_client
+        WHERE
+          customer.status = "ENABLED" AND
+          customer_client.manager = False`;
         let rows = await this.executeQuery(query_customer_ids);
         let ids = [];
         for (let row of rows) {
-            if (row.customer_client && !((_a = row.customer_client) === null || _a === void 0 ? void 0 : _a.manager)) {
-                ids.push(row.customer_client.id);
-            }
+            ids.push(row.customer_client.id);
         }
         return ids;
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;
+function loadAdsConfigYaml(configFilepath, customerId) {
+    var _a, _b;
+    try {
+        const doc = js_yaml_1.default.load(fs_1.default.readFileSync(configFilepath, 'utf8'));
+        return {
+            developer_token: doc['developer_token'],
+            client_id: doc['client_id'],
+            client_secret: doc['client_secret'],
+            refresh_token: doc['refresh_token'],
+            login_customer_id: (_a = doc['login_customer_id']) === null || _a === void 0 ? void 0 : _a.toString(),
+            customer_id: (_b = (customerId || doc['customer_id'] || doc['login_customer_id'])) === null || _b === void 0 ? void 0 : _b.toString()
+        };
+    }
+    catch (e) {
+        throw new Error(`Failed to load Ads API configuration from ${configFilepath}: ${e}`);
+    }
+}
+exports.loadAdsConfigYaml = loadAdsConfigYaml;
 //# sourceMappingURL=ads-api-client.js.map

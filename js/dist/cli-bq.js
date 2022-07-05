@@ -20,7 +20,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
  */
 const chalk_1 = __importDefault(require("chalk"));
 const path_1 = __importDefault(require("path"));
-const table_1 = require("table");
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
 const bq_executor_1 = require("./lib/bq-executor");
@@ -63,19 +62,7 @@ async function main() {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         console.log(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-        let results = await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
-        if (target && results) {
-            // TODO: dump as a table in console
-            let text = (0, table_1.table)(results, {
-                border: (0, table_1.getBorderCharacters)('void'),
-                columnDefault: { paddingLeft: 0, paddingRight: 1 },
-                drawHorizontalLine: () => false
-                // border: getBorderCharacters('ramac'),
-                // columns: this.query!.columnNames.map(c => cc),
-                // singleLine: true
-            });
-            console.log(text);
-        }
+        await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
     }
 }
 main().catch(console.error);

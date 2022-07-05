@@ -21,7 +21,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chalk_1 = __importDefault(require("chalk"));
 const find_up_1 = __importDefault(require("find-up"));
 const fs_1 = __importDefault(require("fs"));
-const js_yaml_1 = __importDefault(require("js-yaml"));
 const path_1 = __importDefault(require("path"));
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
@@ -93,9 +92,13 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'boolean',
     description: 'flag that enables dumping json files with schemas for tables'
 })
+    .option('bq.no-union-view', {
+    type: 'boolean',
+    description: 'disable creation of union views (combining data from customer\'s table'
+})
     .group([
     'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
-    'bq.location'
+    'bq.location', 'bq.no-union-view'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
     .option('skip-constants', {
@@ -140,6 +143,7 @@ function getWriter() {
         opts.datasetLocation = argv.bq.location;
         opts.tableTemplate = argv.bq['table-template'];
         opts.dumpSchema = argv.bq['dump-schema'];
+        opts.noUnionView = argv.bq['no-union-view'];
         return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
     }
     throw new Error(`Unknown output format: '${output}'`);
@@ -198,7 +202,7 @@ async function main() {
     let scriptPaths = argv.files;
     console.log('Fetching customer ids');
     let customers = await client.getCustomerIds();
-    console.log(`Customers to process (${customers}):`);
+    console.log(`Customers to process (${customers.length}):`);
     console.log(customers);
     let macros = argv['macro'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
@@ -220,21 +224,12 @@ async function main() {
     console.log(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
 function loadAdsConfig(configFilepath, customerId) {
-    var _a, _b;
     if (!fs_1.default.existsSync(configFilepath)) {
         console.log(chalk_1.default.red(`Config file ${configFilepath} does not exist`));
         process.exit(-1);
     }
     try {
-        const doc = js_yaml_1.default.load(fs_1.default.readFileSync(configFilepath, 'utf8'));
-        return {
-            developer_token: doc['developer_token'],
-            client_id: doc['client_id'],
-            client_secret: doc['client_secret'],
-            refresh_token: doc['refresh_token'],
-            login_customer_id: (_a = doc['login_customer_id']) === null || _a === void 0 ? void 0 : _a.toString(),
-            customer_id: (_b = (customerId || doc['customer_id'] || doc['login_customer_id'])) === null || _b === void 0 ? void 0 : _b.toString()
-        };
+        return (0, ads_api_client_1.loadAdsConfigYaml)(configFilepath, customerId);
     }
     catch (e) {
         console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));

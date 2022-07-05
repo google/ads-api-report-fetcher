@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import {ClientOptions, Customer, CustomerOptions, errors, GoogleAdsApi} from 'google-ads-api';
+import yaml from 'js-yaml';
 import _ from 'lodash';
 
 export interface IGoogleAdsApiClient {
@@ -41,7 +42,6 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
   customers: Record<string, Customer>;
   ads_cfg: GoogleAdsApiConfig;
-  isChildCustomer: boolean;
 
   constructor(adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
     if (!adsConfig) {
@@ -66,8 +66,6 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     });
     // also put the customer as the default one
     this.customers[''] = this.customers[customerId];
-    this.isChildCustomer =
-        customerId !== adsConfig.login_customer_id?.toString()
   }
 
   async executeQuery(query: string, customerId?: string|undefined|null):
@@ -99,21 +97,39 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   }
 
   async getCustomerIds(): Promise<string[]> {
-    if (this.isChildCustomer) {
-      return Object.keys(this.customers).filter(k => !!k);
-    }
     const query_customer_ids = `SELECT
           customer_client.id,
           customer_client.manager
-        FROM customer_client`;
+        FROM customer_client
+        WHERE
+          customer.status = "ENABLED" AND
+          customer_client.manager = False`;
 
     let rows = await this.executeQuery(query_customer_ids);
     let ids = [];
     for (let row of rows) {
-      if (row.customer_client && !row.customer_client?.manager) {
-        ids.push(row.customer_client.id!);
-      }
+      ids.push(row.customer_client.id!);
     }
     return ids;
+  }
+}
+
+export function loadAdsConfigYaml(
+    configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {
+
+  try {
+    const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
+    return {
+      developer_token: doc['developer_token'],
+      client_id: doc['client_id'],
+      client_secret: doc['client_secret'],
+      refresh_token: doc['refresh_token'],
+      login_customer_id: doc['login_customer_id']?.toString(),
+      customer_id:
+          (customerId || doc['customer_id'] || doc['login_customer_id'])
+              ?.toString()
+    };
+  } catch (e) {
+    throw new Error(`Failed to load Ads API configuration from ${configFilepath}: ${e}`);
   }
 }

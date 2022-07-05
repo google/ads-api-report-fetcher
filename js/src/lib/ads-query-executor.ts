@@ -24,10 +24,12 @@ import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface AdsQueryExecutorOptions {
   /** Do not execute script for constant resources */
-  skipConstants?: boolean | undefined;
-  /** synchronous execution -
+  skipConstants?: boolean|undefined;
+  /**
+   * synchronous execution -
    * each script will be executed for all customers synchronously,
-   * otherwise in parallel */
+   * otherwise in parallel
+   */
   sync?: boolean;
 }
 export class AdsQueryExecutor {
@@ -65,14 +67,14 @@ export class AdsQueryExecutor {
       try {
         if (sync) {
           await this.executeOne(query, customerId, writer);
-        }
-        else {
+        } else {
           let task = this.executeOne(query, customerId, writer);
           tasks.push(task);
         }
       } catch (e) {
         console.log(`An error occured during executing script '${
-            scriptName}' for ${customerId} customer: ${e.message || e}`);
+            scriptName}' for ${customerId} customer:`);
+        console.log(e);
         // we're swallowing the exception
       }
       // if resource has '_constant' in its name, break the loop over customers
@@ -90,7 +92,8 @@ export class AdsQueryExecutor {
         if (result.status == 'rejected') {
           let customerId = result.reason.customerId;
           console.log(`An error occured during executing script '${
-              scriptName}' for ${customerId} customer: ${result.reason.message || result.reason}`);
+              scriptName}' for ${customerId} customer:`);
+          console.log(result.reason);
         }
       }
     }
@@ -99,7 +102,8 @@ export class AdsQueryExecutor {
   }
 
   /**
-   * Analogue to `execute` method but with an ability to get result for each customer
+   * Analogue to `execute` method but with an ability to get result for each
+   * customer
    * (`execute` can only be used with a writer)
    * @example
    *
@@ -108,13 +112,13 @@ export class AdsQueryExecutor {
    * @param customers a list of customers to process
    * @param macros macros (arbitrary key-value pairs to substitute into query)
    * @param options execution options
-   * @returns an async generator to iterate through to get results for each customer
+   * @returns an async generator to iterate through to get results for each
+   *     customer
    */
   async *
       executeGen(
           scriptName: string, queryText: string, customers: string[],
-          macros?: Record<string, any>,
-          options?: AdsQueryExecutorOptions):
+          macros?: Record<string, any>, options?: AdsQueryExecutorOptions):
           AsyncGenerator<QueryResult, void, QueryResult|void> {
     let skipConstants = !!options?.skipConstants;
     let query = this.parseQuery(queryText, macros);
@@ -155,7 +159,7 @@ export class AdsQueryExecutor {
       query: QueryElements, customerId: string,
       writer?: IResultWriter|undefined): Promise<QueryResult|void> {
     if (!customerId) throw new Error(`customerId should be specified`);
-      let empty_result = !!writer;
+    let empty_result = !!writer;
     if (!writer) {
       writer = new NullWriter();
     }
@@ -181,8 +185,7 @@ export class AdsQueryExecutor {
 
       if (empty_result) return;
       return {rawRows: rows, rows: parsedRows, query};
-    }
-    catch (e) {
+    } catch (e) {
       e.customerId = customerId;
       throw e;
     }

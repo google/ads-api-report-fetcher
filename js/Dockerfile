@@ -16,6 +16,8 @@ RUN npm i google-ads-api-report-fetcher -g
 #COPY gaarf .
 #COPY gaarf-bq .
 
+# SA's key file path to call BigQuery (using --output=bigquery), 
+# file itself can be provide from outside via mount
 ENV GOOGLE_APPLICATION_CREDENTIALS /app/service_account.json
 
 ENTRYPOINT ["gaarf"]

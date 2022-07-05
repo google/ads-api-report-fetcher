@@ -53,7 +53,8 @@ class AdsQueryExecutor {
                 }
             }
             catch (e) {
-                console.log(`An error occured during executing script '${scriptName}' for ${customerId} customer: ${e.message || e}`);
+                console.log(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
+                console.log(e);
                 // we're swallowing the exception
             }
             // if resource has '_constant' in its name, break the loop over customers
@@ -68,7 +69,8 @@ class AdsQueryExecutor {
             for (let result of results) {
                 if (result.status == 'rejected') {
                     let customerId = result.reason.customerId;
-                    console.log(`An error occured during executing script '${scriptName}' for ${customerId} customer: ${result.reason.message || result.reason}`);
+                    console.log(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
+                    console.log(result.reason);
                 }
             }
         }
@@ -76,7 +78,8 @@ class AdsQueryExecutor {
             await writer.endScript();
     }
     /**
-     * Analogue to `execute` method but with an ability to get result for each customer
+     * Analogue to `execute` method but with an ability to get result for each
+     * customer
      * (`execute` can only be used with a writer)
      * @example
      *
@@ -85,7 +88,8 @@ class AdsQueryExecutor {
      * @param customers a list of customers to process
      * @param macros macros (arbitrary key-value pairs to substitute into query)
      * @param options execution options
-     * @returns an async generator to iterate through to get results for each customer
+     * @returns an async generator to iterate through to get results for each
+     *     customer
      */
     async *executeGen(scriptName, queryText, customers, macros, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
