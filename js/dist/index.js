@@ -25,13 +25,14 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CsvWriter = exports.BigQueryWriter = exports.BigQueryExecutor = exports.GoogleAdsApiClient = exports.AdsQueryExecutor = exports.AdsQueryEditor = void 0;
+exports.CsvWriter = exports.BigQueryWriter = exports.BigQueryExecutor = exports.AdsQueryExecutor = exports.AdsQueryEditor = exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
+var ads_api_client_1 = require("./lib/ads-api-client");
+Object.defineProperty(exports, "GoogleAdsApiClient", { enumerable: true, get: function () { return ads_api_client_1.GoogleAdsApiClient; } });
+Object.defineProperty(exports, "loadAdsConfigYaml", { enumerable: true, get: function () { return ads_api_client_1.loadAdsConfigYaml; } });
 var ads_query_editor_1 = require("./lib/ads-query-editor");
 Object.defineProperty(exports, "AdsQueryEditor", { enumerable: true, get: function () { return ads_query_editor_1.AdsQueryEditor; } });
 var ads_query_executor_1 = require("./lib/ads-query-executor");
 Object.defineProperty(exports, "AdsQueryExecutor", { enumerable: true, get: function () { return ads_query_executor_1.AdsQueryExecutor; } });
-var ads_api_client_1 = require("./lib/ads-api-client");
-Object.defineProperty(exports, "GoogleAdsApiClient", { enumerable: true, get: function () { return ads_api_client_1.GoogleAdsApiClient; } });
 var bq_executor_1 = require("./lib/bq-executor");
 Object.defineProperty(exports, "BigQueryExecutor", { enumerable: true, get: function () { return bq_executor_1.BigQueryExecutor; } });
 var bq_writer_1 = require("./lib/bq-writer");

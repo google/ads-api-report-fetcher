@@ -15,8 +15,7 @@
  */
 
 import fs from 'fs';
-import {AdsQueryExecutor, BigQueryWriter, getFileContent, GoogleAdsApiClient, QueryResult} from 'google-ads-api-report-fetcher';
-import yaml from 'js-yaml';
+import {AdsQueryExecutor, BigQueryWriter, getFileContent, GoogleAdsApiClient, loadAdsConfigYaml} from 'google-ads-api-report-fetcher';
 import path from 'path';
 
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
@@ -31,15 +30,14 @@ export const main: HttpFunction =
   let adsConfig: GoogleAdsApiConfig;
   let adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
   if (fs.existsSync(adsConfigFile)) {
-    adsConfig = <GoogleAdsApiConfig>yaml.load(
-        fs.readFileSync(adsConfigFile, {encoding: 'utf-8'}));
+    adsConfig = loadAdsConfigYaml(adsConfigFile, <string>req.query.customer_id);
   } else {
     adsConfig = <GoogleAdsApiConfig> {
       developer_token: <string>process.env.developer_token,
-          login_customer_id: <string>process.env.login_customer_id,
-          client_id: <string>process.env.client_id,
-          client_secret: <string>process.env.client_secret,
-          refresh_token: <string>process.env.refresh_token
+      login_customer_id: <string>process.env.login_customer_id,
+      client_id: <string>process.env.client_id,
+      client_secret: <string>process.env.client_secret,
+      refresh_token: <string>process.env.refresh_token
     }
   }
   console.log('Ads API config:');
@@ -60,10 +58,10 @@ export const main: HttpFunction =
   if (!dataset)
     throw new Error(
         `Dataset is not specified in either 'dataset' query argument or DATASET envvar`);
-  let customerId = req.query.customer_id;
+  let customerId = req.query.customer_id || adsConfig.customer_id;
   if (!customerId)
     throw new Error(
-        `Customer id is not specified in 'customer_id' query argument`);
+        `Customer id is not specified in either 'customer_id' query argument or google-ads.yaml`);
 
   let ads_client = new GoogleAdsApiClient(adsConfig, <string>customerId);
   let executor = new AdsQueryExecutor(ads_client);
@@ -77,19 +75,18 @@ export const main: HttpFunction =
   console.log(`Executing Ads-query from ${scriptPath}`);
   let scriptName = path.basename(<string>scriptPath).split('.sql')[0];
 
+  let customers: string[];
   if (singleCustomer) {
-    let query = executor.parseQuery(queryText, macros);
-    await writer.beginScript(scriptName, query);
-    await executor.executeOne(query, <string>customerId, writer);
-    await writer.endScript();
+    console.log('Executing for a single customer ids: ' + customerId);
+    customers = [<string>customerId];
   } else {
     console.log('Fetching customer ids');
-    let customers = await ads_client.getCustomerIds();
+    customers = await ads_client.getCustomerIds();
     console.log(`Customers to process (${customers.length}):`);
     console.log(customers);
-
-    await executor.execute(scriptName, queryText, customers, macros, writer);
   }
+  await executor.execute(scriptName, queryText, customers, macros, writer);
+  // we're returning a map of customer to number of rows
   let result = Object.entries(writer.rowsByCustomer).map(p => {
     return {[p[0]]: p[1].length};
   });

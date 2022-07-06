@@ -5,3 +5,4 @@ coverage/
 .gitignore
 .prettierrc.js
 *.sh
+node_modules/
