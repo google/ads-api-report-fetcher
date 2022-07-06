@@ -1,0 +1,1 @@
+gcloud workflows deploy gaarf-wf --source workflows.yaml

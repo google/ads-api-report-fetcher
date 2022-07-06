@@ -1,0 +1,66 @@
+main:
+  params: [args]
+  steps:
+    - step_prepare:
+        assign:
+          - gcsPath: ${args.ads_queries_bucket}
+    # fetch script from GCS
+    - get_bucket:
+        call: googleapis.storage.v1.objects.list
+        args:
+          bucket: ${args.ads_queries_bucket}
+          prefix: ${args.ads_queries_path}
+        result: scripts
+    - found:
+        call: sys.log
+        args:
+          json: ${scripts}
+          severity: "INFO"
+        #next: end
+    - runQueries:
+        parallel: 
+          shared: [scripts]
+          for:
+            value: script_item
+            in: ${scripts.items}
+            steps:
+              - call_gaarf_cf:
+                  call: http.get
+                  args:
+                    url: https://us-central1-segy-adsapi.cloudfunctions.net/gaarf
+                    query:
+                      script_path: ${"gs://" + args.ads_queries_bucket + "/" + script_item.name}
+                      project_id: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+                      dataset: ${args.dataset}
+                      customer_id: ${args.cid}
+                    auth:
+                      type: OIDC
+                      audience: https://us-central1-segy-adsapi.cloudfunctions.net/gaarf
+                  result: script_results
+              - log_script_name:
+                  call: sys.log
+                  args:
+                    json: ${script_results}
+                    severity: "INFO"
+                    
+
+# Poll for data
+waitForJobCompletion:
+  params: [jobId]
+  steps:
+    - checkJob:
+        call: http.get
+        args:
+            url: ${"https://example.com/jobs/" + jobId}
+            auth:
+                type: OAuth2
+        result: jobStatus
+    - checkIfDone:
+        switch:
+          - condition: ${jobStatus.complete}
+            return: jobStatus
+    - wait:
+        call: sys.sleep
+        args:
+            seconds: 60
+        next: checkJob
