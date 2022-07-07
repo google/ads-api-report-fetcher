@@ -19,7 +19,7 @@ from .query_executor import AdsReportFetcher
 def get_customer_ids(ads_client, customer_id):
     query = """
     SELECT customer_client.id FROM customer_client
-    WHERE customer_client.manager = FALSE
+    WHERE customer_client.manager = FALSE AND customer_client.status = "ENABLED"
     """
     query_specification = QuerySpecification(query).generate()
     report_fetcher = AdsReportFetcher(ads_client, customer_id)
