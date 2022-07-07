@@ -102,7 +102,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
           customer_client.manager
         FROM customer_client
         WHERE
-          customer.status = "ENABLED" AND
+          customer_client.status = "ENABLED" AND
           customer_client.manager = False`;
 
     let rows = await this.executeQuery(query_customer_ids);
