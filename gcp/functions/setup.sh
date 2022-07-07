@@ -22,9 +22,10 @@ enable_api() {
   gcloud services enable iamcredentials.googleapis.com
   gcloud services enable cloudbuild.googleapis.com
   gcloud services enable bigquery.googleapis.com
+  gcloud services enable cloudfunctions.googleapis.com
 }
 
-enable_api()
+enable_api
 
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumber)" | tail -n 1)
@@ -43,4 +44,4 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 # Grant the default service account with admin permissions in BigQuery
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
 
-./p-deploy.sh
+./deploy.sh $@

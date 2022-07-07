@@ -16,10 +16,18 @@
 #------------------------------------------------------------------------------ 
 
 # example of calling CF Gen1 (choose your function name during deployment):
-curl -G https://us-central1-<YOUR_PROJECT_ID>.cloudfunctions.net/<FUNCTION_NAME> \
+curl -G https://<REGION>-<YOUR_PROJECT_ID>.cloudfunctions.net/<FUNCTION_NAME> \
   -H "Authorization: bearer $(gcloud auth print-identity-token)" \
   -H "Content-Type: application/json" \
   -d script_path=gs://<YOUR_PROJECT_GCS>/path/to/script \
   -d project_id=<YOUR_PROJECT_ID> \
   -d dataset=<YOUR_DATASET> \
   -d customer_id=<YOUR_ADS_CUSTOMER_ID>
+
+# example of calling BQ-function (postprocessing in BigQuery):
+curl 'https://<REGION>-<YOUR_PROJECT_ID>.cloudfunctions.net/<FUNCTION_NAME>-bq?script_path=gs://<YOUR_PROJECT_GCS>/path/to/script&project_id=<YOUR_PROJECT_ID>' \
+  -H "Authorization: bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"macros": {"macro1": "value1"}}'
+
+# NOTE: for Gen1 CFs urls will be different and non-prredictable

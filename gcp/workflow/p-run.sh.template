@@ -1,2 +1,0 @@
-gcloud workflows run gaarf-wf \
-  --data='{"ads_queries_bucket":"<YOUR_PROJECT>","ads_queries_path":"<YOUR_GCS_FOLDER_PATH>","dataset":"<YOUR_DATASET>","cid":"<YOUR_CUSTOMER_ID>"}'

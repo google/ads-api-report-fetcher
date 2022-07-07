@@ -21,30 +21,42 @@
 # NOTE: it's an example, adjust it to your needs
 #------------------------------------------------------------------------------ 
 
+FUNCTION_NAME=gaarf
 REGION=us-central1
 
-gcloud beta functions deploy <FUNCTION_NAME> \
+while :; do
+    case $1 in
+  -n|--name)
+      shift
+      FUNCTION_NAME=$1
+      ;;
+  *)
+      break
+    esac
+  shift
+done
+
+gcloud beta functions deploy $FUNCTION_NAME \
   --trigger-http \
   --entry-point=main \
   --runtime=nodejs16 \
   --timeout=540s \
   --memory=512MB \
   --region=$REGION \
-  --allow-unauthenticated \
   --source=.
 
 #  --env-vars-file .env.yaml
+#  --allow-unauthenticated \
 #  --timeout=540s
 #For GCF 1st gen functions, cannot be more than 540s.
 #For GCF 2nd gen functions, cannot be more than 3600s. 
 
-# another auxiliary function for executing BigQuery queries (usually named with "-bq" suffix)
-gcloud beta functions deploy <FUNCTION_NAME>-bq \
+
+gcloud beta functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
   --runtime=nodejs16 \
   --timeout=540s \
   --memory=512MB \
   --region=$REGION \
-  --allow-unauthenticated \
   --source=.

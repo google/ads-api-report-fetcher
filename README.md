@@ -181,6 +181,41 @@ mapped a local service_account.json file with SA keys for authenticating in BigQ
 with all Ads scripts that we're passing by wildcard mask (it'll be expanded to a list of files by your shell).
 
 
+## Gaarf Cloud Workflow
+Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. There are the following components provided:
+* Cloud Function (in [gcp/functions](gcp/functions) folder) - two CFs that you can use for running gaarf with scripts located on GCS
+* Cloud Workflow (in [gcp/workflow](gcp/workflow) folder) - a Cloud Workflow that orchestrates enumeration scripts on GCS and calling CFs
+
+For deployment of all components you can use the [setup.sh](gcp/setup.sh) script with an argument with a name of your project.
+Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf" 
+workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders. 
+
+After that you deployed workflow and functions, deploy your scripts to GCS:
+```
+gsutil rm -r gs://YOUR_PROJECT/ads-queries
+gsutil -m cp -R ./ads-queries/* gs://YOUR_PROJECT/ads-queries
+
+gsutil rm -r gs://YOUR_PROJECT/bq-queries
+gsutil -m cp -R ./bq-queries/* gs://YOUR_PROJECT/bq-queries
+```
+
+After that you can run your workflow from command line:
+```
+gcloud workflows run myproject-wf \
+  --data='{
+  "cloud_function":"myproject",
+  "gcs_bucket":"YOUR_PROJECT",
+  "ads_queries_path":"ads-queries/",
+  "bq_queries_path":"bq-queries/",
+  "dataset":"myproject_ads",
+  "cid":"YOUR_CUSTOMER_ID",
+  "bq_macros":{"macro1": "value1"}
+  }'
+```
+
+You can schedule workflow execution via Cloud Scheduler - see [Schedule a workflow using Cloud Scheduler](https://cloud.google.com/workflows/docs/schedule-workflow).
+
+
 ## Disclaimer
 This is not an officially supported Google product.
 
