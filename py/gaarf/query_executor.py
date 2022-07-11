@@ -29,14 +29,15 @@ class AdsReportFetcher:
             try:
                 results = self._parse_ads_response(query_specification,
                                                    customer_id)
-            except GoogleAdsException:
+                total_results.extend(results)
+                if query_specification.is_constant_resource:
+                    print("Running only once")
+                    break
+            except GoogleAdsException as e:
                 print("Cannot execute query for "
                       f"{query_specification.query_title} "
                       f"for customer_id {customer_id}")
-            total_results.extend(results)
-            if query_specification.is_constant_resource:
-                print("Running only once")
-                break
+                print(e)
         return GaarfReport(results=total_results,
                            column_names=query_specification.column_names)
 
