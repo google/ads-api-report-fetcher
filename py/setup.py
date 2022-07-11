@@ -25,7 +25,7 @@ setup(
     ],
     packages=find_packages(),
     install_requires=[
-        "google-ads==16.0.0", "google-cloud-bigquery==2.26.0", "pandas==1.3.4",
+        "google-ads==16.0.0", "google-cloud-bigquery", "pandas==1.3.4",
         "pyarrow==6.0.1", "tabulate", "smart_open", "jinja2",
     ],
     setup_requires=["pytest-runner"],
