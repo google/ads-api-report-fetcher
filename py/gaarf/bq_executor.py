@@ -12,37 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
-from typing import Any, Dict
 from google.cloud import bigquery  # type: ignore
 from jinja2 import Template
 
-
-@dataclasses.dataclass
-class BigQueryExecutorParams:
-    sql_params: Dict[str, Any]
-    macro_params: Dict[str, Any]
-    template_params: Dict[str, Any]
-    target: str
-    write_disposition: str
-
-
-class BigQueryParamsParser:
-    def __init__(self,
-                 params: Dict[str, Any],
-                 target: str = "",
-                 write_disposition: str = ""):
-        self.params = params
-        self.target = target
-        self.write_disposition = write_disposition
-
-    def parse(self):
-        return BigQueryExecutorParams(
-            sql_params=self.params.get("sql"),
-            macro_params=self.params.get("macro"),
-            template_params=self.params.get("template"),
-            target=self.target,
-            write_disposition=self.write_disposition)
+from .cli.utils import ExecutorParams
 
 
 class BigQueryExecutor:
@@ -50,7 +23,7 @@ class BigQueryExecutor:
         self.client = bigquery.Client(project_id)
 
     def execute(self, script_name: str, query_text: str,
-                params: BigQueryExecutorParams) -> None:
+                params: ExecutorParams) -> None:
         query_text = self._expand_jinja(query_text,
                                         **params.template_params)
         formatted_query = query_text.format(**params.macro_params)

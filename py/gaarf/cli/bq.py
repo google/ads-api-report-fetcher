@@ -1,8 +1,9 @@
+import os
 import argparse
 from concurrent import futures
 from gaarf.io import reader  # type: ignore
-from gaarf.bq_executor import BigQueryExecutor, BigQueryParamsParser
-from .utils import ParamsParser
+from gaarf.bq_executor import BigQueryExecutor
+from .utils import ParamsParser, ExecutorParamsParser, ConfigSaver
 
 
 def main():
@@ -10,13 +11,21 @@ def main():
     parser.add_argument("query", nargs="+")
     parser.add_argument("--project", dest="project")
     parser.add_argument("--target", dest="dataset")
+    parser.add_argument("--save-config", dest="save_config", action="store_true")
+    parser.add_argument("--no-save-config", dest="save_config", action="store_false")
+    parser.set_defaults(save_config=False)
     args = parser.parse_known_args()
     main_args = args[0]
     query_args = args[1]
 
     params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
+
+    if main_args.save_config:
+        config = ConfigSaver("config.yaml")
+        config.save(main_args, params, "gaarf-bq")
+
     bq_executor = BigQueryExecutor(main_args.project)
-    query_params = BigQueryParamsParser(params).parse()
+    query_params = ExecutorParamsParser(params).parse()
     reader_client = reader.FileReader()
 
     with futures.ThreadPoolExecutor() as executor:
