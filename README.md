@@ -82,6 +82,12 @@ gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
   --bq.dataset=my_dataset
 ```
 
+> Python version supports specifing date parameters as *:YYYYMMDD-N* format, where *N* is a number of days ago (i.e., *:YYYYMMDD-7* means *7 days ago*).
+> Supported parameters:
+> * *:YYYY* - current year
+> * *:YYYYMM* - current month
+> * *:YYYYMMDD* - current date
+
 ### Postprocessing
 
 Once reports have been fetched you might use `gaarf-bq` (utility that installed alonside with `gaarf`) to run queries in BigQuery based on collected data in there.
@@ -137,12 +143,12 @@ ATTENTION: passing macros into sql query is vulnerable to sql-injection so be ve
 
 
 ## Docker
-You can run Gaarf as a Docker container. At the moment we don't publish container images so you'll need to build it on your own. 
-The repository contains sample `Dockerfile`'s for both versions ([Node](js/Dockerfile)/[Python](py/Dockerfile)) 
+You can run Gaarf as a Docker container. At the moment we don't publish container images so you'll need to build it on your own.
+The repository contains sample `Dockerfile`'s for both versions ([Node](js/Dockerfile)/[Python](py/Dockerfile))
 that you can use to build a Docker image.
 
 ### Build a container image
-If you cloned the repo then you can just run `docker build` (see below) inside it (in js/py folders) with the local [Dockerfile](js/Dockerfile). 
+If you cloned the repo then you can just run `docker build` (see below) inside it (in js/py folders) with the local [Dockerfile](js/Dockerfile).
 Otherwise you can just download `Dockerfile` into an empty folder:
 ```
 curl -L https://raw.githubusercontent.com/google/ads-api-report-fetcher/main/js/Dockerfile > Dockerfile
@@ -156,8 +162,8 @@ sudo docker build . -t gaarf
 Now you can run a container from this image.
 
 ### Run a container
-For running a container you'll need the same parameters as you would provide for running it in command line 
-(a list of ads scripts and a Ads API config and other parameters) and authentication for Google Cloud if you need to write data to BigQuery. 
+For running a container you'll need the same parameters as you would provide for running it in command line
+(a list of ads scripts and a Ads API config and other parameters) and authentication for Google Cloud if you need to write data to BigQuery.
 The latter is achivable via declaring `GOOGLE_APPLICATION_CREDENTIALS` environment variable with a path to a service account key file.
 
 You can either embed all them into the image on build or supply them in runtime when you run a container.
@@ -166,7 +172,7 @@ The aforementioned `Dockerfile` assumes the following:
 * You will provide a list of ads script files
 * Application Default Credentials is set with a service account key file as `/app/service_account.json`
 
-So you can map your local files onto these pathes so that Gaarf inside a container will find them. 
+So you can map your local files onto these pathes so that Gaarf inside a container will find them.
 Or copy them before building, so they will be embeded into the image.
 
 This is an example of running Gaarf (Node version) with mapping local files, assuming you have `.gaarfrc` and `service_account.json` in the current folder:
@@ -176,8 +182,8 @@ sudo docker run --mount type=bind,source="$(pwd)/.gaarfrc",target=/app/.gaarfrc 
   --mount type=bind,source="$(pwd)/service_account.json",target=/app/service_account.json \
   gaarf ./ads-scripts/*.sql
 ```
-Here we mapped local `.gaarfrc` with with all parameters (alternatevely you can pass them explicitly in command line), 
-mapped a local service_account.json file with SA keys for authenticating in BigQuery, mapped a local folder "ads-scripts" 
+Here we mapped local `.gaarfrc` with with all parameters (alternatevely you can pass them explicitly in command line),
+mapped a local service_account.json file with SA keys for authenticating in BigQuery, mapped a local folder "ads-scripts"
 with all Ads scripts that we're passing by wildcard mask (it'll be expanded to a list of files by your shell).
 
 
@@ -187,8 +193,8 @@ Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. 
 * Cloud Workflow (in [gcp/workflow](gcp/workflow) folder) - a Cloud Workflow that orchestrates enumeration scripts on GCS and calling CFs
 
 For deployment of all components you can use the [setup.sh](gcp/setup.sh) script with an argument with a name of your project.
-Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf" 
-workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders. 
+Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf"
+workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders.
 
 After that you deployed workflow and functions, deploy your scripts to GCS:
 ```

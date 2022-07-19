@@ -1,8 +1,40 @@
 import dataclasses
 import os
 import datetime
+from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, Optional, Sequence
 import yaml
+
+
+def convert_date(date_string: str) -> str:
+    """Converts specific dates parameters to actual dates."""
+
+    if date_string.find(":YYYY") == -1:
+        return date_string
+    current_date = datetime.date.today()
+    date_object = date_string.split("-")
+    base_date = date_object[0]
+    if len(date_object) == 2:
+        try:
+            days_ago = int(date_object[1])
+        except ValueError as e:
+            raise ValueError(
+                "Must provide numeric value for a number lookback period, "
+                "i.e. :YYYYMMDD-1"
+            ) from e
+    else:
+        days_ago = 0
+    if base_date == ":YYYY":
+        new_date = datetime.datetime(current_date.year, 1, 1)
+        delta = relativedelta(years=days_ago)
+    elif base_date == ":YYYYMM":
+        new_date = datetime.datetime(
+            current_date.year, current_date.month, 1)
+        delta = relativedelta(months=days_ago)
+    elif base_date == ":YYYYMMDD":
+        new_date = current_date
+        delta = relativedelta(days=days_ago)
+    return (new_date - delta).strftime("%Y-%m-%d")
 
 
 class ParamsParser:
@@ -37,9 +69,9 @@ class ParamsParser:
         if identifier not in key:
             return None
         key = key.replace(f"--{identifier}.", "")
-        key = key.replace("-","_")
+        key = key.replace("-", "_")
         if len(param) == 2:
-            return {key: param[1]}
+            return {key: convert_date(param[1])}
         raise ValueError(f"{identifier} {key} is invalid,"
                          f"--{identifier}.key=value is the correct format")
 
