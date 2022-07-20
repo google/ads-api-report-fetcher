@@ -25,8 +25,13 @@ def main():
                         "--loglevel",
                         dest="loglevel",
                         default="warning")
-    parser.add_argument("--save-config", dest="save_config", action="store_true")
-    parser.add_argument("--no-save-config", dest="save_config", action="store_false")
+    parser.add_argument("--customer-ids-query", dest="customer_ids_query", default=None)
+    parser.add_argument("--save-config",
+                        dest="save_config",
+                        action="store_true")
+    parser.add_argument("--no-save-config",
+                        dest="save_config",
+                        action="store_false")
     parser.set_defaults(save_config=False)
     args = parser.parse_known_args()
     main_args = args[0]
@@ -47,13 +52,21 @@ def main():
         datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
 
-    ads_client = api_clients.GoogleAdsApiClient(path_to_config=main_args.config,
-                                                version=f"v{main_args.api_version}")
+    ads_client = api_clients.GoogleAdsApiClient(
+        path_to_config=main_args.config, version=f"v{main_args.api_version}")
 
     writer_factory = writer.WriterFactory()
-    writer_client = writer_factory.create_writer(main_args.save, **writer_params)
+    writer_client = writer_factory.create_writer(main_args.save,
+                                                 **writer_params)
     reader_client = reader.FileReader()
-    customer_ids = utils.get_customer_ids(ads_client, main_args.customer_id)
+    if main_args.customer_ids_query:
+        customer_ids_query = reader_client.read(main_args.customer_ids_query)
+        customer_ids = utils.get_customer_ids(ads_client,
+                                              main_args.customer_id,
+                                              customer_ids_query)
+    else:
+        customer_ids = utils.get_customer_ids(ads_client,
+                                              main_args.customer_id)
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
     logging.info("Total number of customer_ids is %d, accounts=[%s]",
@@ -62,7 +75,8 @@ def main():
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
             executor.submit(ads_query_executor.execute, query, customer_ids,
-                            reader_client, writer_client, query_params.macro_params): query
+                            reader_client, writer_client,
+                            query_params.macro_params): query
             for query in main_args.query
         }
         for future in futures.as_completed(future_to_query):
@@ -83,9 +97,7 @@ def main():
                     print(f'\tError with message "{error.message}".')
                     if error.location:
                         for field in error.location.field_path_elements:
-                            print(
-                                f"\t\tOn field: {field.field_name}"
-                            )
+                            print(f"\t\tOn field: {field.field_name}")
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
                 print(f"{query} generated an exception: {str(e)}")
