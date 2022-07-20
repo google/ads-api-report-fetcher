@@ -34,11 +34,11 @@ Please refer to [How to write queries](docs/how-to-write-queries.md) section to 
 If `gaarf` is installed globally you can run it with the following command.
 
 ```shell
-gaarf <files> [options]
+gaarf <queries> [options]
 ```
 
 ### Options
-The required positional arguments are a list of files with Ads queries (GAQL).
+The required positional arguments are a list of files or a text that contain Ads queries (GAQL).
 On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
 
 > If you run the tool on a *nix OS then your shell (like zsh/bash) probably
@@ -50,10 +50,15 @@ Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
 * `account` - Ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
+* `input` - input type - where queries are coming from (Python only):
+*          values:
+*          * `file` - local or remote (GSP, S3, Azure, etc.) files
+           * `console` - data are read from standard output
 * `output` - output type,
            values:
            * `csv` - write data to CSV files
            * `bq` or `bigquery` - write data to BigQuery
+           * `console` - write data to standard output (Python only)
 
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
@@ -81,6 +86,15 @@ gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
   --bq.project=my_project \
   --bq.dataset=my_dataset
 ```
+
+If you run Python version of `gaarf` you can provide query directly from console:
+
+```
+gaarf 'SELECT campaign.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"' \
+  --account=1234567890 --input=console --output=console
+```
+`gaarf` will read text from console and returns results back to console.
+
 
 > Python version supports specifing date parameters as *:YYYYMMDD-N* format, where *N* is a number of days ago (i.e., *:YYYYMMDD-7* means *7 days ago*).
 > Supported parameters:

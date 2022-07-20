@@ -24,7 +24,7 @@ pip install google-ads-api-report-fetcher
 2.  Run the tool with `gaarf` command:
 
 ```shell
-gaarf <files> [options]
+gaarf <queries> [options]
 ```
 
 Documentation on available options see in the root [README.md](../README.md).
