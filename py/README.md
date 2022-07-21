@@ -21,6 +21,7 @@ python3 -m venv gaarf
 source gaarf/bin/activate
 pip install google-ads-api-report-fetcher
 ```
+> install the latest development version with `pip install -e git+https://github.com/google/ads-api-report-fetcher.git#egg=google-ads-api-report-fetcher\&subdirectory=py`
 2.  Run the tool with `gaarf` command:
 
 ```shell
