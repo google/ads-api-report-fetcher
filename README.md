@@ -50,15 +50,20 @@ Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
 * `account` - Ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
-* `input` - input type - where queries are coming from (Python only):
-*          values:
-*          * `file` - local or remote (GSP, S3, Azure, etc.) files
-           * `console` - data are read from standard output
-* `output` - output type,
-           values:
-           * `csv` - write data to CSV files
-           * `bq` or `bigquery` - write data to BigQuery
-           * `console` - write data to standard output (Python only)
+* `input` - input type - where queries are coming from (Python only). Supports the following values:
+  * `file` - local or remote (GSP, S3, Azure, etc.) files
+  * `console` - data are read from standard output
+* `output` - output type, Supports the following values:
+  * `csv` - write data to CSV files
+  * `bq` or `bigquery` - write data to BigQuery
+  * `console` - write data to standard output (Python only)
+* `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
+
+  >Example usage: `gaarf <queries> --account=123456 --customer-ids-query='SELECT customer.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"'`
+
+* `customer-ids-query-file` - the same as `customer-ids-query` but the query is coming from a file.
+
+  >Example usage: `gaarf <queries> --account=123456 --customer-ids-query-file=/path/to/query.sql
 
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created

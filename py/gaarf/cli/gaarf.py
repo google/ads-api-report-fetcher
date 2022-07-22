@@ -29,6 +29,9 @@ def main():
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
                         default=None)
+    parser.add_argument("--customer-ids-query-file",
+                        dest="customer_ids_query_file",
+                        default=None)
     parser.add_argument("--save-config",
                         dest="save_config",
                         action="store_true")
@@ -57,30 +60,34 @@ def main():
 
     ads_client = api_clients.GoogleAdsApiClient(
         path_to_config=main_args.config, version=f"v{main_args.api_version}")
-    writer_client = writer.WriterFactory().create_writer(main_args.save,
-                                                 **writer_params)
-    reader_client = reader.ReaderFactory().create_reader(main_args.input)
+    writer_client = writer.WriterFactory().create_writer(
+        main_args.save, **writer_params)
+    reader_factory = reader.ReaderFactory()
+    reader_client = reader_factory.create_reader(main_args.input)
 
     if main_args.customer_ids_query:
-        customer_ids_query = reader_client.read(main_args.customer_ids_query)
-        customer_ids = utils.get_customer_ids(ads_client,
-                                              main_args.customer_id,
-                                              customer_ids_query)
+        console_reader = reader_factory.create_reader("console")
+        customer_ids_query = console_reader.read(main_args.customer_ids_query)
+    elif main_args.customer_ids_query_file:
+        file_reader = reader_factory.create_reader("file")
+        customer_ids_query = file_reader.read(
+            main_args.customer_ids_query_file)
     else:
-        customer_ids = utils.get_customer_ids(ads_client,
-                                              main_args.customer_id)
+        customer_ids_query = None
+
+    customer_ids = utils.get_customer_ids(ads_client, main_args.customer_id,
+                                          customer_ids_query)
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
     logging.info("Total number of customer_ids is %d, accounts=[%s]",
                  len(customer_ids), ",".join(map(str, customer_ids)))
-
 
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
             executor.submit(ads_query_executor.execute, query, customer_ids,
                             reader_client, writer_client,
                             query_params.macro_params): query
-        for query in main_args.query
+            for query in main_args.query
         }
         for future in futures.as_completed(future_to_query):
             query = future_to_query[future]
