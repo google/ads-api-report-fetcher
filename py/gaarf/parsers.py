@@ -93,7 +93,7 @@ class GoogleAdsRowParser:
                       query_specification) -> Sequence[Any]:
         final_rows = []
         extracted_rows = self._get_attributes_from_row(row,
-                                                       query_specification)
+                                                       query_specification.fields)
         customizers = query_specification.customizers
         for i, r in enumerate(extracted_rows):
             if customizers:
@@ -112,8 +112,8 @@ class GoogleAdsRowParser:
         return final_rows if len(final_rows) > 1 else final_rows[0]
 
     def _get_attributes_from_row(
-            self, row, query_specification) -> Tuple[Any, ...]:
-        getter = attrgetter(*query_specification.fields)
+            self, row, fields) -> Tuple[Any, ...]:
+        getter = attrgetter(*fields)
         rows = getter(row)
         return rows if isinstance(rows, tuple) else (rows, )
 

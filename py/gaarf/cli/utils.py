@@ -15,21 +15,19 @@ def convert_date(date_string: str) -> str:
     date_object = date_string.split("-")
     base_date = date_object[0]
     if len(date_object) == 2:
-        try:
+        try: 
             days_ago = int(date_object[1])
         except ValueError as e:
             raise ValueError(
                 "Must provide numeric value for a number lookback period, "
-                "i.e. :YYYYMMDD-1"
-            ) from e
+                "i.e. :YYYYMMDD-1") from e
     else:
         days_ago = 0
     if base_date == ":YYYY":
         new_date = datetime.datetime(current_date.year, 1, 1)
         delta = relativedelta(years=days_ago)
     elif base_date == ":YYYYMM":
-        new_date = datetime.datetime(
-            current_date.year, current_date.month, 1)
+        new_date = datetime.datetime(current_date.year, current_date.month, 1)
         delta = relativedelta(months=days_ago)
     elif base_date == ":YYYYMMDD":
         new_date = current_date
@@ -108,12 +106,24 @@ class ConfigSaver:
     def __init__(self, path: str):
         self.path = path
 
-    def save(self, args, params, key):
+    #TODO: Add support for AbsReader
+    def save(self, args, params: Dict[str, Any], key: str):
         if os.path.exists(self.path):
             with open(self.path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
         else:
             config = {}
+        config = self.prepare_config(config, args, params, key)
+        with open(self.path, "w", encoding="utf-8") as f:
+            yaml.dump(config,
+                      f,
+                      default_flow_style=False,
+                      sort_keys=False,
+                      encoding="utf-8")
+
+
+    def prepare_config(self, config: Dict[str, Any], args, params: Dict[str, Any],
+                key: str):
         if key == "gaarf":
             gaarf = {}
             gaarf["account"] = args.customer_id
@@ -128,9 +138,4 @@ class ConfigSaver:
             bq["project"] = args.project
             bq["params"] = params
             config.update({key: bq})
-        with open(self.path, "w", encoding="utf-8") as f:
-            yaml.dump(config,
-                      f,
-                      default_flow_style=False,
-                      sort_keys=False,
-                      encoding="utf-8")
+        return config
