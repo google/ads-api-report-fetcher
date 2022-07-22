@@ -1,5 +1,11 @@
 # Google Ads API Report Fetcher (gaarf)
 
+[![npm](https://img.shields.io/npm/v/google-ads-api-report-fetcher)](https://www.npmjs.com/package/google-ads-api-report-fetcher)
+[![Downloads npm](https://img.shields.io/npm/dw/google-ads-api-report-fetcher?logo=npm)](https://www.npmjs.com/package/google-ads-api-report-fetcher)
+[![PyPI](https://img.shields.io/pypi/v/google-ads-api-report-fetcher?logo=pypi&logoColor=white&style=flat-square)](https://pypi.org/project/google-ads-api-report-fetcher/)
+[![Downloads PyPI](https://img.shields.io/pypi/dw/google-ads-api-report-fetcher?logo=pypi)](https://pypi.org/project/google-ads-api-report-fetcher/)
+
+
 ## Overview
 
 Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
@@ -161,7 +167,7 @@ ATTENTION: passing macros into sql query is vulnerable to sql-injection so be ve
 ## Expressions and Macros
 > *Note*: currently expressions are supported only in NodeJS version.
 
-As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside 
+As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
 parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
 On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
 They will be executed right after macros substitutation. So an expression even can contain macros inside.
@@ -179,12 +185,12 @@ will be evaluated to:
 `WHERE start_date >= '2022-06-20 AND end_date <= '2022-07-20'`
 if today is 2022 July 20th.
 
-supported functions:  
-* `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`) 
+supported functions:
+* `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`)
 * `date` - factory function to create a Date object, supported formats: `date(2022,12,31)`, `date('2022-12-31')`, `date('12/31/2022','M/d/yyyy')`
 * `duration` - returns a Duration object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnDTnHnMnS)
 * `period` - returns a Period object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnD)
-* `today` - returns a Date object for today date 
+* `today` - returns a Date object for today date
 * `yesterday` - returns a Date object for yesterday date
 * `tomorrow` - returns a Date object for tomorrow date
 * `now` - returns a DateTime object for current timestamp (date and time)
@@ -192,14 +198,14 @@ supported functions:
 
 Please note functions without arguments still should called with brackets (e.g. `today()`)
 
-For dates and datetimes the following operations are supported: 
+For dates and datetimes the following operations are supported:
 * add or subtract Date and Period, e.g. `today()-period('P1D')` - subtract 1 day from today (i.e. yesterday)
 * add or subtract DateTime and Duration, e.g. `now()-duration('PT12H')` - subtract 12 hours from the current datetime
 * for both Date and DateTime add or subtract a number meaning it's a number of days, e.g. `today()-1`
 * subtract two Dates to get a Period, e.g. `tomorrow()-today()` - subtract today from tomorrow and get 1 day, i.e. 'P1D'
 * subtract two DateTimes to get a Duration - similar to subtracting dates but get a duration, i.e. period with time (e.g. PT10H for 10 hours)
 
-By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601) 
+By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601)
 (yyyy-mm-dd for dates and yyyy-mm-ddThh:mm:ss.SSS for datetimes).
 But additionaly you can specify a format explicitly (for parsing with `datetime` and `date` function and formatting with `format` function)
 using stardard [Java Date and Time Patterns](https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html):
