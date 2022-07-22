@@ -7,6 +7,8 @@ If you want to use Apache Airflow to run any gaarf-based projects you can use
 Install it with `pip install airflow-google-ads-api-report-fetcher` -
 it will make  `airflow_gaarf` library available.
 
+> Install the latest development version with `pip install -e git+https://github.com/google/ads-api-report-fetcher.git#egg=airflow-google-ads-api-report-fetcher\&subdirectory=py/airflow_gaarf`
+
 The library comes with two operators - `GaarfOperator` and `GaarfBqOperator` which can
 be used to simplify executing `google_ads_queries` and `bq_queries` respectively.
 
