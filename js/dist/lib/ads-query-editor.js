@@ -371,10 +371,9 @@ class AdsQueryEditor {
         // cut off the last comma (after last column before FROM)
         query = query.replace(/,\s*FROM /gi, ' FROM ');
         // parse parameters and detected unspecified ones
-        //let unknown_params: string[] = [];
         let res = (0, utils_1.substituteMacros)(query, macros);
         if (res.unknown_params.length) {
-            throw new Error(`The following parameters used in query and was not specified: ` +
+            throw new Error(`The following parameters used in query and were not specified: ` +
                 res.unknown_params);
         }
         return res.queryText;

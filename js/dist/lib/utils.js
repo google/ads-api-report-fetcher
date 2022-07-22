@@ -18,8 +18,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getElapsed = exports.substituteMacros = exports.MACRO_DATE_ISO = exports.getCurrentDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.getElapsed = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const lodash_1 = __importDefault(require("lodash"));
+const math_engine_1 = require("./math-engine");
 function traverseObject(object, visitor, path) {
     path = path || [];
     return lodash_1.default.forIn(object, function (value, name) {
@@ -81,32 +82,41 @@ function tryParseNumber(str) {
 }
 exports.tryParseNumber = tryParseNumber;
 /**
- *
- * @returns Return current date as YYYYMMDD
+ * Format a date in ISO format - YYYYMMDD or YYYY-MM-DD if delimiter is "-"
  */
-function getCurrentDateISO() {
-    let now = new Date();
-    let month = now.getMonth() + 1;
-    let day = now.getDate();
-    let iso = now.getFullYear() +
-        (month < 10 ? '0' + month.toString() : month.toString()) +
+function formatDateISO(dt, delimiter = '') {
+    let month = dt.getMonth() + 1;
+    let day = dt.getDate();
+    let iso = dt.getFullYear() + delimiter +
+        (month < 10 ? '0' + month.toString() : month.toString()) + delimiter +
         (day < 10 ? '0' + day : day);
     return iso;
 }
-exports.getCurrentDateISO = getCurrentDateISO;
-exports.MACRO_DATE_ISO = 'date_iso';
+exports.formatDateISO = formatDateISO;
+/**
+ * Substitute macros into the text, and evalutes expressions (in ${} blocks).
+ * @param queryText a text (query) to process
+ * @param macros an object with key-values to substitute
+ * @returns same text with substituted macros and executed expressions
+ */
 function substituteMacros(queryText, macros) {
     macros = macros || {};
     let unknown_params = {};
-    queryText = queryText.replace(/\{([^}]+)\}/g, (ss, name) => {
-        if (name === exports.MACRO_DATE_ISO && !macros[exports.MACRO_DATE_ISO]) {
-            return getCurrentDateISO();
-        }
+    // notes on the regexp:
+    //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's not precended with '$'),
+    //  with that it we're capturing {smth} expressions and not ${smth} expressions
+    queryText = queryText.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
         if (!macros.hasOwnProperty(name)) {
             unknown_params[name] = true;
             return ss;
         }
         return macros[name];
+    });
+    // now process expressions with built-in functions in ${..} blocks
+    queryText = queryText.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
+        if (!expr.trim())
+            return '';
+        return (0, math_engine_1.math_parse)(expr).evaluate(macros);
     });
     return { queryText, unknown_params: Object.keys(unknown_params) };
 }
@@ -122,6 +132,12 @@ function prepend(value, num) {
     return value_str;
 }
 function getElapsed(started, now) {
+    // NOTE: as we've already imported @js-joda it seems logic to use it for
+    // calculating duration and formating. Unfortunetely it doesn't seem to
+    // support formating of duration in a way we need (hh:mm:ss)
+    //let from = LocalDateTime.from(nativeJs(started));
+    //let to = LocalDateTime.from(nativeJs(now || new Date()));
+    //Duration.between(from, to).toString() - return 'PT..' string
     let ms = ((now ? now.valueOf() : Date.now()) - started.valueOf());
     let seconds = ms / 1000;
     ms = Math.floor(ms % 1000);

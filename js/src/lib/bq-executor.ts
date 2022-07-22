@@ -61,7 +61,7 @@ export class BigQueryExecutor {
     if (res.unknown_params.length) {
       throw new Error(
           `The following parameters used in '${
-              scriptName}' query weren't not specified: ${res.unknown_params}`);
+              scriptName}' query were not specified: ${res.unknown_params}`);
     }
     let query: Query = {
       query: res.queryText

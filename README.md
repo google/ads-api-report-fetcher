@@ -104,9 +104,6 @@ Options:
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
 
-There are prefined macros that can be used in queries without passing via command line:
-* `date_iso` - replaced onto current date in YYYYMMDD format
-
 Basically there're two main use-cases: with passing `target` parameter and without. If a target supplied it should be
 a dataset name (either existing or non-existing one) where a table for each script will be created (the name of the table will be the script file base name).
 So you can write a select script that extracts data from other BigQuery tables and the results will be put into a new table.
@@ -140,6 +137,92 @@ WHERE name LIKE @name
 ```
 
 ATTENTION: passing macros into sql query is vulnerable to sql-injection so be very careful where you're taking values from.
+
+
+## Expressions and Macros
+> *Note*: currently expressions are supported only in NodeJS version.
+
+As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside 
+parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
+On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
+They will be executed right after macros substitutation. So an expression even can contain macros inside.
+Both expressions and macros deal with query text before submitting it for execution.
+Inside expression block we can do anything that support MathJS library - see https://mathjs.org/docs/index.html
+plus work with date and time. It's all sort of arithmetic operations, strings and dates manipulations.
+
+One typical use-case - evaluate date/time expressions to get dynamic date conditions in queries. These are when you don't provide
+a specific date but evaluate it right in the query. For example, applying a condition for date range for last month,
+which can be expressed as a range from today minus 1 month to today (or yesterday):
+```
+WHERE start_date >= '${today()-period('P1M')}' AND end_date <= '${today()}'
+```
+will be evaluated to:
+`WHERE start_date >= '2022-06-20 AND end_date <= '2022-07-20'`
+if today is 2022 July 20th.
+
+supported functions:  
+* `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`) 
+* `date` - factory function to create a Date object, supported formats: `date(2022,12,31)`, `date('2022-12-31')`, `date('12/31/2022','M/d/yyyy')`
+* `duration` - returns a Duration object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnDTnHnMnS)
+* `period` - returns a Period object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnD)
+* `today` - returns a Date object for today date 
+* `yesterday` - returns a Date object for yesterday date
+* `tomorrow` - returns a Date object for tomorrow date
+* `now` - returns a DateTime object for current timestamp (date and time)
+* `format` - formats Date or DateTime using a provided format, e.g. `${format(date('2022-07-01'), 'yyyyMMdd')}` returns '20220701'
+
+Please note functions without arguments still should called with brackets (e.g. `today()`)
+
+For dates and datetimes the following operations are supported: 
+* add or subtract Date and Period, e.g. `today()-period('P1D')` - subtract 1 day from today (i.e. yesterday)
+* add or subtract DateTime and Duration, e.g. `now()-duration('PT12H')` - subtract 12 hours from the current datetime
+* for both Date and DateTime add or subtract a number meaning it's a number of days, e.g. `today()-1`
+* subtract two Dates to get a Period, e.g. `tomorrow()-today()` - subtract today from tomorrow and get 1 day, i.e. 'P1D'
+* subtract two DateTimes to get a Duration - similar to subtracting dates but get a duration, i.e. period with time (e.g. PT10H for 10 hours)
+
+By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601) 
+(yyyy-mm-dd for dates and yyyy-mm-ddThh:mm:ss.SSS for datetimes).
+But additionaly you can specify a format explicitly (for parsing with `datetime` and `date` function and formatting with `format` function)
+using stardard [Java Date and Time Patterns](https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html):
+
+* G   Era designator
+* y   Year
+* Y   Week year
+* M   Month in year (1-based)
+* w   Week in year
+* W   Week in month
+* D   Day in year
+* d   Day in month
+* F   Day of week in month
+* E   Day name in week (e.g. Tuesday)
+* u   Day number of week (1 = Monday, ..., 7 = Sunday)
+* a   Am/pm marker
+* H   Hour in day (0-23)
+* k   Hour in day (1-24)
+* K   Hour in am/pm (0-11)
+* h   Hour in am/pm (1-12)
+* m   Minute in hour
+* s   Second in minute
+* S   Millisecond
+* z   Time zone - General time zone (e.g. Pacific Standard Time; PST; GMT-08:00)
+* Z   Time zone - RFC 822 time zone (e.g. -0800)
+* X   Time zone - ISO 8601 time zone (e.g. -08; -0800; -08:00)
+
+Examples:
+```
+${today() - period('P2D')}
+```
+output: today minus 2 days, e.g. '2022-07-19' if today is 2022-07-21
+
+```
+${today()+1}
+```
+output: today plus 1 days, e.g. '2022-07-22' if today is 2022-07-21
+
+```
+${date(2022,7,20).plusMonths(1)}
+```
+output: "2022-08-20"
 
 
 ## Docker

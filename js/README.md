@@ -75,6 +75,11 @@ via `.gaarfrc` file (`ads` object):
  "output": "bq",
 }
 ```
+Such a yaml-file is a standard way to configure Ads API Python client - 
+see [example](https://github.com/googleads/google-ads-python/blob/HEAD/google-ads.yaml).
+
+If neither `ads-config` argument nor `ads.*` arguments were provider then the tool will 
+search for a local file "google-ads.yaml" and if it exists it will be used.
 
 See more help with `--help` option.
 

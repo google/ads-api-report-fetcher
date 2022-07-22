@@ -28,6 +28,17 @@ class AdsQueryExecutor {
     parseQuery(queryText, macros) {
         return this.editor.parseQuery(queryText, macros);
     }
+    /**
+     * Executes a query for a list of customers.
+     * Please note that if you use the method directly you should call methods
+     * `beginScript` and `endScript` on your writer instance.
+     * @param scriptName name of a script (can be use as target table name)
+     * @param queryText Ads query text (GAQL)
+     * @param customers customer ids
+     * @param macros macro values to substritute into the query
+     * @param writer output writer, can be ommited
+     * @param options additional execution options
+     */
     async execute(scriptName, queryText, customers, macros, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
         let sync = !!(options === null || options === void 0 ? void 0 : options.sync);
