@@ -212,14 +212,13 @@ export class BigQueryWriter implements IResultWriter {
           });
           let templateSuffix = undefined;
           if (!this.query?.resource.isConstant) {
-            // we'll create table as
             templateSuffix = '_' + customerId;
           }
+          console.log(`\t[${customerId}] Inserting ${rowsChunk.length} rows`);
           await table!.insert(rows2insert, {
             templateSuffix: templateSuffix,
             schema: this.schema,
           });
-          console.log(`\t[${customerId}] Inserted ${rowsChunk.length} rows`);
         }
       } catch (e) {
         console.log(`[${customerId}] Failed to insert rows into '${

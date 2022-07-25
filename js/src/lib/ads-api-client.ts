@@ -96,8 +96,8 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     }
   }
 
-  async getCustomerIds(): Promise<string[]> {
-    const query_customer_ids = `SELECT
+  async getCustomerIds(customer_ids_query?: string): Promise<string[]> {
+    customer_ids_query = customer_ids_query || `SELECT
           customer_client.id,
           customer_client.manager
         FROM customer_client
@@ -105,7 +105,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
           customer_client.status = "ENABLED" AND
           customer_client.manager = False`;
 
-    let rows = await this.executeQuery(query_customer_ids);
+    let rows = await this.executeQuery(customer_ids_query);
     let ids = [];
     for (let row of rows) {
       ids.push(row.customer_client.id!);

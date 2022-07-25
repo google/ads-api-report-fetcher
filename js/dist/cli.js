@@ -62,6 +62,16 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'string',
     description: 'Google Ads account id (w/o dashes), a.k.a customer id'
 })
+    .option('customer-ids-query', {
+    alias: ['customer_ids_query'],
+    type: 'string',
+    description: 'GAQL query that refines for which accounts to execute scripts'
+})
+    .option('customer-ids-query-file', {
+    alias: ['customer_ids_query_file'],
+    type: 'string',
+    description: 'Same as customer-ids-query but a file path to a query script'
+})
     .option('output', {
     choices: ['csv', 'bq', 'bigquery', 'console'],
     alias: 'o',
@@ -200,8 +210,15 @@ async function main() {
         return;
     }
     let scriptPaths = argv.files;
-    console.log('Fetching customer ids');
-    let customers = await client.getCustomerIds();
+    let customer_ids_query = "";
+    if (argv.customer_ids_query) {
+        customer_ids_query = argv.customer_ids_query;
+    }
+    else if (argv.customer_ids_query_file) {
+        customer_ids_query = await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
+    }
+    console.log(`Fetching customer ids ${customer_ids_query ? ' (using custom query)' : ''}`);
+    let customers = await client.getCustomerIds(customer_ids_query);
     console.log(`Customers to process (${customers.length}):`);
     console.log(customers);
     let macros = argv['macro'] || {};

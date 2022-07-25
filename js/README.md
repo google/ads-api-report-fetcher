@@ -20,7 +20,9 @@ gaarf <files> [options]
 Documentation on available options see in the root [README.md](../README.md).
 
 ### Running from folder
-if you cloned the repo into "ads-api-fetcher" folder (don't forget to run `npm i` first):
+If you cloned the repo into "ads-api-fetcher" folder, then
+run `npm i --production` in ads-api-fetcher/js folder, 
+after than we can run the tool directly:
 ```shell
 ads-api-fetcher/js/gaarf <files> [options]
 ```
