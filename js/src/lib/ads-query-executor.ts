@@ -20,6 +20,7 @@ import {IGoogleAdsApiClient} from './ads-api-client';
 import {AdsQueryEditor} from './ads-query-editor';
 import {AdsRowParser} from './ads-row-parser';
 import {NullWriter} from './csv-writer';
+import logger from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface AdsQueryExecutorOptions {
@@ -28,10 +29,11 @@ export interface AdsQueryExecutorOptions {
   /**
    * synchronous execution -
    * each script will be executed for all customers synchronously,
-   * otherwise in parallel
+   * otherwise (by default) - in parallel
    */
   sync?: boolean;
 }
+
 export class AdsQueryExecutor {
   client: IGoogleAdsApiClient;
   editor: AdsQueryEditor;
@@ -63,12 +65,15 @@ export class AdsQueryExecutor {
       macros: Record<string, any>, writer: IResultWriter|undefined,
       options?: AdsQueryExecutorOptions) {
     let skipConstants = !!options?.skipConstants;
-    let sync = !!options?.sync;
-    if (sync) console.log(`Running in synchronous mode`);
+    let sync = !!options?.sync || customers.length === 1;
+    if (sync)
+      logger.verbose(`Running in synchronous mode`, {scriptName: scriptName});
     let query = this.parseQuery(queryText, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
-      console.log(`Skipping constant resource ${query.resource.name}`);
+      logger.verbose(
+          `Skipping constant resource '${query.resource.name}'`,
+          {scriptName: scriptName});
       return;
     }
 
@@ -83,16 +88,17 @@ export class AdsQueryExecutor {
           tasks.push(task);
         }
       } catch (e) {
-        console.log(`An error occured during executing script '${
+        logger.error(`An error occured during executing script '${
             scriptName}' for ${customerId} customer:`);
-        console.log(e);
+        logger.error(e);
         // we're swallowing the exception
       }
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
       if (isConstResource) {
-        console.log(
-            'Detected constant resource script (breaking loop over customers)')
+        logger.debug(
+          'Detected constant resource script (breaking loop over customers)',
+          { scriptName: scriptName, customerId: customerId });
         break;
       }
     }
@@ -102,9 +108,9 @@ export class AdsQueryExecutor {
       for (let result of results) {
         if (result.status == 'rejected') {
           let customerId = result.reason.customerId;
-          console.log(`An error occured during executing script '${
+          logger.error(`An error occured during executing script '${
               scriptName}' for ${customerId} customer:`);
-          console.log(result.reason);
+          logger.error(result.reason);
         }
       }
     }
@@ -135,18 +141,22 @@ export class AdsQueryExecutor {
     let query = this.parseQuery(queryText, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
-      console.log(`Skipping constant resource ${query.resource.name}`);
+      logger.verbose(
+        `Skipping constant resource '${query.resource.name}'`,
+        {scriptName: scriptName});
       return;
     }
     for (let customerId of customers) {
-      console.log(`Processing customer ${customerId}`);
+      logger.info(
+          `Processing customer ${customerId}`, {scriptName: scriptName});
       let result = await this.executeOne(query, customerId);
       yield result;
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
       if (skipConstants) {
-        console.log(
-            'Detected constant resource script (breaking loop over customers)')
+        logger.debug(
+          'Detected constant resource script (breaking loop over customers)',
+          { scriptName: scriptName, customerId: customerId });
         break;
       }
     }
@@ -174,24 +184,32 @@ export class AdsQueryExecutor {
     if (!writer) {
       writer = new NullWriter();
     }
-    console.log(`Processing customer ${customerId}`);
+    logger.verbose(
+        `Starting processing customer ${customerId}`,
+        {customerId: customerId});
     try {
       await writer.beginCustomer(customerId);
       let parsedRows: any[] = [];
+      logger.debug(`Executing query: ${query.queryText}`, { customerId: customerId });
       let rows = await this.client.executeQuery(query.queryText, customerId);
       for (let row of rows) {
-        // TODO: use logging instead
-        // console.log('raw row:');
-        // console.log(row);
+
+        if (logger.isLevelEnabled('debug')) {
+          logger.debug('row row:', { customerId: customerId });
+          logger.debug(JSON.stringify(row, null, 2));
+        }
         let parsedRow = this.parser.parseRow(row, query);
-        // console.log('parsed row:');
-        // console.log(parsedRow);
+        if (logger.isLevelEnabled('debug')) {
+          logger.debug('parsed row:', {customerId: customerId});
+          logger.debug(JSON.stringify(parsedRow, null, 2));
+        }
+
         if (!empty_result) {
           parsedRows.push(parsedRow);
         }
         writer.addRow(customerId, parsedRow, row);
       }
-      console.log(`\t[${customerId}] got ${rows.length} rows`);
+      logger.info(`Query executed and resulted in ${rows.length} rows`, { customerId: customerId });
       await writer.endCustomer(customerId);
 
       if (empty_result) return;

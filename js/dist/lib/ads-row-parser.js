@@ -34,8 +34,6 @@ class AdsRowParser {
                 row_values[field_full] = value;
             }, [field]);
         }
-        //console.log('Flattened row:');
-        //console.log(row_values);
         // process customizers
         let row_values_arr = [];
         for (let i = 0; i < query.fields.length; i++) {

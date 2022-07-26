@@ -19,6 +19,8 @@ import {ClientOptions, Customer, CustomerOptions, errors, GoogleAdsApi} from 'go
 import yaml from 'js-yaml';
 import _ from 'lodash';
 
+import logger from './logger';
+
 export interface IGoogleAdsApiClient {
   executeQuery(query: string, customerId?: string|undefined|null):
       Promise<any[]>;
@@ -89,8 +91,8 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     } catch (e) {
       let error = <errors.GoogleAdsFailure>e;
       if (error.errors)
-        console.log(
-            `An error occured on executing query: ` +
+        logger.debug(
+            `An error occured on executing query: ${query}\nError: ` +
             JSON.stringify(error.errors[0], null, 2));
       throw e;
     }
@@ -118,6 +120,7 @@ export function loadAdsConfigYaml(
     configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {
 
   try {
+    // TODO: should we support GCS here as well
     const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
     return {
       developer_token: doc['developer_token'],

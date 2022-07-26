@@ -16,7 +16,7 @@
 
 import _ from 'lodash';
 const ads_protos = require('google-ads-node/build/protos/protos.json');
-
+import logger from './logger';
 import {Customizer, CustomizerType, FieldType, FieldTypeKind, isEnumType, ProtoTypeMeta, QueryElements, ResourceInfo} from './types';
 import { substituteMacros } from './utils';
 
@@ -70,7 +70,7 @@ export class AdsQueryEditor {
             try {
               functions[funcName] = new Function(argName, funcBody);
             } catch (e) {
-              console.log(`InvalidQuerySyntax: failed to parse '${
+              logger.error(`InvalidQuerySyntax: failed to parse '${
                   funcName}' function's body:\n ${e}`);
               throw e;
             }

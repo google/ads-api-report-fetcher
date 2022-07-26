@@ -22,11 +22,12 @@ exports.NullWriter = exports.CsvWriter = void 0;
 const sync_1 = require("csv-stringify/sync");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const logger_1 = __importDefault(require("./logger"));
 class CsvWriter {
     constructor(options) {
         this.appending = false;
         this.customerRows = 0;
-        //rows: any[][] = [];
+        // rows: any[][] = [];
         this.rowsByCustomer = {};
         this.destination = options === null || options === void 0 ? void 0 : options.destinationFolder;
     }
@@ -49,13 +50,11 @@ class CsvWriter {
         this.filename = undefined;
     }
     beginCustomer(customerId) {
-        //this.rows = [];
         this.rowsByCustomer[customerId] = [];
     }
     addRow(customerId, parsedRow, rawRow) {
         if (!parsedRow || parsedRow.length == 0)
             return;
-        //this.rows.push(parsedRow);
         this.rowsByCustomer[customerId].push(parsedRow);
     }
     endCustomer(customerId) {
@@ -74,8 +73,8 @@ class CsvWriter {
         let csv = (0, sync_1.stringify)(rows, csvOptions);
         fs_1.default.writeFileSync(this.filename, csv, { encoding: 'utf-8', flag: this.appending ? 'a' : 'w' });
         if (rows.length > 0) {
-            console.log((this.appending ? 'Updated ' : 'Created ') + this.filename +
-                ` with ${rows.length} rows`);
+            logger_1.default.info((this.appending ? 'Updated ' : 'Created ') + this.filename +
+                ` with ${rows.length} rows`, { customerId: customerId, scriptName: this.filename });
         }
         this.appending = true;
         this.rowsByCustomer[customerId] = [];

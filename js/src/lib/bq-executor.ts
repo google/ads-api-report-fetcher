@@ -15,7 +15,9 @@
  */
 import {BigQuery, Dataset, Query, SimpleQueryRowsResponse, Table, TableOptions} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
-import { substituteMacros } from './utils';
+
+import logger from './logger';
+import {substituteMacros} from './utils';
 
 export var OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
@@ -76,7 +78,7 @@ export class BigQueryExecutor {
     }
     try {
       let [values] = await this.bigquery.query(query);
-      console.log(`Query '${scriptName}' executed successfully (${values.length} rows)`);
+      logger.info(`Query '${scriptName}' executed successfully (${values.length} rows)`);
       if (dataset && values.length) {
         // write down query's results into a table in BQ
         let table = query.destination;
@@ -84,12 +86,13 @@ export class BigQueryExecutor {
         for (let i = 0, j = values.length; i < j; i += MAX_ROWS) {
           let rowsChunk = values.slice(i, i + MAX_ROWS);
           await table!.insert(rowsChunk, {});
-          console.log(`\tInserted ${rowsChunk.length} rows`);
+          logger.info(
+              `Inserted ${rowsChunk.length} rows`, {scriptName: scriptName});
         }
       }
       return values;
     } catch (e) {
-      console.log(`Query '${scriptName}' failed to execute: ${e}`);
+      logger.error(`Query '${scriptName}' failed to execute: ${e}`);
       throw e;
     }
   }
@@ -103,7 +106,7 @@ export class BigQueryExecutor {
       dataset = this.bigquery.dataset(datasetId, options);
       await dataset.get({autoCreate: true});
     } catch (e) {
-      console.log(`Failed to get or create the dataset '${datasetId}'`);
+      logger.error(`Failed to get or create the dataset '${datasetId}'`);
       throw e;
     }
     return dataset;

@@ -23,32 +23,26 @@ const winston_1 = __importDefault(require("winston"));
 const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
 const { format } = winston_1.default;
 /** Default log level (usualy one of 'info' or 'debug') */
-exports.LOG_LEVEL = argv.logLevel || process.env.LOG_LEVEL ||
-    (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
+exports.LOG_LEVEL = argv.loglevel || process.env.LOG_LEVEL ||
+    (process.env.NODE_ENV === 'production' ? 'info' : 'verbose');
 const colors = {
     error: 'red',
     warn: 'yellow',
-    info: 'green',
-    http: 'magenta',
-    debug: 'white',
+    info: 'white',
+    verbose: 'gray',
+    debug: 'grey',
 };
 winston_1.default.addColors(colors);
+function wrap(str) {
+    return str ? ' [' + str + ']' : '';
+}
 const transports = [];
 transports.push(new winston_1.default.transports.Console({
-    format: format.combine(format.colorize({ all: true }), format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`))
+    format: format.combine(format.colorize({ all: true }), format.printf((info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`))
 }));
 const logger = winston_1.default.createLogger({
     level: exports.LOG_LEVEL,
-    format: format.combine(format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }), 
-    // format to add 'component' meta value into log message (prepending
-    // '[$component] ')
-    winston_1.default.format((info, opts) => {
-        if (info.component && info.message &&
-            !info.message.startsWith(`[${info.component}]`)) {
-            info.message = `[${info.component}] ${info.message}`;
-        }
-        return info;
-    })()),
+    format: format.combine(format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' })),
     transports
 });
 exports.default = logger;

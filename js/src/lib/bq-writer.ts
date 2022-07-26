@@ -19,6 +19,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 import fs from 'fs';
 import _ from 'lodash';
 
+import logger from './logger';
 import {FieldType, FieldTypeKind, IResultWriter, isEnumType, QueryElements, QueryResult} from './types';
 
 const MAX_ROWS = 50000;
@@ -86,7 +87,7 @@ export class BigQueryWriter implements IResultWriter {
     let schema: bigquery.ITableSchema = this.createSchema(query);
     this.schema = schema;
     if (this.dumpSchema) {
-      console.log(schema);
+      logger.debug(JSON.stringify(schema, null, 2));
       let schemaJson = JSON.stringify(schema, undefined, 2)
       fs.writeFileSync(scriptName + '.json', schemaJson);
     }
@@ -104,7 +105,7 @@ export class BigQueryWriter implements IResultWriter {
       dataset = this.bigquery.dataset(this.datasetId, options);
       await dataset.get({autoCreate: true});
     } catch (e) {
-      console.log(`Failed to get or create the dataset ${this.datasetId}`);
+      logger.error(`Failed to get or create the dataset ${this.datasetId}`);
       throw e;
     }
     return dataset;
@@ -132,7 +133,7 @@ export class BigQueryWriter implements IResultWriter {
             this.tableId}_*\` WHERE _TABLE_SUFFIX in (${
             this.customers.map(s => '\'' + s + '\'').join(',')})`
       });
-      console.log(`Created a union view '${this.datasetId}.${this.tableId}'`);
+      logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {scriptName: this.tableId});
     }
     this.tableId = undefined;
     this.query = undefined;
@@ -165,11 +166,14 @@ export class BigQueryWriter implements IResultWriter {
 
     //  remove customer's table (to make sure you have only fresh data)
     try {
-      console.log(`\t[${customerId}] Removing table '${tableFullName}'`);
+      logger.verbose(
+          `Removing table '${tableFullName}'`,
+          {customerId: customerId, scriptName: this.tableId});
       await this.dataset!.table(tableFullName).delete({ignoreNotFound: true});
     } catch (e) {
-      console.log(
-          `[${customerId}] Deletion of table '${tableFullName}' failed: ${e}`);
+      logger.error(
+          `Deletion of table '${tableFullName}' failed: ${e}`,
+          {customerId: customerId, scriptName: this.tableId});
       throw e;
     }
     let rows = this.rowsByCustomer[customerId];
@@ -214,15 +218,18 @@ export class BigQueryWriter implements IResultWriter {
           if (!this.query?.resource.isConstant) {
             templateSuffix = '_' + customerId;
           }
-          console.log(`\t[${customerId}] Inserting ${rowsChunk.length} rows`);
+          logger.verbose(
+              `Inserting ${rowsChunk.length} rows`,
+              {customerId: customerId});
           await table!.insert(rows2insert, {
             templateSuffix: templateSuffix,
             schema: this.schema,
           });
         }
       } catch (e) {
-        console.log(`[${customerId}] Failed to insert rows into '${
-            tableFullName}' table`);
+        logger.error(
+            `Failed to insert rows into '${tableFullName}' table`,
+            {customerId: customerId});
         if (e.name === 'PartialFailureError') {
           // Some rows failed to insert, while others may have succeeded.
           const max_errors_to_show = 10;
@@ -230,34 +237,41 @@ export class BigQueryWriter implements IResultWriter {
               `showing first ${max_errors_to_show} errors of ${
                   e.errors.length})` :
               e.errors.length + ' error(s)';
-          console.log(`Some rows failed to insert (${msgDetail}):`);
+          logger.warn(
+              `Some rows failed to insert (${msgDetail}):`,
+              {customerId: customerId});
           // show first 10 rows with errors
           for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
             let err = e.errors[i];
-            console.log(`#${i} row: `);
-            console.log(err.row);
-            console.log(`Error: ${err.errors[0].message}`);
+            logger.warn(
+                `#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${
+                    err.errors[0].message}`,
+                {customerId: customerId});
           }
         } else if (e.code === 404) {
           // ApiError: "Table 162551664177:dataset.table not found"
           // This is unexpected but theriotically can happen (and did) due to eventually consistency of BigQuery
-          console.log(`ERROR: Table ${tableFullName} not found.`);
+          console.error(
+              `Table ${tableFullName} not found.`, {customerId: customerId});
           const table = this.dataset!.table(this.tableId);
           let exists = await table.exists();
-          console.log(`Table exists: ${exists}`);
+          console.warn(`Table ${tableFullName} existence check: ${exists}`);
         }
         throw e;
       }
-      console.log(`\t[${customerId}] ${rows.length} rows inserted into '${
-          tableFullName}' table`);
+      logger.info(
+          `${rows.length} rows inserted into '${tableFullName}' table`,
+          {customerId: customerId});
     } else {
       // no rows found for the customer, as so no table was created,
       // create an empty one, so we could use it for a union view
       try {
         await this.dataset!.createTable(tableFullName, {schema: this.schema});
-        console.log(`\t[${customerId}] Created empty table '${tableFullName}'`);
+        logger.verbose(
+            `Created empty table '${tableFullName}'`,
+            {customerId: customerId});
       } catch (e) {
-        console.log(
+        logger.error(
             `\tCreation of empty table '${tableFullName}' failed: ${e}`);
         throw e;
       }

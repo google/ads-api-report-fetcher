@@ -62,7 +62,8 @@ Options:
 * `output` - output type, Supports the following values:
   * `csv` - write data to CSV files
   * `bq` or `bigquery` - write data to BigQuery
-  * `console` - write data to standard output (Python only)
+  * `console` - write data to standard output
+* `loglevel` - logging level (NodeJS only): 'debug', 'verbose', 'info', 'warn', 'error'
 * `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
   `account` argument must be a MCC account id in this case.
 
@@ -80,6 +81,10 @@ Options specific for BigQuery writer:
 * `bq.dataset` - BigQuery dataset id where tables with output data will be created
 * `bq.table-template`  - template for tables names, `{script}` references script base name (*JS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*JS version only*)
+
+Options specific for Console writer (NodeJS only):
+* `console.transpose` - whenether and how to transpose (switch rows and columns) result tables in output: 
+`auto` (default) - transponse only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
 
 All parameters whose names start with the `macro.` prefix are passed to queries as params object.
 For example if we pass parameters: `--macro.start_date=2021-12-01 --macro.end_date=2022-02-28`
@@ -264,7 +269,8 @@ curl -L https://raw.githubusercontent.com/google/ads-api-report-fetcher/main/js/
 ```
 
 Sample Dockerfile's don't depend on sources, they install gaarf from registries for each platform (npm and PyPi).
-To build an image with name 'gaarf' (the name is up to you but you'll use to run a container later) run the following command in a folder with `Dockerfile`:
+To build an image with name 'gaarf' (the name is up to you but you'll use it to run a container later) run 
+the following command in a folder with `Dockerfile`:
 ```
 sudo docker build . -t gaarf
 ```
@@ -304,6 +310,8 @@ Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. 
 For deployment of all components you can use the [setup.sh](gcp/setup.sh) script with an argument with a name of your project.
 Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf"
 workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders.
+
+Please note that you'll need to copy google-ads.yaml into 'functions' folder before deployment.
 
 After that you deployed workflow and functions, deploy your scripts to GCS:
 ```

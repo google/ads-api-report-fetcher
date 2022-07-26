@@ -22,6 +22,7 @@ exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
 const fs_1 = __importDefault(require("fs"));
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
+const logger_1 = __importDefault(require("./logger"));
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
         if (!adsConfig) {
@@ -69,7 +70,7 @@ class GoogleAdsApiClient {
         catch (e) {
             let error = e;
             if (error.errors)
-                console.log(`An error occured on executing query: ` +
+                logger_1.default.debug(`An error occured on executing query: ${query}\nError: ` +
                     JSON.stringify(error.errors[0], null, 2));
             throw e;
         }
@@ -94,6 +95,7 @@ exports.GoogleAdsApiClient = GoogleAdsApiClient;
 function loadAdsConfigYaml(configFilepath, customerId) {
     var _a, _b;
     try {
+        // TODO: should we support GCS here as well
         const doc = js_yaml_1.default.load(fs_1.default.readFileSync(configFilepath, 'utf8'));
         return {
             developer_token: doc['developer_token'],

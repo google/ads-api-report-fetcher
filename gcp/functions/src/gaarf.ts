@@ -33,11 +33,11 @@ export const main: HttpFunction =
     adsConfig = loadAdsConfigYaml(adsConfigFile, <string>req.query.customer_id);
   } else {
     adsConfig = <GoogleAdsApiConfig> {
-      developer_token: <string>process.env.developer_token,
-      login_customer_id: <string>process.env.login_customer_id,
-      client_id: <string>process.env.client_id,
-      client_secret: <string>process.env.client_secret,
-      refresh_token: <string>process.env.refresh_token
+      developer_token: <string>process.env.DEVELOPER_TOKEN,
+      login_customer_id: <string>process.env.LOGIN_CUSTOMER_ID,
+      client_id: <string>process.env.CLIENT_ID,
+      client_secret: <string>process.env.CLIENT_SECRET,
+      refresh_token: <string>process.env.REFRESH_TOKEN
     }
   }
   console.log('Ads API config:');
@@ -67,7 +67,8 @@ export const main: HttpFunction =
   let executor = new AdsQueryExecutor(ads_client);
   let writer =
       new BigQueryWriter(<string>projectId, <string>dataset, {keepData: true});
-
+  // TODO: support CsvWriter and output path to GCS (csv.destination_folder=gs://bucket/path)
+      
   let singleCustomer = req.query.single_customer;
   let macros = req.body;
 

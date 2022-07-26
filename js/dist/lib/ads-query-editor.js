@@ -21,6 +21,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdsQueryEditor = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const ads_protos = require('google-ads-node/build/protos/protos.json');
+const logger_1 = __importDefault(require("./logger"));
 const types_1 = require("./types");
 const utils_1 = require("./utils");
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
@@ -77,7 +78,7 @@ class AdsQueryEditor {
                             functions[funcName] = new Function(argName, funcBody);
                         }
                         catch (e) {
-                            console.log(`InvalidQuerySyntax: failed to parse '${funcName}' function's body:\n ${e}`);
+                            logger_1.default.error(`InvalidQuerySyntax: failed to parse '${funcName}' function's body:\n ${e}`);
                             throw e;
                         }
                         break;

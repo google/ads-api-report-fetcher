@@ -20,6 +20,7 @@ import {hideBin} from 'yargs/helpers'
 
 import {BigQueryExecutor} from './lib/bq-executor';
 import {getFileContent} from './lib/file-utils';
+import logger from './lib/logger';
 
 const argv =
     yargs(hideBin(process.argv))
@@ -39,6 +40,12 @@ const argv =
           description:
               'BigQuery dataset or dataset.table to put query result into'
         })
+        .option('loglevel', {
+          alias: ['log-level', 'll', 'log_level'],
+          choises: ['debug', 'verbose', 'info', 'warn', 'error'],
+          description:
+              'Logging level. By default - \'info\', for output=console - \'warn\''
+        })
         // .option(
         //     'location',
         //     {type: 'string', description: 'BigQuery dataset location'})
@@ -54,11 +61,11 @@ const argv =
         .parseSync()
 
 async function main() {
-  console.log(chalk.gray(JSON.stringify(argv, null, 2)));
+  logger.verbose(JSON.stringify(argv, null, 2));
   if (!argv.files || !argv.files.length) {
     console.log(chalk.redBright(
         `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
-    return;
+    process.exit(-1);
   }
   let scriptPaths = argv.files;
   let projectId = argv.project || '';
@@ -68,7 +75,7 @@ async function main() {
   let executor = new BigQueryExecutor(projectId);
   for (let scriptPath of scriptPaths) {
     let queryText = await getFileContent(scriptPath);
-    console.log(`Processing query from ${scriptPath}`);
+    logger.info(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
     await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });

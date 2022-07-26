@@ -30,6 +30,7 @@ const bq_writer_1 = require("./lib/bq-writer");
 const console_writer_1 = require("./lib/console-writer");
 const csv_writer_1 = require("./lib/csv-writer");
 const file_utils_1 = require("./lib/file-utils");
+const logger_1 = __importDefault(require("./lib/logger"));
 const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
@@ -47,7 +48,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     // NOTE: when/if we introduce another command, then all options will
     //       move to the defaul command's suboptions
     //       But having them at root level is better for TS typings
-    .option('ads-config', { type: 'string', description: 'path to yaml config for Google Ads' })
+    .option('ads-config', {
+    type: 'string',
+    description: 'path to yaml config for Google Ads (google-ads.yaml)'
+})
     .option('ads', { hidden: true })
     .option('ads.developer_token', { type: 'string', description: 'Ads API developer token' })
     .option('ads.client_id', { type: 'string', description: 'OAuth client_id' })
@@ -77,6 +81,11 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     alias: 'o',
     description: 'output writer to use'
 })
+    .option('loglevel', {
+    alias: ['log-level', 'll', 'log_level'],
+    choises: ['debug', 'info', 'warn', 'error'],
+    description: 'Logging level. By default - \'info\', for output=console - \'warn\''
+})
     .option('sync', {
     type: 'boolean',
     description: 'Queries will be executed for each customer synchronously (otherwise in parallel)'
@@ -84,6 +93,11 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option('csv.destination-folder', {
     type: 'string',
     description: 'output folder for generated CSV files'
+})
+    .option('console.transpose', {
+    choices: ['auto', 'never', 'always'],
+    default: 'auto',
+    description: 'transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose'
 })
     .option('bq', { hidden: true })
     .option('csv', { hidden: true })
@@ -111,6 +125,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     'bq.location', 'bq.no-union-view'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
+    .group('console.transpose', 'Console writer options:')
     .option('skip-constants', {
     type: 'boolean',
     description: 'do not execute scripts for constant resources'
@@ -128,7 +143,6 @@ function getWriter() {
         return new csv_writer_1.NullWriter();
     }
     if (output === 'console') {
-        // TODO:
         return new console_writer_1.ConsoleWriter(argv.console);
     }
     if (output === 'csv') {
@@ -163,7 +177,7 @@ async function main() {
     if (argv.account) {
         argv.account = argv.account.toString();
     }
-    console.log(chalk_1.default.gray(JSON.stringify(argv, null, 2)));
+    logger_1.default.verbose(JSON.stringify(argv, null, 2));
     let adsConfig;
     let configFilePath = argv.adsConfig;
     if (configFilePath) {
@@ -192,8 +206,8 @@ async function main() {
             process.exit(-1);
         }
     }
-    console.log(chalk_1.default.gray('Using ads config:'));
-    console.log(adsConfig);
+    logger_1.default.verbose('Using ads config:');
+    logger_1.default.verbose(JSON.stringify(adsConfig, null, 2));
     let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
@@ -207,20 +221,29 @@ async function main() {
     // expand them using glob rules
     if (!argv.files || !argv.files.length) {
         console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
-        return;
+        process.exit(-1);
     }
     let scriptPaths = argv.files;
-    let customer_ids_query = "";
+    if (argv.output === 'console') {
+        // for console writer by default increase default log level to 'warn' (to hide all auxillary info)
+        logger_1.default.transports.forEach((transport) => {
+            if (transport.name === 'console' && !argv.loglevel) {
+                transport.level = 'warn';
+            }
+        });
+    }
+    let customer_ids_query = '';
     if (argv.customer_ids_query) {
         customer_ids_query = argv.customer_ids_query;
     }
     else if (argv.customer_ids_query_file) {
-        customer_ids_query = await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
+        customer_ids_query =
+            await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
     }
-    console.log(`Fetching customer ids ${customer_ids_query ? ' (using custom query)' : ''}`);
+    logger_1.default.info(`Fetching customer ids ${customer_ids_query ? ' (using custom query)' : ''}`);
     let customers = await client.getCustomerIds(customer_ids_query);
-    console.log(`Customers to process (${customers.length}):`);
-    console.log(customers);
+    logger_1.default.info(`Customers to process (${customers.length}):`);
+    logger_1.default.info(customers);
     let macros = argv['macro'] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
@@ -228,17 +251,17 @@ async function main() {
         skipConstants: argv.skipConstants,
         sync: argv.sync
     };
-    console.log(`Found ${scriptPaths.length} script to process`);
+    logger_1.default.info(`Found ${scriptPaths.length} script to process`);
+    logger_1.default.debug(JSON.stringify(scriptPaths, null, 2));
     let started = new Date();
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
-        console.log(`Processing query from ${scriptPath}`);
+        logger_1.default.info(`Processing query from ${chalk_1.default.gray(scriptPath)}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         await executor.execute(scriptName, queryText, customers, macros, writer, options);
-        console.log();
     }
     let elapsed = (0, utils_1.getElapsed)(started);
-    console.log(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
+    logger_1.default.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
 function loadAdsConfig(configFilepath, customerId) {
     if (!fs_1.default.existsSync(configFilepath)) {

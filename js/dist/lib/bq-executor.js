@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigQueryExecutor = exports.OAUTH_SCOPES = void 0;
 /**
@@ -17,6 +20,7 @@ exports.BigQueryExecutor = exports.OAUTH_SCOPES = void 0;
  * limitations under the License.
  */
 const bigquery_1 = require("@google-cloud/bigquery");
+const logger_1 = __importDefault(require("./logger"));
 const utils_1 = require("./utils");
 exports.OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/cloud-platform',
@@ -60,7 +64,7 @@ class BigQueryExecutor {
         }
         try {
             let [values] = await this.bigquery.query(query);
-            console.log(`Query '${scriptName}' executed successfully (${values.length} rows)`);
+            logger_1.default.info(`Query '${scriptName}' executed successfully (${values.length} rows)`);
             if (dataset && values.length) {
                 // write down query's results into a table in BQ
                 let table = query.destination;
@@ -68,13 +72,13 @@ class BigQueryExecutor {
                 for (let i = 0, j = values.length; i < j; i += MAX_ROWS) {
                     let rowsChunk = values.slice(i, i + MAX_ROWS);
                     await table.insert(rowsChunk, {});
-                    console.log(`\tInserted ${rowsChunk.length} rows`);
+                    logger_1.default.info(`Inserted ${rowsChunk.length} rows`, { scriptName: scriptName });
                 }
             }
             return values;
         }
         catch (e) {
-            console.log(`Query '${scriptName}' failed to execute: ${e}`);
+            logger_1.default.error(`Query '${scriptName}' failed to execute: ${e}`);
             throw e;
         }
     }
@@ -88,7 +92,7 @@ class BigQueryExecutor {
             await dataset.get({ autoCreate: true });
         }
         catch (e) {
-            console.log(`Failed to get or create the dataset '${datasetId}'`);
+            logger_1.default.error(`Failed to get or create the dataset '${datasetId}'`);
             throw e;
         }
         return dataset;

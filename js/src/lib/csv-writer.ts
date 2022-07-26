@@ -19,6 +19,7 @@ import {stringify} from 'csv-stringify/sync';
 import fs from 'fs';
 import path from 'path';
 
+import logger from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface CsvWriterOptions {
@@ -29,7 +30,6 @@ export class CsvWriter implements IResultWriter {
   filename: string|undefined;
   appending = false;
   customerRows = 0;
-  //rows: any[][] = [];
   rowsByCustomer: Record<string, any[][]> = {};
   query: QueryElements|undefined;
 
@@ -57,15 +57,13 @@ export class CsvWriter implements IResultWriter {
   endScript() {
     this.filename = undefined;
   }
-  
+
   beginCustomer(customerId: string) {
-    //this.rows = [];
     this.rowsByCustomer[customerId] = [];
   }
 
   addRow(customerId: string, parsedRow: any[], rawRow: any[]) {
     if (!parsedRow || parsedRow.length == 0) return;
-    //this.rows.push(parsedRow);
     this.rowsByCustomer[customerId].push(parsedRow);
   }
 
@@ -75,23 +73,24 @@ export class CsvWriter implements IResultWriter {
       return;
     }
     let csvOptions: csvStringify.Options = {
-          header: !this.appending,
-          quoted: false,
-          columns: this.query!.columnNames,
-          cast: {
-            boolean: (value: boolean, context: csvStringify.CastingContext) =>
-                value ? 'true' : 'false'
-          }
-        };
+      header: !this.appending,
+      quoted: false,
+      columns: this.query!.columnNames,
+      cast: {
+        boolean: (value: boolean, context: csvStringify.CastingContext) =>
+            value ? 'true' : 'false'
+      }
+    };
     let csv = stringify(rows, csvOptions);
     fs.writeFileSync(
         this.filename!, csv,
         {encoding: 'utf-8', flag: this.appending ? 'a' : 'w'});
 
     if (rows.length > 0) {
-      console.log(
+      logger.info(
           (this.appending ? 'Updated ' : 'Created ') + this.filename +
-          ` with ${rows.length} rows`);
+              ` with ${rows.length} rows`,
+          {customerId: customerId, scriptName: this.filename});
     }
 
     this.appending = true;
