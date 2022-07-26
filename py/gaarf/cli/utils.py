@@ -12,41 +12,100 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Dict, Optional, Sequence, Union
 import dataclasses
 import os
 import datetime
 from dateutil.relativedelta import relativedelta
-from typing import Any, Dict, Optional, Sequence
 import yaml
 
 
-def convert_date(date_string: str) -> str:
-    """Converts specific dates parameters to actual dates."""
+@dataclasses.dataclass
+class GaarfConfig:
+    output: str
+    api_version: str
+    account: str
+    params: Dict[str, Any]
+    writer_params: Dict[str, Any]
 
-    if date_string.find(":YYYY") == -1:
-        return date_string
-    current_date = datetime.date.today()
-    date_object = date_string.split("-")
-    base_date = date_object[0]
-    if len(date_object) == 2:
-        try: 
-            days_ago = int(date_object[1])
-        except ValueError as e:
-            raise ValueError(
-                "Must provide numeric value for a number lookback period, "
-                "i.e. :YYYYMMDD-1") from e
-    else:
-        days_ago = 0
-    if base_date == ":YYYY":
-        new_date = datetime.datetime(current_date.year, 1, 1)
-        delta = relativedelta(years=days_ago)
-    elif base_date == ":YYYYMM":
-        new_date = datetime.datetime(current_date.year, current_date.month, 1)
-        delta = relativedelta(months=days_ago)
-    elif base_date == ":YYYYMMDD":
-        new_date = current_date
-        delta = relativedelta(days=days_ago)
-    return (new_date - delta).strftime("%Y-%m-%d")
+
+@dataclasses.dataclass
+class GaarfBqConfig:
+    project: str
+    params: Dict[str, Any]
+
+
+class BaseConfigBuilder:
+
+    def __init__(self, args):
+        self.args = args
+        if (gaarf_config_path := self.args[0].gaarf_config):
+            self.type = "file"
+            self.gaarf_config_path = gaarf_config_path
+        else:
+            self.type = "cli"
+            self.gaarf_config_path = None
+
+    def build(self) -> Union[GaarfConfig, GaarfBqConfig]:
+        if self.type == "file":
+            return self._load_gaarf_config()
+        return self._build_gaarf_config()
+
+    def _load_gaarf_config(self) -> Union[GaarfConfig, GaarfBqConfig]:
+        raise NotImplementedError
+
+    def _build_gaarf_config(self) -> Union[GaarfConfig, GaarfBqConfig]:
+        raise NotImplementedError
+
+
+class GaarfConfigBuilder(BaseConfigBuilder):
+
+    def __init__(self, args):
+        super().__init__(args)
+
+    def _load_gaarf_config(self) -> GaarfConfig:
+        with open(self.gaarf_config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        gaarf_section = config.get("gaarf")
+        if not gaarf_section:
+            raise ValueError("Invalid config, must have `gaarf` section!")
+        if not (output := gaarf_section.get("output")):
+            raise ValueError("Config does not contains `output` section!")
+        return GaarfConfig(output=gaarf_section.get("output"),
+                           api_version=gaarf_section.get("api_version"),
+                           account=gaarf_section.get("account"),
+                           params=gaarf_section.get("params"),
+                           writer_params=gaarf_section.get(output))
+
+    def _build_gaarf_config(self) -> GaarfConfig:
+        main_args, query_args = self.args[0], self.args[1]
+        params = ParamsParser(["macro", main_args.save]).parse(query_args)
+        return GaarfConfig(output=main_args.save,
+                           api_version=main_args.api_version,
+                           account=main_args.customer_id,
+                           params=params,
+                           writer_params=params.get(main_args.save))
+
+
+class GaarfBqConfigBuilder(BaseConfigBuilder):
+
+    def __init__(self, args):
+        super().__init__(args)
+
+    def _load_gaarf_config(self) -> GaarfBqConfig:
+        with open(self.gaarf_config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        gaarf_section = config.get("gaarf-bq")
+        if not gaarf_section:
+            raise ValueError("Invalid config, must have `gaarf-bq` section!")
+        params = gaarf_section.get("params")
+        return GaarfBqConfig(project=gaarf_section.get("project"),
+                             params=params)
+
+    def _build_gaarf_config(self) -> GaarfBqConfig:
+        main_args, query_args = self.args[0], self.args[1]
+        params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
+        return GaarfBqConfig(project=main_args.project, params=params)
 
 
 class ParamsParser:
@@ -88,31 +147,33 @@ class ParamsParser:
                          f"--{identifier}.key=value is the correct format")
 
 
-@dataclasses.dataclass
-class ExecutorParams:
-    sql_params: Dict[str, Any]
-    macro_params: Dict[str, Any]
-    template_params: Dict[str, Any]
+def convert_date(date_string: str) -> str:
+    """Converts specific dates parameters to actual dates."""
 
-
-class ExecutorParamsParser:
-
-    def __init__(self, params: Dict[str, Any]):
-        self.params = params
-
-    def parse(self) -> ExecutorParams:
-        return ExecutorParams(sql_params=self.params.get("sql"),
-                              macro_params=self.params.get("macro"),
-                              template_params=self.params.get("template"))
-
-
-class WriterParamsParser:
-
-    def __init__(self, params: Dict[str, Any]):
-        self.params = params
-
-    def parse(self, key: str) -> Optional[Dict[str, Any]]:
-        return self.params.get(key)
+    if date_string.find(":YYYY") == -1:
+        return date_string
+    current_date = datetime.date.today()
+    date_object = date_string.split("-")
+    base_date = date_object[0]
+    if len(date_object) == 2:
+        try:
+            days_ago = int(date_object[1])
+        except ValueError as e:
+            raise ValueError(
+                "Must provide numeric value for a number lookback period, "
+                "i.e. :YYYYMMDD-1") from e
+    else:
+        days_ago = 0
+    if base_date == ":YYYY":
+        new_date = datetime.datetime(current_date.year, 1, 1)
+        delta = relativedelta(years=days_ago)
+    elif base_date == ":YYYYMM":
+        new_date = datetime.datetime(current_date.year, current_date.month, 1)
+        delta = relativedelta(months=days_ago)
+    elif base_date == ":YYYYMMDD":
+        new_date = current_date
+        delta = relativedelta(days=days_ago)
+    return (new_date - delta).strftime("%Y-%m-%d")
 
 
 class ConfigSaver:
@@ -120,14 +181,13 @@ class ConfigSaver:
     def __init__(self, path: str):
         self.path = path
 
-    #TODO: Add support for AbsReader
-    def save(self, args, params: Dict[str, Any], key: str):
+    def save(self, gaarf_config: Union[GaarfConfig, GaarfBqConfig]):
         if os.path.exists(self.path):
             with open(self.path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
         else:
             config = {}
-        config = self.prepare_config(config, args, params, key)
+        config = self.prepare_config(config, gaarf_config)
         with open(self.path, "w", encoding="utf-8") as f:
             yaml.dump(config,
                       f,
@@ -135,21 +195,13 @@ class ConfigSaver:
                       sort_keys=False,
                       encoding="utf-8")
 
-
-    def prepare_config(self, config: Dict[str, Any], args, params: Dict[str, Any],
-                key: str):
-        if key == "gaarf":
-            gaarf = {}
-            gaarf["account"] = args.customer_id
-            gaarf["output"] = args.save
-            gaarf[args.save] = params.get(args.save)
-            gaarf["params"] = params
-            gaarf["api-version"] = args.api_version
-            del gaarf["params"][args.save]
-            config.update({key: gaarf})
-        if key == "gaarf-bq":
-            bq = {}
-            bq["project"] = args.project
-            bq["params"] = params
-            config.update({key: bq})
+    def prepare_config(self, config: Dict[Any, Any],
+                       gaarf_config: Union[GaarfConfig, GaarfBqConfig]):
+        gaarf = dataclasses.asdict(gaarf_config)
+        if isinstance(gaarf_config, GaarfConfig):
+            gaarf[gaarf_config.output] = gaarf_config.writer_params
+            del gaarf["writer_params"]
+            config.update({"gaarf": gaarf})
+        if isinstance(gaarf_config, GaarfBqConfig):
+            config.update({"gaarf-bq": gaarf})
         return config

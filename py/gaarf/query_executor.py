@@ -97,7 +97,7 @@ class AdsQueryExecutor:
 
         query_text = reader_client.read(query)
         query_specification = QuerySpecification(query_text, query,
-                                                 args).generate()
+                                                 args.get("macro")).generate()
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification)
         if len(results) > 0:
