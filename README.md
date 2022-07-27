@@ -160,7 +160,7 @@ WHERE name LIKE @name
 and to execute:
 `gaarf-bq --macro.table-src=table1 --macro.ds-src=dataset1 --sql.name='myname%'`
 
-it will create a script to run in BQ:
+it will create a parameterized query to run in BQ:
 ```
 SELECT *
 FROM dataset1.table1

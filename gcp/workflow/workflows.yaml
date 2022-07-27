@@ -15,6 +15,7 @@ main:
           queries_path: ${args.ads_queries_path}
           dataset: ${args.dataset}
           cid: ${args.cid}
+          macros: ${args.ads_macro}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -23,10 +24,12 @@ main:
           function_name: ${args.cloud_function + "-bq"}
           gcs_bucket: ${args.gcs_bucket}
           queries_path: ${args.bq_queries_path}
-          macros: ${args.bq_macros}
+          macros: ${args.bq_macro}
+          sqlParams: ${args.bq_sql}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, dataset, cid]
+  params: [project, location, function_name, gcs_bucket, queries_path, dataset, cid, macros]
+  # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF function URL (specially usefull for v2 CF)
     - get_function:
@@ -51,21 +54,23 @@ runAdsQueries:
           json: ${scripts}
           severity: "INFO"
     - runAdsQueries:
-        parallel: 
+        parallel:
           shared: [scripts]
           for:
             value: script_item
             in: ${scripts.items}
             steps:
               - call_gaarf_cf:
-                  call: http.get
+                  call: http.post
                   args:
                     url: ${function.httpsTrigger.url}
                     query:
                       script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
-                      project_id: ${project}
-                      dataset: ${dataset}
+                      bq_project_id: ${project}
+                      bq_dataset: ${dataset}
                       customer_id: ${cid}
+                    body:
+                      macro: ${macros}
                     auth:
                       type: OIDC
                       audience: ${function.httpsTrigger.url}
@@ -77,8 +82,8 @@ runAdsQueries:
                     severity: "INFO"
 
 runBigQueryQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, macros]
-    
+  params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams]
+
   steps:
     - get_bq_scripts_from_gcs:
         call: googleapis.storage.v1.objects.list
@@ -93,7 +98,7 @@ runBigQueryQueries:
           severity: "INFO"
     # check scripts were found on GCS
 #    - check_scripts:
-#        switch:                              
+#        switch:
 #          - condition: ${bq_scripts["items"] and len(bq_scripts.items) > 0}
 #            next: get_function_bq
 #        next: end
@@ -103,7 +108,7 @@ runBigQueryQueries:
           name: ${"projects/" + project + "/locations/" + location + "/functions/" + function_name}
         result: function_bq
     - runBqQueries:
-        parallel: 
+        parallel:
           shared: [bq_scripts]
           for:
             value: bq_script_item
@@ -117,7 +122,8 @@ runBigQueryQueries:
                       script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
                       project_id: ${project}
                     body:
-                      macros: ${macros}
+                      macro: ${macros}
+                      sql: ${sqlParams}
                     auth:
                       type: OIDC
                       audience: ${function_bq.httpsTrigger.url}

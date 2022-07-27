@@ -37,6 +37,7 @@ export interface BigQueryWriterOptions {
   dumpSchema?: boolean;
   keepData?: boolean;
   noUnionView?: boolean;
+  keyFilePath?: string;
 }
 
 export class BigQueryWriter implements IResultWriter {
@@ -59,7 +60,7 @@ export class BigQueryWriter implements IResultWriter {
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
-      // TODO: keyFilename: argv.keyFile
+      keyFilename: options?.keyFilePath
     });
     this.datasetId = dataset;
     this.datasetLocation = options?.datasetLocation;

@@ -28,6 +28,7 @@ export var OAUTH_SCOPES = [
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
+  keyFilePath?: string;
 }
 export interface BigQueryExecutorParams {
   sqlParams?: Record<string, any>;
@@ -39,11 +40,11 @@ export class BigQueryExecutor {
   bigquery: BigQuery;
   datasetLocation?: string;
 
-  constructor(projectId: string, options?: BigQueryExecutorOptions) {
+  constructor(projectId?: string|undefined, options?: BigQueryExecutorOptions) {
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
-      // TODO: keyFilename: argv.keyFile
+      keyFilename: options?.keyFilePath
     });
     this.datasetLocation = options?.datasetLocation;
   }
@@ -83,6 +84,7 @@ export class BigQueryExecutor {
         // write down query's results into a table in BQ
         let table = query.destination;
         const MAX_ROWS = 50_000;
+        // NOTE: insert returned rows into BQ, should be clear the table first?
         for (let i = 0, j = values.length; i < j; i += MAX_ROWS) {
           let rowsChunk = values.slice(i, i + MAX_ROWS);
           await table!.insert(rowsChunk, {});

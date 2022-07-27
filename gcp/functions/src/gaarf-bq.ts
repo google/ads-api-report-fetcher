@@ -18,30 +18,24 @@ import path from 'path';
 
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
+import { getScript } from './utils';
 
 export const main_bq: HttpFunction =
     async (req: express.Request, res: express.Response) => {
+  console.log(req.body);
   console.log(req.query);
 
-  let scriptPath = req.query.script_path;
-  if (!scriptPath)
-    throw new Error(
-        `Ads script path is not specified in script_path query argument`);
   let projectId = req.query.project_id || process.env.PROJECT_ID;
-  if (!projectId)
-    throw new Error(
-        `Project id is not specified in either 'project_id' query argument or PROJECT_ID envvar`);
+  // note: projectId isn't mandatory (should be detected from ADC)
   let target = <string>req.query.target;
 
   let body = req.body || {};
   let sqlParams = body.sql;
-  let macroParams = body.macros;
-  let queryText = await getFileContent(<string>scriptPath);
-  let scriptName = path.basename(<string>scriptPath).split('.sql')[0];
+  let macroParams = body.macro;
+  let {queryText, scriptName} = await getScript(req);
 
   let executor = new BigQueryExecutor(<string>projectId);
 
-  console.log(`Executing BQ-query from ${scriptPath}`);
   let result = await executor.execute(
       scriptName, queryText, {sqlParams, macroParams, target});
   if (result && result.length) {

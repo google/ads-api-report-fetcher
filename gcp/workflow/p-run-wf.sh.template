@@ -7,5 +7,7 @@ gcloud workflows run gaarf-wf \
   "bq_queries_path":"<YOUR_GCS_FOLDER_PATH_BQ>",
   "dataset":"<YOUR_DATASET>",
   "cid":"<YOUR_CUSTOMER_ID>",
-  "bq_macros":{"ads_ds": "<YOUR_DATASET>", "ds_dst": "<YOUR_DATASET>"}
+  "ads_macro": {},
+  "bq_macro":{},
+  "bq_sql": {}
   }'

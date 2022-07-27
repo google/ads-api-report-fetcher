@@ -24,6 +24,7 @@ const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher")
 const path_1 = __importDefault(require("path"));
 const main = async (req, res) => {
     console.log(req.query);
+    console.log(req.body);
     // prepare Ads API parameters
     let adsConfig;
     let adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
@@ -32,11 +33,11 @@ const main = async (req, res) => {
     }
     else {
         adsConfig = {
-            developer_token: process.env.developer_token,
-            login_customer_id: process.env.login_customer_id,
-            client_id: process.env.client_id,
-            client_secret: process.env.client_secret,
-            refresh_token: process.env.refresh_token
+            developer_token: process.env.DEVELOPER_TOKEN,
+            login_customer_id: process.env.LOGIN_CUSTOMER_ID,
+            client_id: process.env.CLIENT_ID,
+            client_secret: process.env.CLIENT_SECRET,
+            refresh_token: process.env.REFRESH_TOKEN
         };
     }
     console.log('Ads API config:');
@@ -44,9 +45,6 @@ const main = async (req, res) => {
     if (!adsConfig.developer_token || !adsConfig.refresh_token) {
         throw new Error(`Ads API configuration is not complete.`);
     }
-    let scriptPath = req.query.script_path;
-    if (!scriptPath)
-        throw new Error(`Ads script path is not specified in script_path query argument`);
     let projectId = req.query.project_id || process.env.PROJECT_ID;
     if (!projectId)
         throw new Error(`Project id is not specified in either 'project_id' query argument or PROJECT_ID envvar`);
@@ -59,11 +57,12 @@ const main = async (req, res) => {
     let ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
     let executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
     let writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, { keepData: true });
+    // TODO: support CsvWriter and output path to GCS
+    // (csv.destination_folder=gs://bucket/path)
     let singleCustomer = req.query.single_customer;
-    let macros = req.body;
-    let queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
-    console.log(`Executing Ads-query from ${scriptPath}`);
-    let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
+    let body = req.body || {};
+    let macroParams = body.macros;
+    let { queryText, scriptName } = await getScript(req);
     let customers;
     if (singleCustomer) {
         console.log('Executing for a single customer ids: ' + customerId);
@@ -75,7 +74,7 @@ const main = async (req, res) => {
         console.log(`Customers to process (${customers.length}):`);
         console.log(customers);
     }
-    await executor.execute(scriptName, queryText, customers, macros, writer);
+    await executor.execute(scriptName, queryText, customers, macroParams, writer);
     // we're returning a map of customer to number of rows
     let result = Object.entries(writer.rowsByCustomer).map(p => {
         return { [p[0]]: p[1].length };
@@ -83,4 +82,25 @@ const main = async (req, res) => {
     res.send(result);
 };
 exports.main = main;
+async function getScript(req) {
+    let scriptPath = req.query.script_path;
+    let body = req.body || {};
+    let queryText;
+    let scriptName;
+    if (body.script) {
+        queryText = body.query;
+        scriptName = body.name;
+        console.log(`Executing inline Ads-query from request`);
+    }
+    else {
+        queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
+        scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
+        console.log(`Executing Ads-query from '${scriptPath}'`);
+    }
+    if (!queryText)
+        throw new Error(`Ads script was not specified in either script_path query argument or body.query`);
+    if (!scriptName)
+        throw new Error(`Could not determine script name`);
+    return { queryText, scriptName };
+}
 //# sourceMappingURL=gaarf.js.map
