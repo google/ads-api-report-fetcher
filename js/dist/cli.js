@@ -21,6 +21,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chalk_1 = __importDefault(require("chalk"));
 const find_up_1 = __importDefault(require("find-up"));
 const fs_1 = __importDefault(require("fs"));
+const js_yaml_1 = __importDefault(require("js-yaml"));
 const path_1 = __importDefault(require("path"));
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
@@ -34,6 +35,8 @@ const logger_1 = __importDefault(require("./lib/logger"));
 const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
+if (configPath && configPath.endsWith('yaml')) {
+}
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .scriptName('gaarf')
     .command('$0 <files..>', 'Execute ads queries (GAQL)', {})
@@ -76,6 +79,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'string',
     description: 'Same as customer-ids-query but a file path to a query script'
 })
+    .conflicts('customer-ids-query', 'customer-ids-query-file')
     .option('output', {
     choices: ['csv', 'bq', 'bigquery', 'console'],
     alias: 'o',
@@ -83,7 +87,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option('loglevel', {
     alias: ['log-level', 'll', 'log_level'],
-    choises: ['debug', 'info', 'warn', 'error'],
+    choises: ['debug', 'verbose', 'info', 'warn', 'error'],
     description: 'Logging level. By default - \'info\', for output=console - \'warn\''
 })
     .option('sync', {
@@ -120,18 +124,25 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'boolean',
     description: 'disable creation of union views (combining data from customer\'s table'
 })
+    .option('skip-constants', {
+    type: 'boolean',
+    description: 'do not execute scripts for constant resources'
+})
     .group([
     'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
     'bq.location', 'bq.no-union-view'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
     .group('console.transpose', 'Console writer options:')
-    .option('skip-constants', {
-    type: 'boolean',
-    description: 'do not execute scripts for constant resources'
-})
+    .env('GAARF')
     .config(configObj)
-    .config()
+    .config('config', 'Path to JSON or YAML config file', function (configPath) {
+    let content = fs_1.default.readFileSync(configPath, 'utf-8');
+    if (configPath.endsWith('.yaml')) {
+        return js_yaml_1.default.load(content);
+    }
+    return JSON.parse(content);
+})
     .help()
     .example('$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds', 'Execute ads queries and upload results to BigQuery, table per script')
     .example('$0 queries/**/*.sql --output=csv --csv.destination-folder=output', 'Execute ads queries and output results to csv files, one per script')
@@ -225,7 +236,8 @@ async function main() {
     }
     let scriptPaths = argv.files;
     if (argv.output === 'console') {
-        // for console writer by default increase default log level to 'warn' (to hide all auxillary info)
+        // for console writer by default increase default log level to 'warn' (to
+        // hide all auxillary info)
         logger_1.default.transports.forEach((transport) => {
             if (transport.name === 'console' && !argv.loglevel) {
                 transport.level = 'warn';

@@ -17,6 +17,7 @@
 import chalk from 'chalk';
 import findUp from 'find-up';
 import fs from 'fs';
+import yaml from 'js-yaml';
 import _ from 'lodash';
 import path from 'path';
 import yargs from 'yargs'
@@ -90,6 +91,7 @@ const argv =
           description:
               'Same as customer-ids-query but a file path to a query script'
         })
+        .conflicts('customer-ids-query', 'customer-ids-query-file')
         .option('output', {
           choices: ['csv', 'bq', 'bigquery', 'console'],
           alias: 'o',
@@ -144,6 +146,10 @@ const argv =
           description:
               'disable creation of union views (combining data from customer\'s table'
         })
+        .option('skip-constants', {
+          type: 'boolean',
+          description: 'do not execute scripts for constant resources'
+        })
         .group(
             [
               'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
@@ -152,12 +158,17 @@ const argv =
             'BigQuery writer options:')
         .group('csv.destination-folder', 'CSV writer options:')
         .group('console.transpose', 'Console writer options:')
-        .option('skip-constants', {
-          type: 'boolean',
-          description: 'do not execute scripts for constant resources'
-        })
+        .env('GAARF')
         .config(configObj)
-        .config()
+        .config(
+            'config', 'Path to JSON or YAML config file',
+            function(configPath) {
+              let content = fs.readFileSync(configPath, 'utf-8');
+              if (configPath.endsWith('.yaml')) {
+                return yaml.load(content)
+              }
+              return JSON.parse(content);
+            })
         .help()
         .example(
             '$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds',
@@ -165,8 +176,11 @@ const argv =
         .example(
             '$0 queries/**/*.sql --output=csv --csv.destination-folder=output',
             'Execute ads queries and output results to csv files, one per script')
+        .example(
+            '$0 queries/**/*.sql --config=gaarf.json',
+            'Execute ads queries with passing arguments via config file (can be json or yaml)')
         .epilog('(c) Google 2022. Not officially supported product.')
-        .parseSync()
+        .parseSync();
 
 
 function getWriter(): IResultWriter {
@@ -265,7 +279,8 @@ async function main() {
   let scriptPaths = argv.files;
 
   if (argv.output === 'console') {
-    // for console writer by default increase default log level to 'warn' (to hide all auxillary info)
+    // for console writer by default increase default log level to 'warn' (to
+    // hide all auxillary info)
     logger.transports.forEach((transport) => {
       if ((<any>transport).name === 'console' && !argv.loglevel) {
         transport.level = 'warn';
@@ -304,7 +319,6 @@ async function main() {
     let scriptName = path.basename(scriptPath).split('.sql')[0];
     await executor.execute(
         scriptName, queryText, customers, macros, writer, options);
-
   }
   let elapsed = getElapsed(started);
   logger.info(

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import chalk from 'chalk';
+import fs from 'fs';
+import yaml from 'js-yaml';
 import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
@@ -50,6 +52,16 @@ const argv =
         //     'location',
         //     {type: 'string', description: 'BigQuery dataset location'})
         .group(['project', 'target'], 'BigQuery options:')
+        .env('GAARF_BQ')
+        .config(
+            'config', 'Path to JSON or YAML config file',
+            function(configPath) {
+              let content = fs.readFileSync(configPath, 'utf-8');
+              if (configPath.endsWith('.yaml')) {
+                return yaml.load(content)
+              }
+              return JSON.parse(content);
+            })
         .help()
         .example(
             '$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable',
@@ -57,8 +69,11 @@ const argv =
         .example(
             '$0 bq-queries/**/*.sql --project=myproject ',
             'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
+        .example(
+            '$0 bq-queries/**/*.sql --config=gaarf_bq.json',
+            'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
         .epilog('(c) Google 2022. Not officially supported product.')
-        .parseSync()
+        .parseSync();
 
 async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));
@@ -78,7 +93,8 @@ async function main() {
     logger.info(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
+    await executor.execute(
+        scriptName, queryText, {sqlParams, macroParams, target});
   }
 }
 

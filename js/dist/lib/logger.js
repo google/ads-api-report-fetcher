@@ -22,7 +22,7 @@ exports.LOG_LEVEL = void 0;
 const winston_1 = __importDefault(require("winston"));
 const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
 const { format } = winston_1.default;
-/** Default log level (usualy one of 'info' or 'debug') */
+/** Default log level */
 exports.LOG_LEVEL = argv.loglevel || process.env.LOG_LEVEL ||
     (process.env.NODE_ENV === 'production' ? 'info' : 'verbose');
 const colors = {

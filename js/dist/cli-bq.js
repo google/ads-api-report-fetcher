@@ -40,7 +40,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option('loglevel', {
     alias: ['log-level', 'll', 'log_level'],
-    choises: ['debug', 'info', 'warn', 'error'],
+    choises: ['debug', 'verbose', 'info', 'warn', 'error'],
     description: 'Logging level. By default - \'info\', for output=console - \'warn\''
 })
     // .option(

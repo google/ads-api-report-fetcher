@@ -27,7 +27,6 @@ class CsvWriter {
     constructor(options) {
         this.appending = false;
         this.customerRows = 0;
-        // rows: any[][] = [];
         this.rowsByCustomer = {};
         this.destination = options === null || options === void 0 ? void 0 : options.destinationFolder;
     }

@@ -12,7 +12,7 @@ v16 should be sufficient.
 ```shell
 npm i ads-api-report-fetcher -g
 ```
-then you can run the tool with `gaarf` command:
+then you can run the tool with `gaarf` and `gaarf-bq` commands:
 ```shell
 gaarf <files> [options]
 ```
@@ -32,7 +32,7 @@ node ads-api-fetcher/js/dist/cli.js <files> [options]
 ```
 
 
-#### Config files
+### Config files
 Besides passing options explicitly (see the root [README.me](../README.md) for
 full description) you can use config files.
 By default the tool will try to find `.gaarfrc` starting from the current folder
@@ -58,16 +58,36 @@ Example of `.gaarfrc`:
 Please note that options with nested values, like 'bq.project', can be specified
 either as objects (see "macro") or as flatten names ("bq.project").
 
-Besides an implicitly used .rc-file you can specify a config file explicitly
+Besides an implicitly used .rc-files you can specify a config file explicitly
 via `--config` option. In that case options from `--config` file will be merge
-with .rc file.
+with a .rc file if one exists. Via `--config` option you can also provide a YAML file
+with a similar structure:
+`gaarf <files> --config=gaarf.yaml`
+
+Example of a yaml config:
+```yaml
+ads-config: .config/google-ads.yaml
+output: bq
+csv.destination-folder: output
+macro:
+  start_date: 2022-01-01
+  end_date: 2022-02-10
+account: 1234567890,
+bq.project: myproject
+bq.dataset: mydataset
+```
+
+Similarly a config file can be provided for the gaarf-bq tool:
+```
+gaarf-bq bq-queries/*.sql --config=gaarf-bq.yaml
+```
 
 
-##### Ads API config
+#### Ads API config
 There are two mechanisms for supplying Ads API configuration (developer token, etc ).
 Either via a separated yaml-file whose name is set in `ads-config` argument or
 via separated CLI arguments starting `ads.*` (e.g. `--ads.client_id`) or
-via `.gaarfrc` file (`ads` object):
+in a config file (`ads` object):
 ```json
 {
  "ads": {
