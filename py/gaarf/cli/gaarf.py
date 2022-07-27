@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Dict
+
 from concurrent import futures
 import sys
 import argparse
@@ -23,12 +25,13 @@ from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
-from .utils import ParamsParser, ExecutorParamsParser, WriterParamsParser, ConfigSaver
+from .utils import GaarfConfigBuilder, ConfigSaver
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", nargs="+")
+    parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
     parser.add_argument("--account", dest="customer_id")
     parser.add_argument("--output", dest="save", default="csv")
     parser.add_argument("--input", dest="input", default="file")
@@ -52,18 +55,17 @@ def main():
     parser.add_argument("--no-save-config",
                         dest="save_config",
                         action="store_false")
+    parser.add_argument("--config-destination",
+                        dest="save_config_dest",
+                        default="config.yaml")
     parser.set_defaults(save_config=False)
     args = parser.parse_known_args()
     main_args = args[0]
-    query_args = args[1]
 
-    params = ParamsParser(["macro", main_args.save]).parse(query_args)
-    query_params = ExecutorParamsParser(params).parse()
-    writer_params = WriterParamsParser(params).parse(main_args.save)
+    config = GaarfConfigBuilder(args).build()
 
-    if main_args.save_config:
-        config = ConfigSaver("config.yaml")
-        config.save(main_args, params, "gaarf")
+    if main_args.save_config and not main_args.gaarf_config:
+        ConfigSaver(main_args.save_config_dest).save(config)
 
     logging.basicConfig(
         format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
@@ -73,9 +75,9 @@ def main():
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
 
     ads_client = api_clients.GoogleAdsApiClient(
-        path_to_config=main_args.config, version=f"v{main_args.api_version}")
+        path_to_config=main_args.config, version=f"v{config.api_version}")
     writer_client = writer.WriterFactory().create_writer(
-        main_args.save, **writer_params)
+        config.output, **config.writer_params)
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
 
@@ -89,7 +91,7 @@ def main():
     else:
         customer_ids_query = None
 
-    customer_ids = utils.get_customer_ids(ads_client, main_args.customer_id,
+    customer_ids = utils.get_customer_ids(ads_client, config.account,
                                           customer_ids_query)
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
@@ -99,8 +101,7 @@ def main():
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
             executor.submit(ads_query_executor.execute, query, customer_ids,
-                            reader_client, writer_client,
-                            query_params.macro_params): query
+                            reader_client, writer_client, config.params): query
             for query in main_args.query
         }
         for future in futures.as_completed(future_to_query):
