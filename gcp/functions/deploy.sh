@@ -13,16 +13,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------
 #
 # Cloud Function deployment script
-# it's assumed it'll be called in the function's source folder 
+# it's assumed it'll be called in the function's source folder
 # where a google-ads.yaml located (with your auth info for accessing Ads API)
 # NOTE: it's an example, adjust it to your needs
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------
 
 FUNCTION_NAME=gaarf
 REGION=us-central1
+MEMORY=512MB
 
 while :; do
     case $1 in
@@ -33,6 +34,10 @@ while :; do
   -r|--region)
       shift
       REGION=$1
+      ;;
+  -m|--memory)
+      shift
+      MEMORY=$1
       ;;
   *)
       break
@@ -45,7 +50,7 @@ gcloud beta functions deploy $FUNCTION_NAME \
   --entry-point=main \
   --runtime=nodejs16 \
   --timeout=540s \
-  --memory=512MB \
+  --memory=$MEMORY \
   --region=$REGION \
   --source=.
 
@@ -53,7 +58,7 @@ gcloud beta functions deploy $FUNCTION_NAME \
 #  --allow-unauthenticated \
 #  --timeout=540s
 #For GCF 1st gen functions, cannot be more than 540s.
-#For GCF 2nd gen functions, cannot be more than 3600s. 
+#For GCF 2nd gen functions, cannot be more than 3600s.
 
 
 gcloud beta functions deploy $FUNCTION_NAME-bq \
@@ -61,6 +66,6 @@ gcloud beta functions deploy $FUNCTION_NAME-bq \
   --entry-point=main_bq \
   --runtime=nodejs16 \
   --timeout=540s \
-  --memory=512MB \
+  --memory=$MEMORY \
   --region=$REGION \
   --source=.
