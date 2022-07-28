@@ -30,6 +30,10 @@ while :; do
       shift
       FUNCTION_NAME=$1
       ;;
+  -r|--region)
+      shift
+      REGION=$1
+      ;;
   *)
       break
     esac

@@ -1,0 +1,30 @@
+PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumber)" | tail -n 1)
+# be default Cloud Worflows run under the Compute Engine default service account:
+SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
+
+REGION=us-central1
+WORKFLOW_NAME=gaarf-wf
+FUNCTION_NAME=gaarf
+
+data='{
+  \\\"cloud_function\\\":\\\"$FUNCTION_NAME\\\",
+  \\\"cloud_function_bq\\\":\\\"$FUNCTION_NAME-bq\\\",
+  \\\"gcs_bucket\\\":\\\"$PROJECT_ID\\\",
+  \\\"ads_queries_path\\\":\\\"<YOUR_GCS_FOLDER_PATH_ADS>\\\",
+  \\\"bq_queries_path\\\":\\\"<YOUR_GCS_FOLDER_PATH_BQ>\\\",
+  \\\"dataset\\\":\\\"<YOUR_DATASET>\\\",
+  \\\"cid\\\":\\\"<YOUR_CUSTOMER_ID>\\\",
+  \\\"ads_macro\\\": {},
+  \\\"bq_macro\\\":{},
+  \\\"bq_sql\\\": {}
+  }'
+
+gcloud scheduler jobs create http gaarf-wf \
+  --schedule="0 0 * * *" \
+  --uri="https://workflowexecutions.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/workflows/$WORKFLOW_NAME/executions" \
+  --location=$REGION \
+  --message-body="{\"argument\": \"$data\"}" \
+  --oauth-service-account-email="$SERVICE_ACCOUNT"
+
+#    --time-zone="TIME_ZONE" \

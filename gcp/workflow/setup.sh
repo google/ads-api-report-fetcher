@@ -16,6 +16,7 @@
 #------------------------------------------------------------------------------ 
 enable_api() {
   gcloud services enable workflows.googleapis.com
+  gcloud services enable cloudscheduler.googleapis.com
 }
 
 enable_api

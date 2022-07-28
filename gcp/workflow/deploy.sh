@@ -16,6 +16,7 @@
 #------------------------------------------------------------------------------ 
 
 WORKFLOW_NAME=gaarf-wf
+REGION=us-central1
 
 while :; do
     case $1 in
@@ -23,10 +24,14 @@ while :; do
       shift
       WORKFLOW_NAME=$1
       ;;
+  -r|--region)
+      shift
+      REGION=$1
+      ;;
   *)
       break
     esac
   shift
 done
 
-gcloud workflows deploy $WORKFLOW_NAME --source workflows.yaml
+gcloud workflows deploy $WORKFLOW_NAME --source=workflows.yaml --location=$REGION

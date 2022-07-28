@@ -337,7 +337,7 @@ gcloud workflows run myproject-wf \
 ```
 
 You can schedule workflow execution via Cloud Scheduler - see [Schedule a workflow using Cloud Scheduler](https://cloud.google.com/workflows/docs/schedule-workflow).
-
+You can use this [script template](gcp/workflow/p-schedule-wf.sh.template) to create your own deployment script for scheduler job.
 
 ## Disclaimer
 This is not an officially supported Google product.

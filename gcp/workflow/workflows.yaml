@@ -78,7 +78,7 @@ runAdsQueries:
               - log_script_result:
                   call: sys.log
                   args:
-                    json: ${script_results}
+                    json: ${script_results.body}
                     severity: "INFO"
 
 runBigQueryQueries:
@@ -131,7 +131,7 @@ runBigQueryQueries:
               - log_script_bq_result:
                   call: sys.log
                   args:
-                    json: ${script_results}
+                    json: ${script_results.body}
                     severity: "INFO"
 # TODO:
 # * safely ignore the absence of scripts on GCS

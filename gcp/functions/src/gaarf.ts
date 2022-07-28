@@ -84,10 +84,10 @@ export const main: HttpFunction =
   }
   await executor.execute(scriptName, queryText, customers, macroParams, writer);
 
+  console.log(`[${scriptName}][${customerId}] Cloud Function compeleted`);
   if (req.query.get_data) {
     res.send(writer.rowsByCustomer);
-  }
-  else {
+  } else {
     // we're returning a map of customer to number of rows
     let result = Object.entries(writer.rowsByCustomer).map(p => {
       return {[p[0]]: p[1].length};
