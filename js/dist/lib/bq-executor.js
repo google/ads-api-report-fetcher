@@ -33,7 +33,7 @@ class BigQueryExecutor {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
             scopes: exports.OAUTH_SCOPES,
-            // TODO: keyFilename: argv.keyFile
+            keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath
         });
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
     }
@@ -69,6 +69,7 @@ class BigQueryExecutor {
                 // write down query's results into a table in BQ
                 let table = query.destination;
                 const MAX_ROWS = 50000;
+                // NOTE: insert returned rows into BQ, should be clear the table first?
                 for (let i = 0, j = values.length; i < j; i += MAX_ROWS) {
                     let rowsChunk = values.slice(i, i + MAX_ROWS);
                     await table.insert(rowsChunk, {});

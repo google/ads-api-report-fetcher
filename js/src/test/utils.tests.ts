@@ -15,7 +15,7 @@
  */
 
 import assert from 'assert';
-import date_add from 'date-fns/add'
+import date_add from 'date-fns/add';
 
 import {formatDateISO, getElapsed, substituteMacros} from './../lib/utils';
 
@@ -125,5 +125,29 @@ suite('substituteMacros', () => {
     let query_text = '${macro + 10}';
     let query = substituteMacros(query_text, {macro: 10});
     assert.deepEqual(query.queryText, '20');
+  });
+
+  test('macro with dynamic dates: YYYYMMDD', function() {
+    let query_text = '{start_date}';
+    // 7 days from todays
+    let query = substituteMacros(query_text, {start_date: ':YYYYMMDD-7'});
+    let expected = formatDateISO(date_add(new Date(), {days: -7}), '-');
+    assert.deepEqual(query.queryText, expected);
+  });
+
+  test('macro with dynamic dates: YYYYMM', function() {
+    let query_text = '{start_date}';
+    // 1 month from todays
+    let query = substituteMacros(query_text, {start_date: ':YYYYMM - 1'});
+    let expected = formatDateISO(date_add(new Date(), {months: -1}), '-');
+    assert.deepEqual(query.queryText, expected);
+  });
+
+  test('macro with dynamic dates: YYYY', function() {
+    let query_text = '{start_date}';
+    // 1 year from todays
+    let query = substituteMacros(query_text, {start_date: ':YYYY - 1'});
+    let expected = formatDateISO(date_add(new Date(), {years: -1}), '-');
+    assert.deepEqual(query.queryText, expected);
   });
 });

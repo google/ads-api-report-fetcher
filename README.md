@@ -113,12 +113,6 @@ gaarf 'SELECT campaign.id FROM campaign WHERE campaign.advertising_channel_type=
 `gaarf` will read text from console and returns results back to console.
 
 
-> Python version supports specifing date parameters as *:YYYYMMDD-N* format, where *N* is a number of days ago (i.e., *:YYYYMMDD-7* means *7 days ago*).
-> Supported parameters:
-> * *:YYYY* - current year
-> * *:YYYYMM* - current month
-> * *:YYYYMMDD* - current date
-
 ### Postprocessing
 
 Once reports have been fetched you might use `gaarf-bq` (utility that installed alonside with `gaarf`) to run queries in BigQuery based on collected data in there.
@@ -254,6 +248,31 @@ output: today plus 1 days, e.g. '2022-07-22' if today is 2022-07-21
 ${date(2022,7,20).plusMonths(1)}
 ```
 output: "2022-08-20"
+
+
+### Dynamic dates
+Macro values can contain a special syntax for dynamic dates. If a macro value starts with *:YYYY* it will be processed
+as a dynamic expression to calculate a date based on the current date.
+The syntax is: `:PATTERN - N`,
+where N is a number of days/months/years and PATTERN is one of the following:
+* *:YYYY* - current year, `:YYYY-1` - one year ago
+* *:YYYYMM* - current month, `:YYYYMM -2` - two months ago
+* *:YYYYMMDD* - current date, `:YYYYMMDD-7` - 7 days ago
+
+Example with providing values for macro start_date and end_date (that can be used in queries as date range) as
+a range from 1 month ago to yesterdate:
+```
+gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
+  --account=1234567890 --output=bq \
+  --macro.start_date=:YYYYMM-1 \
+  --macro.end_date=:YYYYMMDD-1 \
+```
+So if today is 2022-07-29 then start_date will be '2022-06-29' (minus one month) and
+end_date will be '2022-07-28' (minus one day).
+
+
+> NOTEL dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead if '')
+> so they are two alternatives. 
 
 
 ## Docker

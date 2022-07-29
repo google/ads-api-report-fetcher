@@ -93,6 +93,9 @@ function formatDateISO(dt, delimiter = '') {
     return iso;
 }
 exports.formatDateISO = formatDateISO;
+function processMacroValue(value) {
+    return value;
+}
 /**
  * Substitute macros into the text, and evalutes expressions (in ${} blocks).
  * @param queryText a text (query) to process
@@ -100,11 +103,20 @@ exports.formatDateISO = formatDateISO;
  * @returns same text with substituted macros and executed expressions
  */
 function substituteMacros(queryText, macros) {
-    macros = macros || {};
     let unknown_params = {};
+    if (macros) {
+        Object.entries(macros).map(pair => {
+            let value = pair[1];
+            if (value && lodash_1.default.isString(value) && value.startsWith(':YYYY')) {
+                macros[pair[0]] = processMacroValue(value);
+            }
+        });
+    }
+    macros = macros || {};
     // notes on the regexp:
-    //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's not precended with '$'),
-    //  with that it we're capturing {smth} expressions and not ${smth} expressions
+    //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
+    //  not precended with '$'), with that it we're capturing {smth} expressions
+    //  and not ${smth} expressions
     queryText = queryText.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
         if (!macros.hasOwnProperty(name)) {
             unknown_params[name] = true;

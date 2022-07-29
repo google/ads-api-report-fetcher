@@ -36,7 +36,7 @@ class BigQueryWriter {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
             scopes: exports.OAUTH_SCOPES,
-            // TODO: keyFilename: argv.keyFile
+            keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath
         });
         this.datasetId = dataset;
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;

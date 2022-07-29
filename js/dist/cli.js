@@ -35,8 +35,6 @@ const logger_1 = __importDefault(require("./lib/logger"));
 const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
-if (configPath && configPath.endsWith('yaml')) {
-}
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .scriptName('gaarf')
     .command('$0 <files..>', 'Execute ads queries (GAQL)', {})
@@ -146,6 +144,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .help()
     .example('$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds', 'Execute ads queries and upload results to BigQuery, table per script')
     .example('$0 queries/**/*.sql --output=csv --csv.destination-folder=output', 'Execute ads queries and output results to csv files, one per script')
+    .example('$0 queries/**/*.sql --config=gaarf.json', 'Execute ads queries with passing arguments via config file (can be json or yaml)')
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
 function getWriter() {
@@ -189,33 +188,31 @@ async function main() {
         argv.account = argv.account.toString();
     }
     logger_1.default.verbose(JSON.stringify(argv, null, 2));
-    let adsConfig;
+    let adsConfig = undefined;
     let configFilePath = argv.adsConfig;
     if (configFilePath) {
         // try to use ads config from extenral file (ads-config arg)
         adsConfig = loadAdsConfig(configFilePath, argv.account);
     }
+    // try to use ads config from explicit cli arguments
+    if (argv.ads) {
+        let ads_cfg = argv.ads;
+        adsConfig = Object.assign(adsConfig || {}, {
+            client_id: ads_cfg.client_id || '',
+            client_secret: ads_cfg.client_secret || '',
+            developer_token: ads_cfg.developer_token || '',
+            refresh_token: ads_cfg.refresh_token || '',
+            login_customer_id: (_a = (ads_cfg.login_customer_id || argv.account || '')) === null || _a === void 0 ? void 0 : _a.toString(),
+            customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
+        });
+    }
+    else if (fs_1.default.existsSync('google-ads.yaml')) {
+        adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
+    }
     else {
-        // try to use ads config from explicit cli arguments
-        if (argv.ads) {
-            let ads_cfg = argv.ads;
-            adsConfig = {
-                client_id: ads_cfg.client_id || '',
-                client_secret: ads_cfg.client_secret || '',
-                developer_token: ads_cfg.developer_token || '',
-                refresh_token: ads_cfg.refresh_token || '',
-                login_customer_id: (_a = (ads_cfg.login_customer_id || argv.account || '')) === null || _a === void 0 ? void 0 : _a.toString(),
-                customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
-            };
-        }
-        else if (fs_1.default.existsSync('google-ads.yaml')) {
-            adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
-        }
-        else {
-            // TODO: support searching google-ads.yaml in user home folder (?)
-            console.log(chalk_1.default.red(`Neither Ads API config file was not specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via .gaarfrc config)`));
-            process.exit(-1);
-        }
+        // TODO: support searching google-ads.yaml in user home folder (?)
+        console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
+        process.exit(-1);
     }
     logger_1.default.verbose('Using ads config:');
     logger_1.default.verbose(JSON.stringify(adsConfig, null, 2));

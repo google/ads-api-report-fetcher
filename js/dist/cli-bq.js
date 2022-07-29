@@ -19,6 +19,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * limitations under the License.
  */
 const chalk_1 = __importDefault(require("chalk"));
+const fs_1 = __importDefault(require("fs"));
+const js_yaml_1 = __importDefault(require("js-yaml"));
 const path_1 = __importDefault(require("path"));
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
@@ -47,9 +49,18 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     //     'location',
     //     {type: 'string', description: 'BigQuery dataset location'})
     .group(['project', 'target'], 'BigQuery options:')
+    .env('GAARF_BQ')
+    .config('config', 'Path to JSON or YAML config file', function (configPath) {
+    let content = fs_1.default.readFileSync(configPath, 'utf-8');
+    if (configPath.endsWith('.yaml')) {
+        return js_yaml_1.default.load(content);
+    }
+    return JSON.parse(content);
+})
     .help()
     .example('$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable', 'Execute BigQuery queries and create table for each script\'s result (table per script) with a macro substitution')
     .example('$0 bq-queries/**/*.sql --project=myproject ', 'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
+    .example('$0 bq-queries/**/*.sql --config=gaarf_bq.json', 'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
 async function main() {

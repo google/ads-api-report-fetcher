@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import date_add from 'date-fns/add'
 import _ from 'lodash';
+
 import {math_parse} from './math-engine';
 
 export function traverseObject(
@@ -88,6 +90,31 @@ export function formatDateISO(dt: Date, delimiter: string = ''): string {
   return iso;
 }
 
+function convert_date(name: string, value: string): string {
+  let [pattern, delta, ...other] = value.split('-');
+  if (!pattern || !delta || other.length) {
+    throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+  }
+  let ago = +delta;
+  pattern = pattern.trim().toUpperCase();
+  let duration: Duration;
+  if (pattern === ':YYYYMMDD') {
+    duration = { days: -ago };
+  }
+  else if (pattern === ':YYYYMM') {
+    duration = {months: -ago};
+  }
+  else if (pattern === ':YYYY') {
+    duration = {years: -ago};
+  }
+  else {
+    throw new Error(`Macro ${
+        name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+  }
+  let dt = date_add(new Date(), duration);
+  return formatDateISO(dt, '-');
+}
+
 /**
  * Substitute macros into the text, and evalutes expressions (in ${} blocks).
  * @param queryText a text (query) to process
@@ -97,11 +124,24 @@ export function formatDateISO(dt: Date, delimiter: string = ''): string {
 export function substituteMacros(
     queryText: string, macros?: Record<string, any>):
     {queryText: string, unknown_params: string[]} {
-  macros = macros || {};
   let unknown_params: Record<string, boolean> = {};
+  // Support for macro's values containing special syntax for dynamic dates:
+  // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/yaer respectedly
+  if (macros) {
+    Object.entries(macros).map(pair => {
+      let value = <string>pair[1];
+      if (value && _.isString(value) && value.startsWith(':YYYY')) {
+        let key = pair[0];
+        macros![key] = convert_date(key, value);
+      }
+    });
+  }
+
+  macros = macros || {};
   // notes on the regexp:
-  //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's not precended with '$'),
-  //  with that it we're capturing {smth} expressions and not ${smth} expressions
+  //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
+  //  not precended with '$'), with that it we're capturing {smth} expressions
+  //  and not ${smth} expressions
   queryText = queryText.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
     if (!macros!.hasOwnProperty(name)) {
       unknown_params[name] = true;
