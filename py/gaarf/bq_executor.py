@@ -37,5 +37,7 @@ class BigQueryExecutor:
         for key, value in template_params.items():
             if len(splitted_param := value.split(",")) > 1:
                 template_params[key] = splitted_param
+            else:
+                template_params[key] = [value]
         template = Template(query_text)
         return template.render(template_params)
