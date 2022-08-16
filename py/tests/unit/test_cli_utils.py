@@ -78,8 +78,7 @@ def test_parse_params(param_parser, current_date_iso):
         ["--macro.start_date=2022-01-01", "--macro.end_date=2022-12-31"])
     assert parsed_params == {
         "start_date": "2022-01-01",
-        "end_date": "2022-12-31",
-        "date_iso": current_date_iso
+        "end_date": "2022-12-31"
     }
 
 
@@ -89,15 +88,10 @@ def test_parse(param_parser, current_date_iso):
     assert parsed_params == {
         "macro": {
             "start_date": "2022-01-01",
-            "end_date": "2022-12-31",
-            "date_iso": current_date_iso
+            "end_date": "2022-12-31"
         },
-        "sql": {
-            "date_iso": current_date_iso
-        },
-        "template": {
-            "date_iso": current_date_iso
-        },
+        "sql": {},
+        "template": {},
     }
 
 
@@ -174,7 +168,8 @@ def config_without_runtime_params():
                              writer_params={})
 
 
-def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
+def test_initialize_config_with_runtime_parameters(config_with_runtime_params,
+                                                   current_date_iso):
     initialized_config = utils.initialize_runtime_parameters(
         config_with_runtime_params)
     expected_config = utils.GaarfConfig(
@@ -183,7 +178,8 @@ def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
         account="1",
         params={
             "macro": {
-                "start_date": datetime.today().strftime("%Y-%m-%d")
+                "start_date": datetime.today().strftime("%Y-%m-%d"),
+                "date_iso": current_date_iso
             }
         },
         writer_params={})
@@ -191,15 +187,17 @@ def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
 
 
 def test_initialize_config_without_runtime_parameters(
-        config_without_runtime_params):
+        config_without_runtime_params, current_date_iso):
     initialized_config = utils.initialize_runtime_parameters(
         config_without_runtime_params)
-    expected_config = utils.GaarfConfig(
-        output="console",
-        api_version="10",
-        account="1",
-        params={"macro": {
-            "start_date": "2022-01-01"
-        }},
-        writer_params={})
+    expected_config = utils.GaarfConfig(output="console",
+                                        api_version="10",
+                                        account="1",
+                                        params={
+                                            "macro": {
+                                                "start_date": "2022-01-01",
+                                                "date_iso": current_date_iso
+                                            }
+                                        },
+                                        writer_params={})
     assert initialized_config == expected_config

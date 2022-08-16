@@ -131,7 +131,6 @@ class ParamsParser:
                 param_pair = self._identify_param_pair(identifier, param)
                 if param_pair:
                     parsed_params.update(param_pair)
-            parsed_params.update(self.common_params)
         return parsed_params
 
     def _identify_param_pair(self, identifier: str,
@@ -201,6 +200,8 @@ class ConfigSaver:
         if isinstance(gaarf_config, GaarfConfig):
             gaarf[gaarf_config.output] = gaarf_config.writer_params
             del gaarf["writer_params"]
+            if gaarf_config.writer_params:
+                del gaarf["params"][gaarf_config.output]
             config.update({"gaarf": gaarf})
         if isinstance(gaarf_config, GaarfBqConfig):
             config.update({"gaarf-bq": gaarf})
@@ -211,4 +212,5 @@ def initialize_runtime_parameters(config: Union[GaarfConfig, GaarfBqConfig]):
     for key, param in config.params.items():
         for key_param, value_param in param.items():
             config.params[key][key_param] = convert_date(value_param)
+        config.params[key].update(ParamsParser.common_params)
     return config
