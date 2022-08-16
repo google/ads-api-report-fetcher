@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 import dataclasses
 import os
 import datetime
@@ -208,8 +208,25 @@ class ConfigSaver:
                 del gaarf["params"][gaarf_config.output]
             config.update({"gaarf": gaarf})
         if isinstance(gaarf_config, GaarfBqConfig):
+            if (gaarf_bq := config.get("gaarf-bq")):
+                if (target := gaarf_bq.get("target")):
+                    if target != gaarf_config.target:
+                        if isinstance(target, str):
+                            target = [target]
+                        target = self._handle_target_param(
+                            gaarf_config, target)
+                    gaarf["target"] = target
             config.update({"gaarf-bq": gaarf})
         return config
+
+    @staticmethod
+    def _handle_target_param(gaarf_config: GaarfBqConfig,
+                             target: List[str]) -> List[str]:
+        if isinstance(gaarf_config.target, str):
+            target.append(gaarf_config.target)
+        elif isinstance(gaarf_config.target, list):
+            target.extend(gaarf_config.target)
+        return target
 
 
 def initialize_runtime_parameters(config: Union[GaarfConfig, GaarfBqConfig]):
