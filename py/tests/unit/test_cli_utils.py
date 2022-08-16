@@ -134,11 +134,14 @@ def test_config_saver_gaarf_bq(config_args):
     config_saver = utils.ConfigSaver("/tmp/config.yaml")
 
     gaarf_bq_config = utils.GaarfBqConfig(
-        project="fake-project", params={"bq_project": "another-fake-project"})
+        project="fake-project",
+        target="fake-target",
+        params={"bq_project": "another-fake-project"})
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
+            "target": "fake-target",
             "params": {
                 "bq_project": "another-fake-project"
             }

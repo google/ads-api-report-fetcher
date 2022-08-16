@@ -37,8 +37,9 @@ def main():
     if main_args.save_config and not main_args.gaarf_config:
         ConfigSaver(main_args.save_config_dest).save(config)
 
-
     bq_executor = BigQueryExecutor(config.project)
+    bq_executor.create_datasets(config.target)
+
     reader_client = reader.FileReader()
 
     with futures.ThreadPoolExecutor() as executor:
