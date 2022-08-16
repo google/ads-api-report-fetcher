@@ -19,7 +19,7 @@ import proto  # type: ignore
 
 class AbsFormatter(abc.ABC):
     @abc.abstractstaticmethod
-    def format(self, rows: Sequence[Sequence[Any]],
+    def format(rows: Sequence[Sequence[Any]],
                delimiter: str) -> Sequence[Sequence[Any]]:
         raise NotImplementedError
 
