@@ -58,7 +58,7 @@ def test_identify_param_pair_existing(param_parser):
 def test_identify_param_pair_empty(param_parser):
     param_pair = param_parser._identify_param_pair(
         "macro", ["--missing_param.start_date", "2022-01-01"])
-    assert param_pair == None
+    assert param_pair is None
 
 
 def test_identify_param_pair_convert_date(param_parser):
@@ -107,27 +107,6 @@ def test_parse(param_parser, current_date_iso):
     }
 
 
-@pytest.fixture
-def executor_param_parser():
-    return utils.ExecutorParamsParser({"sql": "", "macro": "", "template": ""})
-
-
-def test_parse_executor_params(executor_param_parser):
-    executor_params = executor_param_parser.parse()
-    assert executor_params == utils.ExecutorParams(sql_params="",
-                                                   macro_params="",
-                                                   template_params="")
-
-
-def test_writer_params_parser():
-    writer_params_parser = utils.WriterParamsParser(
-        {"fake-writer": {
-            "fake-destination": ""
-        }})
-    assert writer_params_parser.parse("fake-writer") == {
-        "fake-destination": ""
-    }
-
 
 @pytest.fixture
 def config_args():
@@ -145,17 +124,23 @@ def config_args():
 
 def test_config_saver_gaarf(config_args):
     config_saver = utils.ConfigSaver("/tmp/config.yaml")
+    gaarf_config = utils.GaarfConfig(
+        output="console",
+        api_version="10",
+        account="1",
+        params={},
+        writer_params={}
+    )
 
     #TODO: don't like how params are defined
-    config = config_saver.prepare_config({}, config_args, {"console": {}},
-                                         "gaarf")
+    config = config_saver.prepare_config({}, gaarf_config)
     assert config == {
         "gaarf": {
             "account": "1",
             "output": "console",
             "console": {},
-            "api-version": "10",
-            "params": {}
+            "api_version": "10",
+            "params": {},
         }
     }
 
@@ -163,8 +148,13 @@ def test_config_saver_gaarf(config_args):
 def test_config_saver_gaarf_bq(config_args):
     config_saver = utils.ConfigSaver("/tmp/config.yaml")
 
+    gaarf_bq_config = utils.GaarfBqConfig(
+        project="fake-project",
+        params={
+            "bq_project": "another-fake-project"}
+    )
     config = config_saver.prepare_config(
-        {}, config_args, {"bq_project": "another-fake-project"}, "gaarf-bq")
+        {}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
