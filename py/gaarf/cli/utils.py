@@ -142,7 +142,7 @@ class ParamsParser:
         key = key.replace(f"--{identifier}.", "")
         key = key.replace("-", "_")
         if len(param) == 2:
-            return {key: convert_date(param[1])}
+            return {key: param[1]}
         raise ValueError(f"{identifier} {key} is invalid,"
                          f"--{identifier}.key=value is the correct format")
 
@@ -205,3 +205,10 @@ class ConfigSaver:
         if isinstance(gaarf_config, GaarfBqConfig):
             config.update({"gaarf-bq": gaarf})
         return config
+
+
+def initialize_runtime_parameters(config: Union[GaarfConfig, GaarfBqConfig]):
+    for key, param in config.params.items():
+        for key_param, value_param in param.items():
+            config.params[key][key_param] = convert_date(value_param)
+    return config

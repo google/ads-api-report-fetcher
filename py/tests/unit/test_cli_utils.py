@@ -61,12 +61,6 @@ def test_identify_param_pair_empty(param_parser):
     assert param_pair is None
 
 
-def test_identify_param_pair_convert_date(param_parser):
-    param_pair = param_parser._identify_param_pair(
-        "macro", ["--macro.start_date", ":YYYYMMDD"])
-    assert param_pair == {"start_date": datetime.today().strftime("%Y-%m-%d")}
-
-
 def test_identify_param_pair_raises_error(param_parser):
     with pytest.raises(ValueError):
         param_parser._identify_param_pair(
@@ -107,7 +101,6 @@ def test_parse(param_parser, current_date_iso):
     }
 
 
-
 @pytest.fixture
 def config_args():
     from dataclasses import dataclass
@@ -124,13 +117,11 @@ def config_args():
 
 def test_config_saver_gaarf(config_args):
     config_saver = utils.ConfigSaver("/tmp/config.yaml")
-    gaarf_config = utils.GaarfConfig(
-        output="console",
-        api_version="10",
-        account="1",
-        params={},
-        writer_params={}
-    )
+    gaarf_config = utils.GaarfConfig(output="console",
+                                     api_version="10",
+                                     account="1",
+                                     params={},
+                                     writer_params={})
 
     #TODO: don't like how params are defined
     config = config_saver.prepare_config({}, gaarf_config)
@@ -149,12 +140,8 @@ def test_config_saver_gaarf_bq(config_args):
     config_saver = utils.ConfigSaver("/tmp/config.yaml")
 
     gaarf_bq_config = utils.GaarfBqConfig(
-        project="fake-project",
-        params={
-            "bq_project": "another-fake-project"}
-    )
-    config = config_saver.prepare_config(
-        {}, gaarf_bq_config)
+        project="fake-project", params={"bq_project": "another-fake-project"})
+    config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
@@ -163,3 +150,56 @@ def test_config_saver_gaarf_bq(config_args):
             }
         }
     }
+
+
+@pytest.fixture
+def config_with_runtime_params():
+    return utils.GaarfConfig(output="console",
+                             api_version="10",
+                             account="1",
+                             params={"macro": {
+                                 "start_date": ":YYYYMMDD"
+                             }},
+                             writer_params={})
+
+
+@pytest.fixture
+def config_without_runtime_params():
+    return utils.GaarfConfig(output="console",
+                             api_version="10",
+                             account="1",
+                             params={"macro": {
+                                 "start_date": "2022-01-01"
+                             }},
+                             writer_params={})
+
+
+def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
+    initialized_config = utils.initialize_runtime_parameters(
+        config_with_runtime_params)
+    expected_config = utils.GaarfConfig(
+        output="console",
+        api_version="10",
+        account="1",
+        params={
+            "macro": {
+                "start_date": datetime.today().strftime("%Y-%m-%d")
+            }
+        },
+        writer_params={})
+    assert initialized_config == expected_config
+
+
+def test_initialize_config_without_runtime_parameters(
+        config_without_runtime_params):
+    initialized_config = utils.initialize_runtime_parameters(
+        config_without_runtime_params)
+    expected_config = utils.GaarfConfig(
+        output="console",
+        api_version="10",
+        account="1",
+        params={"macro": {
+            "start_date": "2022-01-01"
+        }},
+        writer_params={})
+    assert initialized_config == expected_config

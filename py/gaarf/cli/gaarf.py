@@ -25,7 +25,7 @@ from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
-from .utils import GaarfConfigBuilder, ConfigSaver
+from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameters
 
 
 def main():
@@ -66,6 +66,8 @@ def main():
 
     if main_args.save_config and not main_args.gaarf_config:
         ConfigSaver(main_args.save_config_dest).save(config)
+
+    config = initialize_runtime_parameters(config)
 
     logging.basicConfig(
         format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
