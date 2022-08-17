@@ -63,7 +63,8 @@ Options:
   * `csv` - write data to CSV files
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
-* `loglevel` - logging level (*NodeJS version only*): 'debug', 'verbose', 'info', 'warn', 'error' 
+  * `sqldb` - writes data to a database supported by SQL Alchemy (Python only).
+* `loglevel` - logging level (*NodeJS version only*): 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
 * `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
@@ -86,8 +87,13 @@ Options specific for BigQuery writer:
 * `bq.no-union-view` - flag that disables creation of "union" view that combins all customer tables (*NodeJS version only*)
 
 Options specific for Console writer (*NodeJS version only*):
-* `console.transpose` - whenether and how to transpose (switch rows and columns) result tables in output: 
+* `console.transpose` - whenether and how to transpose (switch rows and columns) result tables in output:
 `auto` (default) - transponse only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
+
+Options specific for SqlAlchemy writer (*Python version only*):
+* `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
+* `sqldb.if-exists` - specify how to behave if the table already exists (see [more](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html))
+
 
 All parameters whose names start with the `macro.` prefix are passed to queries as params object.
 For example if we pass parameters: `--macro.start_date=2021-12-01 --macro.end_date=2022-02-28`
@@ -278,7 +284,7 @@ end_date will be '2022-07-28' (minus one day).
 
 
 > NOTEL dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead if '')
-> so they are two alternatives. 
+> so they are two alternatives.
 
 
 ## Docker
@@ -294,7 +300,7 @@ curl -L https://raw.githubusercontent.com/google/ads-api-report-fetcher/main/js/
 ```
 
 Sample Dockerfile's don't depend on sources, they install gaarf from registries for each platform (npm and PyPi).
-To build an image with name 'gaarf' (the name is up to you but you'll use it to run a container later) run 
+To build an image with name 'gaarf' (the name is up to you but you'll use it to run a container later) run
 the following command in a folder with `Dockerfile`:
 ```
 sudo docker build . -t gaarf
