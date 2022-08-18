@@ -63,7 +63,9 @@ Options:
   * `csv` - write data to CSV files
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
-* `loglevel` - logging level (NodeJS only): 'debug', 'verbose', 'info', 'warn', 'error'
+* `loglevel` - logging level (*NodeJS version only*): 'debug', 'verbose', 'info', 'warn', 'error' 
+* `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
+* `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
 * `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
   `account` argument must be a MCC account id in this case.
 
@@ -79,10 +81,11 @@ Options specific for CSV writer:
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
 * `bq.dataset` - BigQuery dataset id where tables with output data will be created
-* `bq.table-template`  - template for tables names, `{script}` references script base name (*JS version only*)
-* `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*JS version only*)
+* `bq.table-template`  - template for tables names, `{script}` references script base name (*NodeJS version only*)
+* `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
+* `bq.no-union-view` - flag that disables creation of "union" view that combins all customer tables (*NodeJS version only*)
 
-Options specific for Console writer (NodeJS only):
+Options specific for Console writer (*NodeJS version only*):
 * `console.transpose` - whenether and how to transpose (switch rows and columns) result tables in output: 
 `auto` (default) - transponse only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
 
@@ -111,6 +114,9 @@ gaarf 'SELECT campaign.id FROM campaign WHERE campaign.advertising_channel_type=
   --account=1234567890 --input=console --output=console
 ```
 `gaarf` will read text from console and returns results back to console.
+
+
+For NodeJS version any of arguments can be specified via environment variable which name starts with "GAARF_" (e.g. GAARF_ACCOUNT).
 
 
 ### Postprocessing

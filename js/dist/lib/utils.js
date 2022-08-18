@@ -19,6 +19,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getElapsed = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+const add_1 = __importDefault(require("date-fns/add"));
 const lodash_1 = __importDefault(require("lodash"));
 const math_engine_1 = require("./math-engine");
 function traverseObject(object, visitor, path) {
@@ -93,8 +94,32 @@ function formatDateISO(dt, delimiter = '') {
     return iso;
 }
 exports.formatDateISO = formatDateISO;
-function processMacroValue(value) {
-    return value;
+function convert_date(name, value) {
+    let [pattern, delta, ...other] = value.split('-');
+    if (!pattern || other.length) {
+        throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+    }
+    if (!delta) {
+        // simple case ":YYYYMMDD"
+        return formatDateISO(new Date(), '-');
+    }
+    let ago = +delta;
+    pattern = pattern.trim().toUpperCase();
+    let duration;
+    if (pattern === ':YYYYMMDD') {
+        duration = { days: -ago };
+    }
+    else if (pattern === ':YYYYMM') {
+        duration = { months: -ago };
+    }
+    else if (pattern === ':YYYY') {
+        duration = { years: -ago };
+    }
+    else {
+        throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+    }
+    let dt = (0, add_1.default)(new Date(), duration);
+    return formatDateISO(dt, '-');
 }
 /**
  * Substitute macros into the text, and evalutes expressions (in ${} blocks).
@@ -104,11 +129,14 @@ function processMacroValue(value) {
  */
 function substituteMacros(queryText, macros) {
     let unknown_params = {};
+    // Support for macro's values containing special syntax for dynamic dates:
+    // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/yaer respectedly
     if (macros) {
         Object.entries(macros).map(pair => {
             let value = pair[1];
             if (value && lodash_1.default.isString(value) && value.startsWith(':YYYY')) {
-                macros[pair[0]] = processMacroValue(value);
+                let key = pair[0];
+                macros[key] = convert_date(key, value);
             }
         });
     }

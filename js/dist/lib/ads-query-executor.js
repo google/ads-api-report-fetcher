@@ -54,6 +54,9 @@ class AdsQueryExecutor {
             logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, { scriptName: scriptName });
             return;
         }
+        if (options === null || options === void 0 ? void 0 : options.dumpQuery) {
+            logger_1.default.verbose(`Script text to execute:\n` + query.queryText);
+        }
         if (writer)
             await writer.beginScript(scriptName, query);
         let tasks = [];

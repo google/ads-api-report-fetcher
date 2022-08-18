@@ -1,7 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main_bq = void 0;
 /**
@@ -20,24 +17,19 @@ exports.main_bq = void 0;
  * limitations under the License.
  */
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const path_1 = __importDefault(require("path"));
+const utils_1 = require("./utils");
 const main_bq = async (req, res) => {
+    console.log(req.body);
     console.log(req.query);
-    let scriptPath = req.query.script_path;
-    if (!scriptPath)
-        throw new Error(`Ads script path is not specified in script_path query argument`);
-    let projectId = req.query.project_id || process.env.PROJECT_ID;
-    if (!projectId)
-        throw new Error(`Project id is not specified in either 'project_id' query argument or PROJECT_ID envvar`);
-    let target = req.query.target;
-    let body = req.body || {};
-    let sqlParams = body.sql;
-    let macroParams = body.macros;
-    let queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
-    let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-    let executor = new google_ads_api_report_fetcher_1.BigQueryExecutor(projectId);
-    console.log(`Executing BQ-query from ${scriptPath}`);
-    let result = await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
+    const projectId = req.query.project_id || process.env.PROJECT_ID;
+    // note: projectId isn't mandatory (should be detected from ADC)
+    const target = req.query.target;
+    const body = req.body || {};
+    const sqlParams = body.sql;
+    const macroParams = body.macro;
+    const { queryText, scriptName } = await (0, utils_1.getScript)(req);
+    const executor = new google_ads_api_report_fetcher_1.BigQueryExecutor(projectId);
+    const result = await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
     if (result && result.length) {
         res.send({ rowCount: result.length });
     }

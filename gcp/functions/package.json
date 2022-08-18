@@ -1,5 +1,4 @@
 {
-  "name": "gaarf-fetch-cf",
   "version": "0.1.0",
   "description": "",
   "main": "build/src/index.js",
@@ -18,9 +17,10 @@
   },
   "keywords": [],
   "author": "Google Inc. (gTech gPS CSE team)",
+  "private": true,
   "license": "Apache-2.0",
   "dependencies": {
-    "google-ads-api-report-fetcher": "^1.4.1",
+    "google-ads-api-report-fetcher": "^1.4.2",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {

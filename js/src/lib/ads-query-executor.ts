@@ -32,6 +32,7 @@ export interface AdsQueryExecutorOptions {
    * otherwise (by default) - in parallel
    */
   sync?: boolean;
+  dumpQuery?: boolean;
 }
 
 export class AdsQueryExecutor {
@@ -76,7 +77,9 @@ export class AdsQueryExecutor {
           {scriptName: scriptName});
       return;
     }
-
+    if (options?.dumpQuery) {
+      logger.verbose(`Script text to execute:\n` + query.queryText);
+    }
     if (writer) await writer.beginScript(scriptName, query);
     let tasks: Array<Promise<void>> = [];
     for (let customerId of customers) {

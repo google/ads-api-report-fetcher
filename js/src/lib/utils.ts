@@ -92,8 +92,12 @@ export function formatDateISO(dt: Date, delimiter: string = ''): string {
 
 function convert_date(name: string, value: string): string {
   let [pattern, delta, ...other] = value.split('-');
-  if (!pattern || !delta || other.length) {
+  if (!pattern || other.length) {
     throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+  }
+  if (!delta) {
+    // simple case ":YYYYMMDD"
+    return formatDateISO(new Date(), '-');
   }
   let ago = +delta;
   pattern = pattern.trim().toUpperCase();

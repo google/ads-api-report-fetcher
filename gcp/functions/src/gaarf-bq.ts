@@ -13,30 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {BigQueryExecutor, getFileContent} from 'google-ads-api-report-fetcher';
-import path from 'path';
-
+import {BigQueryExecutor} from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import { getScript } from './utils';
+import {getScript} from './utils';
 
 export const main_bq: HttpFunction =
     async (req: express.Request, res: express.Response) => {
   console.log(req.body);
   console.log(req.query);
 
-  let projectId = req.query.project_id || process.env.PROJECT_ID;
+  const projectId = req.query.project_id || process.env.PROJECT_ID;
   // note: projectId isn't mandatory (should be detected from ADC)
-  let target = <string>req.query.target;
+  const target = <string>req.query.target;
 
-  let body = req.body || {};
-  let sqlParams = body.sql;
-  let macroParams = body.macro;
-  let {queryText, scriptName} = await getScript(req);
+  const body = req.body || {};
+  const sqlParams = body.sql;
+  const macroParams = body.macro;
+  const {queryText, scriptName} = await getScript(req);
 
-  let executor = new BigQueryExecutor(<string>projectId);
+  const executor = new BigQueryExecutor(<string>projectId);
 
-  let result = await executor.execute(
+  const result = await executor.execute(
       scriptName, queryText, {sqlParams, macroParams, target});
   if (result && result.length) {
     res.send({rowCount: result.length});

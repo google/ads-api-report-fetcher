@@ -1,5 +1,5 @@
 import express from 'express';
-import { getFileContent } from 'google-ads-api-report-fetcher';
+import {getFileContent} from 'google-ads-api-report-fetcher';
 import path from 'path';
 
 export async function getScript(req: express.Request):

@@ -21,7 +21,7 @@ Documentation on available options see in the root [README.md](../README.md).
 
 ### Running from folder
 If you cloned the repo into "ads-api-fetcher" folder, then
-run `npm i --production` in ads-api-fetcher/js folder, 
+run `npm i --production` in ads-api-fetcher/js folder,
 after than we can run the tool directly:
 ```shell
 ads-api-fetcher/js/gaarf <files> [options]
@@ -60,8 +60,8 @@ either as objects (see "macro") or as flatten names ("bq.project").
 
 Besides an implicitly used .rc-files you can specify a config file explicitly
 via `--config` option. In that case options from `--config` file will be merge
-with a .rc file if one exists. Via `--config` option you can also provide a YAML file
-with a similar structure:
+with a .rc file if one exists. Via `--config` option you can also provide a YAML
+file (as alternative to JSON) with a similar structure:
 `gaarf <files> --config=gaarf.yaml`
 
 Example of a yaml config:
@@ -71,8 +71,8 @@ output: bq
 csv.destination-folder: output
 macro:
   start_date: 2022-01-01
-  end_date: 2022-02-10
-account: 1234567890,
+  end_date: :YYYYMMDD
+account: 1234567890
 bq.project: myproject
 bq.dataset: mydataset
 ```
@@ -81,6 +81,7 @@ Similarly a config file can be provided for the gaarf-bq tool:
 ```
 gaarf-bq bq-queries/*.sql --config=gaarf-bq.yaml
 ```
+(again it can be either YAML or JSON)
 
 
 #### Ads API config
@@ -97,10 +98,10 @@ in a config file (`ads` object):
  "output": "bq",
 }
 ```
-Such a yaml-file is a standard way to configure Ads API Python client - 
+Such a yaml-file is a standard way to configure Ads API Python client -
 see [example](https://github.com/googleads/google-ads-python/blob/HEAD/google-ads.yaml).
 
-If neither `ads-config` argument nor `ads.*` arguments were provider then the tool will 
+If neither `ads-config` argument nor `ads.*` arguments were provider then the tool will
 search for a local file "google-ads.yaml" and if it exists it will be used.
 
 See more help with `--help` option.
@@ -132,6 +133,16 @@ use `executeGen` method (it's a async generator):
     //res.rows - array of rows for one customer
   }
 ```
+
+Alternatively you can encorporate `keepData` option of the `BigQueryWriter`:
+```ts
+  let writer =
+      new BigQueryWriter(projectId, dataset, {keepData: true});
+  await executor.execute(scriptName, queryText, customers, macroParams, writer);
+```
+thanks to keepData you will be able access the `writer.rowsByCustomer` property
+with a map of customer id to rows with data.
+
 
 # Development
 ## Run typescript directly

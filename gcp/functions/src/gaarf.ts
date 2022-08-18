@@ -29,7 +29,7 @@ export const main: HttpFunction =
 
   // prepare Ads API parameters
   let adsConfig: GoogleAdsApiConfig;
-  let adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
+  const adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
   if (fs.existsSync(adsConfigFile)) {
     adsConfig = loadAdsConfigYaml(adsConfigFile, <string>req.query.customer_id);
   } else {

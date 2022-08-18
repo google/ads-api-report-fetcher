@@ -133,6 +133,10 @@ suite('substituteMacros', () => {
     let query = substituteMacros(query_text, {start_date: ':YYYYMMDD-7'});
     let expected = formatDateISO(date_add(new Date(), {days: -7}), '-');
     assert.deepEqual(query.queryText, expected);
+    // today
+    query = substituteMacros(query_text, { start_date: ':YYYYMMDD' });
+    expected = formatDateISO(new Date(), '-');
+    assert.deepEqual(query.queryText, expected);
   });
 
   test('macro with dynamic dates: YYYYMM', function() {

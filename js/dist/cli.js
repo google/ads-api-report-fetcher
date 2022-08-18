@@ -126,6 +126,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'boolean',
     description: 'do not execute scripts for constant resources'
 })
+    .option('dump-query', { type: 'boolean' })
     .group([
     'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
     'bq.location', 'bq.no-union-view'
@@ -258,7 +259,8 @@ async function main() {
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     let options = {
         skipConstants: argv.skipConstants,
-        sync: argv.sync
+        sync: argv.sync,
+        dumpQuery: argv.dumpQuery
     };
     logger_1.default.info(`Found ${scriptPaths.length} script to process`);
     logger_1.default.debug(JSON.stringify(scriptPaths, null, 2));

@@ -150,6 +150,7 @@ const argv =
           type: 'boolean',
           description: 'do not execute scripts for constant resources'
         })
+        .option('dump-query', {type: 'boolean'})
         .group(
             [
               'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
@@ -227,34 +228,34 @@ async function main() {
   }
   logger.verbose(JSON.stringify(argv, null, 2));
 
-  let adsConfig: GoogleAdsApiConfig;
+  let adsConfig: GoogleAdsApiConfig|undefined = undefined;
   let configFilePath = <string>argv.adsConfig;
   if (configFilePath) {
     // try to use ads config from extenral file (ads-config arg)
     adsConfig = loadAdsConfig(configFilePath, argv.account);
-  } else {
-    // try to use ads config from explicit cli arguments
-    if (argv.ads) {
-      let ads_cfg = <any>argv.ads;
-      adsConfig = {
-        client_id: ads_cfg.client_id || '',
-        client_secret: ads_cfg.client_secret || '',
-        developer_token: ads_cfg.developer_token || '',
-        refresh_token: ads_cfg.refresh_token || '',
-        login_customer_id:
-            (ads_cfg.login_customer_id || argv.account || '')?.toString(),
-        customer_id:
-            (argv.account || ads_cfg.login_customer_id || '')?.toString(),
-      }
-    } else if (fs.existsSync('google-ads.yaml')) {
-      adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
-    } else {
-      // TODO: support searching google-ads.yaml in user home folder (?)
-      console.log(chalk.red(
-          `Neither Ads API config file was not specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via .gaarfrc config)`));
-      process.exit(-1);
-    }
   }
+  // try to use ads config from explicit cli arguments
+  if (argv.ads) {
+    let ads_cfg = <any>argv.ads;
+    adsConfig = Object.assign(adsConfig || {}, {
+      client_id: ads_cfg.client_id || '',
+      client_secret: ads_cfg.client_secret || '',
+      developer_token: ads_cfg.developer_token || '',
+      refresh_token: ads_cfg.refresh_token || '',
+      login_customer_id:
+          (ads_cfg.login_customer_id || argv.account || '')?.toString(),
+      customer_id:
+          (argv.account || ads_cfg.login_customer_id || '')?.toString(),
+    })
+  } else if (fs.existsSync('google-ads.yaml')) {
+    adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
+  } else {
+    // TODO: support searching google-ads.yaml in user home folder (?)
+    console.log(chalk.red(
+        `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
+    process.exit(-1);
+  }
+
 
   logger.verbose('Using ads config:');
   logger.verbose(JSON.stringify(adsConfig, null, 2));
@@ -306,7 +307,8 @@ async function main() {
   let executor = new AdsQueryExecutor(client);
   let options: AdsQueryExecutorOptions = {
     skipConstants: argv.skipConstants,
-    sync: argv.sync
+    sync: argv.sync,
+    dumpQuery: argv.dumpQuery
   };
   logger.info(`Found ${scriptPaths.length} script to process`);
   logger.debug(JSON.stringify(scriptPaths, null, 2));
