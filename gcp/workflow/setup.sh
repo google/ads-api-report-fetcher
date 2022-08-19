@@ -37,6 +37,8 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/logging.logWriter
 # grant the default service account with view permissions (cloudfunctions.functions.get) on CF
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.viewer
+# grant the default service account with execute permissions on Cloud Workflow
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role roles/workflows.invoker
 
 # deploy WF
 ./deploy.sh $@

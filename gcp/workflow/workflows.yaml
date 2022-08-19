@@ -40,7 +40,7 @@ runAdsQueries:
     - log_functions_metadata:
         call: sys.log
         args:
-          json: ${function}
+          data: ${function}
     # fetch script from GCS
     - get_ads_scripts_from_gcs:
         call: googleapis.storage.v1.objects.list
@@ -51,7 +51,7 @@ runAdsQueries:
     - log_ads_scripts:
         call: sys.log
         args:
-          json: ${scripts}
+          data: ${scripts.items}
           severity: "INFO"
     - runAdsQueries:
         parallel:
@@ -78,7 +78,7 @@ runAdsQueries:
               - log_script_result:
                   call: sys.log
                   args:
-                    json: ${script_results.body}
+                    data: ${script_results.body}
                     severity: "INFO"
 
 runBigQueryQueries:
@@ -94,7 +94,7 @@ runBigQueryQueries:
     - log_bq_scripts:
         call: sys.log
         args:
-          json: ${bq_scripts}
+          data: ${bq_scripts.items}
           severity: "INFO"
     # check scripts were found on GCS
 #    - check_scripts:
@@ -131,7 +131,7 @@ runBigQueryQueries:
               - log_script_bq_result:
                   call: sys.log
                   args:
-                    json: ${script_results.body}
+                    data: ${script_results.body}
                     severity: "INFO"
 # TODO:
 # * safely ignore the absence of scripts on GCS

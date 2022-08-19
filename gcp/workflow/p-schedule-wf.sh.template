@@ -28,3 +28,5 @@ gcloud scheduler jobs create http gaarf-wf \
   --oauth-service-account-email="$SERVICE_ACCOUNT"
 
 #    --time-zone="TIME_ZONE" \
+# for time zone use names from: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+# e.g. "Etc/GMT+3"
