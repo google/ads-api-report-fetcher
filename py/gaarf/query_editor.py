@@ -60,7 +60,8 @@ class QuerySpecification:
         is_constant_resource = bool(resource_name.endswith("_constant"))
         query_text = self.normalize_query(" ".join(query_lines))
         if self.args:
-            query_text = query_text.format(**self.args)
+            if (macros := self.args.get("macro")):
+                query_text = query_text.format(**macros)
         fields = []
         column_names = []
         customizers = {}
