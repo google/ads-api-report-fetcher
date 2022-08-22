@@ -11,7 +11,7 @@
     "fix": "gts fix",
     "compile": "tsc",
     "gcp-build": "npm i npm-install-peers",
-    "prepare": "npm run compile",
+    "//prepare": "npm run compile",
     "pretest": "npm run compile",
     "posttest": "npm run lint"
   },

@@ -7,14 +7,14 @@ exports.getScript = void 0;
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const path_1 = __importDefault(require("path"));
 async function getScript(req) {
-    let scriptPath = req.query.script_path;
-    let body = req.body || {};
+    const scriptPath = req.query.script_path;
+    const body = req.body || {};
     let queryText;
     let scriptName;
     if (body.script) {
-        queryText = body.query;
-        scriptName = body.name;
-        console.log(`Executing inline query from request`);
+        queryText = body.script.query;
+        scriptName = body.script.name;
+        console.log('Executing inline query from request');
     }
     else {
         queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
@@ -22,9 +22,9 @@ async function getScript(req) {
         console.log(`Executing query from '${scriptPath}'`);
     }
     if (!queryText)
-        throw new Error(`Script was not specified in either script_path query argument or body.query`);
+        throw new Error('Script was not specified in either script_path query argument or body.query');
     if (!scriptName)
-        throw new Error(`Could not determine script name`);
+        throw new Error('Could not determine script name');
     return { queryText, scriptName };
 }
 exports.getScript = getScript;

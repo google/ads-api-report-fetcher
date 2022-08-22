@@ -207,11 +207,12 @@ async function main() {
             customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
         });
     }
-    else if (fs_1.default.existsSync('google-ads.yaml')) {
+    else if (!configFilePath && fs_1.default.existsSync('google-ads.yaml')) {
+        // load a default google-ads if it wasn't explicitly specified
+        // TODO: support searching google-ads.yaml in user home folder (?)
         adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
     }
-    else {
-        // TODO: support searching google-ads.yaml in user home folder (?)
+    if (!adsConfig) {
         console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
         process.exit(-1);
     }

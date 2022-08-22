@@ -37,32 +37,34 @@ const main = async (req, res) => {
             login_customer_id: process.env.LOGIN_CUSTOMER_ID,
             client_id: process.env.CLIENT_ID,
             client_secret: process.env.CLIENT_SECRET,
-            refresh_token: process.env.REFRESH_TOKEN
+            refresh_token: process.env.REFRESH_TOKEN,
         };
     }
     console.log('Ads API config:');
     console.log(adsConfig);
     if (!adsConfig.developer_token || !adsConfig.refresh_token) {
-        throw new Error(`Ads API configuration is not complete.`);
+        throw new Error('Ads API configuration is not complete.');
     }
-    let projectId = req.query.bq_project_id || process.env.PROJECT_ID;
+    const projectId = req.query.bq_project_id || process.env.PROJECT_ID;
     if (!projectId)
-        throw new Error(`Project id is not specified in either 'bq_project_id' query argument or PROJECT_ID envvar`);
-    let dataset = req.query.bq_dataset || process.env.DATASET;
+        throw new Error("Project id is not specified in either 'bq_project_id' query argument or PROJECT_ID envvar");
+    const dataset = req.query.bq_dataset || process.env.DATASET;
     if (!dataset)
-        throw new Error(`Dataset is not specified in either 'bq_dataset' query argument or DATASET envvar`);
-    let customerId = req.query.customer_id || adsConfig.customer_id;
+        throw new Error("Dataset is not specified in either 'bq_dataset' query argument or DATASET envvar");
+    const customerId = req.query.customer_id || adsConfig.customer_id;
     if (!customerId)
-        throw new Error(`Customer id is not specified in either 'customer_id' query argument or google-ads.yaml`);
-    let ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
-    let executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
-    let writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, { keepData: true });
+        throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
+    const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
+    const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
+    const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, {
+        keepData: true,
+    });
     // TODO: support CsvWriter and output path to GCS
     // (csv.destination_folder=gs://bucket/path)
-    let singleCustomer = req.query.single_customer;
-    let body = req.body || {};
-    let macroParams = body.macro;
-    let { queryText, scriptName } = await (0, utils_1.getScript)(req);
+    const singleCustomer = req.query.single_customer;
+    const body = req.body || {};
+    const macroParams = body.macro;
+    const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     let customers;
     if (singleCustomer) {
         console.log('Executing for a single customer ids: ' + customerId);
@@ -81,7 +83,7 @@ const main = async (req, res) => {
     }
     else {
         // we're returning a map of customer to number of rows
-        let result = Object.entries(writer.rowsByCustomer).map(p => {
+        const result = Object.entries(writer.rowsByCustomer).map(p => {
             return { [p[0]]: p[1].length };
         });
         res.send(result);

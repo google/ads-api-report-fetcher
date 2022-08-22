@@ -18,8 +18,10 @@ import type {HttpFunction} from '@google-cloud/functions-framework/build/src/fun
 import express from 'express';
 import {getScript} from './utils';
 
-export const main_bq: HttpFunction =
-    async (req: express.Request, res: express.Response) => {
+export const main_bq: HttpFunction = async (
+  req: express.Request,
+  res: express.Response
+) => {
   console.log(req.body);
   console.log(req.query);
 
@@ -34,11 +36,14 @@ export const main_bq: HttpFunction =
 
   const executor = new BigQueryExecutor(<string>projectId);
 
-  const result = await executor.execute(
-      scriptName, queryText, {sqlParams, macroParams, target});
+  const result = await executor.execute(scriptName, queryText, {
+    sqlParams,
+    macroParams,
+    target,
+  });
   if (result && result.length) {
     res.send({rowCount: result.length});
   } else {
     res.sendStatus(200);
   }
-}
+};

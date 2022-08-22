@@ -29,7 +29,11 @@ const main_bq = async (req, res) => {
     const macroParams = body.macro;
     const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     const executor = new google_ads_api_report_fetcher_1.BigQueryExecutor(projectId);
-    const result = await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
+    const result = await executor.execute(scriptName, queryText, {
+        sqlParams,
+        macroParams,
+        target,
+    });
     if (result && result.length) {
         res.send({ rowCount: result.length });
     }
