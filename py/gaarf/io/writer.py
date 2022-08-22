@@ -85,6 +85,8 @@ class CsvWriter(AbsWriter):
         column_names, results = self.get_columns_results(results)
         destination = DestinationFormatter.format_extension(
             destination, new_extension=".csv")
+        if not os.path.isdir(self.destination_folder):
+            os.makedirs(self.destination_folder)
         with open(os.path.join(self.destination_folder, destination),
                   "w") as file:
             writer = csv.writer(file,
