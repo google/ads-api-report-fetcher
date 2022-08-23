@@ -17,7 +17,7 @@ import argparse
 from concurrent import futures
 from gaarf.io import reader  # type: ignore
 from gaarf.bq_executor import BigQueryExecutor
-from .utils import GaarfBqConfigBuilder, ConfigSaver
+from .utils import GaarfBqConfigBuilder, ConfigSaver, initialize_runtime_parameters
 
 
 def main():
@@ -36,6 +36,8 @@ def main():
     config = GaarfBqConfigBuilder(args).build()
     if main_args.save_config and not main_args.gaarf_config:
         ConfigSaver(main_args.save_config_dest).save(config)
+
+    config = initialize_runtime_parameters(config)
 
     bq_executor = BigQueryExecutor(config.project)
     bq_executor.create_datasets(config.target)

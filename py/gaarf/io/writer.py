@@ -21,12 +21,14 @@ from google.cloud.exceptions import NotFound  # type: ignore
 from pathlib import Path
 import csv
 import pandas as pd  # type: ignore
+from sqlalchemy import create_engine
 from tabulate import tabulate
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
 
 class AbsWriter(abc.ABC):
+
     @abc.abstractmethod
     def write(self, results: GaarfReport, destination: str) -> str:
         pass
@@ -40,6 +42,7 @@ class AbsWriter(abc.ABC):
 
 
 class StdoutWriter(AbsWriter):
+
     def __init__(self, page_size=10, **kwargs):
         self.page_size = page_size
 
@@ -63,6 +66,7 @@ class StdoutWriter(AbsWriter):
 
 
 class CsvWriter(AbsWriter):
+
     def __init__(self,
                  destination_folder=os.getcwd(),
                  delimiter=",",
@@ -81,6 +85,8 @@ class CsvWriter(AbsWriter):
         column_names, results = self.get_columns_results(results)
         destination = DestinationFormatter.format_extension(
             destination, new_extension=".csv")
+        if not os.path.isdir(self.destination_folder):
+            os.makedirs(self.destination_folder)
         with open(os.path.join(self.destination_folder, destination),
                   "w") as file:
             writer = csv.writer(file,
@@ -93,6 +99,7 @@ class CsvWriter(AbsWriter):
 
 
 class BigQueryWriter(AbsWriter):
+
     def __init__(self,
                  project: str,
                  dataset: str,
@@ -193,7 +200,29 @@ class BigQueryWriter(AbsWriter):
         return table
 
 
+class SqlAlchemyWriter(AbsWriter):
+
+    def __init__(self,
+                 connection_string: str,
+                 if_exists: str = "replace",
+                 **kwargs):
+        self.connection_string = connection_string
+        self.if_exists = if_exists
+
+    def write(self, results, destination):
+        column_names, results = self.get_columns_results(results)
+        destination = DestinationFormatter.format_extension(destination)
+        pd.DataFrame(data=results,
+                     columns=column_names).to_sql(name=destination,
+                                                  con=self._create_engine(),
+                                                  if_exists=self.if_exists)
+
+    def _create_engine(self):
+        return create_engine(self.connection_string)
+
+
 class NullWriter(AbsWriter):
+
     def __init__(self, writer_option, **kwargs):
         raise ValueError(f"{writer_option} is unknown writer type!")
 
@@ -211,6 +240,7 @@ class WriterFactory:
         self.write_options["bq"] = BigQueryWriter
         self.write_options["csv"] = CsvWriter
         self.write_options["console"] = StdoutWriter
+        self.write_options["sqldb"] = SqlAlchemyWriter
 
     def create_writer(self, writer_option, **kwargs):
         if writer_option in self.write_options:
@@ -220,6 +250,7 @@ class WriterFactory:
 
 
 class DestinationFormatter:
+
     @staticmethod
     def format_extension(path_object: str,
                          current_extension: str = ".sql",

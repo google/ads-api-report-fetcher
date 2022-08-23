@@ -96,7 +96,8 @@ def test_writer_factory_load(writer_factory):
     assert writer_factory.write_options == {
         "bq": writer.BigQueryWriter,
         "csv": writer.CsvWriter,
-        "console": writer.StdoutWriter
+        "console": writer.StdoutWriter,
+        "sqldb": writer.SqlAlchemyWriter
     }
 
 
@@ -106,8 +107,12 @@ def test_writer_factory_inits(writer_factory):
                                              dataset="fake_dataset")
     csv_writer = writer_factory.create_writer(
         "csv", destination_folder="/fake_folder")
+    sqlalchemy_writer = writer_factory.create_writer(
+        "sqldb",
+        connection_string="protocol://user:password@host:port/db")
     assert bq_writer.dataset_id == "fake_project.fake_dataset"
     assert csv_writer.destination_folder == "/fake_folder"
+    assert sqlalchemy_writer.connection_string == "protocol://user:password@host:port/db"
 
 
 def test_null_writer_raises_unknown_writer_error(writer_factory):
