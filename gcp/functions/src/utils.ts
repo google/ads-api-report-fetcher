@@ -7,13 +7,13 @@ export async function getScript(
 ): Promise<{queryText: string; scriptName: string}> {
   const scriptPath = req.query.script_path;
   const body = req.body || {};
-  let queryText: string;
-  let scriptName: string;
+  let queryText: string | undefined;
+  let scriptName: string | undefined;
   if (body.script) {
     queryText = body.script.query;
     scriptName = body.script.name;
     console.log('Executing inline query from request');
-  } else {
+  } else if (scriptPath) {
     queryText = await getFileContent(<string>scriptPath);
     scriptName = path.basename(<string>scriptPath).split('.sql')[0];
     console.log(`Executing query from '${scriptPath}'`);

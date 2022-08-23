@@ -18,6 +18,7 @@ import fs from 'fs';
 import {
   AdsQueryExecutor,
   BigQueryWriter,
+  getFileContent,
   GoogleAdsApiClient,
   loadAdsConfigYaml,
 } from 'google-ads-api-report-fetcher';
@@ -36,9 +37,13 @@ export const main: HttpFunction = async (
 
   // prepare Ads API parameters
   let adsConfig: GoogleAdsApiConfig;
-  const adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
-  if (fs.existsSync(adsConfigFile)) {
-    adsConfig = loadAdsConfigYaml(adsConfigFile, <string>req.query.customer_id);
+  const adsConfigFile =
+    <string>req.query.ads_config_path || process.env.ADS_CONFIG;
+  if (adsConfigFile) {
+    adsConfig = await loadAdsConfigYaml(
+      adsConfigFile,
+      <string>req.query.customer_id
+    );
   } else {
     adsConfig = <GoogleAdsApiConfig>{
       developer_token: <string>process.env.DEVELOPER_TOKEN,
@@ -48,6 +53,13 @@ export const main: HttpFunction = async (
       refresh_token: <string>process.env.REFRESH_TOKEN,
     };
   }
+  if (!adsConfig && fs.existsSync('google-ads.yaml')) {
+    adsConfig = await loadAdsConfigYaml(
+      'google-ads.yaml',
+      <string>req.query.customer_id
+    );
+  }
+
   console.log('Ads API config:');
   console.log(adsConfig);
   if (!adsConfig.developer_token || !adsConfig.refresh_token) {

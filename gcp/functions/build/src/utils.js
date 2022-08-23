@@ -16,7 +16,7 @@ async function getScript(req) {
         scriptName = body.script.name;
         console.log('Executing inline query from request');
     }
-    else {
+    else if (scriptPath) {
         queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
         scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         console.log(`Executing query from '${scriptPath}'`);

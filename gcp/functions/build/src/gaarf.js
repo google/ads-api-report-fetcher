@@ -27,9 +27,10 @@ const main = async (req, res) => {
     console.log(req.query);
     // prepare Ads API parameters
     let adsConfig;
-    const adsConfigFile = process.env.ADS_CONFIG || 'google-ads.yaml';
-    if (fs_1.default.existsSync(adsConfigFile)) {
-        adsConfig = (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile, req.query.customer_id);
+    const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
+    if (adsConfigFile) {
+        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile, req.query.customer_id);
+        console.log(`Loaded Ads config from ${adsConfigFile}: ${JSON.stringify(adsConfig, null, 2)}`);
     }
     else {
         adsConfig = {
@@ -39,6 +40,9 @@ const main = async (req, res) => {
             client_secret: process.env.CLIENT_SECRET,
             refresh_token: process.env.REFRESH_TOKEN,
         };
+    }
+    if (!adsConfig && fs_1.default.existsSync('google-ads.yaml')) {
+        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)('google-ads.yaml', req.query.customer_id);
     }
     console.log('Ads API config:');
     console.log(adsConfig);

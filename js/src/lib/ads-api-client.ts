@@ -18,6 +18,7 @@ import fs from 'fs';
 import {ClientOptions, Customer, CustomerOptions, errors, GoogleAdsApi} from 'google-ads-api';
 import yaml from 'js-yaml';
 import _ from 'lodash';
+import { getFileContent } from './file-utils';
 
 import logger from './logger';
 
@@ -116,12 +117,12 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   }
 }
 
-export function loadAdsConfigYaml(
-    configFilepath: string, customerId?: string|undefined): GoogleAdsApiConfig {
+export async function loadAdsConfigYaml(
+    configFilepath: string, customerId?: string|undefined): Promise<GoogleAdsApiConfig> {
 
   try {
-    // TODO: should we support GCS here as well
-    const doc = <any>yaml.load(fs.readFileSync(configFilepath, 'utf8'));
+    const content = await getFileContent(configFilepath);
+    const doc = <any>yaml.load(content);
     return {
       developer_token: doc['developer_token'],
       client_id: doc['client_id'],

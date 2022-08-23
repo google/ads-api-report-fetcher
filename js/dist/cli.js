@@ -190,10 +190,10 @@ async function main() {
     }
     logger_1.default.verbose(JSON.stringify(argv, null, 2));
     let adsConfig = undefined;
-    let configFilePath = argv.adsConfig;
-    if (configFilePath) {
+    let adConfigFilePath = argv.adsConfig;
+    if (adConfigFilePath) {
         // try to use ads config from extenral file (ads-config arg)
-        adsConfig = loadAdsConfig(configFilePath, argv.account);
+        adsConfig = await loadAdsConfig(adConfigFilePath, argv.account);
     }
     // try to use ads config from explicit cli arguments
     if (argv.ads) {
@@ -207,10 +207,10 @@ async function main() {
             customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
         });
     }
-    else if (!configFilePath && fs_1.default.existsSync('google-ads.yaml')) {
+    else if (!adConfigFilePath && fs_1.default.existsSync('google-ads.yaml')) {
         // load a default google-ads if it wasn't explicitly specified
         // TODO: support searching google-ads.yaml in user home folder (?)
-        adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
+        adsConfig = await loadAdsConfig('google-ads.yaml', argv.account);
     }
     if (!adsConfig) {
         console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
@@ -275,11 +275,7 @@ async function main() {
     let elapsed = (0, utils_1.getElapsed)(started);
     logger_1.default.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
-function loadAdsConfig(configFilepath, customerId) {
-    if (!fs_1.default.existsSync(configFilepath)) {
-        console.log(chalk_1.default.red(`Config file ${configFilepath} does not exist`));
-        process.exit(-1);
-    }
+async function loadAdsConfig(configFilepath, customerId) {
     try {
         return (0, ads_api_client_1.loadAdsConfigYaml)(configFilepath, customerId);
     }

@@ -19,9 +19,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
-const fs_1 = __importDefault(require("fs"));
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
+const file_utils_1 = require("./file-utils");
 const logger_1 = __importDefault(require("./logger"));
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
@@ -92,11 +92,11 @@ class GoogleAdsApiClient {
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;
-function loadAdsConfigYaml(configFilepath, customerId) {
+async function loadAdsConfigYaml(configFilepath, customerId) {
     var _a, _b;
     try {
-        // TODO: should we support GCS here as well
-        const doc = js_yaml_1.default.load(fs_1.default.readFileSync(configFilepath, 'utf8'));
+        const content = await (0, file_utils_1.getFileContent)(configFilepath);
+        const doc = js_yaml_1.default.load(content);
         return {
             developer_token: doc['developer_token'],
             client_id: doc['client_id'],

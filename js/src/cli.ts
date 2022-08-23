@@ -229,10 +229,10 @@ async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));
 
   let adsConfig: GoogleAdsApiConfig|undefined = undefined;
-  let configFilePath = <string>argv.adsConfig;
-  if (configFilePath) {
+  let adConfigFilePath = <string>argv.adsConfig;
+  if (adConfigFilePath) {
     // try to use ads config from extenral file (ads-config arg)
-    adsConfig = loadAdsConfig(configFilePath, argv.account);
+    adsConfig = await loadAdsConfig(adConfigFilePath, argv.account);
   }
   // try to use ads config from explicit cli arguments
   if (argv.ads) {
@@ -247,11 +247,11 @@ async function main() {
       customer_id:
           (argv.account || ads_cfg.login_customer_id || '')?.toString(),
     })
-  } else if (!configFilePath && fs.existsSync('google-ads.yaml')) {
+  } else if (!adConfigFilePath && fs.existsSync('google-ads.yaml')) {
     // load a default google-ads if it wasn't explicitly specified
     // TODO: support searching google-ads.yaml in user home folder (?)
-    adsConfig = loadAdsConfig('google-ads.yaml', argv.account);
-  } 
+    adsConfig = await loadAdsConfig('google-ads.yaml', argv.account);
+  }
   if (!adsConfig) {
     console.log(chalk.red(
         `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
@@ -329,11 +329,7 @@ async function main() {
       chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
 }
 
-function loadAdsConfig(configFilepath: string, customerId?: string|undefined) {
-  if (!fs.existsSync(configFilepath)) {
-    console.log(chalk.red(`Config file ${configFilepath} does not exist`));
-    process.exit(-1);
-  }
+async function loadAdsConfig(configFilepath: string, customerId?: string|undefined) {
   try {
     return loadAdsConfigYaml(configFilepath, customerId);
   } catch (e) {

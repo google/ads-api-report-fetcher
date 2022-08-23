@@ -8,16 +8,17 @@ WORKFLOW_NAME=gaarf-wf
 FUNCTION_NAME=gaarf
 
 data='{
-  \\\"cloud_function\\\":\\\"$FUNCTION_NAME\\\",
-  \\\"cloud_function_bq\\\":\\\"$FUNCTION_NAME-bq\\\",
-  \\\"gcs_bucket\\\":\\\"$PROJECT_ID\\\",
-  \\\"ads_queries_path\\\":\\\"<YOUR_GCS_FOLDER_PATH_ADS>\\\",
-  \\\"bq_queries_path\\\":\\\"<YOUR_GCS_FOLDER_PATH_BQ>\\\",
-  \\\"dataset\\\":\\\"<YOUR_DATASET>\\\",
-  \\\"cid\\\":\\\"<YOUR_CUSTOMER_ID>\\\",
-  \\\"ads_macro\\\": {},
-  \\\"bq_macro\\\":{},
-  \\\"bq_sql\\\": {}
+  \"cloud_function\":\"$FUNCTION_NAME\",
+  \"cloud_function_bq\":\"$FUNCTION_NAME-bq\",
+  \"gcs_bucket\":\"$PROJECT_ID\",
+  \"ads_queries_path\":\"<YOUR_GCS_FOLDER_PATH_ADS>\",
+  \"bq_queries_path\":\"<YOUR_GCS_FOLDER_PATH_BQ>\",
+  \"dataset\":\"<YOUR_DATASET>\",
+  \"cid\":\"<YOUR_CUSTOMER_ID>\",
+  \"ads_config_path\":\"<YOUR_GCS_PATH_TO_ADS_CONFIG>\",
+  \"ads_macro\": {},
+  \"bq_macro\":{},
+  \"bq_sql\": {}
   }'
 
 gcloud scheduler jobs create http gaarf-wf \

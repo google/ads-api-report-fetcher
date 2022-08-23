@@ -16,6 +16,7 @@ main:
           dataset: ${args.dataset}
           cid: ${args.cid}
           macros: ${args.ads_macro}
+          ads_config_path: ${args.ads_config_path}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -28,7 +29,7 @@ main:
           sqlParams: ${args.bq_sql}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, dataset, cid, macros]
+  params: [project, location, function_name, gcs_bucket, queries_path, dataset, cid, macros, ads_config_path]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF function URL (specially usefull for v2 CF)
@@ -69,6 +70,7 @@ runAdsQueries:
                       bq_project_id: ${project}
                       bq_dataset: ${dataset}
                       customer_id: ${cid}
+                      ads_config_path: ${ads_config_path}
                     body:
                       macro: ${macros}
                     auth:
