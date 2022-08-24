@@ -149,13 +149,13 @@ GCS_BASE_PATH=$GCS_BUCKET/gaarf
 # create a GCS bucket (one time):
 #gsutil mb -b on $GCS_BUCKET
 
-gsutil -m cp google-ads.yaml GCS_BASE_PATH/google-ads.yaml
+gsutil -m cp google-ads.yaml $GCS_BASE_PATH/google-ads.yaml
 
-gsutil rm -r GCS_BASE_PATH/ads-queries
-gsutil -m cp -R ./ads-queries/* GCS_BASE_PATH/ads-queries
+gsutil rm -r $GCS_BASE_PATH/ads-queries
+gsutil -m cp -R ./ads-queries/* $GCS_BASE_PATH/ads-queries
 
-gsutil rm -r GCS_BASE_PATH/bq-queries
-gsutil -m cp -R ./bq-queries/* GCS_BASE_PATH/bq-queries
+gsutil rm -r $GCS_BASE_PATH/bq-queries
+gsutil -m cp -R ./bq-queries/* $GCS_BASE_PATH/bq-queries
 ```
 
 #### deploy-wf.sh

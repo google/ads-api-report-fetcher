@@ -220,10 +220,15 @@ export class AdsQueryEditor {
   private getFieldType(type: ProtoTypeMeta, nameParts: string[]): FieldType {
     if (!nameParts || !nameParts.length)
       throw new Error('ArgumentException: namePart should be empty');
-
+    if (!type)
+      throw new Error('ArgumentException: type was not specified');
+    const rootType = type.name;
     for (let i = 0; i < nameParts.length; i++) {
       let fieldType: FieldType;
       let field = type.fields[nameParts[i]];
+      if (!field) {
+        throw new Error(`Resource or type '${type.name}' does not have field '${nameParts[i]}' (initial property chain is ${nameParts.join('.')} and resource is '${rootType}')`);
+      }
       let repeated = field.rule === 'repeated';
       let isLastPart = i === nameParts.length - 1;
       if (repeated && !isLastPart) {
