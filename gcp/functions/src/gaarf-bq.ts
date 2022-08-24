@@ -17,6 +17,7 @@ import {BigQueryExecutor} from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
 import {getScript} from './utils';
+import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
 
 export const main_bq: HttpFunction = async (
   req: express.Request,
@@ -34,7 +35,10 @@ export const main_bq: HttpFunction = async (
   const macroParams = body.macro;
   const {queryText, scriptName} = await getScript(req);
 
-  const executor = new BigQueryExecutor(<string>projectId);
+  const options: BigQueryExecutorOptions = {
+    datasetLocation: <string>req.query.dataset_location,
+  };
+  const executor = new BigQueryExecutor(<string>projectId, options);
 
   const result = await executor.execute(scriptName, queryText, {
     sqlParams,

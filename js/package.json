@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -33,33 +33,33 @@
     "find-up": "DO NOT upgrade find-up from ^5.0.0"
   },
   "dependencies": {
-    "@google-cloud/bigquery": "^5.12.0",
-    "@google-cloud/storage": "^6.0.1",
-    "@js-joda/core": "^5.2.0",
+    "@google-cloud/bigquery": "^6.0.2",
+    "@google-cloud/storage": "^6.4.1",
+    "@js-joda/core": "^5.3.1",
     "chalk": "^4.1.2",
-    "csv": "^6.1.0",
-    "csv-stringify": "^6.1.0",
-    "date-fns": "^2.28.0",
+    "csv": "^6.2.0",
+    "csv-stringify": "^6.2.0",
+    "date-fns": "^2.29.2",
     "find-up": "^5.0.0",
-    "google-ads-api": "^10.0.2",
+    "google-ads-api": "^11.0.0",
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
-    "mathjs": "^10.6.4",
+    "mathjs": "^11.1.0",
     "table": "^6.8.0",
-    "winston": "^3.7.2",
+    "winston": "^3.8.1",
     "yargs": "^17.5.1"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/glob": "^7.2.0",
     "@types/js-yaml": "^4.0.5",
-    "@types/lodash": "^4.14.182",
+    "@types/lodash": "^4.14.184",
     "@types/mocha": "^9.1.1",
-    "@types/yargs": "^17.0.10",
+    "@types/yargs": "^17.0.11",
     "mocha": "^10.0.0",
     "nyc": "^15.1.0",
     "shx": "^0.3.4",
-    "ts-node": "^10.8.0",
+    "ts-node": "^10.9.1",
     "typescript": "^4.7.4"
   }
 }

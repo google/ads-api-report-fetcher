@@ -40,15 +40,12 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'string',
     description: 'BigQuery dataset or dataset.table to put query result into'
 })
+    .option('dataset-location', { type: 'string', description: 'BigQuery dataset location' })
     .option('loglevel', {
     alias: ['log-level', 'll', 'log_level'],
     choises: ['debug', 'verbose', 'info', 'warn', 'error'],
     description: 'Logging level. By default - \'info\', for output=console - \'warn\''
 })
-    // .option(
-    //     'location',
-    //     {type: 'string', description: 'BigQuery dataset location'})
-    .group(['project', 'target'], 'BigQuery options:')
     .env('GAARF_BQ')
     .config('config', 'Path to JSON or YAML config file', function (configPath) {
     let content = fs_1.default.readFileSync(configPath, 'utf-8');
@@ -74,7 +71,10 @@ async function main() {
     let target = argv.target;
     let sqlParams = argv['sql'] || {};
     let macroParams = argv['macro'] || {};
-    let executor = new bq_executor_1.BigQueryExecutor(projectId);
+    let options = {
+        datasetLocation: argv['dataset-location']
+    };
+    let executor = new bq_executor_1.BigQueryExecutor(projectId, options);
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         logger_1.default.info(`Processing query from ${scriptPath}`);

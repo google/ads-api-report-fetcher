@@ -20,7 +20,7 @@ import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
-import {BigQueryExecutor} from './lib/bq-executor';
+import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor';
 import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 
@@ -42,16 +42,15 @@ const argv =
           description:
               'BigQuery dataset or dataset.table to put query result into'
         })
+        .option(
+            'dataset-location',
+            {type: 'string', description: 'BigQuery dataset location'})
         .option('loglevel', {
           alias: ['log-level', 'll', 'log_level'],
           choises: ['debug', 'verbose', 'info', 'warn', 'error'],
           description:
               'Logging level. By default - \'info\', for output=console - \'warn\''
         })
-        // .option(
-        //     'location',
-        //     {type: 'string', description: 'BigQuery dataset location'})
-        .group(['project', 'target'], 'BigQuery options:')
         .env('GAARF_BQ')
         .config(
             'config', 'Path to JSON or YAML config file',
@@ -87,7 +86,10 @@ async function main() {
   let target = argv.target;
   let sqlParams = <Record<string, any>>argv['sql'] || {};
   let macroParams = <Record<string, any>>argv['macro'] || {};
-  let executor = new BigQueryExecutor(projectId);
+  let options: BigQueryExecutorOptions = {
+    datasetLocation: argv['dataset-location']
+  };
+  let executor = new BigQueryExecutor(projectId, options);
   for (let scriptPath of scriptPaths) {
     let queryText = await getFileContent(scriptPath);
     logger.info(`Processing query from ${scriptPath}`);

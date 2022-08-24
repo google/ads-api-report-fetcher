@@ -86,6 +86,7 @@ export const main: HttpFunction = async (
   const executor = new AdsQueryExecutor(ads_client);
   const writer = new BigQueryWriter(<string>projectId, <string>dataset, {
     keepData: true,
+    datasetLocation: <string>req.query.bq_dataset_location,
   });
   // TODO: support CsvWriter and output path to GCS
   // (csv.destination_folder=gs://bucket/path)

@@ -6,22 +6,25 @@ SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 REGION=us-central1
 WORKFLOW_NAME=gaarf-wf
 FUNCTION_NAME=gaarf
+JOB_NAME=$WORKFLOW_NAME
 
 data='{
   \"cloud_function\":\"$FUNCTION_NAME\",
   \"cloud_function_bq\":\"$FUNCTION_NAME-bq\",
-  \"gcs_bucket\":\"$PROJECT_ID\",
+  \"gcs_bucket\":\"'"$PROJECT_ID"'\",
   \"ads_queries_path\":\"<YOUR_GCS_FOLDER_PATH_ADS>\",
   \"bq_queries_path\":\"<YOUR_GCS_FOLDER_PATH_BQ>\",
   \"dataset\":\"<YOUR_DATASET>\",
   \"cid\":\"<YOUR_CUSTOMER_ID>\",
-  \"ads_config_path\":\"<YOUR_GCS_PATH_TO_ADS_CONFIG>\",
+  \"ads_config_path\":\"gs://'"$PROJECT_ID"'/gaarf/google-ads.yaml\",
   \"ads_macro\": {},
   \"bq_macro\":{},
   \"bq_sql\": {}
   }'
 
-gcloud scheduler jobs create http gaarf-wf \
+gcloud scheduler jobs delete $JOB_NAME --location $REGION
+
+gcloud scheduler jobs create http JOB_NAME \
   --schedule="0 0 * * *" \
   --uri="https://workflowexecutions.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/workflows/$WORKFLOW_NAME/executions" \
   --location=$REGION \
