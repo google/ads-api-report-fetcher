@@ -135,6 +135,11 @@ Common deployment scripts are:
 
 >The following snippets for mentioned files content are provided just as an example. In the future gaarf will contain more automated deployement tools.
 
+For deployment of all components you can use the [setup.sh](setup.sh) script with an argument with a name of your project.
+Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf"
+workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders.
+
+
 #### deploy-scripts.sh
 ```shell
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
