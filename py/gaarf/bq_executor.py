@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from jinja2 import Template
@@ -24,11 +24,14 @@ class BigQueryExecutor:
         self.client = bigquery.Client(project_id)
 
     def execute(self, script_name: str, query_text: str,
-                params: Dict[str, Any]) -> None:
-        query_text = self._expand_jinja(query_text,
-                                        **params.get("template"))
-        formatted_query = query_text.format(**params.get("macro"))
-        job = self.client.query(formatted_query)
+                params: Optional[Dict[str, Any]]) -> None:
+        if params:
+            if (templates := params.get("template")):
+                query_text = self._expand_jinja(query_text,
+                                                **templates)
+            if (macros := params.get("macros")):
+                query_text = query_text.format(**macros)
+        job = self.client.query(query_text)
         try:
             job.result()
             print(f"{script_name} launched successfully")
