@@ -32,6 +32,9 @@ Please note you need to generate OAuth2 credentials for **desktop application**.
 
   3.1. Generate refresh token using `generate_user_credentials.py`
 
+>Before proceeding with token generation you need to make sure that either [your oauth brand](https://console.cloud.google.com/apis/credentials/consent)
+made public (published) or you added yourself as a test user if it's in testing status.
+
 For this step you need to have local Python 3 installed.
 
 As soon as you generated a OAuth2 credentials:

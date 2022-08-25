@@ -34,6 +34,9 @@ SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 # Gen2:
 #SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
+./deploy.sh $@
+# After we deployed CFs we can be use the SA exists (not before)
+
 # for Gen1:
 # Grant the default service account with the Service Account Token Creator role so it could create GCS signed urls
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/iam.serviceAccountTokenCreator
@@ -44,4 +47,6 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 # Grant the default service account with admin permissions in BigQuery
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
 
-./deploy.sh $@
+# create a GCS bucket:
+GCS_BUCKET=gs://${PROJECT_ID}
+gsutil mb -b on $GCS_BUCKET

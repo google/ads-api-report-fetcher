@@ -19,6 +19,7 @@ enable_api() {
   gcloud services enable cloudscheduler.googleapis.com
 }
 
+# enable API
 enable_api
 
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
@@ -26,8 +27,8 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 # be default Cloud Worflows run under the Compute Engine default service account:
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-# enable API
-gcloud services enable workflows.googleapis.com
+# deploy WF
+./deploy.sh $@
 
 # grant the default service account with read permissions on Cloud Storage
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
@@ -37,8 +38,6 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/logging.logWriter
 # grant the default service account with view permissions (cloudfunctions.functions.get) on CF
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.viewer
-# grant the default service account with execute permissions on Cloud Workflow
+# grant the default service account with execute permissions on Cloud Workflow (this is for Scheduler which also runs under the default GCE SA)
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role roles/workflows.invoker
 
-# deploy WF
-./deploy.sh $@
