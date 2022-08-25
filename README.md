@@ -10,7 +10,7 @@
 
 Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
-The library allows you to define GAQL queries alonside aliases and custom extractors and specify where the results of such query should be stored.
+The library allows you to define GAQL queries alongside aliases and custom extractors and specify where the results of such query should be stored.
 You can find example queries in [examples](examples) folder.
 Based on such a query the library fill extract the correct GAQL query, automatically extract all necessary fields from schema
 and transform them into a structure suitable for writing data.
@@ -84,11 +84,11 @@ Options specific for BigQuery writer:
 * `bq.dataset` - BigQuery dataset id where tables with output data will be created
 * `bq.table-template`  - template for tables names, `{script}` references script base name (*NodeJS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
-* `bq.no-union-view` - flag that disables creation of "union" view that combins all customer tables (*NodeJS version only*)
+* `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
 
 Options specific for Console writer (*NodeJS version only*):
-* `console.transpose` - whenether and how to transpose (switch rows and columns) result tables in output:
-`auto` (default) - transponse only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
+* `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:
+`auto` (default) - transpose only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
 
 Options specific for SqlAlchemy writer (*Python version only*):
 * `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
@@ -127,8 +127,8 @@ For NodeJS version any of arguments can be specified via environment variable wh
 
 ### Postprocessing
 
-Once reports have been fetched you might use `gaarf-bq` (utility that installed alonside with `gaarf`) to run queries in BigQuery based on collected data in there.
-Essensially it's a simple tool for executing BigQuery queries from files, optionally creating tables for query results.
+Once reports have been fetched you might use `gaarf-bq` (utility that installed alongside with `gaarf`) to run queries in BigQuery based on collected data in there.
+Essentially it's a simple tool for executing BigQuery queries from files, optionally creating tables for query results.
 
 
 ```shell
@@ -182,7 +182,7 @@ ATTENTION: passing macros into sql query is vulnerable to sql-injection so be ve
 As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
 parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
 On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
-They will be executed right after macros substitutation. So an expression even can contain macros inside.
+They will be executed right after macros substitution. So an expression even can contain macros inside.
 Both expressions and macros deal with query text before submitting it for execution.
 Inside expression block we can do anything that support MathJS library - see https://mathjs.org/docs/index.html
 plus work with date and time. It's all sort of arithmetic operations, strings and dates manipulations.
@@ -197,7 +197,7 @@ will be evaluated to:
 `WHERE start_date >= '2022-06-20 AND end_date <= '2022-07-20'`
 if today is 2022 July 20th.
 
-supported functions:
+Supported functions:
 * `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`)
 * `date` - factory function to create a Date object, supported formats: `date(2022,12,31)`, `date('2022-12-31')`, `date('12/31/2022','M/d/yyyy')`
 * `duration` - returns a Duration object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnDTnHnMnS)
@@ -219,8 +219,8 @@ For dates and datetimes the following operations are supported:
 
 By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601)
 (yyyy-mm-dd for dates and yyyy-mm-ddThh:mm:ss.SSS for datetimes).
-But additionaly you can specify a format explicitly (for parsing with `datetime` and `date` function and formatting with `format` function)
-using stardard [Java Date and Time Patterns](https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html):
+But additionally you can specify a format explicitly (for parsing with `datetime` and `date` function and formatting with `format` function)
+using standard [Java Date and Time Patterns](https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html):
 
 * G   Era designator
 * y   Year
@@ -272,7 +272,7 @@ where N is a number of days/months/years and PATTERN is one of the following:
 * *:YYYYMMDD* - current date, `:YYYYMMDD-7` - 7 days ago
 
 Example with providing values for macro start_date and end_date (that can be used in queries as date range) as
-a range from 1 month ago to yesterdate:
+a range from 1 month ago to yesterday:
 ```
 gaarf google_ads_queries/*.sql --ads-config=google-ads.yaml \
   --account=1234567890 --output=bq \
@@ -283,7 +283,7 @@ So if today is 2022-07-29 then start_date will be '2022-06-29' (minus one month)
 end_date will be '2022-07-28' (minus one day).
 
 
-> NOTEL dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead if '')
+> NOTE: dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead if '')
 > so they are two alternatives.
 
 
@@ -310,7 +310,7 @@ Now you can run a container from this image.
 ### Run a container
 For running a container you'll need the same parameters as you would provide for running it in command line
 (a list of ads scripts and a Ads API config and other parameters) and authentication for Google Cloud if you need to write data to BigQuery.
-The latter is achivable via declaring `GOOGLE_APPLICATION_CREDENTIALS` environment variable with a path to a service account key file.
+The latter is achievable via declaring `GOOGLE_APPLICATION_CREDENTIALS` environment variable with a path to a service account key file.
 
 You can either embed all them into the image on build or supply them in runtime when you run a container.
 
@@ -318,8 +318,8 @@ The aforementioned `Dockerfile` assumes the following:
 * You will provide a list of ads script files
 * Application Default Credentials is set with a service account key file as `/app/service_account.json`
 
-So you can map your local files onto these pathes so that Gaarf inside a container will find them.
-Or copy them before building, so they will be embeded into the image.
+So you can map your local files onto these paths so that Gaarf inside a container will find them.
+Or copy them before building, so they will be embedded into the image.
 
 This is an example of running Gaarf (Node version) with mapping local files, assuming you have `.gaarfrc` and `service_account.json` in the current folder:
 ```
@@ -328,7 +328,7 @@ sudo docker run --mount type=bind,source="$(pwd)/.gaarfrc",target=/app/.gaarfrc 
   --mount type=bind,source="$(pwd)/service_account.json",target=/app/service_account.json \
   gaarf ./ads-scripts/*.sql
 ```
-Here we mapped local `.gaarfrc` with with all parameters (alternatevely you can pass them explicitly in command line),
+Here we mapped local `.gaarfrc` with with all parameters (alternatively you can pass them explicitly in command line),
 mapped a local service_account.json file with SA keys for authenticating in BigQuery, mapped a local folder "ads-scripts"
 with all Ads scripts that we're passing by wildcard mask (it'll be expanded to a list of files by your shell).
 

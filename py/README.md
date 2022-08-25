@@ -14,7 +14,7 @@ Please see the full documentation in the root [README](https://github.com/google
 
 ### Installation and running
 
-1. create virtual enviroment and install the tool
+1. create virtual environment and install the tool
 
 ```
 python3 -m venv gaarf

@@ -10,14 +10,14 @@ So for using Cloud Workflow you need to deploy the workflow and cloud functions.
 
 ## Cloud Functions
 
-We provide two cloud functions that corellate to two cli tools: gaarf and gaarf-bq. Accordingly by default functions are deployed under names of gaarf and gaarf-bq. But you can change names during deployment by supplying a `-n` parameter for `deploy.sh` and/or `setup.sh`.
+We provide two cloud functions that correlate to two cli tools: gaarf and gaarf-bq. Accordingly by default functions are deployed under names of gaarf and gaarf-bq. But you can change names during deployment by supplying a `-n` parameter for `deploy.sh` and/or `setup.sh`.
 
 To deploy cloud functions you need to execute `setup.sh` which enables required APIs, sets up permissions and does actual deployment of functions using `deploy.sh`. So later on if something changed in functions' code or Ads API settings you can redeploy by executing `deploy.sh`.
 
 Additionally you can customize region (`-r`) and memory (`-m`).
 
 ### Configuration
-Please note that you need to copy your `google-ads.yaml` somewhere where the function can find it. Preferebly onto Cloud Storage. Then you should provide `ads_config_path` query argument or `ADS_CONFIG` environment variable with a path to the Ads config (e.g. gs://myproject/path/to/google-ads.yaml). As a last resort the function will search for `google-ads.yaml` locally, so we can just copy your config to function' folder before deployment.
+Please note that you need to copy your `google-ads.yaml` somewhere where the function can find it. Preferably onto Cloud Storage. Then you should provide `ads_config_path` query argument or `ADS_CONFIG` environment variable with a path to the Ads config (e.g. gs://myproject/path/to/google-ads.yaml). As a last resort the function will search for `google-ads.yaml` locally, so we can just copy your config to function' folder before deployment.
 Alternatively you can provide all configuration values for Ads API via environment variables (you can supply env vars via `--env-vars-file env.yaml` cli option for gcloud tool - you'll need to adapt the `deploy.sh` for this):
 * DEVELOPER_TOKEN,
 * LOGIN_CUSTOMER_ID
@@ -58,7 +58,7 @@ Query string:
 * `dataset_location` - BigQuery dataset location
 
 Returns:
-* an obejct with `rowCount` field with a row count if the script returned data, otherwise (the script is a DDL like create view) response is empty
+* an object with `rowCount` field with a row count if the script returned data, otherwise (the script is a DDL like create view) response is empty
 
 ## Cloud Workflow
 
@@ -127,7 +127,7 @@ Please notice the escaping of quotes for job's argument.
 Please note, that parameters ads_macro, bq_macro, and bq_sql should be provided even if not used, in that case they should be just an empty object `{}`
 
 
-## Deployement
+## Deployment
 Common deployment scripts are:
 * deploy-scripts.sh - copy queries and google-ads.yaml to GCS
 * deploy-wf.sh - deploy cloud functions and cloud workflow

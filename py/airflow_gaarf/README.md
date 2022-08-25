@@ -15,7 +15,7 @@ be used to simplify executing `google_ads_queries` and `bq_queries` respectively
 ## Setup
 ### Connections
 
-Template pipeline expectes two type of connections - go to *Admin - Connections*,
+Template pipeline expects two type of connections - go to *Admin - Connections*,
 add new connection (type *Generic*) and in *Extra* add the values specified below:
 
 * `google_ads_default`

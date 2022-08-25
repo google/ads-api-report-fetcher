@@ -134,7 +134,7 @@ use `executeGen` method (it's a async generator):
   }
 ```
 
-Alternatively you can encorporate `keepData` option of the `BigQueryWriter`:
+Alternatively you can incorporate `keepData` option of the `BigQueryWriter`:
 ```ts
   let writer =
       new BigQueryWriter(projectId, dataset, {keepData: true});
