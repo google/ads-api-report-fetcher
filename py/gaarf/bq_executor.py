@@ -25,11 +25,12 @@ class BigQueryExecutor:
 
     def execute(self, script_name: str, query_text: str,
                 params: Optional[Dict[str, Any]]) -> None:
+        print(params)
         if params:
             if (templates := params.get("template")):
                 query_text = self._expand_jinja(query_text,
                                                 **templates)
-            if (macros := params.get("macros")):
+            if (macros := params.get("macro")):
                 query_text = query_text.format(**macros)
         job = self.client.query(query_text)
         try:
