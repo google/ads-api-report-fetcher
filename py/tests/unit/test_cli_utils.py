@@ -109,41 +109,124 @@ def config_args():
     return FakeConfig("1", "console", "10", "fake-project")
 
 
-def test_config_saver_gaarf(config_args):
-    config_saver = utils.ConfigSaver("/tmp/config.yaml")
+@pytest.fixture
+def config_saver(config_args):
+    return utils.ConfigSaver("/tmp/config.yaml")
+
+
+def test_gaarf_config_saver_gaarf_dont_save_empty_values(config_saver):
     gaarf_config = utils.GaarfConfig(output="console",
                                      api_version="10",
                                      account="1",
                                      params={},
-                                     writer_params={})
+                                     writer_params={},
+                                     customer_ids_query="",
+                                     customer_ids_query_file="")
 
-    #TODO: don't like how params are defined
     config = config_saver.prepare_config({}, gaarf_config)
     assert config == {
         "gaarf": {
             "account": "1",
             "output": "console",
-            "console": {},
             "api_version": "10",
-            "params": {},
         }
     }
 
 
-def test_config_saver_gaarf_bq(config_args):
-    config_saver = utils.ConfigSaver("/tmp/config.yaml")
+def test_gaarf_config_saver_gaarf_dont_save_inner_empty_values(config_saver):
+    gaarf_config = utils.GaarfConfig(output="console",
+                                     api_version="10",
+                                     account="1",
+                                     params={"macro": {
+                                         "start_date": ":YYYYMMDD"
+                                     }},
+                                     writer_params={},
+                                     customer_ids_query="",
+                                     customer_ids_query_file="")
 
+    config = config_saver.prepare_config({}, gaarf_config)
+    assert config == {
+        "gaarf": {
+            "account": "1",
+            "output": "console",
+            "api_version": "10",
+            "params": {
+                "macro": {
+                    "start_date": ":YYYYMMDD"
+                }
+            }
+        }
+    }
+
+
+def test_config_saver_gaarf_save_customer_ids_query_values(config_saver):
+    gaarf_config = utils.GaarfConfig(output="console",
+                                     api_version="10",
+                                     account="1",
+                                     params={},
+                                     writer_params={},
+                                     customer_ids_query="SELECT",
+                                     customer_ids_query_file="path/to/file.sql")
+
+    config = config_saver.prepare_config({}, gaarf_config)
+    assert config == {
+        "gaarf": {
+            "account": "1",
+            "output": "console",
+            "api_version": "10",
+            "customer_ids_query": "SELECT",
+            "customer_ids_query_file": "path/to/file.sql"
+        }
+    }
+
+
+def test_config_saver_gaarf_bq(config_saver):
     gaarf_bq_config = utils.GaarfBqConfig(
         project="fake-project",
         target="fake-target",
-        params={"bq_project": "another-fake-project"})
+        params={"macro": {"bq_project": "another-fake-project"}})
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
             "target": "fake-target",
             "params": {
-                "bq_project": "another-fake-project"
+                "macro": {
+                    "bq_project": "another-fake-project"
+                }
+            }
+        }
+    }
+
+
+def test_config_saver_does_not_save_empty_params(config_saver):
+    gaarf_bq_config = utils.GaarfBqConfig(
+        project="fake-project",
+        target="fake-target",
+        params={})
+    config = config_saver.prepare_config({}, gaarf_bq_config)
+    assert config == {
+        "gaarf-bq": {
+            "project": "fake-project",
+            "target": "fake-target"
+        }
+    }
+
+
+def test_config_saver_does_not_save_empty_nested_params(config_saver):
+    gaarf_bq_config = utils.GaarfBqConfig(
+        project="fake-project",
+        target="fake-target",
+        params={"macro": {"bq_project": "another-fake-project"}, "sql": {}})
+    config = config_saver.prepare_config({}, gaarf_bq_config)
+    assert config == {
+        "gaarf-bq": {
+            "project": "fake-project",
+            "target": "fake-target",
+            "params": {
+                "macro": {
+                    "bq_project": "another-fake-project"
+                }
             }
         }
     }
@@ -157,7 +240,9 @@ def config_with_runtime_params():
                              params={"macro": {
                                  "start_date": ":YYYYMMDD"
                              }},
-                             writer_params={})
+                             writer_params={},
+                             customer_ids_query=None,
+                             customer_ids_query_file=None)
 
 
 @pytest.fixture
@@ -168,7 +253,9 @@ def config_without_runtime_params():
                              params={"macro": {
                                  "start_date": "2022-01-01"
                              }},
-                             writer_params={})
+                             writer_params={},
+                             customer_ids_query=None,
+                             customer_ids_query_file=None)
 
 
 def test_initialize_config_with_runtime_parameters(config_with_runtime_params,
@@ -185,7 +272,9 @@ def test_initialize_config_with_runtime_parameters(config_with_runtime_params,
                 "date_iso": current_date_iso
             }
         },
-        writer_params={})
+        writer_params={},
+        customer_ids_query=None,
+        customer_ids_query_file=None)
     assert initialized_config == expected_config
 
 
@@ -202,5 +291,7 @@ def test_initialize_config_without_runtime_parameters(
                                                 "date_iso": current_date_iso
                                             }
                                         },
-                                        writer_params={})
+                                        writer_params={},
+                                        customer_ids_query=None,
+                                        customer_ids_query_file=None)
     assert initialized_config == expected_config
