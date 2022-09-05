@@ -2,8 +2,19 @@
 Node.js version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
 Please see the full documentation in the root [README](../README.md).
 
+## Table of content
 
-# Usage
+ - [Overview](#overview)
+ - [Command Line](#command-line)
+      - [Install globally](#install-globally)
+      - [Running from folder](#running-from-folder)
+      - [Config files](#config-files)
+          - [Ads API config](#ads-api-config)
+ - [Library](#library)
+ - [Development](#development)
+
+
+## Overview
 >You need [Node.js](https://nodejs.org/) to run the tool.
 v16 should be sufficient.
 

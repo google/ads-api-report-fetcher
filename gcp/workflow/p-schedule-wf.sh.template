@@ -23,7 +23,7 @@ data='{
   \"bq_sql\": {}
   }'
 
-gcloud scheduler jobs delete $JOB_NAME --location $REGION
+gcloud scheduler jobs delete $JOB_NAME --location $REGION -q
 
 gcloud scheduler jobs create http $JOB_NAME \
   --schedule="0 0 * * *" \

@@ -1,5 +1,15 @@
 # How to write queries
 
+## Table of content
+
+ - [Intro](#intro)
+ - [Elements](#elements)
+ - [Aliases](#aliases)
+ - [Nested Resources](#nested-resources)
+ - [Resource Indices](#resource-indices)
+
+
+## Intro
 Google Ads API Report Fetcher uses [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)
 syntax with some extended capabilities.
 
@@ -30,7 +40,7 @@ SELECT
 FROM resource
 ```
 
-## Elements:
+## Elements
 
 * Aliases (`AS column_name`)
 * Nested resources (`:nested.resource.name`)

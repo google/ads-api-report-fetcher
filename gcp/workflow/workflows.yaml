@@ -4,32 +4,35 @@ main:
     - init:
         assign:
         - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-        - location: "us-central1"
+        - location: ${default(map.get(args, "location"), "us-central1")}
+        - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
+        - bq_dataset_location: ${default(map.get(args, "bq_dataset_location"), "us")}
+        - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
     - run_ads_workflow:
         call: runAdsQueries
         args:
           project: ${project}
           location: ${location}
-          function_name: ${args.cloud_function}
-          gcs_bucket: ${args.gcs_bucket}
+          function_name: ${cloud_function}
+          gcs_bucket: ${gcs_bucket}
           queries_path: ${args.ads_queries_path}
           bq_dataset: ${args.dataset}
-          bq_dataset_location: ${args.bq_dataset_location}
+          bq_dataset_location: ${bq_dataset_location}
           cid: ${args.cid}
-          macros: ${args.ads_macro}
+          macros: ${map.get(args, "ads_macro")}
           ads_config_path: ${args.ads_config_path}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
           project: ${project}
           location: ${location}
-          function_name: ${args.cloud_function + "-bq"}
-          gcs_bucket: ${args.gcs_bucket}
+          function_name: ${cloud_function + "-bq"}
+          gcs_bucket: ${gcs_bucket}
           queries_path: ${args.bq_queries_path}
-          #target: ${args.bq_target}
-          dataset_location: ${args.bq_dataset_location}
-          macros: ${args.bq_macro}
-          sqlParams: ${args.bq_sql}
+          target: ${map.get(args, "bq_target")}
+          dataset_location: ${bq_dataset_location}
+          macros: ${map.get(args, "bq_macro")}
+          sqlParams: ${map.get(args, "bq_sql")}
 
 runAdsQueries:
   params: [project, location, function_name, gcs_bucket, queries_path, bq_dataset, bq_dataset_location, cid, macros, ads_config_path]
@@ -88,7 +91,7 @@ runAdsQueries:
                     severity: "INFO"
 
 runBigQueryQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
+  params: [project, location, function_name, gcs_bucket, queries_path, target, macros, sqlParams, dataset_location]
 
   steps:
     - get_bq_scripts_from_gcs:
@@ -128,7 +131,7 @@ runBigQueryQueries:
                       script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
                       project_id: ${project}
                       dataset_location: ${dataset_location}
-                      #target: ${target}
+                      target: ${target}
                     body:
                       macro: ${macros}
                       sql: ${sqlParams}

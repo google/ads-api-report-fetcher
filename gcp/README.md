@@ -8,6 +8,15 @@ There are the following components provided:
 
 So for using Cloud Workflow you need to deploy the workflow and cloud functions. But you can use cloud functions independently if you need.
 
+## Table of content
+ - [Cloud Functions](#cloud-functions)
+      - [Configuration](#configuration)
+      - [Parameters](#functions-parameters)
+ - [Cloud Workflow](#cloud-workflow)
+      - [Parameters](#workflow-parameters)
+ - [Deployment](#deployment)
+
+
 ## Cloud Functions
 
 We provide two cloud functions that correlate to two cli tools: gaarf and gaarf-bq. Accordingly by default functions are deployed under names of gaarf and gaarf-bq. But you can change names during deployment by supplying a `-n` parameter for `deploy.sh` and/or `setup.sh`.
@@ -25,7 +34,7 @@ Alternatively you can provide all configuration values for Ads API via environme
 * CLIENT_SECRET
 * REFRESH_TOKEN
 
-### Parameters
+### Functions Parameters
 > Normally your functions are called by Cloud Workflow and you don't need to bother about their parameters' format.
 
 #### gaarf
@@ -109,22 +118,20 @@ gcloud scheduler jobs create http $JOB_NAME \
 
 Please notice the escaping of quotes for job's argument.
 
-### Parameters
+### Workflow Parameters
 
 * cloud_function - name for gaarf cloud function (by default `gaarf` but could be customized during deployment)
-* cloud_function_bq - name for gaarf-bq clound function (by default `gaarf-bq` but could be customized during deployment)
-* gcs_bucket - GCS bucket name where queries are storage, usually your GCP project id
-* ads_queries_path - relative GCS path for ads queries, e.g. "gaarf/ads-queries/" (then workflow will fetch all files from gs://your_bucket/gaarf/adds-queries/*)
-* bq_queries_path - relative GCS path for BigQuery queries, e.g. "gaarf/bq-queries"
-* dataset - BigQuery dataset id for writing results of ads queries
-* cid - Ads customer id, can either MCC or child account
-* ads_config_path - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml"
-* bq_dataset_location - BigQuery dataset location, e.g. "europe"
+* gcs_bucket - GCS bucket name where queries are storage, by default your GCP project id
+* ads_queries_path - relative GCS path for ads queries, e.g. "gaarf/ads-queries/" (then workflow will fetch all files from gs://your_bucket/gaarf/adds-queries/*) (required)
+* bq_queries_path - relative GCS path for BigQuery queries, e.g. "gaarf/bq-queries" (required)
+* dataset - BigQuery dataset id for writing results of ads queries (required)
+* bq_dataset_location - BigQuery dataset location, e.g. "europe", by default "us"
+* cid - Ads customer id, can either MCC or child account (required)
+* ads_config_path - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml" (required)
 * ads_macro - an object with macro for Ads queries, see the root [README](../README.md)
 * bq_macro - an object with macro for BigQuery queries, see the root [README](../README.md)
 * bq_sql - an object with sql parameters for BigQuery queries
-
-Please note, that parameters ads_macro, bq_macro, and bq_sql should be provided even if not used, in that case they should be just an empty object `{}`
+* bq_target - target argument for gaarf-bq (see [Postprocessing](../README.md#postprocessing)) (a dataset name)
 
 
 ## Deployment
@@ -157,10 +164,10 @@ GCS_BASE_PATH=$GCS_BUCKET/gaarf
 gsutil -m cp google-ads.yaml $GCS_BASE_PATH/google-ads.yaml
 
 gsutil rm -r $GCS_BASE_PATH/ads-queries
-gsutil -m cp -R ./ads-queries/* $GCS_BASE_PATH/ads-queries
+gsutil -m cp -R ./ads-queries/* $GCS_BASE_PATH/ads-queries/
 
 gsutil rm -r $GCS_BASE_PATH/bq-queries
-gsutil -m cp -R ./bq-queries/* $GCS_BASE_PATH/bq-queries
+gsutil -m cp -R ./bq-queries/* $GCS_BASE_PATH/bq-queries/
 ```
 
 #### deploy-wf.sh

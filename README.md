@@ -6,6 +6,20 @@
 [![Downloads PyPI](https://img.shields.io/pypi/dw/google-ads-api-report-fetcher?logo=pypi)](https://pypi.org/project/google-ads-api-report-fetcher/)
 
 
+## Table of content
+
+ - [Overview](#overview)
+ - [Getting started](#getting-started)
+ - [Writing Queries](#writing-queries)
+ - [Running gaarf](#running-gaarf)
+     - [Options](#options)
+     - [Postprocessing](#postprocessing)
+ - [Expressions and Macros](#expressions-and-macros)
+     - [Dynamic dates](#dynamic-dates)
+ - [Docker](#docker)
+ - [Gaarf Cloud Workflow](#gaarf-cloud-workflow)
+
+
 ## Overview
 
 Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Reports](https://developers.google.com/google-ads/api/fields/v9/overview)
@@ -283,8 +297,10 @@ So if today is 2022-07-29 then start_date will be '2022-06-29' (minus one month)
 end_date will be '2022-07-28' (minus one day).
 
 
-> NOTE: dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead if '')
-> so they are two alternatives.
+> NOTE: dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead of ':YYYYMMDD-1')
+> so they are two alternatives. But with expressions you won't need to provide any arguments. 
+> With expressions we'll have easier deployment (no arguments needed) but 
+> with dynamic date macro more flexibility if you need to provide different values (sometimes dynamic, sometimes fixed).
 
 
 ## Docker
