@@ -27,6 +27,8 @@ class GaarfConfig:
     account: str
     params: Dict[str, Any]
     writer_params: Dict[str, Any]
+    customer_ids_query: str
+    customer_ids_query_file: str
 
 
 @dataclasses.dataclass
@@ -72,20 +74,27 @@ class GaarfConfigBuilder(BaseConfigBuilder):
             raise ValueError("Invalid config, must have `gaarf` section!")
         if not (output := gaarf_section.get("output")):
             raise ValueError("Config does not contains `output` section!")
-        return GaarfConfig(output=gaarf_section.get("output"),
-                           api_version=gaarf_section.get("api_version"),
-                           account=gaarf_section.get("account"),
-                           params=gaarf_section.get("params"),
-                           writer_params=gaarf_section.get(output))
+        return GaarfConfig(
+            output=gaarf_section.get("output"),
+            api_version=gaarf_section.get("api_version"),
+            account=gaarf_section.get("account"),
+            params=gaarf_section.get("params"),
+            writer_params=gaarf_section.get(output),
+            customer_ids_query=gaarf_section.get("customer_ids_query"),
+            customer_ids_query_file=gaarf_section.get(
+                "customer_ids_query_file"))
 
     def _build_gaarf_config(self) -> GaarfConfig:
         main_args, query_args = self.args[0], self.args[1]
         params = ParamsParser(["macro", main_args.save]).parse(query_args)
-        return GaarfConfig(output=main_args.save,
-                           api_version=main_args.api_version,
-                           account=main_args.customer_id,
-                           params=params,
-                           writer_params=params.get(main_args.save))
+        return GaarfConfig(
+            output=main_args.save,
+            api_version=main_args.api_version,
+            account=main_args.customer_id,
+            params=params,
+            writer_params=params.get(main_args.save),
+            customer_ids_query=main_args.customer_ids_query,
+            customer_ids_query_file=main_args.customer_ids_query_file)
 
 
 class GaarfBqConfigBuilder(BaseConfigBuilder):
@@ -119,8 +128,7 @@ class ParamsParser:
     def __init__(self, identifiers: Sequence[str]):
         self.identifiers = identifiers
 
-    def parse(self,
-              params: Sequence[Any]) -> Dict[str, Optional[Dict[str, Any]]]:
+    def parse(self, params: Sequence[Any]) -> Dict[str, Optional[Dict[str, Any]]]:
         return {
             identifier: self._parse_params(identifier, params)
             for identifier in self.identifiers
@@ -206,6 +214,7 @@ class ConfigSaver:
             del gaarf["writer_params"]
             if gaarf_config.writer_params:
                 del gaarf["params"][gaarf_config.output]
+            gaarf = _remove_empty_values(gaarf)
             config.update({"gaarf": gaarf})
         if isinstance(gaarf_config, GaarfBqConfig):
             if (gaarf_bq := config.get("gaarf-bq")):
@@ -216,6 +225,7 @@ class ConfigSaver:
                         target = self._handle_target_param(
                             gaarf_config, target)
                     gaarf["target"] = target
+            gaarf = _remove_empty_values(gaarf)
             config.update({"gaarf-bq": gaarf})
         return config
 
@@ -235,3 +245,16 @@ def initialize_runtime_parameters(config: Union[GaarfConfig, GaarfBqConfig]):
             config.params[key][key_param] = convert_date(value_param)
         config.params[key].update(ParamsParser.common_params)
     return config
+
+
+def _remove_empty_values(dict_object: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove all empty elements: strings, dictionaries from a dictionary."""
+    if isinstance(dict_object, dict):
+        return {
+            key: value
+            for key, value in ((key, _remove_empty_values(value))
+                               for key, value in dict_object.items())
+            if value
+        }
+    if isinstance(dict_object, str):
+        return dict_object
