@@ -25,7 +25,7 @@
     "test:coverage": "nyc --reporter=text mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts"
   },
   "keywords": [
-    "Google Ads API"
+    "gaarf","Google Ads","Google Ads API"
   ],
   "author": "Google Inc. (gTech gPS CSE team)",
   "license": "Apache-2.0",

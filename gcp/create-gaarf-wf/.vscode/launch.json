@@ -1,0 +1,29 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Node: index.ts",
+      "type": "node", //pwa-node, node-terminal
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "args": [
+        "src/index.ts",
+        "../../../test",
+        "--debug"
+      ],
+      "runtimeArgs": [
+        "--nolazy",
+        "--loader", "ts-node/esm"
+      ],
+      "internalConsoleOptions": "openOnSessionStart",
+      "console": "externalTerminal",
+      "sourceMaps": true,
+    }
+  ]
+}

@@ -5,6 +5,7 @@ Here you can find additional components for running Gaarf tool in Google Cloud.
 There are the following components provided:
 * Cloud Functions (in [functions](functions) folder) - two CFs that you can use for running gaarf with scripts located on GCS
 * Cloud Workflow (in [workflow](workflow) folder) - a Cloud Workflow that orchestrates enumerating scripts on GCS and calling CFs with each of them
+* Interactive generator that creates all required components and shell scrips for you
 
 So for using Cloud Workflow you need to deploy the workflow and cloud functions. But you can use cloud functions independently if you need.
 
@@ -16,6 +17,14 @@ So for using Cloud Workflow you need to deploy the workflow and cloud functions.
       - [Parameters](#workflow-parameters)
  - [Deployment](#deployment)
 
+## Installtion
+
+The easiest way to initialize a Google Cloud infrastructure for automated running of your queries is to use our interactive generator [create-gaarf-wf](https://www.npmjs.com/package/create-gaarf-wf).
+
+```shell
+npm init gaarf-wf
+```
+To better understand what the generator creates for you we recommend to read the following sections.
 
 ## Cloud Functions
 
@@ -121,12 +130,12 @@ Please notice the escaping of quotes for job's argument.
 ### Workflow Parameters
 
 * cloud_function - name for gaarf cloud function (by default `gaarf` but could be customized during deployment)
-* gcs_bucket - GCS bucket name where queries are storage, by default your GCP project id
+* gcs_bucket - GCS bucket name where queries are stored, by default your GCP project id
 * ads_queries_path - relative GCS path for ads queries, e.g. "gaarf/ads-queries/" (then workflow will fetch all files from gs://your_bucket/gaarf/adds-queries/*) (required)
 * bq_queries_path - relative GCS path for BigQuery queries, e.g. "gaarf/bq-queries" (required)
 * dataset - BigQuery dataset id for writing results of ads queries (required)
 * bq_dataset_location - BigQuery dataset location, e.g. "europe", by default "us"
-* cid - Ads customer id, can either MCC or child account (required)
+* cid - Ads customer id, can be either a MCC or child account (required)
 * ads_config_path - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml" (required)
 * ads_macro - an object with macro for Ads queries, see the root [README](../README.md)
 * bq_macro - an object with macro for BigQuery queries, see the root [README](../README.md)

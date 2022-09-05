@@ -1,0 +1,17 @@
+{
+  "extends": "./node_modules/gts/tsconfig-google.json",
+  "compilerOptions": {
+    "allowUnreachableCode": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "module": "nodenext",
+    "outDir": "build",
+    "lib": ["es2021"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "ts-node": { "esm": true },
+  "exclude": ["build/**/*", "node_modules"]
+}
