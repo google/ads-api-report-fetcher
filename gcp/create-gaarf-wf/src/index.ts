@@ -21,6 +21,8 @@ const GIT_REPO = 'https://github.com/google/ads-api-report-fetcher.git';
 const LOG_FILE = '.create-gaarf-wf-out.log';
 
 const argv = minimist(process.argv.slice(2));
+const is_diag = argv.diag;
+const is_debug = argv.debug || argv.diag;
 
 // First argument (optional) is a path where the tool run in.
 const cwd = get_cwd(argv);
@@ -57,9 +59,13 @@ function exec_cmd(
     // having a spinner and streaming stdout at the same looks bad
     options.realtime = false;
   }
+  if (is_diag) {
+    options.keep_output = true;
+  }
   if (spinner) spinner.start();
-  if (argv.debug) {
+  if (is_debug) {
     console.log(chalk.gray(cmd));
+    fs.appendFileSync(LOG_FILE, `[${new Date()}] Running ${cmd}`);
   }
   const cp = spawn(cmd, [], {
     shell: true,
@@ -100,8 +106,13 @@ function exec_cmd(
         // by default, if not switched off and not realtime output, show error
         console.log(stderr);
       }
-      if (argv.debug) {
+      if (is_debug) {
+        fs.appendFileSync(
+          LOG_FILE,
+          `[${new Date()}] ${cmd} return ${code} exit code`
+        );
         fs.appendFileSync(LOG_FILE, stdout);
+        fs.appendFileSync(LOG_FILE, stderr);
       }
       resolve({
         code,
@@ -114,8 +125,9 @@ function exec_cmd(
 
 async function initialize_gcp_project() {
   // check for gcloud
-  const gcloud_path = execSync('which gcloud').toString().trim();
-  if (!fs.existsSync(gcloud_path)) {
+  const gcloud_res = await exec_cmd('which gcloud', null, {silent: true});
+  const gcloud_path = gcloud_res.stdout.trim();
+  if (gcloud_res.code !== 0 || !fs.existsSync(gcloud_path)) {
     console.log(
       chalk.red(
         'Could not find gcloud command, please make sure you installed Google Cloud SDK'
@@ -239,7 +251,8 @@ async function init() {
   // TODO:
   //  support an argument with config file with all answerts
   //  search for a config auto-saved from last run, if found initialize all settings from it and skip questions
-  if (argv.debug) {
+  //  ask for memory and region for CF/WF
+  if (is_debug) {
     fs.writeFileSync(
       LOG_FILE,
       `[${new Date()}] Running create-gaarf-wf in ${cwd}`

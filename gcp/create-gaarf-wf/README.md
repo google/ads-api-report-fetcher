@@ -8,6 +8,15 @@ It can be called via `npm init`:
 npm init gaarf-wf
 ```
 
+Several additional options supported:
+* debug - more detailed output, create a log file .create-gaarf-wf-out.log with out output (stdout/stderr)
+* diag - even more details output, forces streaming from all executing commands to console
+
+To pass the options use `--` before them while calling via npm init:
+```
+npm init gaarf-wf -- --debug
+```
+
 ## Disclaimer
 This is not an officially supported Google product.
 
