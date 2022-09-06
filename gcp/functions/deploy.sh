@@ -52,6 +52,7 @@ gcloud beta functions deploy $FUNCTION_NAME \
   --timeout=540s \
   --memory=$MEMORY \
   --region=$REGION \
+  --quiet \
   --source=.
 
 #  --env-vars-file .env.yaml
@@ -68,4 +69,5 @@ gcloud beta functions deploy $FUNCTION_NAME-bq \
   --timeout=540s \
   --memory=$MEMORY \
   --region=$REGION \
+  --quiet \
   --source=.
