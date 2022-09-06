@@ -387,7 +387,7 @@ cd ../workflow
         bq_queries_path: `${name}/${path_to_bq_queries}/`,
         dataset: output_dataset,
         cid: customer_id,
-        ads_config_path: `gs://${gcs_bucket}/gaarf/google-ads.yaml`,
+        ads_config_path: `gs://${gcs_bucket}/${name}/google-ads.yaml`,
         bq_dataset_location: '',
         ads_macro: macro_ads,
         bq_macro: macro_bq,
