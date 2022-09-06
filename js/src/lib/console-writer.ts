@@ -85,15 +85,19 @@ export class ConsoleWriter implements IResultWriter {
     };
     let data_formatted_orig = table(data, tableConfig);
     let data_formatted_trans = table(data_trans, tableConfig);
-    let data_formatted = this.transpose == TransposeModes.never ?
-        data_formatted_orig :
-        data_formatted_trans;
+    let use_trans = this.transpose == TransposeModes.always;
+    let data_formatted = '';
     if (process.stdout.columns && this.transpose != TransposeModes.never) {
       // we're in Terminal (not streaming to a file)
-      let first_line =
+      if (!use_trans) {
+        let first_line =
           data_formatted_orig.slice(0, data_formatted_orig.indexOf('\n'));
-      if (first_line.length > process.stdout.columns) {
-        // table isn't fitting into terminal window, transpose it
+        if (first_line.length > process.stdout.columns) {
+          // table isn't fitting into terminal window, transpose it
+          use_trans = true;
+        }
+      }
+      if (use_trans) {
         let first_line_trans =
           data_formatted_trans.slice(0, data_formatted_trans.indexOf('\n'));
         if (first_line_trans.length > process.stdout.columns) {
@@ -101,14 +105,13 @@ export class ConsoleWriter implements IResultWriter {
           data_formatted =
               this.processTransposedTable(data_trans, this.query!.columnNames)
         }
-        else {
-          data_formatted = data_formatted_trans;
-        }
       }
+    }
+    if (!data_formatted) {
+      data_formatted = use_trans ? data_formatted_trans: data_formatted_orig;
     }
 
     console.log(data_formatted);
-    //console.table(data);
     this.rowsByCustomer[customerId] = [];
   }
 
