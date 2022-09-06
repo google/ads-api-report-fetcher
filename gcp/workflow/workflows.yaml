@@ -100,49 +100,49 @@ runBigQueryQueries:
           bucket: ${gcs_bucket}
           prefix: ${queries_path}
         result: bq_scripts
+    # check if there are any bq scripts on GCS
+    - check_scripts:
+        switch:
+          - condition: ${map.get(bq_scripts, "items") != null and len(map.get(bq_scripts, "items")) > 0}
+            next: get_function_bq
+        next: end
     - log_bq_scripts:
         call: sys.log
         args:
           data: ${bq_scripts.items}
           severity: "INFO"
-    # check scripts were found on GCS
-    #    - check_scripts:
-    #        switch:
-    #          - condition: ${bq_scripts["items"] and len(bq_scripts.items) > 0}
-    #            next: get_function_bq
-    #        next: end
+    # get clound function's uri
     - get_function_bq:
         call: googleapis.cloudfunctions.v1.projects.locations.functions.get
         args:
           name: ${"projects/" + project + "/locations/" + location + "/functions/" + function_name}
         result: function_bq
     - runBqQueries:
-        parallel:
-          shared: [bq_scripts]
-          for:
-            value: bq_script_item
-            in: ${bq_scripts.items}
-            steps:
-              - call_gaarf_bq_cf:
-                  call: http.post
-                  args:
-                    url: ${function_bq.httpsTrigger.url}
-                    query:
-                      script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
-                      project_id: ${project}
-                      dataset_location: ${dataset_location}
-                      target: ${target}
-                    body:
-                      macro: ${macros}
-                      sql: ${sqlParams}
-                    auth:
-                      type: OIDC
-                      audience: ${function_bq.httpsTrigger.url}
-                  result: script_results
-              - log_script_bq_result:
-                  call: sys.log
-                  args:
-                    data: ${script_results.body}
-                    severity: "INFO"
+        for:
+          value: bq_script_item
+          in: ${bq_scripts.items}
+          steps:
+            - call_gaarf_bq_cf:
+                call: http.post
+                args:
+                  url: ${function_bq.httpsTrigger.url}
+                  query:
+                    script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
+                    project_id: ${project}
+                    dataset_location: ${dataset_location}
+                    target: ${default(target, "")}
+                  body:
+                    macro: ${macros}
+                    sql: ${sqlParams}
+                  auth:
+                    type: OIDC
+                    audience: ${function_bq.httpsTrigger.url}
+                result: script_results
+            - log_script_bq_result:
+                call: sys.log
+                args:
+                  data: ${script_results.body}
+                  severity: "INFO"
 # TODO:
 # * safely ignore the absence of scripts on GCS
+# * BQ scripts should be executed sequentially
