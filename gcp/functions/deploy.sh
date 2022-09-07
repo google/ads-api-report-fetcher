@@ -23,7 +23,7 @@
 
 FUNCTION_NAME=gaarf
 REGION=us-central1
-MEMORY=512MB
+MEMORY=1024MB
 
 while :; do
     case $1 in
