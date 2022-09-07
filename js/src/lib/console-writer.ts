@@ -151,7 +151,8 @@ export class ConsoleWriter implements IResultWriter {
           // we have to break at this column - dump sub-matrix from 0 to (i-1)th column
           submatrix = data_trans.slice(0, row_count + 1)
             .map(row => row.slice(0, i));
-          submatrix_formatted = table(submatrix, tableConfig); if (output) output += '\n';
+          submatrix_formatted = table(submatrix, tableConfig);
+          if (output) output += '\n';
           output = output + '#' + part + '\n' + submatrix_formatted;
           part++;
           // now remove the columns that have been dumped,
@@ -159,8 +160,8 @@ export class ConsoleWriter implements IResultWriter {
             .map(row => row.slice(i, column_count + 1));
           // append headers at matrix first column (for each row)
           data_trans[0].splice(0, 0, 'index');
-          for (let j = 1; j < data_trans.length; j++) {
-            data_trans[j].splice(0, 0, headers[j])
+          for (let j = 0; j < headers.length; j++) {
+            data_trans[j+1].splice(0, 0, headers[j])
           }
           break;
         }

@@ -144,7 +144,7 @@ export function substituteMacros(
   macros = macros || {};
   // notes on the regexp:
   //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
-  //  not precended with '$'), with that it we're capturing {smth} expressions
+  //  not precended with '$'), with that we're capturing {smth} expressions
   //  and not ${smth} expressions
   queryText = queryText.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
     if (!macros!.hasOwnProperty(name)) {

@@ -1,4 +1,6 @@
 # Changelog
+## 1.6.2 - 2022-09-07
+* Fixes for ConsoleWrite (`--output=console`)
 
 ## 1.6.1 - 2022-08-24
 * improved diagnostics for parsing queries when a select expression accesses unknown/deprecated properties
@@ -9,7 +11,7 @@
 
 ## 1.5.0 - 2022-08-23
 * support loading google-ads.yaml (`ads-config` argument) from GCS
-
+                                                                                 2
 ## 1.4.2 - 2022-08-18
 * support for ':YYYYMMDD-N' macro ('dynamic dates macro')
 * added `dump-query` cli argument
