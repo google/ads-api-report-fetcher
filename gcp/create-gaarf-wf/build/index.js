@@ -54,7 +54,7 @@ function exec_cmd(cmd, spinner, options) {
         spinner.start();
     if (is_debug) {
         console.log(chalk.gray(cmd));
-        fs.appendFileSync(LOG_FILE, `[${new Date()}] Running ${cmd}`);
+        fs.appendFileSync(LOG_FILE, `[${new Date()}] Running ${cmd}\n`);
     }
     const cp = spawn(cmd, [], {
         shell: true,
@@ -98,9 +98,9 @@ function exec_cmd(cmd, spinner, options) {
                 console.log(stderr);
             }
             if (is_debug) {
-                fs.appendFileSync(LOG_FILE, `[${new Date()}] ${cmd} return ${code} exit code`);
-                fs.appendFileSync(LOG_FILE, stdout);
-                fs.appendFileSync(LOG_FILE, stderr);
+                fs.appendFileSync(LOG_FILE, `[${new Date()}] ${cmd} return ${code} exit code\n`);
+                fs.appendFileSync(LOG_FILE, stdout + '\n');
+                fs.appendFileSync(LOG_FILE, stderr + '\n');
             }
             resolve({
                 code,
@@ -195,7 +195,12 @@ function getMacroValues(folder_path) {
         if (name.endsWith('.sql')) {
             const file_path = path.join(folder_path, name);
             const script_content = fs.readFileSync(file_path, 'utf-8');
-            const matches = [...script_content.matchAll(/\{(?<macro>[^}]+)\}/gi)];
+            // notes on the regexp:
+            //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
+            //  not precended with '$'), with that we're capturing {smth} expressions
+            //  and not ${smth} expressions
+            const re = /(?<!\$)\{(?<macro>[^}]+)\}/gi;
+            const matches = [...script_content.matchAll(re)];
             for (const match of matches) {
                 if (match.groups) {
                     macro[match.groups['macro']] = null;
