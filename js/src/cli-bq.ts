@@ -37,11 +37,6 @@ const argv =
         .option(
             'project',
             {type: 'string', description: 'GCP project id for BigQuery'})
-        .option('target', {
-          type: 'string',
-          description:
-              'BigQuery dataset or dataset.table to put query result into'
-        })
         .option(
             'dataset-location',
             {type: 'string', description: 'BigQuery dataset location'})
@@ -63,10 +58,7 @@ const argv =
             })
         .help()
         .example(
-            '$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable',
-            'Execute BigQuery queries and create table for each script\'s result (table per script) with a macro substitution')
-        .example(
-            '$0 bq-queries/**/*.sql --project=myproject ',
+            '$0 bq-queries/**/*.sql --project=myproject --macro.dataset=mydata',
             'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
         .example(
             '$0 bq-queries/**/*.sql --config=gaarf_bq.json',
@@ -83,7 +75,6 @@ async function main() {
   }
   let scriptPaths = argv.files;
   let projectId = argv.project || '';
-  let target = argv.target;
   let sqlParams = <Record<string, any>>argv['sql'] || {};
   let macroParams = <Record<string, any>>argv['macro'] || {};
   let options: BigQueryExecutorOptions = {
@@ -96,7 +87,7 @@ async function main() {
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
     await executor.execute(
-        scriptName, queryText, {sqlParams, macroParams, target});
+        scriptName, queryText, {sqlParams, macroParams});
   }
 }
 

@@ -151,14 +151,15 @@ gaarf-bq <files> [options]
 
 Options:
 * `project` - GCP project id
-* `target` - a target dataset to create a table with query's result, if omitted query's result aren't inserted anywhere
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
 
-Basically there're two main use-cases: with passing `target` parameter and without. If a target supplied it should be
-a dataset name (either existing or non-existing one) where a table for each script will be created (the name of the table will be the script file base name).
-So you can write a select script that extracts data from other BigQuery tables and the results will be put into a new table.
-If a target isn't supplied than no table will be created. It's useful if your script contains DDL statements (e.g. create or replace view).
+The tool assumes that scripts you provide are DDL, i.e. contains statements like create table or create view.
+
+In general it's recommended to separate tables with data from Ads API and final tables/views created by your post-processing queries.
+So it's likely that your final tables will be in a separate dataset and datasets. To allow the tool to create those datasets for your use macro for your datasets contains the word "dataset".
+In that case gaarf-bq will check that a dataset exists and create it if not.
+
 
 There are two type of parameters that you can pass to a script: macro and sql-parameter. First one is just a substitution in script text.
 For example:

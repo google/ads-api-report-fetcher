@@ -72,7 +72,6 @@ Body:
 
 Query string:
 * `project_id` - a GCP project id
-* `target` - a target dataset to create a table with query's result (see the root [README](../README.md))
 * `dataset_location` - BigQuery dataset location
 
 Returns:
@@ -140,7 +139,6 @@ Please notice the escaping of quotes for job's argument.
 * ads_macro - an object with macro for Ads queries, see the root [README](../README.md)
 * bq_macro - an object with macro for BigQuery queries, see the root [README](../README.md)
 * bq_sql - an object with sql parameters for BigQuery queries
-* bq_target - target argument for gaarf-bq (see [Postprocessing](../README.md#postprocessing)) (a dataset name)
 
 
 ## Deployment

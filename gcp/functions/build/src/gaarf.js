@@ -30,7 +30,6 @@ const main = async (req, res) => {
     const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
     if (adsConfigFile) {
         adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile, req.query.customer_id);
-        console.log(`Loaded Ads config from ${adsConfigFile}: ${JSON.stringify(adsConfig, null, 2)}`);
     }
     else {
         adsConfig = {
@@ -62,6 +61,7 @@ const main = async (req, res) => {
     const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
     const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, {
         keepData: true,
+        datasetLocation: req.query.bq_dataset_location,
     });
     // TODO: support CsvWriter and output path to GCS
     // (csv.destination_folder=gs://bucket/path)

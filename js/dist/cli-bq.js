@@ -36,10 +36,6 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     description: 'List of files with BigQuery queries (can be gcs:// resources)'
 })
     .option('project', { type: 'string', description: 'GCP project id for BigQuery' })
-    .option('target', {
-    type: 'string',
-    description: 'BigQuery dataset or dataset.table to put query result into'
-})
     .option('dataset-location', { type: 'string', description: 'BigQuery dataset location' })
     .option('loglevel', {
     alias: ['log-level', 'll', 'log_level'],
@@ -55,8 +51,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     return JSON.parse(content);
 })
     .help()
-    .example('$0 bq-queries/**/*.sql --project=myproject --target=myds --macro.src=mytable', 'Execute BigQuery queries and create table for each script\'s result (table per script) with a macro substitution')
-    .example('$0 bq-queries/**/*.sql --project=myproject ', 'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
+    .example('$0 bq-queries/**/*.sql --project=myproject --macro.dataset=mydata', 'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
     .example('$0 bq-queries/**/*.sql --config=gaarf_bq.json', 'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
@@ -68,7 +63,6 @@ async function main() {
     }
     let scriptPaths = argv.files;
     let projectId = argv.project || '';
-    let target = argv.target;
     let sqlParams = argv['sql'] || {};
     let macroParams = argv['macro'] || {};
     let options = {
@@ -79,7 +73,7 @@ async function main() {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         logger_1.default.info(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-        await executor.execute(scriptName, queryText, { sqlParams, macroParams, target });
+        await executor.execute(scriptName, queryText, { sqlParams, macroParams });
     }
 }
 main().catch(console.error);

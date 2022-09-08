@@ -38,14 +38,16 @@ class BigQueryExecutor {
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
     }
     async execute(scriptName, queryText, params) {
-        let dataset;
-        if (params === null || params === void 0 ? void 0 : params.target) {
-            if (params.target.includes('.')) {
-                let idx = params.target.indexOf('.');
-                if (idx > 0)
-                    throw new Error('Not yet supported');
+        if (params === null || params === void 0 ? void 0 : params.macroParams) {
+            for (const macro of Object.keys(params.macroParams)) {
+                if (macro.includes('dataset')) {
+                    // all macros containing the word 'dataset' we treat as a dataset's name
+                    const value = params.macroParams[macro];
+                    if (value) {
+                        await this.getDataset(value);
+                    }
+                }
             }
-            dataset = await this.getDataset(params.target);
         }
         let res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
         if (res.unknown_params.length) {
@@ -54,28 +56,16 @@ class BigQueryExecutor {
         let query = {
             query: res.queryText
         };
-        if (dataset) {
-            query.destination = dataset.table(scriptName);
-            query.createDisposition = 'CREATE_IF_NEEDED';
-            // TODO: support WRITE_APPEND (if target='dataset.table' or specify
-            // disposition explicitly)
-            query.writeDisposition = (params === null || params === void 0 ? void 0 : params.writeDisposition) || 'WRITE_TRUNCATE';
-            //query.location = 'US';
-        }
+        // NOTE: we can support DML scripts as well, but there is no clear reason for this
+        // but if we do then it can be like this:
+        //if (dataset && !meta.ddl) {
+        // query.destination = dataset.table(meta.table || scriptName);
+        // query.createDisposition = 'CREATE_IF_NEEDED';
+        // query.writeDisposition = params?.writeDisposition || 'WRITE_TRUNCATE';
+        //}
         try {
             let [values] = await this.bigquery.query(query);
-            logger_1.default.info(`Query '${scriptName}' executed successfully (${values.length} rows)`);
-            if (dataset && values.length) {
-                // write down query's results into a table in BQ
-                let table = query.destination;
-                const MAX_ROWS = 50000;
-                // NOTE: insert returned rows into BQ, should be clear the table first?
-                for (let i = 0, j = values.length; i < j; i += MAX_ROWS) {
-                    let rowsChunk = values.slice(i, i + MAX_ROWS);
-                    await table.insert(rowsChunk, {});
-                    logger_1.default.info(`Inserted ${rowsChunk.length} rows`, { scriptName: scriptName });
-                }
-            }
+            logger_1.default.info(`Query '${scriptName}' executed successfully`);
             return values;
         }
         catch (e) {

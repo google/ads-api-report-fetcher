@@ -28,7 +28,6 @@ export const main_bq: HttpFunction = async (
 
   const projectId = req.query.project_id || process.env.PROJECT_ID;
   // note: projectId isn't mandatory (should be detected from ADC)
-  const target = <string>req.query.target;
 
   const body = req.body || {};
   const sqlParams = body.sql;
@@ -43,7 +42,6 @@ export const main_bq: HttpFunction = async (
   const result = await executor.execute(scriptName, queryText, {
     sqlParams,
     macroParams,
-    target,
   });
   if (result && result.length) {
     res.send({rowCount: result.length});

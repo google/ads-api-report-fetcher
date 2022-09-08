@@ -29,7 +29,6 @@ main:
           function_name: ${cloud_function + "-bq"}
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.bq_queries_path}
-          target: ${map.get(args, "bq_target")}
           dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "bq_macro")}
           sqlParams: ${map.get(args, "bq_sql")}
@@ -91,7 +90,7 @@ runAdsQueries:
                     severity: "INFO"
 
 runBigQueryQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, target, macros, sqlParams, dataset_location]
+  params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
 
   steps:
     - get_bq_scripts_from_gcs:
@@ -130,7 +129,6 @@ runBigQueryQueries:
                     script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
                     project_id: ${project}
                     dataset_location: ${dataset_location}
-                    target: ${default(target, "")}
                   body:
                     macro: ${macros}
                     sql: ${sqlParams}
