@@ -31,20 +31,23 @@ const colors = {
   debug: 'grey',
 };
 
-winston.addColors(colors);
 
 function wrap(str: string) {
   return str ? ' [' + str + ']' : '';
 }
-
+const formats: winston.Logform.Format[] = [];
+if (process.stdout.isTTY) {
+  formats.push(format.colorize({ all: true }));
+  winston.addColors(colors);
+}
+formats.push(
+  format.printf(
+    (info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`,
+  )
+);
 const transports: winston.transport[] = [];
 transports.push(new winston.transports.Console({
-  format: format.combine(
-      format.colorize({all: true}),
-      format.printf(
-          (info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`,
-          ),
-      )
+  format: format.combine(...formats)
 }));
 
 const logger = winston.createLogger({

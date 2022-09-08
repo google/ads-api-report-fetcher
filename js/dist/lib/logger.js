@@ -32,13 +32,18 @@ const colors = {
     verbose: 'gray',
     debug: 'grey',
 };
-winston_1.default.addColors(colors);
 function wrap(str) {
     return str ? ' [' + str + ']' : '';
 }
+const formats = [];
+if (process.stdout.isTTY) {
+    formats.push(format.colorize({ all: true }));
+    winston_1.default.addColors(colors);
+}
+formats.push(format.printf((info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`));
 const transports = [];
 transports.push(new winston_1.default.transports.Console({
-    format: format.combine(format.colorize({ all: true }), format.printf((info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`))
+    format: format.combine(...formats)
 }));
 const logger = winston_1.default.createLogger({
     level: exports.LOG_LEVEL,
