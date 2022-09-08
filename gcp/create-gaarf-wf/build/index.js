@@ -221,7 +221,7 @@ function getMacroValues(folder_path) {
 }
 async function init() {
     // TODO:
-    //  support an argument with config file with all answerts
+    //  support an argument with config file with answerts
     //  search for a config auto-saved from last run, if found initialize all settings from it and skip questions
     //  ask for memory and region for CF/WF
     if (is_debug) {
@@ -237,7 +237,7 @@ async function init() {
         {
             type: 'input',
             name: 'name',
-            message: 'Your project name (no spaces):',
+            message: 'Your project name (spaces will be converted to "_"):',
             default: path.basename(cwd),
             filter: value => {
                 return value.replaceAll(' ', '_');
@@ -319,10 +319,27 @@ gsutil rm -r $GCS_BASE_PATH/${path_to_bq_queries}
 gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/bq-queries/
 `);
     const workflow_name = name + '-wf';
+    const cf_memory = (await inquirer.prompt([
+        {
+            type: 'list',
+            message: 'Memory limit for the Cloud Functions',
+            name: 'cf_memory',
+            default: '512MB',
+            choices: [
+                '128MB',
+                '256MB',
+                '512MB',
+                '1024MB',
+                '2048MB',
+                '4096MB',
+                '8192MB',
+            ],
+        },
+    ])).cf_memory;
     // Create deploy-wf.sh
     deploy_shell_script('deploy-wf.sh', `# Deploy Cloud Functions and Cloud Workflow
 cd ./${gaarf_folder}/gcp/functions
-./setup.sh -n ${name}
+./setup.sh -n ${name} --memory ${cf_memory}
 cd ../workflow
 ./setup.sh -n ${workflow_name}
 `);
@@ -471,11 +488,11 @@ gcloud scheduler jobs create http $JOB_NAME \\
     deploy_shell_script('run-gaarf-bq.sh', `${gaarf_folder}/js/gaarf-bq ${path_to_bq_queries}/*.sql --project=${gcp_project_id} ${bq_macro_clistr}`);
     console.log(chalk.green('All done'));
     console.log(chalk.yellow('Tips for using the generated scripts:'));
-    console.log(` 🔹 ${chalk.blue('deploy-scripts.sh')} - redeploy queries and google-ads.yaml to GCS`);
-    console.log(` 🔹 ${chalk.blue('deploy-wf.sh')} - redeploy Cloud Functions and Workflow`);
-    console.log(` 🔹 ${chalk.blue('run-wf.sh')} - execute workflow directly, see arguments inside`);
-    console.log(` 🔹 ${chalk.blue('schedule-wf.sh')} - reschedule workflow execution, see arguments inside`);
-    console.log(` 🔹 ${chalk.blue('run-gaarf-*.sh')} - scripts for direct query execution via gaarf (via command line)`);
+    console.log(` 🔹 ${chalk.cyan('deploy-scripts.sh')} - redeploy queries and google-ads.yaml to GCS`);
+    console.log(` 🔹 ${chalk.cyan('deploy-wf.sh')} - redeploy Cloud Functions and Workflow`);
+    console.log(` 🔹 ${chalk.cyan('run-wf.sh')} - execute workflow directly, see arguments inside`);
+    console.log(` 🔹 ${chalk.cyan('schedule-wf.sh')} - reschedule workflow execution, see arguments inside`);
+    console.log(` 🔹 ${chalk.cyan('run-gaarf-*.sh')} - scripts for direct query execution via gaarf (via command line)`);
     /* save everything to a config
     `
     GCS_BUCKET: ${gcs_bucket}

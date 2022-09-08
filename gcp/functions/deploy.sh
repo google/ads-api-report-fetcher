@@ -45,7 +45,7 @@ while :; do
   shift
 done
 
-gcloud beta functions deploy $FUNCTION_NAME \
+gcloud functions deploy $FUNCTION_NAME \
   --trigger-http \
   --entry-point=main \
   --runtime=nodejs16 \
@@ -62,7 +62,7 @@ gcloud beta functions deploy $FUNCTION_NAME \
 #For GCF 2nd gen functions, cannot be more than 3600s.
 
 
-gcloud beta functions deploy $FUNCTION_NAME-bq \
+gcloud functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
   --runtime=nodejs16 \

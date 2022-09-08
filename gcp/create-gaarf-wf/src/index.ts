@@ -254,7 +254,7 @@ function getMacroValues(folder_path: string) {
 
 async function init() {
   // TODO:
-  //  support an argument with config file with all answerts
+  //  support an argument with config file with answerts
   //  search for a config auto-saved from last run, if found initialize all settings from it and skip questions
   //  ask for memory and region for CF/WF
   if (is_debug) {
@@ -283,7 +283,7 @@ async function init() {
     {
       type: 'input',
       name: 'name',
-      message: 'Your project name (no spaces):',
+      message: 'Your project name (spaces will be converted to "_"):',
       default: path.basename(cwd),
       filter: value => {
         return value.replaceAll(' ', '_');
@@ -385,12 +385,31 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/bq-queries/
 
   const workflow_name = name + '-wf';
 
+  const cf_memory = (
+    await inquirer.prompt([
+      {
+        type: 'list',
+        message: 'Memory limit for the Cloud Functions',
+        name: 'cf_memory',
+        default: '512MB',
+        choices: [
+          '128MB',
+          '256MB',
+          '512MB',
+          '1024MB',
+          '2048MB',
+          '4096MB',
+          '8192MB',
+        ],
+      },
+    ])
+  ).cf_memory;
   // Create deploy-wf.sh
   deploy_shell_script(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflow
 cd ./${gaarf_folder}/gcp/functions
-./setup.sh -n ${name}
+./setup.sh -n ${name} --memory ${cf_memory}
 cd ../workflow
 ./setup.sh -n ${workflow_name}
 `
@@ -592,25 +611,25 @@ gcloud scheduler jobs create http $JOB_NAME \\
 
   console.log(chalk.yellow('Tips for using the generated scripts:'));
   console.log(
-    ` 🔹 ${chalk.blue(
+    ` 🔹 ${chalk.cyan(
       'deploy-scripts.sh'
     )} - redeploy queries and google-ads.yaml to GCS`
   );
   console.log(
-    ` 🔹 ${chalk.blue('deploy-wf.sh')} - redeploy Cloud Functions and Workflow`
+    ` 🔹 ${chalk.cyan('deploy-wf.sh')} - redeploy Cloud Functions and Workflow`
   );
   console.log(
-    ` 🔹 ${chalk.blue(
+    ` 🔹 ${chalk.cyan(
       'run-wf.sh'
     )} - execute workflow directly, see arguments inside`
   );
   console.log(
-    ` 🔹 ${chalk.blue(
+    ` 🔹 ${chalk.cyan(
       'schedule-wf.sh'
     )} - reschedule workflow execution, see arguments inside`
   );
   console.log(
-    ` 🔹 ${chalk.blue(
+    ` 🔹 ${chalk.cyan(
       'run-gaarf-*.sh'
     )} - scripts for direct query execution via gaarf (via command line)`
   );

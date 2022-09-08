@@ -46,7 +46,3 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 
 # Grant the default service account with admin permissions in BigQuery
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
-
-# create a GCS bucket:
-GCS_BUCKET=gs://${PROJECT_ID}
-gsutil mb -b on $GCS_BUCKET
