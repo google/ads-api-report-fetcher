@@ -73,7 +73,11 @@ class AdsQueryExecutor {
             catch (e) {
                 logger_1.default.error(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
                 logger_1.default.error(e);
-                // we're swallowing the exception
+                // there could be legit reasons for the query to fail (e.g. customer is disabled),
+                // but swalling the exception here will possible cause other issue in writer,
+                // particularly in BigQueryWriter.endScript we'll trying to create a view for customer-based tables,
+                // and if query failed for all customers the view creation will also fail.
+                throw e;
             }
             // if resource has '_constant' in its name, break the loop over customers
             // (it doesn't depend on them)
@@ -89,6 +93,7 @@ class AdsQueryExecutor {
                     let customerId = result.reason.customerId;
                     logger_1.default.error(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
                     logger_1.default.error(result.reason);
+                    throw result.reason;
                 }
             }
         }

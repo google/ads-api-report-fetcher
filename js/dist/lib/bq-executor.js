@@ -54,7 +54,7 @@ class BigQueryExecutor {
             throw new Error(`The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`);
         }
         let query = {
-            query: res.queryText
+            query: res.text
         };
         // NOTE: we can support DML scripts as well, but there is no clear reason for this
         // but if we do then it can be like this:

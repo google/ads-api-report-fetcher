@@ -18,12 +18,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryWriter = exports.OAUTH_SCOPES = void 0;
+exports.BigQueryWriter = exports.BigQueryInsertMethod = exports.OAUTH_SCOPES = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
 const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const logger_1 = __importDefault(require("./logger"));
 const types_1 = require("./types");
+const utils_1 = require("./utils");
 const MAX_ROWS = 50000;
 exports.OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/cloud-platform',
@@ -31,6 +32,11 @@ exports.OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigquery.readonly',
 ];
+var BigQueryInsertMethod;
+(function (BigQueryInsertMethod) {
+    BigQueryInsertMethod[BigQueryInsertMethod["insertAll"] = 0] = "insertAll";
+    BigQueryInsertMethod[BigQueryInsertMethod["loadTable"] = 1] = "loadTable";
+})(BigQueryInsertMethod = exports.BigQueryInsertMethod || (exports.BigQueryInsertMethod = {}));
 class BigQueryWriter {
     constructor(projectId, dataset, options) {
         this.bigquery = new bigquery_1.BigQuery({
@@ -42,8 +48,10 @@ class BigQueryWriter {
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
         this.tableTemplate = options === null || options === void 0 ? void 0 : options.tableTemplate;
         this.dumpSchema = (options === null || options === void 0 ? void 0 : options.dumpSchema) || false;
+        this.dumpData = (options === null || options === void 0 ? void 0 : options.dumpData) || false;
         this.keepData = (options === null || options === void 0 ? void 0 : options.keepData) || false;
         this.noUnionView = (options === null || options === void 0 ? void 0 : options.noUnionView) || false;
+        this.insertMethod = (options === null || options === void 0 ? void 0 : options.insertMethod) || BigQueryInsertMethod.loadTable;
         this.customers = [];
         this.rowsByCustomer = {};
     }
@@ -52,9 +60,7 @@ class BigQueryWriter {
             throw new Error(`scriptName (used as name for table) was not specified`);
         // a script's results go to a separate table with same name as a file
         if (this.tableTemplate) {
-            this.tableId = this.tableTemplate.replace(/\{script\}/i, scriptName);
-            // TODO: support "{account}" (though it'll have to be moved to
-            // beginCustomer)
+            this.tableId = (0, utils_1.substituteMacros)(this.tableTemplate, { scriptName }).text;
         }
         else {
             this.tableId = scriptName;
@@ -67,9 +73,6 @@ class BigQueryWriter {
             logger_1.default.debug(JSON.stringify(schema, null, 2));
             let schemaJson = JSON.stringify(schema, undefined, 2);
             fs_1.default.writeFileSync(scriptName + '.json', schemaJson);
-        }
-        if (!this.query.resource.isConstant) {
-            await this.dataset.table(this.tableId).delete({ ignoreNotFound: true });
         }
     }
     async getDataset() {
@@ -86,6 +89,165 @@ class BigQueryWriter {
             throw e;
         }
         return dataset;
+    }
+    beginCustomer(customerId) {
+        if (this.rowsByCustomer[customerId]) {
+            throw new Error(`Customer id ${customerId} already exist`);
+        }
+        this.customers.push(customerId);
+        this.rowsByCustomer[customerId] = [];
+    }
+    async loadRows(rows, customerId, tableFullName) {
+        const filename = `.${tableFullName}.json`;
+        if (fs_1.default.existsSync(filename)) {
+            fs_1.default.rmSync(filename);
+        }
+        // dump all rows as json newline delimited
+        for (const row of rows) {
+            let row_obj = this.prepareRow(row);
+            // for (let i = 0; i < row.length; i++) {
+            //   row_obj[this.schema!.fields![i].name!] = row[i];
+            // }
+            fs_1.default.appendFileSync(filename, JSON.stringify(row_obj));
+            fs_1.default.appendFileSync(filename, '\n');
+        }
+        let table = this.dataset.table(tableFullName);
+        let res = await table.load(filename, {
+            schema: this.schema,
+            sourceFormat: 'NEWLINE_DELIMITED_JSON',
+            writeDisposition: 'WRITE_TRUNCATE'
+        });
+        logger_1.default.info(`${rows.length} rows loaded into '${tableFullName}' table`, { customerId: customerId });
+        if (!this.dumpData && fs_1.default.existsSync(filename)) {
+            fs_1.default.rmSync(filename);
+        }
+    }
+    prepareRow(row) {
+        let rowObj = {};
+        for (let i = 0; i < row.length; i++) {
+            let colName = this.query.columnNames[i];
+            const colType = this.query.columnTypes[i];
+            let val = row[i];
+            if (colType.repeated) {
+                if (!val) {
+                    // repeated field can't access nulls
+                    val = [];
+                }
+                else if (val.length) {
+                    // there could be structs (or arrays, or their combinations)
+                    // in the array, and they will be rejected
+                    for (let j = 0; j < val.length; j++) {
+                        let subval = val[j];
+                        if (lodash_1.default.isArray(subval) || lodash_1.default.isObjectLike(subval)) {
+                            val[j] = JSON.stringify(subval);
+                        }
+                    }
+                }
+            }
+            else if (colType.kind === types_1.FieldTypeKind.struct) {
+                // we don't support structs at the moment
+                if (val) {
+                    val = JSON.stringify(val);
+                }
+            }
+            rowObj[colName] = val;
+        }
+        return rowObj;
+    }
+    async insertRows(rows, customerId, tableFullName) {
+        var _a;
+        const tableId = this.tableId;
+        try {
+            // insert rows by chunks (there's a limit for insert)
+            let table = this.dataset.table(tableId);
+            for (let i = 0, j = rows.length; i < j; i += MAX_ROWS) {
+                let rowsChunk = rows.slice(i, i + MAX_ROWS);
+                let rows2insert = rowsChunk.map(row => this.prepareRow(row));
+                let templateSuffix = undefined;
+                if (!((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant)) {
+                    templateSuffix = '_' + customerId;
+                }
+                logger_1.default.verbose(`Inserting ${rowsChunk.length} rows`, { customerId: customerId });
+                await table.insert(rows2insert, {
+                    templateSuffix: templateSuffix,
+                    schema: this.schema,
+                });
+            }
+        }
+        catch (e) {
+            logger_1.default.debug(e);
+            logger_1.default.error(`Failed to insert rows into '${tableFullName}' table`, { customerId: customerId });
+            if (e.name === 'PartialFailureError') {
+                // Some rows failed to insert, while others may have succeeded.
+                const max_errors_to_show = 10;
+                let msgDetail = e.errors.length > max_errors_to_show ?
+                    `showing first ${max_errors_to_show} errors of ${e.errors.length})` :
+                    e.errors.length + ' error(s)';
+                logger_1.default.warn(`Some rows failed to insert (${msgDetail}):`, { customerId: customerId });
+                // show first 10 rows with errors
+                for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
+                    let err = e.errors[i];
+                    logger_1.default.warn(`#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${err.errors[0].message}`, { customerId: customerId });
+                }
+            }
+            else if (e.code === 404) {
+                // ApiError: "Table 162551664177:dataset.table not found"
+                // This is unexpected but theriotically can happen (and did) due to eventually consistency of BigQuery
+                console.error(`Table ${tableFullName} not found.`, { customerId: customerId });
+                const table = this.dataset.table(tableId);
+                let exists = await table.exists();
+                console.warn(`Table ${tableFullName} existence check: ${exists}`);
+            }
+            throw e;
+        }
+        logger_1.default.info(`${rows.length} rows inserted into '${tableFullName}' table`, { customerId: customerId });
+    }
+    async endCustomer(customerId) {
+        var _a;
+        if (!this.tableId) {
+            throw new Error(`No table id is set. Did you call beginScript method?`);
+        }
+        if (!customerId) {
+            throw new Error(`No customer id is specified`);
+        }
+        // NOTE: for constant resources we don't use templated tables (table per
+        // customer)
+        let tableFullName = ((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant) ?
+            this.tableId :
+            this.tableId + '_' + customerId;
+        //  remove customer's table (to make sure you have only fresh data)
+        try {
+            logger_1.default.verbose(`Removing table '${tableFullName}'`, { customerId: customerId, scriptName: this.tableId });
+            await this.dataset.table(tableFullName).delete({ ignoreNotFound: true });
+        }
+        catch (e) {
+            logger_1.default.error(`Deletion of table '${tableFullName}' failed: ${e}`, { customerId: customerId, scriptName: this.tableId });
+            throw e;
+        }
+        let rows = this.rowsByCustomer[customerId];
+        if (rows.length > 0) {
+            // upload data to BQ
+            if (this.insertMethod === BigQueryInsertMethod.insertAll) {
+                await this.insertRows(rows, customerId, tableFullName);
+            }
+            else {
+                await this.loadRows(rows, customerId, tableFullName);
+            }
+        }
+        else {
+            // no rows found for the customer, as so no table was created,
+            // create an empty one, so we could use it for a union view
+            try {
+                await this.dataset.createTable(tableFullName, { schema: this.schema });
+                logger_1.default.verbose(`Created empty table '${tableFullName}'`, { customerId: customerId });
+            }
+            catch (e) {
+                logger_1.default.error(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
+                throw e;
+            }
+        }
+        if (!this.keepData)
+            this.rowsByCustomer[customerId] = [];
     }
     async endScript() {
         if (!this.tableId) {
@@ -114,128 +276,6 @@ class BigQueryWriter {
             this.customers = [];
             this.rowsByCustomer = {};
         }
-    }
-    beginCustomer(customerId) {
-        if (this.rowsByCustomer[customerId]) {
-            throw new Error(`Customer id ${customerId} already exist`);
-        }
-        this.customers.push(customerId);
-        this.rowsByCustomer[customerId] = [];
-    }
-    async endCustomer(customerId) {
-        var _a, _b;
-        if (!this.tableId) {
-            throw new Error(`No table id is set. Did you call beginScript method?`);
-        }
-        if (!customerId) {
-            throw new Error(`No customer id is specified`);
-        }
-        // NOTE: for constant resources we don't use templated tables (table per
-        // customer)
-        let tableFullName = ((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant) ?
-            this.tableId :
-            this.tableId + '_' + customerId;
-        //  remove customer's table (to make sure you have only fresh data)
-        try {
-            logger_1.default.verbose(`Removing table '${tableFullName}'`, { customerId: customerId, scriptName: this.tableId });
-            await this.dataset.table(tableFullName).delete({ ignoreNotFound: true });
-        }
-        catch (e) {
-            logger_1.default.error(`Deletion of table '${tableFullName}' failed: ${e}`, { customerId: customerId, scriptName: this.tableId });
-            throw e;
-        }
-        let rows = this.rowsByCustomer[customerId];
-        if (rows.length > 0) {
-            // upload data to BQ
-            try {
-                // insert rows by chunks (there's a limit for insert)
-                let table = this.dataset.table(this.tableId);
-                for (let i = 0, j = rows.length; i < j; i += MAX_ROWS) {
-                    let rowsChunk = rows.slice(i, i + MAX_ROWS);
-                    let rows2insert = rowsChunk.map(row => {
-                        let rowObj = {};
-                        for (let i = 0; i < row.length; i++) {
-                            let colName = this.query.columnNames[i];
-                            const colType = this.query.columnTypes[i];
-                            let val = row[i];
-                            if (colType.repeated) {
-                                if (!val) {
-                                    // repeated field can't access nulls
-                                    val = [];
-                                }
-                                else if (val.length) {
-                                    // there could be structs (or arrays, or their combinations)
-                                    // in the array, and they will be rejected
-                                    for (let j = 0; j < val.length; j++) {
-                                        let subval = val[j];
-                                        if (lodash_1.default.isArray(subval) || lodash_1.default.isObjectLike(subval)) {
-                                            val[j] = JSON.stringify(subval);
-                                        }
-                                    }
-                                }
-                            }
-                            else if (colType.kind === types_1.FieldTypeKind.struct) {
-                                // we don't support structs at the moment
-                                if (val) {
-                                    val = JSON.stringify(val);
-                                }
-                            }
-                            rowObj[colName] = val;
-                        }
-                        return rowObj;
-                    });
-                    let templateSuffix = undefined;
-                    if (!((_b = this.query) === null || _b === void 0 ? void 0 : _b.resource.isConstant)) {
-                        templateSuffix = '_' + customerId;
-                    }
-                    logger_1.default.verbose(`Inserting ${rowsChunk.length} rows`, { customerId: customerId });
-                    await table.insert(rows2insert, {
-                        templateSuffix: templateSuffix,
-                        schema: this.schema,
-                    });
-                }
-            }
-            catch (e) {
-                logger_1.default.error(`Failed to insert rows into '${tableFullName}' table`, { customerId: customerId });
-                if (e.name === 'PartialFailureError') {
-                    // Some rows failed to insert, while others may have succeeded.
-                    const max_errors_to_show = 10;
-                    let msgDetail = e.errors.length > max_errors_to_show ?
-                        `showing first ${max_errors_to_show} errors of ${e.errors.length})` :
-                        e.errors.length + ' error(s)';
-                    logger_1.default.warn(`Some rows failed to insert (${msgDetail}):`, { customerId: customerId });
-                    // show first 10 rows with errors
-                    for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
-                        let err = e.errors[i];
-                        logger_1.default.warn(`#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${err.errors[0].message}`, { customerId: customerId });
-                    }
-                }
-                else if (e.code === 404) {
-                    // ApiError: "Table 162551664177:dataset.table not found"
-                    // This is unexpected but theriotically can happen (and did) due to eventually consistency of BigQuery
-                    console.error(`Table ${tableFullName} not found.`, { customerId: customerId });
-                    const table = this.dataset.table(this.tableId);
-                    let exists = await table.exists();
-                    console.warn(`Table ${tableFullName} existence check: ${exists}`);
-                }
-                throw e;
-            }
-            logger_1.default.info(`${rows.length} rows inserted into '${tableFullName}' table`, { customerId: customerId });
-        }
-        else {
-            // no rows found for the customer, as so no table was created,
-            // create an empty one, so we could use it for a union view
-            try {
-                await this.dataset.createTable(tableFullName, { schema: this.schema });
-                logger_1.default.verbose(`Created empty table '${tableFullName}'`, { customerId: customerId });
-            }
-            catch (e) {
-                logger_1.default.error(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
-                throw e;
-            }
-        }
-        if (!this.keepData)
-            this.rowsByCustomer[customerId] = [];
     }
     createSchema(query) {
         let schema = { fields: [] };

@@ -96,7 +96,7 @@ Options specific for CSV writer:
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
 * `bq.dataset` - BigQuery dataset id where tables with output data will be created
-* `bq.table-template`  - template for tables names, `{script}` references script base name (*NodeJS version only*)
+* `bq.table-template`  - template for tables names, `{script}` references script base name, plus you can use [expressions](#expressions-and-macros) (*NodeJS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
 * `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
 
@@ -157,8 +157,15 @@ Options:
 The tool assumes that scripts you provide are DDL, i.e. contains statements like create table or create view.
 
 In general it's recommended to separate tables with data from Ads API and final tables/views created by your post-processing queries.
-So it's likely that your final tables will be in a separate dataset and datasets. To allow the tool to create those datasets for your use macro for your datasets contains the word "dataset".
+So it's likely that your final tables will be in a separate dataset (or datasets). To allow the tool to create those datasets for you, make sure that macro for your datasets contains the word "dataset".
 In that case gaarf-bq will check that a dataset exists and create it if not.
+
+For example:
+```
+CREATE OR REPLACE TABLE `{dst_dataset}.my_dashboard_table` AS
+SELECT * FROM {ads_ds}.{campaign}
+```
+In this case gaarf-bq will check for existance of a dataset specified as 'dst_dataset' macro. 
 
 
 There are two type of parameters that you can pass to a script: macro and sql-parameter. First one is just a substitution in script text.

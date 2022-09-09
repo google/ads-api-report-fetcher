@@ -383,7 +383,7 @@ class AdsQueryEditor {
             throw new Error(`The following parameters used in query and were not specified: ` +
                 res.unknown_params);
         }
-        return res.queryText;
+        return res.text;
     }
     removeAliases(query) {
         return query.replace(/\s+[Aa][Ss]\s+(\w+)/g, '');

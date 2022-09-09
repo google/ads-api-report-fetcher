@@ -22,19 +22,19 @@ import {formatDateISO, getElapsed, substituteMacros} from './../lib/utils';
 suite('substituteMacros', () => {
   test('support empty params', async function() {
     let res = substituteMacros('abc={xyz}', undefined);
-    assert.deepStrictEqual(res.queryText, 'abc={xyz}');
+    assert.deepStrictEqual(res.text, 'abc={xyz}');
     assert.deepEqual(res.unknown_params, ['xyz']);
   });
 
   test('support multiple instances of same macro', () => {
     let res = substituteMacros('abc={xyz},def={xyz}', {'xyz': 123});
-    assert.deepStrictEqual(res.queryText, 'abc=123,def=123');
+    assert.deepStrictEqual(res.text, 'abc=123,def=123');
     assert.deepEqual(res.unknown_params.length, 0);
   });
 
   test('process only supplied params', () => {
     let res = substituteMacros('{qqq}={xyz}', {'qqq': 'zzz'});
-    assert.deepStrictEqual(res.queryText, 'zzz={xyz}');
+    assert.deepStrictEqual(res.text, 'zzz={xyz}');
     assert.deepEqual(res.unknown_params, ['xyz']);
   });
 
@@ -50,13 +50,13 @@ suite('substituteMacros', () => {
   test('expressions: empty expression', function() {
     let query_text = '\'${}\'';
     let query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, '\'\'');
+    assert.deepEqual(query.text, '\'\'');
   });
 
   test('expressions: arithmetic expression', function() {
     let query_text = '${(5+5)/10}';
     let query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, '1');
+    assert.deepEqual(query.text, '1');
   });
 
   test('expressions: macro inside expression', function() {
@@ -71,9 +71,9 @@ suite('substituteMacros', () => {
     let now = new Date();
     let from = formatDateISO(date_add(now, {days: -10}), '-');
     let to = formatDateISO(date_add(now, {days: -1}), '-');
-    console.log(query.queryText);
+    console.log(query.text);
     assert.deepEqual(
-        query.queryText,
+        query.text,
         `segments.date >= '${from}' AND segments.date <= '${to}'`);
   });
 
@@ -81,50 +81,50 @@ suite('substituteMacros', () => {
     let query_text = '${{macro}}';
     let query = substituteMacros(query_text, {macro: 'today()'});
     let now = formatDateISO(new Date(), '-');
-    assert.deepEqual(query.queryText, now);
+    assert.deepEqual(query.text, now);
   });
 
   test('expressions: date operations', function() {
     // date factory method and minus operator:
     let query_text = '${date(2022,7,20) - period(\'P10D\')}';
     let query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, '2022-07-10');
+    assert.deepEqual(query.text, '2022-07-10');
 
     // date generator function (today) and plus operator:
     query_text = '${today() + period(\'P2D\')}';
     query = substituteMacros(query_text);
     assert.deepEqual(
-        query.queryText, formatDateISO(date_add(new Date(), {days: 2}), '-'));
+        query.text, formatDateISO(date_add(new Date(), {days: 2}), '-'));
 
     // calling method on Date object (plusMonths)
     query_text = '${date(2022,7,20).plusMonths(1)}';
     query = substituteMacros(query_text);
     assert.deepEqual(
-        query.queryText, formatDateISO(new Date(2022, 7, 20), '-'));
+        query.text, formatDateISO(new Date(2022, 7, 20), '-'));
     // note: 7 in Date means August (8) because it zero-based,
     // while in date factory function 7 is July as it's 1-based
 
     // plus operator for Date object and number:
     query_text = '${date(\'2022-07-01\') + 1}';
     query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, '2022-07-02');
+    assert.deepEqual(query.text, '2022-07-02');
 
     // substruct two Dates
     query_text = "${tomorrow()-today()}";
     query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, 'P1D');
+    assert.deepEqual(query.text, 'P1D');
   });
 
   test('expressions: date formating', function() {
     let query_text = "${format(date('2022-07-01'), 'yyyyMMdd')}";
     let query = substituteMacros(query_text);
-    assert.deepEqual(query.queryText, '20220701');
+    assert.deepEqual(query.text, '20220701');
   });
 
   test('expressions: accessing macro in expression', function() {
     let query_text = '${macro + 10}';
     let query = substituteMacros(query_text, {macro: 10});
-    assert.deepEqual(query.queryText, '20');
+    assert.deepEqual(query.text, '20');
   });
 
   test('macro with dynamic dates: YYYYMMDD', function() {
@@ -132,11 +132,11 @@ suite('substituteMacros', () => {
     // 7 days from todays
     let query = substituteMacros(query_text, {start_date: ':YYYYMMDD-7'});
     let expected = formatDateISO(date_add(new Date(), {days: -7}), '-');
-    assert.deepEqual(query.queryText, expected);
+    assert.deepEqual(query.text, expected);
     // today
     query = substituteMacros(query_text, { start_date: ':YYYYMMDD' });
     expected = formatDateISO(new Date(), '-');
-    assert.deepEqual(query.queryText, expected);
+    assert.deepEqual(query.text, expected);
   });
 
   test('macro with dynamic dates: YYYYMM', function() {
@@ -144,7 +144,7 @@ suite('substituteMacros', () => {
     // 1 month from todays
     let query = substituteMacros(query_text, {start_date: ':YYYYMM - 1'});
     let expected = formatDateISO(date_add(new Date(), {months: -1}), '-');
-    assert.deepEqual(query.queryText, expected);
+    assert.deepEqual(query.text, expected);
   });
 
   test('macro with dynamic dates: YYYY', function() {
@@ -152,6 +152,6 @@ suite('substituteMacros', () => {
     // 1 year from todays
     let query = substituteMacros(query_text, {start_date: ':YYYY - 1'});
     let expected = formatDateISO(date_add(new Date(), {years: -1}), '-');
-    assert.deepEqual(query.queryText, expected);
+    assert.deepEqual(query.text, expected);
   });
 });

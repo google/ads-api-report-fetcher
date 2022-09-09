@@ -408,7 +408,7 @@ export class AdsQueryEditor {
           `The following parameters used in query and were not specified: ` +
           res.unknown_params);
     }
-    return res.queryText;
+    return res.text;
   }
 
   private removeAliases(query: string): string {

@@ -68,7 +68,7 @@ export class BigQueryExecutor {
               scriptName}' query were not specified: ${res.unknown_params}`);
     }
     let query: Query = {
-      query: res.queryText
+      query: res.text
     };
     // NOTE: we can support DML scripts as well, but there is no clear reason for this
     // but if we do then it can be like this:

@@ -118,9 +118,18 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: 'boolean',
     description: 'flag that enables dumping json files with schemas for tables'
 })
+    .option('bq.dump-data', {
+    type: 'boolean',
+    description: 'flag that enables dumping json files with tables data'
+})
     .option('bq.no-union-view', {
     type: 'boolean',
     description: 'disable creation of union views (combining data from customer\'s table'
+})
+    .option('bq.insert-method', {
+    type: 'string',
+    choices: ['insert-all', 'load-table'],
+    hidden: true
 })
     .option('skip-constants', {
     type: 'boolean',
@@ -129,7 +138,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option('dump-query', { type: 'boolean' })
     .group([
     'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
-    'bq.location', 'bq.no-union-view'
+    'bq.location', 'bq.no-union-view', 'bq.dump-data', 'bq.insert-method'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
     .group('console.transpose', 'Console writer options:')
@@ -175,10 +184,14 @@ function getWriter() {
             process.exit(-1);
         }
         let opts = {};
-        opts.datasetLocation = argv.bq.location;
-        opts.tableTemplate = argv.bq['table-template'];
-        opts.dumpSchema = argv.bq['dump-schema'];
-        opts.noUnionView = argv.bq['no-union-view'];
+        let bq_opts = argv.bq;
+        opts.datasetLocation = bq_opts.location;
+        opts.tableTemplate = bq_opts['table-template'];
+        opts.dumpSchema = bq_opts['dump-schema'];
+        opts.dumpData = bq_opts['dump-data'];
+        opts.noUnionView = bq_opts['no-union-view'];
+        opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
+            ? bq_writer_1.BigQueryInsertMethod.insertAll : bq_writer_1.BigQueryInsertMethod.loadTable;
         return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
     }
     throw new Error(`Unknown output format: '${output}'`);

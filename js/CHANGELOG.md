@@ -1,4 +1,9 @@
 # Changelog
+## 1.7.0 - 2022-09-09
+* BigQueryWrite: changed data load method (loadTable instead of insertAll), which results in a significant speed up
+* gaarf-bq: check existence and create datasets from macro those names contain 'dataset'; removed 'target' argument
+* Fix: remove coloring for logging in non-TTY environments
+
 ## 1.6.2 - 2022-09-07
 * Fixes for ConsoleWrite (`--output=console`)
 

@@ -123,11 +123,11 @@ function convert_date(name, value) {
 }
 /**
  * Substitute macros into the text, and evalutes expressions (in ${} blocks).
- * @param queryText a text (query) to process
+ * @param text a text (query) to process
  * @param macros an object with key-values to substitute
  * @returns same text with substituted macros and executed expressions
  */
-function substituteMacros(queryText, macros) {
+function substituteMacros(text, macros) {
     let unknown_params = {};
     // Support for macro's values containing special syntax for dynamic dates:
     // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/yaer respectedly
@@ -145,7 +145,7 @@ function substituteMacros(queryText, macros) {
     //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
     //  not precended with '$'), with that we're capturing {smth} expressions
     //  and not ${smth} expressions
-    queryText = queryText.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
+    text = text.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
         if (!macros.hasOwnProperty(name)) {
             unknown_params[name] = true;
             return ss;
@@ -153,12 +153,12 @@ function substituteMacros(queryText, macros) {
         return macros[name];
     });
     // now process expressions with built-in functions in ${..} blocks
-    queryText = queryText.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
+    text = text.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
         if (!expr.trim())
             return '';
         return (0, math_engine_1.math_parse)(expr).evaluate(macros);
     });
-    return { queryText, unknown_params: Object.keys(unknown_params) };
+    return { text: text, unknown_params: Object.keys(unknown_params) };
 }
 exports.substituteMacros = substituteMacros;
 function prepend(value, num) {
