@@ -20,7 +20,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigQueryWriter = exports.BigQueryInsertMethod = exports.OAUTH_SCOPES = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
-const fs_1 = __importDefault(require("fs"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const lodash_1 = __importDefault(require("lodash"));
 const logger_1 = __importDefault(require("./logger"));
 const types_1 = require("./types");
@@ -72,7 +73,7 @@ class BigQueryWriter {
         if (this.dumpSchema) {
             logger_1.default.debug(JSON.stringify(schema, null, 2));
             let schemaJson = JSON.stringify(schema, undefined, 2);
-            fs_1.default.writeFileSync(scriptName + '.json', schemaJson);
+            node_fs_1.default.writeFileSync(scriptName + '.json', schemaJson);
         }
     }
     async getDataset() {
@@ -98,28 +99,29 @@ class BigQueryWriter {
         this.rowsByCustomer[customerId] = [];
     }
     async loadRows(rows, customerId, tableFullName) {
-        const filename = `.${tableFullName}.json`;
-        if (fs_1.default.existsSync(filename)) {
-            fs_1.default.rmSync(filename);
+        let filepath = `.${tableFullName}.json`;
+        if (process.env.K_SERVICE) {
+            // we're in GCloud - file system is readonly, the only writable place is /tmp
+            filepath = node_path_1.default.join('/tmp', filepath);
+        }
+        if (node_fs_1.default.existsSync(filepath)) {
+            node_fs_1.default.rmSync(filepath);
         }
         // dump all rows as json newline delimited
         for (const row of rows) {
             let row_obj = this.prepareRow(row);
-            // for (let i = 0; i < row.length; i++) {
-            //   row_obj[this.schema!.fields![i].name!] = row[i];
-            // }
-            fs_1.default.appendFileSync(filename, JSON.stringify(row_obj));
-            fs_1.default.appendFileSync(filename, '\n');
+            node_fs_1.default.appendFileSync(filepath, JSON.stringify(row_obj));
+            node_fs_1.default.appendFileSync(filepath, '\n');
         }
         let table = this.dataset.table(tableFullName);
-        let res = await table.load(filename, {
+        let res = await table.load(filepath, {
             schema: this.schema,
             sourceFormat: 'NEWLINE_DELIMITED_JSON',
             writeDisposition: 'WRITE_TRUNCATE'
         });
         logger_1.default.info(`${rows.length} rows loaded into '${tableFullName}' table`, { customerId: customerId });
-        if (!this.dumpData && fs_1.default.existsSync(filename)) {
-            fs_1.default.rmSync(filename);
+        if (!this.dumpData && node_fs_1.default.existsSync(filepath)) {
+            node_fs_1.default.rmSync(filepath);
         }
     }
     prepareRow(row) {

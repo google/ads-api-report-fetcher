@@ -16,7 +16,9 @@
 
 import {BigQuery, Dataset, Table, TableOptions} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
-import fs from 'fs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import _ from 'lodash';
 
 import logger from './logger';
@@ -126,21 +128,22 @@ export class BigQueryWriter implements IResultWriter {
   }
 
   async loadRows(rows: any[], customerId: string, tableFullName: string) {
-    const filename = `.${tableFullName}.json`;
-    if (fs.existsSync(filename)) {
-      fs.rmSync(filename);
+    let filepath = `.${tableFullName}.json`;
+    if (process.env.K_SERVICE) {
+      // we're in GCloud - file system is readonly, the only writable place is /tmp
+      filepath = path.join('/tmp', filepath);
+    }
+    if (fs.existsSync(filepath)) {
+      fs.rmSync(filepath);
     }
     // dump all rows as json newline delimited
     for (const row of rows) {
       let row_obj: any = this.prepareRow(row);
-      // for (let i = 0; i < row.length; i++) {
-      //   row_obj[this.schema!.fields![i].name!] = row[i];
-      // }
-      fs.appendFileSync(filename, JSON.stringify(row_obj));
-      fs.appendFileSync(filename, '\n');
+      fs.appendFileSync(filepath, JSON.stringify(row_obj));
+      fs.appendFileSync(filepath, '\n');
     }
     let table = this.dataset!.table(tableFullName);
-    let res = await table.load(filename, {
+    let res = await table.load(filepath, {
       schema: this.schema,
       sourceFormat: 'NEWLINE_DELIMITED_JSON',
       writeDisposition: 'WRITE_TRUNCATE'
@@ -148,8 +151,8 @@ export class BigQueryWriter implements IResultWriter {
     logger.info(
       `${rows.length} rows loaded into '${tableFullName}' table`,
       { customerId: customerId });
-    if (!this.dumpData && fs.existsSync(filename)) {
-      fs.rmSync(filename);
+    if (!this.dumpData && fs.existsSync(filepath)) {
+      fs.rmSync(filepath);
     }
   }
   prepareRow(row: any[]) {
