@@ -18,6 +18,7 @@
      - [Dynamic dates](#dynamic-dates)
  - [Docker](#docker)
  - [Gaarf Cloud Workflow](#gaarf-cloud-workflow)
+ - [Differencies in Python and NodeJS versions](#differencies-in-python-and-nodejs-versions)
 
 
 ## Overview
@@ -363,6 +364,36 @@ Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. 
 * Cloud Workflow (in [gcp/workflow](gcp/workflow) folder) - a Cloud Workflow that orchestrates enumeration scripts on GCS and calling CFs
 
 Please see the [README](gcp/README.md) there for all information.
+
+
+## Differencies in Python and NodeJS versions
+
+### Query syntax and features
+There are differences in which features supported for queries.
+Python-only features:
+* pre-process query files as Jinja templates
+* {date_iso} magic macro (on NodeJS it can be replaced with expression `${format(today(),'yyyyMMdd')}`
+
+NodeJS-only features:
+* expressions (${...})
+* functions
+
+### Output BigQuery structure
+There are differences in how tools process Ads queries.
+Python version sends queries to Ads API and parses the result. From the result it creates a BigQuery schema. That's becasue tables in BQ are created only when a query retuned some data.
+NodeJS on the contrary parses queries and initializes BigQuery schema before execution. So that it creates BQ tables regardless of the results.
+
+There are differences in BigQuery table structures as well. 
+Python version creates one table per script. While NodeJS creates a table per script per customer and then creates a view to combine all customer tables.
+For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll a table.
+For NodeJS it'll a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
+
+From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator. In NodeJS version the result will be a repeated field (array).
+If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
+
+### API support
+Python version supports any API version (currently available).
+While as NodeJS parses query structure it supports only one particular version.
 
 
 ## Disclaimer

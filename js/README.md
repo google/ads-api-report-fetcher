@@ -2,6 +2,8 @@
 Node.js version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
 Please see the full documentation in the root [README](../README.md).
 
+Support [Ads API v11](https://developers.google.com/google-ads/api/docs/release-notes#v11).
+
 ## Table of content
 
  - [Overview](#overview)
@@ -154,6 +156,12 @@ Alternatively you can incorporate `keepData` option of the `BigQueryWriter`:
 thanks to keepData you will be able access the `writer.rowsByCustomer` property
 with a map of customer id to rows with data.
 
+
+To execute a single query for a single customer use `executeOne` method:
+```
+  let query = executor.parseQuery(queryText, params);
+  let result = await executor.executeOne(query, customerId);
+```
 
 # Development
 ## Run typescript directly
