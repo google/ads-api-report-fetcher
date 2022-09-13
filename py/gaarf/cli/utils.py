@@ -34,7 +34,6 @@ class GaarfConfig:
 @dataclasses.dataclass
 class GaarfBqConfig:
     project: str
-    target: Sequence[str]
     params: Dict[str, Any]
 
 
@@ -110,14 +109,12 @@ class GaarfBqConfigBuilder(BaseConfigBuilder):
             raise ValueError("Invalid config, must have `gaarf-bq` section!")
         params = gaarf_section.get("params")
         return GaarfBqConfig(project=gaarf_section.get("project"),
-                             target=gaarf_section.get("target"),
                              params=params)
 
     def _build_gaarf_config(self) -> GaarfBqConfig:
         main_args, query_args = self.args[0], self.args[1]
         params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
         return GaarfBqConfig(project=main_args.project,
-                             target=main_args.dataset,
                              params=params)
 
 
@@ -217,14 +214,6 @@ class ConfigSaver:
             gaarf = _remove_empty_values(gaarf)
             config.update({"gaarf": gaarf})
         if isinstance(gaarf_config, GaarfBqConfig):
-            if (gaarf_bq := config.get("gaarf-bq")):
-                if (target := gaarf_bq.get("target")):
-                    if target != gaarf_config.target:
-                        if isinstance(target, str):
-                            target = [target]
-                        target = self._handle_target_param(
-                            gaarf_config, target)
-                    gaarf["target"] = target
             gaarf = _remove_empty_values(gaarf)
             config.update({"gaarf-bq": gaarf})
         return config

@@ -183,13 +183,11 @@ def test_config_saver_gaarf_save_customer_ids_query_values(config_saver):
 def test_config_saver_gaarf_bq(config_saver):
     gaarf_bq_config = utils.GaarfBqConfig(
         project="fake-project",
-        target="fake-target",
         params={"macro": {"bq_project": "another-fake-project"}})
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
-            "target": "fake-target",
             "params": {
                 "macro": {
                     "bq_project": "another-fake-project"
@@ -202,13 +200,11 @@ def test_config_saver_gaarf_bq(config_saver):
 def test_config_saver_does_not_save_empty_params(config_saver):
     gaarf_bq_config = utils.GaarfBqConfig(
         project="fake-project",
-        target="fake-target",
         params={})
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
-            "target": "fake-target"
         }
     }
 
@@ -216,13 +212,11 @@ def test_config_saver_does_not_save_empty_params(config_saver):
 def test_config_saver_does_not_save_empty_nested_params(config_saver):
     gaarf_bq_config = utils.GaarfBqConfig(
         project="fake-project",
-        target="fake-target",
         params={"macro": {"bq_project": "another-fake-project"}, "sql": {}})
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
         "gaarf-bq": {
             "project": "fake-project",
-            "target": "fake-target",
             "params": {
                 "macro": {
                     "bq_project": "another-fake-project"

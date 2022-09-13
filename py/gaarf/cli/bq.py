@@ -40,7 +40,7 @@ def main():
     config = initialize_runtime_parameters(config)
 
     bq_executor = BigQueryExecutor(config.project)
-    bq_executor.create_datasets(config.target)
+    bq_executor.create_datasets(config.params.get("macro"))
 
     reader_client = reader.FileReader()
 
