@@ -6,7 +6,8 @@
   "bin": {
     "create-gaarf-wf": "build/index.js"
   },
-  "repository": "google/ads-api-report-fetcher/gcp/create-gaarf-wf",
+  "repository": "https://github.com/google/ads-api-report-fetcher",
+  "homepage": "https://github.com/google/ads-api-report-fetcher/gcp/create-gaarf-wf",
   "publishConfig": {
     "registry": "https://wombat-dressing-room.appspot.com"
   },

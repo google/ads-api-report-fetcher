@@ -1,8 +1,8 @@
 # Google Ads API Report Fetcher (gaarf)
 Node.js version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
-Please see the full documentation in the root [README](../README.md).
+Please see the full documentation in the root [README](https://github.com/google/ads-api-report-fetcher/README.md).
 
-Support [Ads API v11](https://developers.google.com/google-ads/api/docs/release-notes#v11).
+Support [Ads API v11.1](https://developers.google.com/google-ads/api/docs/release-notes#v11_1).
 
 ## Table of content
 
