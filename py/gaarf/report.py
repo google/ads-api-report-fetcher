@@ -17,9 +17,14 @@ import pandas as pd
 
 
 class GaarfReport:
-    def __init__(self, results: Sequence[Any], column_names: Sequence[str]):
+
+    def __init__(self,
+                 results: Sequence[Any],
+                 column_names: Sequence[str],
+                 is_fake: bool = False):
         self.results = results
         self.column_names = column_names
+        self.is_fake = is_fake
 
     def to_list(self) -> Sequence[Any]:
         return self.results
@@ -60,6 +65,7 @@ class GaarfIterator:
 
 
 class GaarfRow:
+
     def __init__(self, data: Sequence[Union[int, float, str]],
                  column_names: Sequence[str]):
         self.data = data

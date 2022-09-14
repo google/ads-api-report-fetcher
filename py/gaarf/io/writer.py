@@ -113,6 +113,7 @@ class BigQueryWriter(AbsWriter):
         return f"[BigQuery] - {self.dataset_id} at {self.location} location."
 
     def write(self, results, destination) -> str:
+        fake_report = results.is_fake
         column_names, results = self.get_columns_results(results)
         schema = self._define_schema(results, column_names)
         self._create_or_get_dataset()
@@ -124,6 +125,8 @@ class BigQueryWriter(AbsWriter):
             schema=schema)
 
         df = pd.DataFrame(results, columns=column_names)
+        if fake_report:
+            df = df.head(0)
         try:
             self.client.load_table_from_dataframe(dataframe=df,
                                                   destination=table,
@@ -210,12 +213,15 @@ class SqlAlchemyWriter(AbsWriter):
         self.if_exists = if_exists
 
     def write(self, results, destination):
+        fake_report = results.is_fake
         column_names, results = self.get_columns_results(results)
         destination = DestinationFormatter.format_extension(destination)
-        pd.DataFrame(data=results,
-                     columns=column_names).to_sql(name=destination,
-                                                  con=self._create_engine(),
-                                                  if_exists=self.if_exists)
+        df = pd.DataFrame(data=results, columns=column_names)
+        if fake_report:
+            df = df.head(0)
+        df.to_sql(name=destination,
+                  con=self._create_engine(),
+                  if_exists=self.if_exists)
 
     def _create_engine(self):
         return create_engine(self.connection_string)

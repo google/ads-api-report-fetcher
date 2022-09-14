@@ -23,6 +23,7 @@ from .io import writer, reader  # type: ignore
 
 
 class AdsReportFetcher:
+
     def __init__(self, api_client: api_clients.BaseClient,
                  customer_ids: Union[List[str], str]):
         self.api_client = api_client
@@ -72,6 +73,7 @@ class AdsReportFetcher:
 
 
 class AdsQueryExecutor:
+
     def __init__(self, api_client: api_clients.BaseClient):
         """
         api_client: Client used to perform authentication to Ads API.
@@ -100,7 +102,11 @@ class AdsQueryExecutor:
                                                  args).generate()
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification)
-        if len(results) > 0:
-            writer_client.write(results, query_specification.query_title)
-        else:
-            raise writer.ZeroRowException
+        if len(results) == 0:
+            data_types = self.api_client.infer_types(
+                query_specification.fields)
+            d = {str: "", int: 0, float: 0.0, bool: False}
+            results = GaarfReport([(d[type_] for type_ in data_types)],
+                                  query_specification.column_names,
+                                  is_fake=True)
+        writer_client.write(results, query_specification.query_title)
