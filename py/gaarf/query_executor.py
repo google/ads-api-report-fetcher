@@ -14,12 +14,15 @@
 
 from typing import Any, Dict, List, Sequence, Union
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
+import logging
 
 from . import parsers
 from . import api_clients
 from .query_editor import QuerySpecification, QueryElements
 from .report import GaarfReport
 from .io import writer, reader  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 class AdsReportFetcher:
@@ -41,18 +44,19 @@ class AdsReportFetcher:
                 str(query_specification)).generate()
 
         for customer_id in self.customer_ids:
+            logger.debug("Running query %s for customer_id %s",
+                         query_specification.query_title, customer_id)
             try:
                 results = self._parse_ads_response(query_specification,
                                                    customer_id)
                 total_results.extend(results)
                 if query_specification.is_constant_resource:
-                    print("Running only once")
+                    logger.debug("Constant resource query: running only once")
                     break
             except GoogleAdsException as e:
-                print("Cannot execute query for "
-                      f"{query_specification.query_title} "
-                      f"for customer_id {customer_id}")
-                print(e)
+                logger.error("Cannot execute query %s for %s",
+                             query_specification.query_title, customer_id)
+                logger.error(str(e))
         return GaarfReport(results=total_results,
                            column_names=query_specification.column_names)
 
@@ -60,10 +64,16 @@ class AdsReportFetcher:
                             customer_id: str) -> Sequence[Any]:
         parser = parsers.GoogleAdsRowParser()
         total_results = []
+        logger.debug("Getting response for query %s for customer_id %s",
+                     query_specification.query_title, customer_id)
         response = self.api_client.get_response(
             entity_id=str(customer_id),
             query_text=query_specification.query_text)
+        logger.debug("Iterating over response for query %s for customer_id %s",
+                     query_specification.query_title, customer_id)
         for batch in response:
+            logger.debug("Parsing batch for query %s for customer_id %s",
+                         query_specification.query_title, customer_id)
             results = [
                 parser.parse_ads_row(row, query_specification)
                 for row in batch.results
@@ -109,4 +119,8 @@ class AdsQueryExecutor:
             results = GaarfReport([(d[type_] for type_ in data_types)],
                                   query_specification.column_names,
                                   is_fake=True)
+        logger.debug("Start writing data for query %s via %s writer",
+                      query_specification.query_title, type(writer_client))
         writer_client.write(results, query_specification.query_title)
+        logger.debug("Finish writing data for query %s via %s writer",
+                      query_specification.query_title, type(writer_client))

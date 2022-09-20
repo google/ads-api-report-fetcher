@@ -5,7 +5,6 @@
 # You may obtain a copy of the License at
 #
 #     https://www.apache.org/licenses/LICENSE-2.0
-#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,7 +41,7 @@ def main():
     parser.add_argument("--log",
                         "--loglevel",
                         dest="loglevel",
-                        default="warning")
+                        default="info")
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
                         default=None)
@@ -62,19 +61,25 @@ def main():
     args = parser.parse_known_args()
     main_args = args[0]
 
-    config = GaarfConfigBuilder(args).build()
-
-    if main_args.save_config and not main_args.gaarf_config:
-        ConfigSaver(main_args.save_config_dest).save(config)
-
-    config = initialize_runtime_parameters(config)
-
     logging.basicConfig(
         format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
         stream=sys.stdout,
         level=main_args.loglevel.upper(),
         datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
+    logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+    logger = logging.getLogger(__name__)
+
+    config = GaarfConfigBuilder(args).build()
+    logger.debug("config: %s", config)
+
+    if main_args.save_config and not main_args.gaarf_config:
+        ConfigSaver(main_args.save_config_dest).save(config)
+
+    config = initialize_runtime_parameters(config)
+    logger.debug("initialized config: %s", config)
+
 
     ads_client = api_clients.GoogleAdsApiClient(
         path_to_config=main_args.config, version=f"v{config.api_version}")
@@ -97,7 +102,7 @@ def main():
                                           customer_ids_query)
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
-    logging.info("Total number of customer_ids is %d, accounts=[%s]",
+    logger.info("Total number of customer_ids is %d, accounts=[%s]",
                  len(customer_ids), ",".join(map(str, customer_ids)))
 
     with futures.ThreadPoolExecutor() as executor:
@@ -109,25 +114,24 @@ def main():
         for future in futures.as_completed(future_to_query):
             query = future_to_query[future]
             try:
+                logger.debug("starting query %s", query)
                 future.result()
-                print(f"{query} executed successfully")
+                logger.info("%s executed successfully", query)
             except writer.ZeroRowException:
-                print(f"""
-                    {query} generated ZeroRowException,
-                    please check WHERE statements.
-                    """)
+                logger.error("%s generated ZeroRowException", query)
             except GoogleAdsException as ex:
-                print(f'"{query}" failed with status '
-                      f'"{ex.error.code().name}" and includes'
-                      'the following errors:')
+                logger.error(
+                    "%s failed with status %s and includes the following errors:",
+                    query,
+                    ex.error.code().name)
                 for error in ex.failure.errors:
-                    print(f'\tError with message "{error.message}".')
+                    logger.error("\tError with message %s .", error.message)
                     if error.location:
                         for field in error.location.field_path_elements:
-                            print(f"\t\tOn field: {field.field_name}")
+                            logger.error("\t\tOn field %s", field.field_name)
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
-                print(f"{query} generated an exception: {str(e)}")
+                logger.error("%s generated an exception: %s", query, str(e))
 
 
 if __name__ == "__main__":

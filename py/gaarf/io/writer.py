@@ -13,6 +13,7 @@
 # limitations under the License.import csv
 
 from typing import Any, Dict, Sequence, Tuple
+import logging
 import abc
 import os
 import proto  # type: ignore
@@ -25,6 +26,8 @@ from sqlalchemy import create_engine
 from tabulate import tabulate
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 class AbsWriter(abc.ABC):
@@ -127,10 +130,12 @@ class BigQueryWriter(AbsWriter):
         df = pd.DataFrame(results, columns=column_names)
         if fake_report:
             df = df.head(0)
+        logger.debug("Writing %d rows of data to %s", len(df), destination)
         try:
             self.client.load_table_from_dataframe(dataframe=df,
                                                   destination=table,
                                                   job_config=job_config)
+            logger.debug("Writing to %s is completed", destination)
         except Exception as e:
             raise ValueError(f"Unable to save data to BigQuery! {str(e)}")
         return f"[BigQuery] - at {self.dataset_id}.{destination}"
@@ -219,9 +224,11 @@ class SqlAlchemyWriter(AbsWriter):
         df = pd.DataFrame(data=results, columns=column_names)
         if fake_report:
             df = df.head(0)
+        logger.debug("Writing %d rows of data to %s", len(df), destination)
         df.to_sql(name=destination,
                   con=self._create_engine(),
                   if_exists=self.if_exists)
+        logger.debug("Writing to %s is completed", destination)
 
     def _create_engine(self):
         return create_engine(self.connection_string)

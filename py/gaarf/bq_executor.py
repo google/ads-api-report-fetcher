@@ -16,6 +16,9 @@ from typing import Any, Dict, List, Optional, Union
 from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from jinja2 import Template
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BigQueryExecutor:
@@ -26,18 +29,23 @@ class BigQueryExecutor:
 
     def execute(self, script_name: str, query_text: str,
                 params: Optional[Dict[str, Any]]) -> None:
+        logger.debug("Original query text:\n%s", query_text)
         if params:
             if (templates := params.get("template")):
                 query_text = expand_jinja(query_text, **templates)
+                logger.debug("Query text after jinja expansion:\n%s",
+                             query_text)
             if (macros := params.get("macro")):
                 query_text = query_text.format(**macros)
+                logger.debug("Query text after macro substitution:\n%s",
+                             query_text)
         job = self.client.query(query_text)
         try:
             job.result()
-            print(f"{script_name} launched successfully")
+            logger.debug("%s launched successfully", script_name)
         except Exception as e:
-            print(f"Error launching {script_name} query!"
-                  f"{str(e)}")
+            logger.error("Error launching %s query! Check errors: %s",
+                         script_name, str(e))
 
     def create_datasets(self, macros: Optional[Dict[str, Any]]) -> None:
         if macros:
@@ -50,10 +58,10 @@ class BigQueryExecutor:
                         bq_dataset = bigquery.Dataset(dataset_id)
                         bq_dataset = self.client.create_dataset(bq_dataset,
                                                                 timeout=30)
+                        logger.debug("Created new dataset %s", dataset_id)
 
 
-def extract_datasets(
-        macros: Optional[Dict[str, Any]]) -> Optional[List[str]]:
+def extract_datasets(macros: Optional[Dict[str, Any]]) -> Optional[List[str]]:
     if not macros:
         return None
     return [value for macro, value in macros.items() if "dataset" in macro]
