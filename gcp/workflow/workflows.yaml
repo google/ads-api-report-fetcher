@@ -67,27 +67,46 @@ runAdsQueries:
             in: ${scripts.items}
             steps:
               - call_gaarf_cf:
-                  call: http.post
-                  args:
-                    url: ${function.httpsTrigger.url}
-                    query:
-                      script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
-                      bq_project_id: ${project}
-                      bq_dataset: ${bq_dataset}
-                      bq_dataset_location: ${bq_dataset_location}
-                      customer_id: ${cid}
-                      ads_config_path: ${ads_config_path}
-                    body:
-                      macro: ${macros}
-                    auth:
-                      type: OIDC
-                      audience: ${function.httpsTrigger.url}
-                  result: script_results
+                  try:
+                    call: http.post
+                    args:
+                      url: ${function.httpsTrigger.url}
+                      timeout: 1800
+                      query:
+                        script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                        bq_project_id: ${project}
+                        bq_dataset: ${bq_dataset}
+                        bq_dataset_location: ${bq_dataset_location}
+                        customer_id: ${cid}
+                        ads_config_path: ${ads_config_path}
+                      body:
+                        macro: ${macros}
+                      auth:
+                        type: OIDC
+                        audience: ${function.httpsTrigger.url}
+                    result: script_results
+                  retry:
+                    predicate: ${custom_retry_predicate}
+                    max_retries: 5
+                    backoff:
+                      initial_delay: 2
+                      max_delay: 60
+                      multiplier: 2
               - log_script_result:
                   call: sys.log
                   args:
                     data: ${script_results.body}
                     severity: "INFO"
+
+custom_retry_predicate:
+  params: [e]
+  steps:
+    - what_to_repeat:
+        switch:
+          - condition: ${e.code == 500}
+            return: true
+    - otherwise:
+        return: false
 
 runBigQueryQueries:
   params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
@@ -103,7 +122,7 @@ runBigQueryQueries:
     - check_scripts:
         switch:
           - condition: ${map.get(bq_scripts, "items") != null and len(map.get(bq_scripts, "items")) > 0}
-            next: get_function_bq
+            next: log_bq_scripts
         next: end
     - log_bq_scripts:
         call: sys.log

@@ -10,7 +10,6 @@ import prompts from 'prompts';
 import figlet from 'figlet';
 import chalk from 'chalk';
 import clui from 'clui';
-//import fetch from "node-fetch";
 const execSync = child_process.execSync;
 const spawn = child_process.spawn;
 const GIT_REPO = 'https://github.com/google/ads-api-report-fetcher.git';
@@ -18,9 +17,9 @@ const LOG_FILE = '.create-gaarf-wf-out.log';
 const argv = minimist(process.argv.slice(2));
 const is_diag = argv.diag;
 const is_debug = argv.debug || argv.diag;
-// First argument (optional) is a path where the tool run in.
 const cwd = get_cwd(argv);
 function get_cwd(argv) {
+    // First argument (optional) is a path where the tool run in.
     let cwd = argv._[0];
     if (cwd) {
         if (!path.isAbsolute(cwd)) {
@@ -224,10 +223,11 @@ async function init() {
     //  support an argument with config file with answerts
     //  search for a config auto-saved from last run, if found initialize all settings from it and skip questions
     //  ask for memory and region for CF/WF
+    const status_log = `Running create-gaarf-wf in ${cwd}`;
     if (is_debug) {
-        fs.writeFileSync(LOG_FILE, `[${new Date()}] Running create-gaarf-wf in ${cwd}`);
+        fs.writeFileSync(LOG_FILE, `[${new Date()}]${status_log}`);
     }
-    console.log(chalk.gray(`Running create-gaarf-wf in ${cwd}`));
+    console.log(chalk.gray(status_log));
     console.log(chalk.yellow(figlet.textSync('Gaarf Workflow', { horizontalLayout: 'full' })));
     console.log('Welcome to interactive generator for Gaarf Workflow (Google Ads API Report Fetcher Workflow)');
     console.log('You will be asked a bunch of questions to prepare and initialize your cloud infrastructure');
@@ -338,7 +338,9 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/bq-queries/
     ])).cf_memory;
     // Create deploy-wf.sh
     deploy_shell_script('deploy-wf.sh', `# Deploy Cloud Functions and Cloud Workflow
-cd ./${gaarf_folder}/gcp/functions
+cd ./${gaarf_folder}
+git pull
+cd ./gcp/functions
 ./setup.sh -n ${name} --memory ${cf_memory}
 cd ../workflow
 ./setup.sh -n ${workflow_name}
