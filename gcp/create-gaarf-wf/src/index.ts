@@ -6,11 +6,12 @@ import * as path from 'node:path';
 import os from 'node:os';
 import child_process from 'child_process';
 import minimist from 'minimist';
-import inquirer from 'inquirer';
+import inquirer, {Answers, QuestionCollection} from 'inquirer';
 import prompts, {PromptType} from 'prompts';
 import figlet from 'figlet';
 import chalk from 'chalk';
 import clui from 'clui';
+import yaml from 'js-yaml';
 
 const execSync = child_process.execSync;
 const spawn = child_process.spawn;
@@ -121,7 +122,7 @@ function exec_cmd(
   });
 }
 
-async function initialize_gcp_project() {
+async function initialize_gcp_project(answers: Partial<any>) {
   // check for gcloud
   const gcloud_res = await exec_cmd('which gcloud', null, {silent: true});
   const gcloud_path = gcloud_res.stdout.trim();
@@ -150,17 +151,21 @@ async function initialize_gcp_project() {
     .toString()
     .trim();
   if (gcp_project_id) {
-    const answers = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'use_current_project',
-        message: `Detected currect GCP project ${chalk.green(
-          gcp_project_id
-        )}, do you want to use it (Y) or choose another (N)?:`,
-        default: true,
-      },
-    ]);
-    if (answers.use_current_project) {
+    if (
+      (
+        await prompt(
+          {
+            type: 'confirm',
+            name: 'use_current_project',
+            message: `Detected currect GCP project ${chalk.green(
+              gcp_project_id
+            )}, do you want to use it (Y) or choose another (N)?:`,
+            default: true,
+          },
+          answers
+        )
+      ).use_current_project
+    ) {
       return gcp_project_id;
     }
   }
@@ -212,7 +217,11 @@ async function initialize_gcp_project() {
   return gcp_project_id;
 }
 
-function getMacroValues(folder_path: string) {
+function getMacroValues(
+  folder_path: string,
+  answers: Partial<any>,
+  prefix: string
+) {
   const filelist = fs.readdirSync(folder_path);
   const macro: Record<string, null> = {};
   for (const name of filelist) {
@@ -245,16 +254,27 @@ function getMacroValues(folder_path: string) {
           'beside constants you can use :YYYYMMDD-N values and expressions (${..})'
         )
     );
-    return inquirer.prompt(options);
+    answers[prefix] = answers[prefix] || {};
+    return prompt(options, answers[prefix]);
   }
   return {};
 }
 
+async function prompt(
+  questions: QuestionCollection<Answers>,
+  answers: Partial<any>
+) {
+  const actual_answers = await inquirer.prompt(questions, answers);
+  Object.assign(answers, actual_answers);
+  return actual_answers;
+}
+
 async function init() {
-  // TODO:
-  //  support an argument with config file with answerts
-  //  search for a config auto-saved from last run, if found initialize all settings from it and skip questions
-  //  ask for memory and region for CF/WF
+  let answers: Partial<any> = {};
+  if (argv.answers) {
+    answers = JSON.parse(fs.readFileSync(argv.answers, 'utf-8')) || {};
+    console.log(`Using answers from '${argv.answers}' file`);
+  }
   const status_log = `Running create-gaarf-wf in ${cwd}`;
   if (is_debug) {
     fs.writeFileSync(LOG_FILE, `[${new Date()}]${status_log}`);
@@ -273,58 +293,65 @@ async function init() {
     'It is best to run this script in a folder that is a parent for your queries'
   );
 
-  const gcp_project_id = await initialize_gcp_project();
+  const gcp_project_id = await initialize_gcp_project(answers);
 
-  let answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'name',
-      message: 'Your project name (spaces will be converted to "_"):',
-      default: path.basename(cwd),
-      filter: value => {
-        return value.replaceAll(' ', '_');
+  const name = (
+    await prompt(
+      [
+        {
+          type: 'input',
+          name: 'name',
+          message: 'Your project name (spaces will be converted to "_"):',
+          default: path.basename(cwd),
+          filter: value => {
+            return value.replaceAll(' ', '_');
+          },
+        },
+      ],
+      answers
+    )
+  ).name;
+  answers.name = name;
+  const answers1 = await prompt(
+    [
+      {
+        type: 'input',
+        name: 'path_to_ads_queries',
+        message: 'Relative path to a folder with your Ads queries:',
+        default: 'ads-queries',
       },
-    },
-  ]);
-  const name = answers.name;
-
-  answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'path_to_ads_queries',
-      message: 'Relative path to a folder with your Ads queries:',
-      default: 'ads-queries',
-    },
-    {
-      type: 'input',
-      name: 'path_to_bq_queries',
-      message: 'Relative path to a folder with your BigQuery queries:',
-      default: 'bq-queries',
-    },
-    {
-      type: 'input',
-      name: 'gcs_bucket',
-      message: 'GCP bucket name for queries:',
-      default: gcp_project_id,
-      filter: value => {
-        return value.startsWith('gs://')
-          ? value.substring('gs://'.length)
-          : value;
+      {
+        type: 'input',
+        name: 'path_to_bq_queries',
+        message: 'Relative path to a folder with your BigQuery queries:',
+        default: 'bq-queries',
       },
-    },
-    {
-      type: 'input',
-      name: 'path_to_googleads_config',
-      message: 'Relative path to your google-ads.yaml:',
-      default: 'google-ads.yaml',
-    },
-  ]);
-  const path_to_ads_queries = answers.path_to_ads_queries;
+      {
+        type: 'input',
+        name: 'gcs_bucket',
+        message: 'GCP bucket name for queries:',
+        default: gcp_project_id,
+        filter: value => {
+          return value.startsWith('gs://')
+            ? value.substring('gs://'.length)
+            : value;
+        },
+      },
+      {
+        type: 'input',
+        name: 'path_to_googleads_config',
+        message: 'Path to your google-ads.yaml:',
+        default: 'google-ads.yaml',
+      },
+    ],
+    answers
+  );
+  const path_to_ads_queries = answers1.path_to_ads_queries;
   const path_to_ads_queries_abs = path.join(cwd, path_to_ads_queries);
-  const path_to_bq_queries = answers.path_to_bq_queries;
+  const path_to_bq_queries = answers1.path_to_bq_queries;
   const path_to_bq_queries_abs = path.join(cwd, path_to_bq_queries);
-  let gcs_bucket = answers.gcs_bucket;
-  const path_to_googleads_config = answers.path_to_googleads_config;
+  let gcs_bucket = answers1.gcs_bucket;
+  const path_to_googleads_config = answers1.path_to_googleads_config;
   if (!fs.existsSync(path_to_ads_queries_abs)) {
     fs.mkdirSync(path_to_ads_queries_abs);
     console.log(chalk.grey(`Created '${path_to_ads_queries_abs}' folder`));
@@ -382,23 +409,26 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/bq-queries/
   const workflow_name = name + '-wf';
 
   const cf_memory = (
-    await inquirer.prompt([
-      {
-        type: 'list',
-        message: 'Memory limit for the Cloud Functions',
-        name: 'cf_memory',
-        default: '512MB',
-        choices: [
-          '128MB',
-          '256MB',
-          '512MB',
-          '1024MB',
-          '2048MB',
-          '4096MB',
-          '8192MB',
-        ],
-      },
-    ])
+    await prompt(
+      [
+        {
+          type: 'list',
+          message: 'Memory limit for the Cloud Functions',
+          name: 'cf_memory',
+          default: '512MB',
+          choices: [
+            '128MB',
+            '256MB',
+            '512MB',
+            '1024MB',
+            '2048MB',
+            '4096MB',
+            '8192MB',
+          ],
+        },
+      ],
+      answers
+    )
   ).cf_memory;
   // Create deploy-wf.sh
   deploy_shell_script(
@@ -428,7 +458,7 @@ cd ../workflow
   if (!has_adsconfig) {
     console.log(
       chalk.red(
-        `Please put your Ads config into '${path_to_googleads_config}' file`
+        `Please put your Ads API config into '${path_to_googleads_config}' file`
       )
     );
   }
@@ -441,12 +471,15 @@ cd ../workflow
   if (ready_to_deploy_scripts) {
     if (
       (
-        await inquirer.prompt({
-          type: 'confirm',
-          name: 'deploy_scripts',
-          message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
-          default: true,
-        })
+        await prompt(
+          {
+            type: 'confirm',
+            name: 'deploy_scripts',
+            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+            default: true,
+          },
+          answers
+        )
       ).deploy_scripts
     ) {
       await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
@@ -456,15 +489,19 @@ cd ../workflow
     }
   }
 
-  answers = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'deploy_wf',
-      message: 'Do you want to deploy Cloud components:',
-      default: true,
-    },
-  ]);
-  if (answers.deploy_wf) {
+  if (
+    (
+      await prompt(
+        {
+          type: 'confirm',
+          name: 'deploy_wf',
+          message: 'Do you want to deploy Cloud components:',
+          default: true,
+        },
+        answers
+      )
+    ).deploy_wf
+  ) {
     await exec_cmd(
       path.join(cwd, './deploy-wf.sh'),
       new clui.Spinner('Deploying Cloud components, please wait...')
@@ -473,26 +510,45 @@ cd ../workflow
   }
 
   // now we need parameters for running the WF
-  answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'output_dataset',
-      message: 'BigQuery dataset for ads queries results:',
-      default: name + '_ads',
-    },
-    {
-      type: 'input',
-      name: 'customer_id',
-      message: 'Ads account id (customer id, without dashes):',
-    },
-  ]);
+  let ads_customer_id;
+  if (fs.existsSync(path_to_googleads_config)) {
+    const yamldoc = <any>(
+      yaml.load(fs.readFileSync(path_to_googleads_config, 'utf-8'))
+    );
+    ads_customer_id = yamldoc['customer_id'] || yamldoc['client_customer_id'];
+  }
+  const answers2 = await prompt(
+    [
+      {
+        type: 'input',
+        name: 'output_dataset',
+        message: 'BigQuery dataset for ads queries results:',
+        default: name + '_ads',
+      },
+      {
+        type: 'input',
+        name: 'customer_id',
+        message: 'Ads account id (customer id, without dashes):',
+        default: ads_customer_id,
+      },
+    ],
+    answers
+  );
 
   // now we detect macro used in queries and ask for their values
-  const macro_ads = await getMacroValues(path.join(cwd, path_to_ads_queries));
-  const macro_bq = await getMacroValues(path.join(cwd, path_to_bq_queries));
+  const macro_ads = await getMacroValues(
+    path.join(cwd, path_to_ads_queries),
+    answers,
+    'ads_macro'
+  );
+  const macro_bq = await getMacroValues(
+    path.join(cwd, path_to_bq_queries),
+    answers,
+    'bq_macro'
+  );
 
-  const output_dataset = answers.output_dataset;
-  const customer_id = answers.customer_id;
+  const output_dataset = answers2.output_dataset;
+  const customer_id = answers2.customer_id;
   const wf_data = {
     cloud_function: name,
     gcs_bucket: gcs_bucket,
@@ -515,7 +571,7 @@ cd ../workflow
 `
   );
 
-  answers = await inquirer.prompt([
+  const answers3 = await prompt(
     {
       when: progress.scripts_deployed && progress.wf_created,
       type: 'confirm',
@@ -523,21 +579,23 @@ cd ../workflow
       message: 'Do you want to schedule a job for executing workflow:',
       default: true,
     },
-  ]);
-  let schedule = '0 0 * * *';
-  if (answers.schedule_wf) {
-    const answers_schedule = await inquirer.prompt([
+    answers
+  );
+  let schedule_cron = '0 0 * * *';
+  if (answers3.schedule_wf) {
+    const answers_schedule = await prompt(
       {
         type: 'input',
-        name: 'schedule',
-        message: 'Enter time (hh:mm):',
+        name: 'schedule_time',
+        message: 'Enter time (hh:mm) for job to start:',
         default: '00:00',
         validate: (input: string) =>
           !input.match(/\d+(:\d+)*/gi) ? 'Please use the format 00:00' : true,
       },
-    ]);
-    const time_parts = answers_schedule.schedule.split(':');
-    schedule = `${time_parts.length > 1 ? time_parts[1] : 0} ${
+      answers
+    );
+    const time_parts = answers_schedule.schedule_time.split(':');
+    schedule_cron = `${time_parts.length > 1 ? time_parts[1] : 0} ${
       time_parts[0]
     } * * *`;
   }
@@ -560,7 +618,7 @@ gcloud scheduler jobs delete $JOB_NAME --location $REGION --quiet
 
 # daily at midnight
 gcloud scheduler jobs create http $JOB_NAME \\
-  --schedule="${schedule}" \\
+  --schedule="${schedule_cron}" \\
   --uri="https://workflowexecutions.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/workflows/$WORKFLOW_NAME/executions" \
   --location=$REGION \\
   --message-body="{\\"argument\\": \\"$data\\"}" \\
@@ -572,7 +630,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
 `
   );
 
-  if (answers.schedule_wf) {
+  if (answers3.schedule_wf) {
     const res = await exec_cmd(
       path.join(cwd, './schedule-wf.sh'),
       new clui.Spinner('Creating a Scheduler Job, please wait...')
@@ -585,12 +643,12 @@ gcloud scheduler jobs create http $JOB_NAME \\
     progress.wf_scheduled = true;
   }
 
-  // creating scripts for directly running gaarf
+  // creating scripts for directly executing gaarf
   const ads_macro_clistr = Object.entries(macro_ads)
     .map(macro => `--macro.${macro[0]}=${macro[1]}`)
     .join(' ');
   deploy_shell_script(
-    'run-gaarg-console.sh',
+    'run-gaarf-console.sh',
     `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=console --console.transpose=always ${ads_macro_clistr}`
   );
   deploy_shell_script(
@@ -632,30 +690,14 @@ gcloud scheduler jobs create http $JOB_NAME \\
     )} - scripts for direct query execution via gaarf (via command line)`
   );
 
-  /* save everything to a config
-  `
-  GCS_BUCKET: ${gcs_bucket}
-  GCS_BASE_PATH: ${name}
-  ADS_SCRIPTS_FOLDER: ${path_to_ads_queries}
-  BQ_SCRIPTS_FOLDER: ${path_to_bq_queries}
-  LOCALTION: us-central1
-  GAARF_FUNCTION: ${name}
-  GAARF_BQ_FUNCTION: ${name}-bq
-  WORKFLOW: ${name}-wf
-  ADS_CONFIG: ${path_to_googleads_config}
-  BQ_DATASET: ${output_dataset}
-  BQ_DATASET_LOCATION: europe
-  ADS_MACRO:
-  BQ_MACRO:
-  `;
-  */
+  const saveAnswers = argv.save || argv.saveAnswers;
+  if (saveAnswers) {
+    const output_file = saveAnswers === true ? 'answers.json' : saveAnswers;
+    fs.writeFileSync(output_file, JSON.stringify(answers, null, 2));
+    console.log(chalk.gray(`Answers saved into ${output_file}`));
+  }
 }
 
 init().catch(e => {
   console.error(e);
 });
-
-/*
-TODO:
-- support git repo url as argument
- */

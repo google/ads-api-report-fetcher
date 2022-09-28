@@ -9,13 +9,18 @@ npm init gaarf-wf
 ```
 
 Several additional options are supported:
-* debug - more detailed output, create a log file `.create-gaarf-wf-out.log` with std output (stdout/stderr)
+* debug - more detailed output, creates a log file `.create-gaarf-wf-out.log` with std output (stdout/stderr)
 * diag - even more details output, forces streaming from all executing commands to console
+* answers - use a supplied JSON file as answers for all questions, if the file contains all answers the generation will be non-interactive (usage: `--answers=file.json`)
+* save - save all answers into a file (usage: `--save` or `--save=file.json`)
 
 To pass the options use `--` before them while calling via npm init:
 ```
 npm init gaarf-wf -- --debug
 ```
+
+It's supposed that you will be running `npm init gaarf-wf` command in a folder where you placed google-ads.yaml and Ads and BigQuery queries.
+
 
 ## Disclaimer
 This is not an officially supported Google product.

@@ -1,6 +1,6 @@
 {
   "name": "create-gaarf-wf",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "Interactive generator for Gaarf (Google Ads API Report Fetcher) Workflow",
   "type": "module",
   "bin": {
@@ -21,13 +21,20 @@
     "pretest": "npm run compile",
     "posttest": "npm run lint"
   },
-  "keywords": ["gaarf","Google Ads","Google Ads API","google cloud","npm init"],
+  "keywords": [
+    "gaarf",
+    "Google Ads",
+    "Google Ads API",
+    "google cloud",
+    "npm init"
+  ],
   "author": "Google Inc. (gTech gPS CSE team)",
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/clui": "^0.3.1",
     "@types/figlet": "^1.5.5",
     "@types/inquirer": "^9.0.1",
+    "@types/js-yaml": "^4.0.5",
     "@types/node": "^18.7.13",
     "@types/prompts": "^2.0.14",
     "gts": "^4.0.0",
