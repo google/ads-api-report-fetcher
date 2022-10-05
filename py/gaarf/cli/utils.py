@@ -245,5 +245,5 @@ def _remove_empty_values(dict_object: Dict[str, Any]) -> Dict[str, Any]:
                                for key, value in dict_object.items())
             if value
         }
-    if isinstance(dict_object, str):
+    if isinstance(dict_object, (int, str)):
         return dict_object
