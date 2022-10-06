@@ -33,7 +33,7 @@ class GoogleAdsApiClient(BaseClient):
                  path_to_config: str = default_google_ads_yaml,
                  config_dict: Dict[str, Any] = None,
                  yaml_str: str = None,
-                 version: str = "v9"):
+                 version: str = "v11"):
         self.client = self._init_client(path=path_to_config,
                                         config_dict=config_dict,
                                         yaml_str=yaml_str,
