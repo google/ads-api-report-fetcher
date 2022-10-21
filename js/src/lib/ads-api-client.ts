@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
-import fs from 'fs';
-import {ClientOptions, Customer, CustomerOptions, errors, GoogleAdsApi} from 'google-ads-api';
-import yaml from 'js-yaml';
-import _ from 'lodash';
-import { getFileContent } from './file-utils';
+import fs from "fs";
+import {
+  ClientOptions,
+  Customer,
+  CustomerOptions,
+  errors,
+  GoogleAdsApi,
+} from "google-ads-api";
+import yaml from "js-yaml";
+import _ from "lodash";
+import { getFileContent } from "./file-utils";
 
-import logger from './logger';
+import logger from "./logger";
 
 export interface IGoogleAdsApiClient {
-  executeQuery(query: string, customerId?: string|undefined|null):
-      Promise<any[]>;
-  getCustomerIds(): Promise<string[]>
+  executeQuery(
+    query: string,
+    customerId?: string | undefined | null
+  ): Promise<any[]>;
+  getCustomerIds(): Promise<string[]>;
 }
 
 // export type GoogleAdsApiConfig = CustomerOptions&ClientOptions;
@@ -39,16 +47,16 @@ export type GoogleAdsApiConfig = {
   refresh_token: string;
   login_customer_id?: string;
   linked_customer_id?: string;
-}
+};
 
 export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
   customers: Record<string, Customer>;
   ads_cfg: GoogleAdsApiConfig;
 
-  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string|undefined) {
+  constructor(adsConfig: GoogleAdsApiConfig, customerId?: string | undefined) {
     if (!adsConfig) {
-      throw new Error('GoogleAdsApiConfig instance was not passed')
+      throw new Error("GoogleAdsApiConfig instance was not passed");
     }
     customerId = customerId || adsConfig.customer_id;
     if (!customerId) {
@@ -59,30 +67,32 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     this.client = new GoogleAdsApi({
       client_id: adsConfig.client_id,
       client_secret: adsConfig.client_secret,
-      developer_token: adsConfig.developer_token
+      developer_token: adsConfig.developer_token,
     });
     this.customers = {};
     this.customers[customerId] = this.client.Customer({
-      customer_id: customerId,                         // child
-      login_customer_id: adsConfig.login_customer_id,  // MCC
-      refresh_token: adsConfig.refresh_token
+      customer_id: customerId, // child
+      login_customer_id: adsConfig.login_customer_id, // MCC
+      refresh_token: adsConfig.refresh_token,
     });
     // also put the customer as the default one
-    this.customers[''] = this.customers[customerId];
+    this.customers[""] = this.customers[customerId];
   }
 
-  async executeQuery(query: string, customerId?: string|undefined|null):
-      Promise<any[]> {
+  async executeQuery(
+    query: string,
+    customerId?: string | undefined | null
+  ): Promise<any[]> {
     let customer: Customer;
     if (!customerId) {
-      customer = this.customers[''];
+      customer = this.customers[""];
     } else {
       customer = this.customers[customerId];
       if (!customer) {
         customer = this.client.Customer({
-          customer_id: customerId,                            // child
-          login_customer_id: this.ads_cfg.login_customer_id,  // MCC
-          refresh_token: this.ads_cfg.refresh_token
+          customer_id: customerId, // child
+          login_customer_id: this.ads_cfg.login_customer_id, // MCC
+          refresh_token: this.ads_cfg.refresh_token,
         });
         this.customers[customerId] = customer;
       }
@@ -93,14 +103,17 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
       let error = <errors.GoogleAdsFailure>e;
       if (error.errors)
         logger.debug(
-            `An error occured on executing query: ${query}\nError: ` +
-            JSON.stringify(error.errors[0], null, 2));
+          `An error occured on executing query: ${query}\nError: ` +
+            JSON.stringify(error.errors[0], null, 2)
+        );
       throw e;
     }
   }
 
   async getCustomerIds(customer_ids_query?: string): Promise<string[]> {
-    customer_ids_query = customer_ids_query || `SELECT
+    customer_ids_query =
+      customer_ids_query ||
+      `SELECT
           customer_client.id,
           customer_client.manager
         FROM customer_client
@@ -117,23 +130,30 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   }
 }
 
-export async function loadAdsConfigYaml(
-    configFilepath: string, customerId?: string|undefined): Promise<GoogleAdsApiConfig> {
-
+export async function loadAdsConfigFromFile(
+  configFilepath: string,
+  customerId?: string | undefined
+): Promise<GoogleAdsApiConfig> {
   try {
     const content = await getFileContent(configFilepath);
-    const doc = <any>yaml.load(content);
+    const doc = configFilepath.endsWith(".json")
+      ? <any>JSON.parse(content)
+      : <any>yaml.load(content);
     return {
-      developer_token: doc['developer_token'],
-      client_id: doc['client_id'],
-      client_secret: doc['client_secret'],
-      refresh_token: doc['refresh_token'],
-      login_customer_id: doc['login_customer_id']?.toString(),
-      customer_id:
-          (customerId || doc['customer_id'] || doc['login_customer_id'])
-              ?.toString()
+      developer_token: doc["developer_token"],
+      client_id: doc["client_id"],
+      client_secret: doc["client_secret"],
+      refresh_token: doc["refresh_token"],
+      login_customer_id: doc["login_customer_id"]?.toString(),
+      customer_id: (
+        customerId ||
+        doc["customer_id"] ||
+        doc["login_customer_id"]
+      )?.toString(),
     };
   } catch (e) {
-    throw new Error(`Failed to load Ads API configuration from ${configFilepath}: ${e}`);
+    throw new Error(
+      `Failed to load Ads API configuration from ${configFilepath}: ${e}`
+    );
   }
 }

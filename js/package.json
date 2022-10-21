@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -26,7 +26,7 @@
     "test:coverage": "nyc --reporter=text mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts"
   },
   "keywords": [
-    "gaarf","Google Ads","Google Ads API"
+    "gaarf","Google Ads","Google Ads API", "GAQL"
   ],
   "author": "Google Inc. (gTech gPS CSE team)",
   "license": "Apache-2.0",
@@ -37,6 +37,10 @@
     "@google-cloud/bigquery": "^6.0.2",
     "@google-cloud/storage": "^6.4.1",
     "@js-joda/core": "^5.3.1",
+    "@types/js-yaml": "^4.0.5",
+    "@types/glob": "^7.2.0",
+    "@types/lodash": "^4.14.184",
+    "@types/yargs": "^17.0.11",
     "chalk": "^4.1.2",
     "csv": "^6.2.0",
     "csv-stringify": "^6.2.0",
@@ -52,11 +56,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/glob": "^7.2.0",
-    "@types/js-yaml": "^4.0.5",
-    "@types/lodash": "^4.14.184",
     "@types/mocha": "^9.1.1",
-    "@types/yargs": "^17.0.11",
     "mocha": "^10.0.0",
     "nyc": "^15.1.0",
     "shx": "^0.3.4",

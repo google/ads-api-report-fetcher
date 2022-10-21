@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-export {GoogleAdsApiClient, loadAdsConfigYaml} from './lib/ads-api-client';
-export {AdsQueryEditor} from './lib/ads-query-editor';
-export {AdsQueryExecutor} from './lib/ads-query-executor';
-export {BigQueryExecutor} from './lib/bq-executor';
-export {BigQueryWriter} from './lib/bq-writer';
-export {CsvWriter} from './lib/csv-writer';
+export * from "./lib/ads-api-client";
+export {
+  loadAdsConfigFromFile as loadAdsConfigYaml, // for backward-compatibility
+} from "./lib/ads-api-client";
+export * from './lib/ads-query-editor';
+export * from './lib/ads-query-executor';
+export * from './lib/bq-executor';
+export * from './lib/bq-writer';
+export * from './lib/csv-writer';
 
 export * from './lib/file-utils';
 export * from './lib/google-cloud';

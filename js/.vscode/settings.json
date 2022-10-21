@@ -8,7 +8,11 @@
     "editor.unicodeHighlight.ambiguousCharacters": false,
     "editor.unicodeHighlight.invisibleCharacters": false,
     "editor.wordWrap": "on",
-    "editor.quickSuggestions": false,
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    },
     "editor.formatOnType": false,
     "editor.formatOnPaste": false,
   },
@@ -38,5 +42,8 @@
     "decoration": true,
     "autoUpdateTime": 2000,
     "showDebugTestStatus": true
+  },
+  "files.exclude": {
+    "dist/": true
   }
 }

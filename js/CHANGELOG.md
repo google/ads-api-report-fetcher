@@ -1,4 +1,14 @@
 # Changelog
+## 1.7.3 -
+* [breaking change] function `loadAdsConfigYaml` was renamed to `loadAdsConfigFromFile`
+* Fix: @types-packages moved from devDependencies to dependencies to fix ts compilation in projects using gaarf-js as a ts-library
+
+## 1.7.2 - 2022-09-13
+* support Ads API v11.1
+
+## 1.7.1 - 2022-09-09
+* Fix: fixed running in Cloud Function environment
+
 ## 1.7.0 - 2022-09-09
 * BigQueryWrite: changed data load method (loadTable instead of insertAll), which results in a significant speed up
 * gaarf-bq: check existence and create datasets from macro those names contain 'dataset'; removed 'target' argument

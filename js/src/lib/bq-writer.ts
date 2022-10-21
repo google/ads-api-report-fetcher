@@ -24,15 +24,9 @@ import _ from 'lodash';
 import logger from './logger';
 import {FieldType, FieldTypeKind, IResultWriter, isEnumType, QueryElements, QueryResult} from './types';
 import { substituteMacros } from './utils';
+import { OAUTH_SCOPES } from './bq-common';
 
 const MAX_ROWS = 50000;
-
-export var OAUTH_SCOPES = [
-  'https://www.googleapis.com/auth/cloud-platform',
-  'https://www.googleapis.com/auth/cloud-platform.read-only',
-  'https://www.googleapis.com/auth/bigquery',
-  'https://www.googleapis.com/auth/bigquery.readonly',
-];
 
 export interface BigQueryWriterOptions {
   tableTemplate?: string|undefined;

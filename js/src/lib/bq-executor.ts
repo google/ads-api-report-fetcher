@@ -13,18 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {BigQuery, Dataset, Query, SimpleQueryRowsResponse, Table, TableOptions} from '@google-cloud/bigquery';
+import {BigQuery, Dataset, Query} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 
 import logger from './logger';
 import {substituteMacros} from './utils';
-
-export var OAUTH_SCOPES = [
-  'https://www.googleapis.com/auth/cloud-platform',
-  'https://www.googleapis.com/auth/cloud-platform.read-only',
-  'https://www.googleapis.com/auth/bigquery',
-  'https://www.googleapis.com/auth/bigquery.readonly',
-];
+import { OAUTH_SCOPES } from "./bq-common";
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;

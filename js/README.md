@@ -122,16 +122,32 @@ See more help with `--help` option.
 
 ## Library
 How to use Gaarf as a library in your own code.
-```ts
-import {AdsQueryExecutor} from 'ads-api-report-fetcher';
+First you need to create an instance of `GoogleAdsApiClient` which represents the Ads API
+(it's a tiny wrapper around [Opteo/google-ads-api library](https://github.com/Opteo/google-ads-api) - open-source Ads API client for NodeJS).
 
-let client = new GoogleAdsApiClient('google-ads.yaml');
+> NOTE: there is no an official Ads API client for NodeJS from Google, but the Opteo's client
+is a result of collaboration between Opteo and Google, so it's kinda a semi-official client.
+
+`GoogleAdsApiClient` expects an object with Ads API access settings (TS-interface `GoogleAdsApiConfig`).
+You can construct it manually or load from a yaml or json file (e.g. google-ads.yaml)
+using `loadAdsConfigFromFile` function.
+```ts
+import {
+  GoogleAdsApiClient,
+  AdsQueryExecutor,
+  loadAdsConfigFromFile,
+  CsvWriter}
+  from 'ads-api-report-fetcher';
+
+const adsConfig = await loadAdsConfigFromFile('google-ads.yaml');
+const client = new GoogleAdsApiClient(adsConfig);
 let customers = await client.getCustomerIds();
 let writer = new CsvWriter('.tmp');
 let executor = new AdsQueryExecutor(client);
 let params = {};
+let scriptPaths = ['list of sql files'];
 for (let scriptPath of scriptPaths) {
-  let queryText = fs.readFileSync(scriptPath.trim(), 'utf-8');
+  let queryText = fs.readFileSync(scriptPath, 'utf-8');
   let scriptName = path.basename(scriptPath).split('.sql')[0];
   await executor.execute(scriptName, queryText, customers, params, writer);
 }
@@ -158,7 +174,7 @@ with a map of customer id to rows with data.
 
 
 To execute a single query for a single customer use `executeOne` method:
-```
+```ts
   let query = executor.parseQuery(queryText, params);
   let result = await executor.executeOne(query, customerId);
 ```

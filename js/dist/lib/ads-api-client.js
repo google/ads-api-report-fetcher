@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
+exports.loadAdsConfigFromFile = exports.GoogleAdsApiClient = void 0;
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const file_utils_1 = require("./file-utils");
@@ -26,7 +26,7 @@ const logger_1 = __importDefault(require("./logger"));
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
         if (!adsConfig) {
-            throw new Error('GoogleAdsApiConfig instance was not passed');
+            throw new Error("GoogleAdsApiConfig instance was not passed");
         }
         customerId = customerId || adsConfig.customer_id;
         if (!customerId) {
@@ -37,21 +37,21 @@ class GoogleAdsApiClient {
         this.client = new google_ads_api_1.GoogleAdsApi({
             client_id: adsConfig.client_id,
             client_secret: adsConfig.client_secret,
-            developer_token: adsConfig.developer_token
+            developer_token: adsConfig.developer_token,
         });
         this.customers = {};
         this.customers[customerId] = this.client.Customer({
             customer_id: customerId,
             login_customer_id: adsConfig.login_customer_id,
-            refresh_token: adsConfig.refresh_token
+            refresh_token: adsConfig.refresh_token,
         });
         // also put the customer as the default one
-        this.customers[''] = this.customers[customerId];
+        this.customers[""] = this.customers[customerId];
     }
     async executeQuery(query, customerId) {
         let customer;
         if (!customerId) {
-            customer = this.customers[''];
+            customer = this.customers[""];
         }
         else {
             customer = this.customers[customerId];
@@ -59,7 +59,7 @@ class GoogleAdsApiClient {
                 customer = this.client.Customer({
                     customer_id: customerId,
                     login_customer_id: this.ads_cfg.login_customer_id,
-                    refresh_token: this.ads_cfg.refresh_token
+                    refresh_token: this.ads_cfg.refresh_token,
                 });
                 this.customers[customerId] = customer;
             }
@@ -76,7 +76,9 @@ class GoogleAdsApiClient {
         }
     }
     async getCustomerIds(customer_ids_query) {
-        customer_ids_query = customer_ids_query || `SELECT
+        customer_ids_query =
+            customer_ids_query ||
+                `SELECT
           customer_client.id,
           customer_client.manager
         FROM customer_client
@@ -92,23 +94,27 @@ class GoogleAdsApiClient {
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;
-async function loadAdsConfigYaml(configFilepath, customerId) {
+async function loadAdsConfigFromFile(configFilepath, customerId) {
     var _a, _b;
     try {
         const content = await (0, file_utils_1.getFileContent)(configFilepath);
-        const doc = js_yaml_1.default.load(content);
+        const doc = configFilepath.endsWith(".json")
+            ? JSON.parse(content)
+            : js_yaml_1.default.load(content);
         return {
-            developer_token: doc['developer_token'],
-            client_id: doc['client_id'],
-            client_secret: doc['client_secret'],
-            refresh_token: doc['refresh_token'],
-            login_customer_id: (_a = doc['login_customer_id']) === null || _a === void 0 ? void 0 : _a.toString(),
-            customer_id: (_b = (customerId || doc['customer_id'] || doc['login_customer_id'])) === null || _b === void 0 ? void 0 : _b.toString()
+            developer_token: doc["developer_token"],
+            client_id: doc["client_id"],
+            client_secret: doc["client_secret"],
+            refresh_token: doc["refresh_token"],
+            login_customer_id: (_a = doc["login_customer_id"]) === null || _a === void 0 ? void 0 : _a.toString(),
+            customer_id: (_b = (customerId ||
+                doc["customer_id"] ||
+                doc["login_customer_id"])) === null || _b === void 0 ? void 0 : _b.toString(),
         };
     }
     catch (e) {
         throw new Error(`Failed to load Ads API configuration from ${configFilepath}: ${e}`);
     }
 }
-exports.loadAdsConfigYaml = loadAdsConfigYaml;
+exports.loadAdsConfigFromFile = loadAdsConfigFromFile;
 //# sourceMappingURL=ads-api-client.js.map

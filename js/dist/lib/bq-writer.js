@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryWriter = exports.BigQueryInsertMethod = exports.OAUTH_SCOPES = void 0;
+exports.BigQueryWriter = exports.BigQueryInsertMethod = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
@@ -26,13 +26,8 @@ const lodash_1 = __importDefault(require("lodash"));
 const logger_1 = __importDefault(require("./logger"));
 const types_1 = require("./types");
 const utils_1 = require("./utils");
+const bq_common_1 = require("./bq-common");
 const MAX_ROWS = 50000;
-exports.OAUTH_SCOPES = [
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://www.googleapis.com/auth/cloud-platform.read-only',
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/bigquery.readonly',
-];
 var BigQueryInsertMethod;
 (function (BigQueryInsertMethod) {
     BigQueryInsertMethod[BigQueryInsertMethod["insertAll"] = 0] = "insertAll";
@@ -42,7 +37,7 @@ class BigQueryWriter {
     constructor(projectId, dataset, options) {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
-            scopes: exports.OAUTH_SCOPES,
+            scopes: bq_common_1.OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath
         });
         this.datasetId = dataset;

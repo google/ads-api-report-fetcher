@@ -290,7 +290,7 @@ async function main() {
 }
 async function loadAdsConfig(configFilepath, customerId) {
     try {
-        return (0, ads_api_client_1.loadAdsConfigYaml)(configFilepath, customerId);
+        return (0, ads_api_client_1.loadAdsConfigFromFile)(configFilepath, customerId);
     }
     catch (e) {
         console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));

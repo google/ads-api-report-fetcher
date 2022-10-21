@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryExecutor = exports.OAUTH_SCOPES = void 0;
+exports.BigQueryExecutor = void 0;
 /**
  * Copyright 2022 Google LLC
  *
@@ -22,17 +22,12 @@ exports.BigQueryExecutor = exports.OAUTH_SCOPES = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
 const logger_1 = __importDefault(require("./logger"));
 const utils_1 = require("./utils");
-exports.OAUTH_SCOPES = [
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://www.googleapis.com/auth/cloud-platform.read-only',
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/bigquery.readonly',
-];
+const bq_common_1 = require("./bq-common");
 class BigQueryExecutor {
     constructor(projectId, options) {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
-            scopes: exports.OAUTH_SCOPES,
+            scopes: bq_common_1.OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath
         });
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;

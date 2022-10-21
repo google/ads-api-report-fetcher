@@ -23,7 +23,7 @@ import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
-import {GoogleAdsApiClient, GoogleAdsApiConfig, loadAdsConfigYaml} from './lib/ads-api-client';
+import {GoogleAdsApiClient, GoogleAdsApiConfig, loadAdsConfigFromFile} from './lib/ads-api-client';
 import {AdsQueryExecutor, AdsQueryExecutorOptions} from './lib/ads-query-executor';
 import {BigQueryInsertMethod, BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
@@ -345,7 +345,7 @@ async function main() {
 
 async function loadAdsConfig(configFilepath: string, customerId?: string|undefined) {
   try {
-    return loadAdsConfigYaml(configFilepath, customerId);
+    return loadAdsConfigFromFile(configFilepath, customerId);
   } catch (e) {
     console.log(chalk.red(
         `Failed to load Ads API configuration from ${configFilepath}: ${e}`));
