@@ -18,13 +18,10 @@ import sys
 import argparse
 from pathlib import Path
 import logging
-import traceback
-
-from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
-from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameters
+from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameters, gaarf_runner
 
 
 def main():
@@ -38,10 +35,7 @@ def main():
                         dest="config",
                         default=str(Path.home() / "google-ads.yaml"))
     parser.add_argument("--api-version", dest="api_version", default=10)
-    parser.add_argument("--log",
-                        "--loglevel",
-                        dest="loglevel",
-                        default="info")
+    parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
                         default=None)
@@ -57,7 +51,14 @@ def main():
     parser.add_argument("--config-destination",
                         dest="save_config_dest",
                         default="config.yaml")
+    parser.add_argument("--parallel-queries",
+                        dest="parallel_queries",
+                        action="store_true")
+    parser.add_argument("--no-parallel-queries",
+                        dest="parallel_queries",
+                        action="store_false")
     parser.set_defaults(save_config=False)
+    parser.set_defaults(parallel_queries=True)
     args = parser.parse_known_args()
     main_args = args[0]
 
@@ -79,7 +80,6 @@ def main():
 
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
-
 
     ads_client = api_clients.GoogleAdsApiClient(
         path_to_config=main_args.config, version=f"v{config.api_version}")
@@ -103,35 +103,27 @@ def main():
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
     logger.info("Total number of customer_ids is %d, accounts=[%s]",
-                 len(customer_ids), ",".join(map(str, customer_ids)))
+                len(customer_ids), ",".join(map(str, customer_ids)))
 
-    with futures.ThreadPoolExecutor() as executor:
-        future_to_query = {
-            executor.submit(ads_query_executor.execute, query, customer_ids,
-                            reader_client, writer_client, config.params): query
-            for query in main_args.query
-        }
-        for future in futures.as_completed(future_to_query):
-            query = future_to_query[future]
-            try:
-                logger.debug("starting query %s", query)
-                future.result()
-                logger.info("%s executed successfully", query)
-            except writer.ZeroRowException:
-                logger.error("%s generated ZeroRowException", query)
-            except GoogleAdsException as ex:
-                logger.error(
-                    "%s failed with status %s and includes the following errors:",
-                    query,
-                    ex.error.code().name)
-                for error in ex.failure.errors:
-                    logger.error("\tError with message %s .", error.message)
-                    if error.location:
-                        for field in error.location.field_path_elements:
-                            logger.error("\t\tOn field %s", field.field_name)
-            except Exception as e:
-                traceback.print_tb(e.__traceback__)
-                logger.error("%s generated an exception: %s", query, str(e))
+    if main_args.parallel_queries:
+        logger.info("Running queries in parallel")
+        with futures.ThreadPoolExecutor() as executor:
+            future_to_query = {
+                executor.submit(ads_query_executor.execute, query,
+                                customer_ids, reader_client, writer_client,
+                                config.params): query
+                for query in main_args.query
+            }
+            for future in futures.as_completed(future_to_query):
+                query = future_to_query[future]
+                gaarf_runner(query, future.result, logger)
+    else:
+        logger.info("Running queries sequentially")
+        for query in main_args.query:
+            callback = ads_query_executor.execute(query, customer_ids,
+                                                 reader_client, writer_client,
+                                                 config.params)
+            gaarf_runner(query, callback, logger)
 
 
 if __name__ == "__main__":

@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 import dataclasses
 import os
 import datetime
 from dateutil.relativedelta import relativedelta
 import yaml
+from google.ads.googleads.errors import GoogleAdsException  # type: ignore
+import traceback
 
+from gaarf.io.writer import ZeroRowException
 
 @dataclasses.dataclass
 class GaarfConfig:
@@ -247,3 +250,28 @@ def _remove_empty_values(dict_object: Dict[str, Any]) -> Dict[str, Any]:
         }
     if isinstance(dict_object, (int, str)):
         return dict_object
+
+
+def gaarf_runner(query: str, callback: Callable, logger) -> None:
+    try:
+        logger.debug("starting query %s", query)
+        callback()
+        logger.info("%s executed successfully", query)
+    except ZeroRowException:
+        logger.warning("%s returns 0 rows", query)
+    except GoogleAdsException as ex:
+        logger.error(
+            "%s failed with status %s and includes the following errors:",
+            query,
+            ex.error.code().name)
+        for error in ex.failure.errors:
+            logger.error("\tError with message %s .",
+                         error.message)
+            if error.location:
+                for field in error.location.field_path_elements:
+                    logger.error("\t\tOn field %s",
+                                 field.field_name)
+    except Exception as e:
+        traceback.print_tb(e.__traceback__)
+        logger.error("%s generated an exception: %s", query,
+                     str(e))
