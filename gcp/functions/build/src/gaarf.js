@@ -60,7 +60,7 @@ const main = async (req, res) => {
     const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
     const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
     const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, {
-        keepData: true,
+        keepData: !!req.query.get_data,
         datasetLocation: req.query.bq_dataset_location,
     });
     // TODO: support CsvWriter and output path to GCS
@@ -71,25 +71,22 @@ const main = async (req, res) => {
     const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     let customers;
     if (singleCustomer) {
-        console.log('Executing for a single customer ids: ' + customerId);
+        console.log(`[${scriptName}] Executing for a single customer ids: ${customerId}`);
         customers = [customerId];
     }
     else {
-        console.log('Fetching customer ids');
+        console.log(`[${scriptName}] Fetching customer ids`);
         customers = await ads_client.getCustomerIds();
-        console.log(`Customers to process (${customers.length}):`);
+        console.log(`[${scriptName}] Customers to process (${customers.length}):`);
         console.log(customers);
     }
-    await executor.execute(scriptName, queryText, customers, macroParams, writer);
-    console.log(`[${scriptName}][${customerId}] Cloud Function compeleted`);
+    const result = await executor.execute(scriptName, queryText, customers, macroParams, writer);
+    console.log(`[${scriptName}] Cloud Function compeleted`);
     if (req.query.get_data) {
         res.send(writer.rowsByCustomer);
     }
     else {
         // we're returning a map of customer to number of rows
-        const result = Object.entries(writer.rowsByCustomer).map(p => {
-            return { [p[0]]: p[1].length };
-        });
         res.send(result);
     }
 };

@@ -20,7 +20,7 @@
   "private": true,
   "license": "Apache-2.0",
   "dependencies": {
-    "google-ads-api-report-fetcher": "^1.7.2",
+    "google-ads-api-report-fetcher": "^1.8.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {

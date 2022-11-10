@@ -1,5 +1,8 @@
 # Changelog
-## 1.7.3 -
+## 1.8.0 - 2022-11-10
+* Massive rewrite of transfering data from Google Ads API to BigQuery using streaming
+
+## 1.7.3 - 2022-10-21
 * [breaking change] function `loadAdsConfigYaml` was renamed to `loadAdsConfigFromFile`
 * Fix: @types-packages moved from devDependencies to dependencies to fix ts compilation in projects using gaarf-js as a ts-library
 
