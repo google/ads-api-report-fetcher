@@ -226,7 +226,7 @@ async function main() {
         adsConfig = await loadAdsConfig('google-ads.yaml', argv.account);
     }
     if (!adsConfig) {
-        console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
+        console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
         process.exit(-1);
     }
     logger_1.default.verbose('Using ads config:');
@@ -283,7 +283,10 @@ async function main() {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
         logger_1.default.info(`Processing query from ${chalk_1.default.gray(scriptPath)}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
+        let started_script = new Date();
         await executor.execute(scriptName, queryText, customers, macros, writer, options);
+        let elapsed_script = (0, utils_1.getElapsed)(started_script);
+        logger_1.default.info(`Query from ${chalk_1.default.gray(scriptPath)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }
     let elapsed = (0, utils_1.getElapsed)(started);
     logger_1.default.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));

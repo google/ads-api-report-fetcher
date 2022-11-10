@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getElapsed = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.dumpMemory = exports.getElapsed = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const add_1 = __importDefault(require("date-fns/add"));
 const lodash_1 = __importDefault(require("lodash"));
 const math_engine_1 = require("./math-engine");
@@ -190,4 +190,13 @@ function getElapsed(started, now) {
         '.' + prepend(ms, 3);
 }
 exports.getElapsed = getElapsed;
+function dumpMemory() {
+    const used = process.memoryUsage();
+    let output = '';
+    for (let key in used) {
+        output += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
+    }
+    return output;
+}
+exports.dumpMemory = dumpMemory;
 //# sourceMappingURL=utils.js.map

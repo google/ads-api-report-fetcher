@@ -48,7 +48,7 @@ class GoogleAdsApiClient {
         // also put the customer as the default one
         this.customers[""] = this.customers[customerId];
     }
-    async executeQuery(query, customerId) {
+    getCustomer(customerId) {
         let customer;
         if (!customerId) {
             customer = this.customers[""];
@@ -64,14 +64,30 @@ class GoogleAdsApiClient {
                 this.customers[customerId] = customer;
             }
         }
+        return customer;
+    }
+    handleGoogleAdsError(error, query) {
+        if (error.errors)
+            logger_1.default.debug(`An error occured on executing query: ${query}\nError: ` +
+                JSON.stringify(error.errors[0], null, 2));
+    }
+    async executeQuery(query, customerId) {
+        const customer = this.getCustomer(customerId);
         try {
             return await customer.query(query);
         }
         catch (e) {
-            let error = e;
-            if (error.errors)
-                logger_1.default.debug(`An error occured on executing query: ${query}\nError: ` +
-                    JSON.stringify(error.errors[0], null, 2));
+            this.handleGoogleAdsError(e, query);
+            throw e;
+        }
+    }
+    executeQueryStream(query, customerId) {
+        const customer = this.getCustomer(customerId);
+        try {
+            return customer.queryStream(query);
+        }
+        catch (e) {
+            this.handleGoogleAdsError(e, query);
             throw e;
         }
     }

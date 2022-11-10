@@ -50,8 +50,8 @@ suite('AdsQueryExecutor', () => {
             .value;
 
     // assert
-    assert(result.rows.length);
-    assert.deepEqual(result.rows[0][1], 'MONDAY');
+    assert(result.rows!.length);
+    assert.deepEqual(result.rows![0][1], 'MONDAY');
   });
 
   test('nested values', async function() {
@@ -98,7 +98,7 @@ suite('AdsQueryExecutor', () => {
     let result = await executor.executeOne(query, <string>customerId);
 
     // assert
-    assert.deepEqual(result.rows[0][0], ['AD_GROUP_AD', 'AD_GROUP'])
+    assert.deepEqual(result.rows![0][0], ['AD_GROUP_AD', 'AD_GROUP'])
   });
 
   test('functions', async function() {
@@ -132,8 +132,8 @@ suite('AdsQueryExecutor', () => {
     let result = await executor.executeOne(query, <string>customerId);
 
     // assert
-    assert(result.rows.length);
-    assert.equal(result.rows[0][1], 'сб');
+    assert(result.rows!.length);
+    assert.equal(result.rows![0][1], 'сб');
   });
 
   test('indices', async function() {
@@ -158,7 +158,7 @@ suite('AdsQueryExecutor', () => {
     for await (const result of executor.executeGen(
         'campaign_audience_view', queryText, [customerId])) {
       // assert
-      let row = result.rows[0];
+      let row = result.rows![0];
       assert.deepEqual(
           result.query.columnNames, ['res_name', 'res_base', 'res_id']);
       assert.deepStrictEqual(row, [resName, campaignId, resId]);

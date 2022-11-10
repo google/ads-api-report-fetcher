@@ -32,18 +32,28 @@ export class MockGoogleAdsApiClient implements IGoogleAdsApiClient {
     });
   }
 
-  setupResult(result: any[]|Record<string, any[]>) {
+  setupResult(result: any[] | Record<string, any[]>) {
     if (_.isArray(result)) {
-      this.results[''] = result;
+      this.results[""] = result;
     } else {
       this.results = result;
     }
   }
 
   async executeQuery(query: string, customerId: string): Promise<any[]> {
-    let result = this.results[customerId] || this.results[''] || [];
+    let result = this.results[customerId] || this.results[""] || [];
     return new Promise((resolve, reject) => {
       resolve(result);
     });
+  }
+
+  async *executeQueryStream(
+    query: string,
+    customerId: string
+  ): AsyncGenerator<any[], any, unknown> {
+    let result = this.results[customerId] || this.results[""] || [];
+    for (const row of result) {
+      yield row;
+    }
   }
 }

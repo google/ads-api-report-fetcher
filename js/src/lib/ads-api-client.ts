@@ -29,6 +29,10 @@ import { getFileContent } from "./file-utils";
 import logger from "./logger";
 
 export interface IGoogleAdsApiClient {
+  executeQueryStream(
+    query: string,
+    customerId?: string | undefined | null
+  ): AsyncGenerator<any[]>;
   executeQuery(
     query: string,
     customerId?: string | undefined | null
@@ -79,10 +83,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     this.customers[""] = this.customers[customerId];
   }
 
-  async executeQuery(
-    query: string,
-    customerId?: string | undefined | null
-  ): Promise<any[]> {
+  protected getCustomer(customerId: string | undefined | null): Customer {
     let customer: Customer;
     if (!customerId) {
       customer = this.customers[""];
@@ -97,15 +98,42 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
         this.customers[customerId] = customer;
       }
     }
+    return customer;
+  }
+
+  protected handleGoogleAdsError(
+    error: errors.GoogleAdsFailure,
+    query: string
+  ) {
+    if (error.errors)
+      logger.debug(
+        `An error occured on executing query: ${query}\nError: ` +
+          JSON.stringify(error.errors[0], null, 2)
+      );
+  }
+
+  async executeQuery(
+    query: string,
+    customerId?: string | null | undefined
+  ): Promise<any[]> {
+    const customer = this.getCustomer(customerId);
     try {
       return await customer.query(query);
     } catch (e) {
-      let error = <errors.GoogleAdsFailure>e;
-      if (error.errors)
-        logger.debug(
-          `An error occured on executing query: ${query}\nError: ` +
-            JSON.stringify(error.errors[0], null, 2)
-        );
+      this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query);
+      throw e;
+    }
+  }
+
+  executeQueryStream(
+    query: string,
+    customerId?: string | undefined | null
+  ): AsyncGenerator<any[]> {
+    const customer = this.getCustomer(customerId);
+    try {
+      return customer.queryStream(query);
+    } catch (e) {
+      this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query);
       throw e;
     }
   }

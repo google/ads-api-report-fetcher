@@ -192,3 +192,12 @@ export function getElapsed(started: Date, now?: Date): string {
   return prepend(hours) + ':' + prepend(minutes) + ':' + prepend(seconds) +
     '.' + prepend(ms, 3);
 }
+
+export function dumpMemory() {
+  const used: any = process.memoryUsage();
+  let output = '';
+  for (let key in used) {
+    output += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
+  }
+  return output;
+}

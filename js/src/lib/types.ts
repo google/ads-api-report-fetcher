@@ -116,15 +116,17 @@ export class QueryElements {
   }
 }
 export interface QueryResult {
-  rawRows: Record<string, any>[];
-  rows: any[];
+  rawRows?: Record<string, any>[];
+  rows?: any[];
+  rowCount: number;
   query: QueryElements;
+  customerId: string;
 }
 
 export interface IResultWriter {
   beginScript(scriptName: string, query: QueryElements): Promise<void>|void;
   beginCustomer(customerId: string): Promise<void>|void;
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]): void;
+  addRow(customerId: string, parsedRow: any[], rawRow: any[]): Promise<void>|void;
   endCustomer(customerId: string): Promise<void>|void;
   endScript(): Promise<void>|void;
 }

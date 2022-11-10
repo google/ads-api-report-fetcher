@@ -21,8 +21,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdsQueryExecutor = void 0;
 const ads_query_editor_1 = require("./ads-query-editor");
 const ads_row_parser_1 = require("./ads-row-parser");
-const csv_writer_1 = require("./csv-writer");
 const logger_1 = __importDefault(require("./logger"));
+const utils_1 = require("./utils");
 class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
@@ -42,6 +42,7 @@ class AdsQueryExecutor {
      * @param macros macro values to substritute into the query
      * @param writer output writer, can be ommited
      * @param options additional execution options
+     * @returns a map from customer-id to row counts
      */
     async execute(scriptName, queryText, customers, macros, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
@@ -51,8 +52,10 @@ class AdsQueryExecutor {
         let query = this.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
-            logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, { scriptName: scriptName });
-            return;
+            logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, {
+                scriptName: scriptName,
+            });
+            return {};
         }
         if (options === null || options === void 0 ? void 0 : options.dumpQuery) {
             logger_1.default.verbose(`Script text to execute:\n` + query.queryText);
@@ -60,10 +63,12 @@ class AdsQueryExecutor {
         if (writer)
             await writer.beginScript(scriptName, query);
         let tasks = [];
+        let result_map = {}; // customer-id to row count mapping for return
         for (let customerId of customers) {
             try {
                 if (sync) {
-                    await this.executeOne(query, customerId, writer);
+                    let res = await this.executeOne(query, customerId, writer);
+                    result_map[customerId] = res.rowCount;
                 }
                 else {
                     let task = this.executeOne(query, customerId, writer);
@@ -82,23 +87,29 @@ class AdsQueryExecutor {
             // if resource has '_constant' in its name, break the loop over customers
             // (it doesn't depend on them)
             if (isConstResource) {
-                logger_1.default.debug('Detected constant resource script (breaking loop over customers)', { scriptName: scriptName, customerId: customerId });
+                logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName: scriptName, customerId: customerId });
                 break;
             }
         }
         if (!sync) {
             let results = await Promise.allSettled(tasks);
             for (let result of results) {
-                if (result.status == 'rejected') {
+                if (result.status == "rejected") {
                     let customerId = result.reason.customerId;
                     logger_1.default.error(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
                     logger_1.default.error(result.reason);
                     throw result.reason;
                 }
+                else {
+                    let customerId = result.value.customerId;
+                    result_map[customerId] = result.value.rowCount;
+                }
             }
         }
         if (writer)
             await writer.endScript();
+        logger_1.default.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
+        return result_map;
     }
     /**
      * Analogue to `execute` method but with an ability to get result for each
@@ -119,17 +130,21 @@ class AdsQueryExecutor {
         let query = this.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
-            logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, { scriptName: scriptName });
+            logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, {
+                scriptName: scriptName,
+            });
             return;
         }
         for (let customerId of customers) {
-            logger_1.default.info(`Processing customer ${customerId}`, { scriptName: scriptName });
+            logger_1.default.info(`Processing customer ${customerId}`, {
+                scriptName: scriptName,
+            });
             let result = await this.executeOne(query, customerId);
             yield result;
             // if resource has '_constant' in its name, break the loop over customers
             // (it doesn't depend on them)
             if (skipConstants) {
-                logger_1.default.debug('Detected constant resource script (breaking loop over customers)', { scriptName: scriptName, customerId: customerId });
+                logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName: scriptName, customerId: customerId });
                 break;
             }
         }
@@ -140,42 +155,53 @@ class AdsQueryExecutor {
      * `beginScript` and `endScript` on your writer instance.
      * @param query parsed Ads query (GAQL)
      * @param customerId customer id
-     * @param writer output writer, can be ommited (if you need QueryResult)
-     * @returns void if you supplied a writer, otherwise (no writer) a QueryResult
+     * @param writer output writer, can be ommited (if you need QueryResult with data)
+     * @returns QueryResult, but `rows` and `rawRows` fields will be empty if you supplied a writer
      */
     async executeOne(query, customerId, writer) {
         if (!customerId)
             throw new Error(`customerId should be specified`);
-        let empty_result = !!writer;
-        if (!writer) {
-            writer = new csv_writer_1.NullWriter();
+        let accumulate_data = !writer;
+        logger_1.default.verbose(`Starting processing customer ${customerId}`, {
+            customerId: customerId,
+        });
+        if (logger_1.default.isLevelEnabled("debug")) {
+            logger_1.default.debug(`[${customerId}] Memory (before customer):\n` + (0, utils_1.dumpMemory)());
         }
-        logger_1.default.verbose(`Starting processing customer ${customerId}`, { customerId: customerId });
+        let started = new Date();
         try {
-            await writer.beginCustomer(customerId);
+            if (writer)
+                await writer.beginCustomer(customerId);
+            let rawRows = [];
             let parsedRows = [];
-            logger_1.default.debug(`Executing query: ${query.queryText}`, { customerId: customerId });
-            let rows = await this.client.executeQuery(query.queryText, customerId);
-            for (let row of rows) {
-                if (logger_1.default.isLevelEnabled('debug')) {
-                    logger_1.default.debug('row row:', { customerId: customerId });
-                    logger_1.default.debug(JSON.stringify(row, null, 2));
-                }
+            logger_1.default.debug(`Executing query: ${query.queryText}`, {
+                customerId: customerId,
+            });
+            let stream = this.client.executeQueryStream(query.queryText, customerId);
+            let rowCount = 0;
+            for await (const row of stream) {
                 let parsedRow = this.parser.parseRow(row, query);
-                if (logger_1.default.isLevelEnabled('debug')) {
-                    logger_1.default.debug('parsed row:', { customerId: customerId });
-                    logger_1.default.debug(JSON.stringify(parsedRow, null, 2));
-                }
-                if (!empty_result) {
+                rowCount++;
+                if (accumulate_data) {
+                    // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+                    rawRows.push(row);
                     parsedRows.push(parsedRow);
                 }
-                writer.addRow(customerId, parsedRow, row);
+                if (writer)
+                    await writer.addRow(customerId, parsedRow, row);
             }
-            logger_1.default.info(`Query executed and resulted in ${rows.length} rows`, { customerId: customerId });
-            await writer.endCustomer(customerId);
-            if (empty_result)
-                return;
-            return { rawRows: rows, rows: parsedRows, query };
+            logger_1.default.info(`Query executed and parsed. ${rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+                customerId: customerId,
+            });
+            if (writer)
+                await writer.endCustomer(customerId);
+            if (logger_1.default.isDebugEnabled()) {
+                logger_1.default.debug(`[${customerId}] Memory (customer completed):\n` + (0, utils_1.dumpMemory)());
+            }
+            logger_1.default.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+                customerId: customerId,
+            });
+            return { rawRows, rows: parsedRows, query, customerId, rowCount };
         }
         catch (e) {
             e.customerId = customerId;

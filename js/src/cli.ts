@@ -31,7 +31,7 @@ import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
-import {getElapsed} from './lib/utils';
+import {dumpMemory, getElapsed} from './lib/utils';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
@@ -268,7 +268,7 @@ async function main() {
   }
   if (!adsConfig) {
     console.log(chalk.red(
-        `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or config files) nor google-ads.yaml found. Exiting`));
+        `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
     process.exit(-1);
   }
 
@@ -335,8 +335,15 @@ async function main() {
     logger.info(`Processing query from ${chalk.gray(scriptPath)}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
+    let started_script = new Date();
     await executor.execute(
-        scriptName, queryText, customers, macros, writer, options);
+      scriptName, queryText, customers, macros, writer, options);
+    let elapsed_script = getElapsed(started_script);
+    logger.info(
+      `Query from ${chalk.gray(
+        scriptPath
+      )} processing for all customers completed. Elapsed: ${elapsed_script}`
+    );
   }
   let elapsed = getElapsed(started);
   logger.info(
