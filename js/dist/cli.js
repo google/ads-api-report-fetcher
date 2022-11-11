@@ -88,9 +88,16 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     choises: ['debug', 'verbose', 'info', 'warn', 'error'],
     description: 'Logging level. By default - \'info\', for output=console - \'warn\''
 })
-    .option('sync', {
+    // TODO: support parallel query execution (to catch up with Python)
+    // .option('parallel-queries', {
+    //   type: 'boolean',
+    //   description: 'How queries are being processed: in parallel (true) or sequentially (false, default)',
+    //   default: false
+    // })
+    .option('parallel-accounts', {
     type: 'boolean',
-    description: 'Queries will be executed for each customer synchronously (otherwise in parallel)'
+    description: 'How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)',
+    default: true
 })
     .option('csv.destination-folder', {
     type: 'string',
@@ -273,8 +280,8 @@ async function main() {
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     let options = {
         skipConstants: argv.skipConstants,
-        sync: argv.sync,
-        dumpQuery: argv.dumpQuery
+        parallelAccounts: argv.parallelAccounts,
+        dumpQuery: argv.dumpQuery,
     };
     logger_1.default.info(`Found ${scriptPaths.length} script to process`);
     logger_1.default.debug(JSON.stringify(scriptPaths, null, 2));

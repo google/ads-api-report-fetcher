@@ -46,7 +46,7 @@ class AdsQueryExecutor {
      */
     async execute(scriptName, queryText, customers, macros, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
-        let sync = !!(options === null || options === void 0 ? void 0 : options.sync) || customers.length === 1;
+        let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         if (sync)
             logger_1.default.verbose(`Running in synchronous mode`, { scriptName: scriptName });
         let query = this.parseQuery(queryText, macros);
@@ -58,7 +58,7 @@ class AdsQueryExecutor {
             return {};
         }
         if (options === null || options === void 0 ? void 0 : options.dumpQuery) {
-            logger_1.default.verbose(`Script text to execute:\n` + query.queryText);
+            logger_1.default.info(`Script text to execute:\n` + query.queryText);
         }
         if (writer)
             await writer.beginScript(scriptName, query);

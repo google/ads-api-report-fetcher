@@ -31,7 +31,7 @@ import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
 import logger from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
-import {dumpMemory, getElapsed} from './lib/utils';
+import {getElapsed} from './lib/utils';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
@@ -103,10 +103,16 @@ const argv =
           description:
               'Logging level. By default - \'info\', for output=console - \'warn\''
         })
-        .option('sync', {
+        // TODO: support parallel query execution (to catch up with Python)
+        // .option('parallel-queries', {
+        //   type: 'boolean',
+        //   description: 'How queries are being processed: in parallel (true) or sequentially (false, default)',
+        //   default: false
+        // })
+        .option('parallel-accounts', {
           type: 'boolean',
-          description:
-              'Queries will be executed for each customer synchronously (otherwise in parallel)'
+          description: 'How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)',
+          default: true
         })
         .option('csv.destination-folder', {
           type: 'string',
@@ -323,8 +329,8 @@ async function main() {
   let executor = new AdsQueryExecutor(client);
   let options: AdsQueryExecutorOptions = {
     skipConstants: argv.skipConstants,
-    sync: argv.sync,
-    dumpQuery: argv.dumpQuery
+    parallelAccounts: argv.parallelAccounts,
+    dumpQuery: argv.dumpQuery,
   };
   logger.info(`Found ${scriptPaths.length} script to process`);
   logger.debug(JSON.stringify(scriptPaths, null, 2));

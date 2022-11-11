@@ -19,20 +19,19 @@ import _ from 'lodash';
 import {IGoogleAdsApiClient} from './ads-api-client';
 import {AdsQueryEditor} from './ads-query-editor';
 import {AdsRowParser} from './ads-row-parser';
-import {NullWriter} from './csv-writer';
 import logger from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 import { dumpMemory, getElapsed } from './utils';
 
 export interface AdsQueryExecutorOptions {
   /** Do not execute script for constant resources */
-  skipConstants?: boolean|undefined;
+  skipConstants?: boolean | undefined;
   /**
-   * synchronous execution -
+   * execution mode: parallel (default) or synchronous -
    * each script will be executed for all customers synchronously,
    * otherwise (by default) - in parallel
    */
-  sync?: boolean;
+  parallelAccounts?: boolean;
   dumpQuery?: boolean;
 }
 
@@ -72,7 +71,7 @@ export class AdsQueryExecutor {
     options?: AdsQueryExecutorOptions
   ): Promise<Record<string, number>> {
     let skipConstants = !!options?.skipConstants;
-    let sync = !!options?.sync || customers.length === 1;
+    let sync = options?.parallelAccounts === false || customers.length === 1;
     if (sync)
       logger.verbose(`Running in synchronous mode`, { scriptName: scriptName });
     let query = this.parseQuery(queryText, macros);
@@ -84,7 +83,7 @@ export class AdsQueryExecutor {
       return {};
     }
     if (options?.dumpQuery) {
-      logger.verbose(`Script text to execute:\n` + query.queryText);
+      logger.info(`Script text to execute:\n` + query.queryText);
     }
     if (writer) await writer.beginScript(scriptName, query);
     let tasks: Array<Promise<QueryResult>> = [];
