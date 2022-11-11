@@ -49,10 +49,11 @@ gcloud functions deploy $FUNCTION_NAME \
   --trigger-http \
   --entry-point=main \
   --runtime=nodejs16 \
-  --timeout=540s \
+  --timeout=3600s \
   --memory=$MEMORY \
   --region=$REGION \
   --quiet \
+  --gen2 \
   --source=.
 
 #  --env-vars-file .env.yaml
@@ -66,8 +67,9 @@ gcloud functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
   --runtime=nodejs16 \
-  --timeout=540s \
+  --timeout=3600s \
   --memory=$MEMORY \
   --region=$REGION \
   --quiet \
+  --gen2 \
   --source=.

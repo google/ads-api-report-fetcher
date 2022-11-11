@@ -122,4 +122,5 @@ export const main: HttpFunction = async (
     // we're returning a map of customer to number of rows
     res.send(result);
   }
+  res.end();
 };

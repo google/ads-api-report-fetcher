@@ -30,9 +30,9 @@ enable_api
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumber)" | tail -n 1)
 # Gen1:
-SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
+#SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 # Gen2:
-#SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
+SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 ./deploy.sh $@
 # After we deployed CFs we can be use the SA exists (not before)

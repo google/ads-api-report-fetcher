@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------
 enable_api() {
   gcloud services enable workflows.googleapis.com
   gcloud services enable cloudscheduler.googleapis.com
@@ -32,8 +32,10 @@ SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 # grant the default service account with read permissions on Cloud Storage
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
-# grant the default service account with execute permissions on Cloud Functions (CF)
+# grant the default service account with execute permissions on Cloud Functions gen1 (CF)
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.invoker
+# grant the default service account with execute permissions on Cloud Functions gen2 (CF)
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/run.invoker
 # grant the default service account with write permissions on Cloud Logging
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/logging.logWriter
 # grant the default service account with view permissions (cloudfunctions.functions.get) on CF

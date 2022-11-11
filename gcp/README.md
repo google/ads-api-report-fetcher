@@ -62,7 +62,7 @@ Query string:
 * `get_data` - true/false, pass true to get all data from executing script (a map of CID to rows)
 
 Returns:
-If `get_data` query argument passed then a map of CID to row counts will be returned.
+If `get_data` query argument passed then a map of CID to rows will be returned, otherwise a map to row counts will be returned
 
 #### gaarf-bq
 Body:
@@ -128,17 +128,17 @@ Please notice the escaping of quotes for job's argument.
 
 ### Workflow Parameters
 
-* cloud_function - name for gaarf cloud function (by default `gaarf` but could be customized during deployment)
-* gcs_bucket - GCS bucket name where queries are stored, by default your GCP project id
-* ads_queries_path - relative GCS path for ads queries, e.g. "gaarf/ads-queries/" (then workflow will fetch all files from gs://your_bucket/gaarf/adds-queries/*) (required)
-* bq_queries_path - relative GCS path for BigQuery queries, e.g. "gaarf/bq-queries" (required)
-* dataset - BigQuery dataset id for writing results of ads queries (required)
-* bq_dataset_location - BigQuery dataset location, e.g. "europe", by default "us"
-* cid - Ads customer id, can be either a MCC or child account (required)
-* ads_config_path - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml" (required)
-* ads_macro - an object with macro for Ads queries, see the root [README](../README.md)
-* bq_macro - an object with macro for BigQuery queries, see the root [README](../README.md)
-* bq_sql - an object with sql parameters for BigQuery queries
+* `cloud_function` - name for gaarf cloud function (by default `gaarf` but could be customized during deployment)
+* `gcs_bucket` - GCS bucket name where queries are stored, by default your GCP project id
+* `ads_queries_path` - relative GCS path for ads queries, e.g. "gaarf/ads-queries/" (then workflow will fetch all files from gs://your_bucket/gaarf/adds-queries/*) (required)
+* `bq_queries_path` - relative GCS path for BigQuery queries, e.g. "gaarf/bq-queries" (required)
+* `dataset` - BigQuery dataset id for writing results of ads queries (required)
+* `bq_dataset_location` - BigQuery dataset location, e.g. "europe", by default "us"
+* `cid` - Ads customer id, can be either a MCC or child account, without dashes (required)
+* `ads_config_path` - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml" (required)
+* `ads_macro` - an object with macro for Ads queries, see the root [README](../README.md)
+* `bq_macro` - an object with macro for BigQuery queries, see the root [README](../README.md)
+* `bq_sql` - an object with sql parameters for BigQuery queries
 
 
 ## Deployment

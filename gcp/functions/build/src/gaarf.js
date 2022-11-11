@@ -89,6 +89,7 @@ const main = async (req, res) => {
         // we're returning a map of customer to number of rows
         res.send(result);
     }
+    res.end();
 };
 exports.main = main;
 //# sourceMappingURL=gaarf.js.map
