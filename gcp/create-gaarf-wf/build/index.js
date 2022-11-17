@@ -191,7 +191,12 @@ function getMacroValues(folder_path, answers, prefix) {
     for (const name of filelist) {
         if (name.endsWith('.sql')) {
             const file_path = path.join(folder_path, name);
-            const script_content = fs.readFileSync(file_path, 'utf-8');
+            let script_content = fs.readFileSync(file_path, 'utf-8');
+            // if script_content contains FUNCTIONS block we should cut it off  before searching for macro
+            const fn_match = script_content.match(/FUNCTIONS/i);
+            if (fn_match === null || fn_match === void 0 ? void 0 : fn_match.index) {
+                script_content = script_content.substring(0, fn_match.index);
+            }
             // notes on the regexp:
             //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
             //  not precended with '$'), with that we're capturing {smth} expressions
@@ -209,9 +214,11 @@ function getMacroValues(folder_path, answers, prefix) {
         return { type: 'text', name: name, message: name };
     });
     if (options.length) {
-        console.log(`Please enter values for the following macros found in your scripts in '${folder_path}' folder`);
-        console.log(chalk.yellow('Tip: ') +
-            chalk.gray('beside constants you can use :YYYYMMDD-N values and expressions (${..})'));
+        if (options.filter(i => !(i.name in answers[prefix])).length) {
+            console.log(`Please enter values for the following macros found in your scripts in '${folder_path}' folder`);
+            console.log(chalk.yellow('Tip: ') +
+                chalk.gray('beside constants you can use :YYYYMMDD-N values and expressions (${..})'));
+        }
         answers[prefix] = answers[prefix] || {};
         return prompt(options, answers[prefix]);
     }
@@ -238,6 +245,8 @@ async function init() {
     console.log('You will be asked a bunch of questions to prepare and initialize your cloud infrastructure');
     console.log('It is best to run this script in a folder that is a parent for your queries');
     const gcp_project_id = await initialize_gcp_project(answers);
+    const PATH_ADS_QUERIES = 'ads-queries';
+    const PATH_BQ_QUERIES = 'bq-queries';
     const name = (await prompt([
         {
             type: 'input',
@@ -255,13 +264,13 @@ async function init() {
             type: 'input',
             name: 'path_to_ads_queries',
             message: 'Relative path to a folder with your Ads queries:',
-            default: 'ads-queries',
+            default: PATH_ADS_QUERIES,
         },
         {
             type: 'input',
             name: 'path_to_bq_queries',
             message: 'Relative path to a folder with your BigQuery queries:',
-            default: 'bq-queries',
+            default: PATH_BQ_QUERIES,
         },
         {
             type: 'input',
@@ -306,11 +315,12 @@ async function init() {
     }
     // create a bucket
     const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
-    if (!res.stderr.includes(`ServiceException: 409 A Cloud Storage bucket named '${gcp_project_id}' already exists`)) {
+    if (!res.stderr.includes(`ServiceException: 409 A Cloud Storage bucket named '${gcs_bucket}' already exists`)) {
         console.log(chalk.red(`Could not create a bucket ${gcs_bucket}`));
         console.log(res.stderr);
     }
     // Create deploy-scripts.sh
+    // Note that we deploy queries to hard-coded paths
     deploy_shell_script('deploy-scripts.sh', `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
 GCS_BUCKET=gs://${gcs_bucket}
 GCS_BASE_PATH=$GCS_BUCKET/${name}
@@ -318,10 +328,10 @@ GCS_BASE_PATH=$GCS_BUCKET/${name}
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
 
 gsutil rm -r $GCS_BASE_PATH/${path_to_ads_queries}
-gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/ads-queries/
+gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
 
 gsutil rm -r $GCS_BASE_PATH/${path_to_bq_queries}
-gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/bq-queries/
+gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
 `);
     const workflow_name = name + '-wf';
     const cf_memory = (await prompt([
@@ -415,8 +425,8 @@ cd ../workflow
     const wf_data = {
         cloud_function: name,
         gcs_bucket: gcs_bucket,
-        ads_queries_path: `${name}/${path_to_ads_queries}/`,
-        bq_queries_path: `${name}/${path_to_bq_queries}/`,
+        ads_queries_path: `${name}/${PATH_ADS_QUERIES}/`,
+        bq_queries_path: `${name}/${PATH_BQ_QUERIES}/`,
         dataset: output_dataset,
         cid: customer_id,
         ads_config_path: `gs://${gcs_bucket}/${name}/google-ads.yaml`,
