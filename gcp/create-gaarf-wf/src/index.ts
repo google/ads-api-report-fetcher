@@ -250,7 +250,10 @@ function getMacroValues(
     return {type: <PromptType>'text', name: name, message: name};
   });
   if (options.length) {
-    if (options.filter(i => !(i.name in answers[prefix])).length) {
+    if (
+      !answers[prefix] ||
+      options.filter(i => !(i.name in answers[prefix])).length
+    ) {
       console.log(
         `Please enter values for the following macros found in your scripts in '${folder_path}' folder`
       );
