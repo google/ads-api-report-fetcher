@@ -18,8 +18,6 @@ import { BigQuery, Dataset, Table, TableOptions } from "@google-cloud/bigquery";
 import bigquery from "@google-cloud/bigquery/build/src/types";
 import fs from "node:fs";
 import fs_async from 'node:fs/promises';
-import os from "node:os";
-import stream from "node:stream";
 import path from "node:path";
 import _ from "lodash";
 
@@ -33,7 +31,7 @@ import {
   QueryResult,
 } from "./types";
 import { substituteMacros } from "./utils";
-import { OAUTH_SCOPES } from "./bq-common";
+import { getDataset, OAUTH_SCOPES } from "./bq-common";
 
 
 const MAX_ROWS = 50000;
@@ -80,6 +78,7 @@ export class BigQueryWriter implements IResultWriter {
       projectId: projectId,
       scopes: OAUTH_SCOPES,
       keyFilename: options?.keyFilePath,
+      location: options?.datasetLocation,
     });
     this.datasetId = dataset;
     this.datasetLocation = options?.datasetLocation;
@@ -104,7 +103,7 @@ export class BigQueryWriter implements IResultWriter {
     } else {
       this.tableId = scriptName;
     }
-    this.dataset = await this.getDataset();
+    this.dataset = await getDataset(this.bigquery, this.datasetId, this.datasetLocation);
     this.query = query;
     let schema: bigquery.ITableSchema = this.createSchema(query);
     this.schema = schema;
@@ -113,21 +112,6 @@ export class BigQueryWriter implements IResultWriter {
       let schemaJson = JSON.stringify(schema, undefined, 2);
       await fs_async.writeFile(scriptName + ".json", schemaJson);
     }
-  }
-
-  private async getDataset(): Promise<Dataset> {
-    let dataset: Dataset;
-    const options: bigquery.IDataset = {
-      location: this.datasetLocation,
-    };
-    try {
-      dataset = this.bigquery.dataset(this.datasetId, options);
-      await dataset.get({ autoCreate: true });
-    } catch (e) {
-      logger.error(`Failed to get or create the dataset ${this.datasetId}`);
-      throw e;
-    }
-    return dataset;
   }
 
   beginCustomer(customerId: string): Promise<void> | void {
@@ -144,7 +128,7 @@ export class BigQueryWriter implements IResultWriter {
       if (fs.existsSync(filepath)) {
         fs.rmSync(filepath);
       }
-      this.streamsByCustomer[customerId] = fs.createWriteStream(filepath);;
+      this.streamsByCustomer[customerId] = fs.createWriteStream(filepath);
     }
   }
 
@@ -171,20 +155,26 @@ export class BigQueryWriter implements IResultWriter {
   async loadRows(customerId: string, tableFullName: string) {
     let filepath = this.getDataFilepath(tableFullName);
     let rowCount = this.rowCountsByCustomer[customerId];
-    logger.verbose(`Loading ${rowCount} rows into '${tableFullName}' table`, {
-      customerId: customerId,
-      scriptName: this.tableId,
-    });
+    logger.verbose(
+      `Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`,
+      {
+        customerId: customerId,
+        scriptName: this.tableId,
+      }
+    );
     let table = this.dataset!.table(tableFullName);
     await table.load(filepath, {
       schema: this.schema,
       sourceFormat: "NEWLINE_DELIMITED_JSON",
       writeDisposition: "WRITE_TRUNCATE",
     });
-    logger.info(`${rowCount} rows loaded into '${tableFullName}' table`, {
-      customerId: customerId,
-      scriptName: this.tableId,
-    });
+    logger.info(
+      `${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`,
+      {
+        customerId: customerId,
+        scriptName: this.tableId,
+      }
+    );
   }
 
   prepareRow(row: any[]) {
@@ -335,13 +325,21 @@ export class BigQueryWriter implements IResultWriter {
         throw e;
       }
     }
-    if (this.insertMethod === BigQueryInsertMethod.loadTable) {
+    if (
+      !this.dumpData &&
+      this.insertMethod === BigQueryInsertMethod.loadTable
+    ) {
       let filepath = this.getDataFilepath(tableFullName);
-      if (!this.dumpData && fs.existsSync(filepath)) {
+      if (fs.existsSync(filepath)) {
+        logger.verbose(
+          `Removing data file ${filepath}, dumpData=${this.dumpData}`
+        );
         fs.rmSync(filepath);
       }
     }
-    if (!this.keepData) this.rowsByCustomer[customerId] = [];
+    if (!this.keepData) {
+      this.rowsByCustomer[customerId] = [];
+    }
   }
 
   async endScript(): Promise<void> {

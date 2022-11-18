@@ -47,6 +47,7 @@ class GoogleAdsApiClient {
         });
         // also put the customer as the default one
         this.customers[""] = this.customers[customerId];
+        this.root_cid = customerId;
     }
     getCustomer(customerId) {
         let customer;
@@ -91,21 +92,15 @@ class GoogleAdsApiClient {
             throw e;
         }
     }
-    async getCustomerIds(customer_ids_query) {
-        customer_ids_query =
-            customer_ids_query ||
-                `SELECT
-          customer_client.id,
-          customer_client.manager
+    async getCustomerIds() {
+        const query = `SELECT
+          customer_client.id
         FROM customer_client
         WHERE
           customer_client.status = "ENABLED" AND
           customer_client.manager = False`;
-        let rows = await this.executeQuery(customer_ids_query);
-        let ids = [];
-        for (let row of rows) {
-            ids.push(row.customer_client.id);
-        }
+        let rows = await this.executeQuery(query);
+        let ids = rows.map((row) => row.customer_client.id);
         return ids;
     }
 }

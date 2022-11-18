@@ -48,12 +48,12 @@ class AdsQueryExecutor {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         if (sync)
-            logger_1.default.verbose(`Running in synchronous mode`, { scriptName: scriptName });
+            logger_1.default.verbose(`Running in synchronous mode`, { scriptName });
         let query = this.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             logger_1.default.verbose(`Skipping constant resource '${query.resource.name}'`, {
-                scriptName: scriptName,
+                scriptName,
             });
             return {};
         }
@@ -64,40 +64,37 @@ class AdsQueryExecutor {
             await writer.beginScript(scriptName, query);
         let tasks = [];
         let result_map = {}; // customer-id to row count mapping for return
-        for (let customerId of customers) {
-            try {
-                if (sync) {
-                    let res = await this.executeOne(query, customerId, writer);
+        if (isConstResource) {
+            // if resource has '_constant' in its name it doesn't depend on customers,
+            // so it's enough to execute it only once
+            let cid1 = customers[0];
+            let res = await this.executeOne(query, cid1, writer, scriptName);
+            result_map[cid1] = res.rowCount;
+            logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId: cid1 });
+            sync = true;
+        }
+        else {
+            // non-constant
+            if (!sync) {
+                // parallel mode - we're limiting the level of concurrency with limit
+                tasks = customers.map((customerId) => {
+                    return this.executeOne(query, customerId, writer, scriptName);
+                    // TODO: return limit(() => this.executeOne(query, customerId, writer, scriptName));
+                });
+            }
+            else {
+                for (let customerId of customers) {
+                    let res = await this.executeOne(query, customerId, writer, scriptName);
                     result_map[customerId] = res.rowCount;
                 }
-                else {
-                    let task = this.executeOne(query, customerId, writer);
-                    tasks.push(task);
-                }
-            }
-            catch (e) {
-                logger_1.default.error(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
-                logger_1.default.error(e);
-                // there could be legit reasons for the query to fail (e.g. customer is disabled),
-                // but swalling the exception here will possible cause other issue in writer,
-                // particularly in BigQueryWriter.endScript we'll trying to create a view for customer-based tables,
-                // and if query failed for all customers the view creation will also fail.
-                throw e;
-            }
-            // if resource has '_constant' in its name, break the loop over customers
-            // (it doesn't depend on them)
-            if (isConstResource) {
-                logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName: scriptName, customerId: customerId });
-                break;
             }
         }
         if (!sync) {
+            logger_1.default.debug(`Waiting for all tasks (${tasks.length}) to complete`);
             let results = await Promise.allSettled(tasks);
             for (let result of results) {
                 if (result.status == "rejected") {
-                    let customerId = result.reason.customerId;
-                    logger_1.default.error(`An error occured during executing script '${scriptName}' for ${customerId} customer:`);
-                    logger_1.default.error(result.reason);
+                    // NOTE: we logged the error in executeOne
                     throw result.reason;
                 }
                 else {
@@ -139,12 +136,12 @@ class AdsQueryExecutor {
             logger_1.default.info(`Processing customer ${customerId}`, {
                 scriptName: scriptName,
             });
-            let result = await this.executeOne(query, customerId);
+            let result = await this.executeOne(query, customerId, undefined, scriptName);
             yield result;
             // if resource has '_constant' in its name, break the loop over customers
             // (it doesn't depend on them)
             if (skipConstants) {
-                logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName: scriptName, customerId: customerId });
+                logger_1.default.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId });
                 break;
             }
         }
@@ -158,12 +155,12 @@ class AdsQueryExecutor {
      * @param writer output writer, can be ommited (if you need QueryResult with data)
      * @returns QueryResult, but `rows` and `rawRows` fields will be empty if you supplied a writer
      */
-    async executeOne(query, customerId, writer) {
+    async executeOne(query, customerId, writer, scriptName) {
         if (!customerId)
             throw new Error(`customerId should be specified`);
-        let accumulate_data = !writer;
         logger_1.default.verbose(`Starting processing customer ${customerId}`, {
-            customerId: customerId,
+            scriptName,
+            customerId,
         });
         if (logger_1.default.isLevelEnabled("debug")) {
             logger_1.default.debug(`[${customerId}] Memory (before customer):\n` + (0, utils_1.dumpMemory)());
@@ -172,26 +169,14 @@ class AdsQueryExecutor {
         try {
             if (writer)
                 await writer.beginCustomer(customerId);
-            let rawRows = [];
-            let parsedRows = [];
             logger_1.default.debug(`Executing query: ${query.queryText}`, {
-                customerId: customerId,
+                scriptName,
+                customerId,
             });
-            let stream = this.client.executeQueryStream(query.queryText, customerId);
-            let rowCount = 0;
-            for await (const row of stream) {
-                let parsedRow = this.parser.parseRow(row, query);
-                rowCount++;
-                if (accumulate_data) {
-                    // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
-                    rawRows.push(row);
-                    parsedRows.push(parsedRow);
-                }
-                if (writer)
-                    await writer.addRow(customerId, parsedRow, row);
-            }
-            logger_1.default.info(`Query executed and parsed. ${rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
-                customerId: customerId,
+            let result = await this.executeQueryAndParse(query, customerId, writer);
+            logger_1.default.info(`Query executed and parsed. ${result.rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+                scriptName,
+                customerId,
             });
             if (writer)
                 await writer.endCustomer(customerId);
@@ -199,14 +184,61 @@ class AdsQueryExecutor {
                 logger_1.default.debug(`[${customerId}] Memory (customer completed):\n` + (0, utils_1.dumpMemory)());
             }
             logger_1.default.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
-                customerId: customerId,
+                scriptName,
+                customerId,
             });
-            return { rawRows, rows: parsedRows, query, customerId, rowCount };
+            return result;
         }
         catch (e) {
+            logger_1.default.error(`An error occured during executing script '${scriptName}':`, {
+                scriptName,
+                customerId,
+            });
+            logger_1.default.error(e);
             e.customerId = customerId;
+            // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
+            // but swalling the exception here will possible cause other issue in writer,
+            // particularly in BigQueryWriter.endScript we'll trying to create a view
+            // for customer - based tables,
+            // and if query failed for all customers the view creation will also fail.
             throw e;
         }
+    }
+    async executeQueryAndParse(query, customerId, writer) {
+        let stream = this.client.executeQueryStream(query.queryText, customerId);
+        let rowCount = 0;
+        let rawRows = [];
+        let parsedRows = [];
+        for await (const row of stream) {
+            let parsedRow = this.parser.parseRow(row, query);
+            rowCount++;
+            // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+            if (writer) {
+                await writer.addRow(customerId, parsedRow, row);
+            }
+            else {
+                rawRows.push(row);
+                parsedRows.push(parsedRow);
+            }
+        }
+        return { rawRows, rows: parsedRows, query, customerId, rowCount };
+    }
+    async getCustomerIds(ids, customer_ids_query) {
+        let query = this.parseQuery(customer_ids_query);
+        let accounts = new Set();
+        let idx = 0;
+        for (let id of ids) {
+            let result = await this.executeQueryAndParse(query, id);
+            logger_1.default.verbose(`#${idx}: Fetched ${result.rowCount} rows for ${id} account`);
+            if (result.rowCount > 0) {
+                for (let row of result.rows) {
+                    accounts.add(row[0]);
+                }
+            }
+            idx++;
+            // TODO: purge Customer objects in IGoogleAdsApiClient
+        }
+        return Array.from(accounts);
     }
 }
 exports.AdsQueryExecutor = AdsQueryExecutor;

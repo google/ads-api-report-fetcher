@@ -47,7 +47,7 @@ transports.push(new winston_1.default.transports.Console({
 }));
 const logger = winston_1.default.createLogger({
     level: exports.LOG_LEVEL,
-    format: format.combine(format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' })),
+    format: format.combine(format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:SSS' })),
     transports
 });
 exports.default = logger;

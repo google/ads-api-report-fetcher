@@ -93,7 +93,7 @@ runAdsQueries:
                     result: script_results
                   retry:
                     predicate: ${custom_retry_predicate}
-                    max_retries: 5
+                    max_retries: 3
                     backoff:
                       initial_delay: 2
                       max_delay: 60
