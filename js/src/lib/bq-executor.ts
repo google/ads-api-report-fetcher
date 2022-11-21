@@ -18,7 +18,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 
 import logger from './logger';
 import {substituteMacros} from './utils';
-import { OAUTH_SCOPES } from "./bq-common";
+import { getDataset, OAUTH_SCOPES } from "./bq-common";
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
@@ -33,20 +33,27 @@ export class BigQueryExecutor {
   bigquery: BigQuery;
   datasetLocation?: string;
 
-  constructor(projectId?: string|undefined, options?: BigQueryExecutorOptions) {
+  constructor(
+    projectId?: string | undefined,
+    options?: BigQueryExecutorOptions
+  ) {
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
-      keyFilename: options?.keyFilePath
+      keyFilename: options?.keyFilePath,
+      location: options?.datasetLocation,
     });
     this.datasetLocation = options?.datasetLocation;
   }
+
   async execute(
-      scriptName: string, queryText: string,
-      params?: BigQueryExecutorParams): Promise<any[]> {
+    scriptName: string,
+    queryText: string,
+    params?: BigQueryExecutorParams
+  ): Promise<any[]> {
     if (params?.macroParams) {
       for (const macro of Object.keys(params.macroParams)) {
-        if (macro.includes('dataset')) {
+        if (macro.includes("dataset")) {
           // all macros containing the word 'dataset' we treat as a dataset's name
           const value = params.macroParams[macro];
           if (value) {
@@ -58,11 +65,11 @@ export class BigQueryExecutor {
     let res = substituteMacros(queryText, params?.macroParams);
     if (res.unknown_params.length) {
       throw new Error(
-          `The following parameters used in '${
-              scriptName}' query were not specified: ${res.unknown_params}`);
+        `The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`
+      );
     }
     let query: Query = {
-      query: res.text
+      query: res.text,
     };
     // NOTE: we can support DML scripts as well, but there is no clear reason for this
     // but if we do then it can be like this:
@@ -81,6 +88,29 @@ export class BigQueryExecutor {
     }
   }
 
+  async createUnifiedView(
+    dataset: Dataset|string,
+    tableId: string,
+    customers: string[]
+  ) {
+    if (typeof dataset == 'string') {
+      dataset = await getDataset(
+        this.bigquery,
+        dataset,
+        this.datasetLocation
+      );
+    }
+    const datasetId = dataset.id!;
+    await dataset!.table(tableId).delete({
+      ignoreNotFound: true,
+    });
+    await dataset!.query({
+      query: `CREATE OR REPLACE VIEW \`${datasetId}.${tableId}\` AS SELECT * FROM \`${datasetId}.${tableId}_*\` WHERE _TABLE_SUFFIX in (${customers
+        .map((s) => "'" + s + "'")
+        .join(",")})`,
+    });
+  }
+
   private async getDataset(datasetId: string): Promise<Dataset> {
     let dataset: Dataset;
     const options: bigquery.IDataset = {
@@ -88,7 +118,7 @@ export class BigQueryExecutor {
     };
     try {
       dataset = this.bigquery.dataset(datasetId, options);
-      await dataset.get({autoCreate: true});
+      await dataset.get({ autoCreate: true });
     } catch (e) {
       logger.error(`Failed to get or create the dataset '${datasetId}'`);
       throw e;

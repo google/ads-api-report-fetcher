@@ -214,7 +214,8 @@ function getMacroValues(folder_path, answers, prefix) {
         return { type: 'text', name: name, message: name };
     });
     if (options.length) {
-        if (options.filter(i => !(i.name in answers[prefix])).length) {
+        if (!answers[prefix] ||
+            options.filter(i => !(i.name in answers[prefix])).length) {
             console.log(`Please enter values for the following macros found in your scripts in '${folder_path}' folder`);
             console.log(chalk.yellow('Tip: ') +
                 chalk.gray('beside constants you can use :YYYYMMDD-N values and expressions (${..})'));

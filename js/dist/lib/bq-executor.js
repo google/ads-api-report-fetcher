@@ -28,14 +28,15 @@ class BigQueryExecutor {
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
             scopes: bq_common_1.OAUTH_SCOPES,
-            keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath
+            keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
+            location: options === null || options === void 0 ? void 0 : options.datasetLocation,
         });
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
     }
     async execute(scriptName, queryText, params) {
         if (params === null || params === void 0 ? void 0 : params.macroParams) {
             for (const macro of Object.keys(params.macroParams)) {
-                if (macro.includes('dataset')) {
+                if (macro.includes("dataset")) {
                     // all macros containing the word 'dataset' we treat as a dataset's name
                     const value = params.macroParams[macro];
                     if (value) {
@@ -49,7 +50,7 @@ class BigQueryExecutor {
             throw new Error(`The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`);
         }
         let query = {
-            query: res.text
+            query: res.text,
         };
         // NOTE: we can support DML scripts as well, but there is no clear reason for this
         // but if we do then it can be like this:
@@ -67,6 +68,20 @@ class BigQueryExecutor {
             logger_1.default.error(`Query '${scriptName}' failed to execute: ${e}`);
             throw e;
         }
+    }
+    async createUnifiedView(dataset, tableId, customers) {
+        if (typeof dataset == 'string') {
+            dataset = await (0, bq_common_1.getDataset)(this.bigquery, dataset, this.datasetLocation);
+        }
+        const datasetId = dataset.id;
+        await dataset.table(tableId).delete({
+            ignoreNotFound: true,
+        });
+        await dataset.query({
+            query: `CREATE OR REPLACE VIEW \`${datasetId}.${tableId}\` AS SELECT * FROM \`${datasetId}.${tableId}_*\` WHERE _TABLE_SUFFIX in (${customers
+                .map((s) => "'" + s + "'")
+                .join(",")})`,
+        });
     }
     async getDataset(datasetId) {
         let dataset;

@@ -199,6 +199,8 @@ function getWriter() {
         opts.noUnionView = bq_opts['no-union-view'];
         opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
             ? bq_writer_1.BigQueryInsertMethod.insertAll : bq_writer_1.BigQueryInsertMethod.loadTable;
+        logger_1.default.debug('BigQueryWriterOptions:');
+        logger_1.default.debug(opts);
         return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
     }
     throw new Error(`Unknown output format: '${output}'`);
@@ -239,6 +241,7 @@ async function main() {
     logger_1.default.verbose('Using ads config:');
     logger_1.default.verbose(JSON.stringify(adsConfig, null, 2));
     let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
+    let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
     // with mask like *.sql will expand it to a list of files (see
@@ -271,13 +274,23 @@ async function main() {
         customer_ids_query =
             await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
     }
-    logger_1.default.info(`Fetching customer ids ${customer_ids_query ? ' (using custom query)' : ''}`);
-    let customers = await client.getCustomerIds(customer_ids_query);
+    logger_1.default.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
+    let customers = await client.getCustomerIds();
+    logger_1.default.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
+    logger_1.default.verbose(customers);
+    if (customer_ids_query) {
+        logger_1.default.verbose(`Fetching customer ids with custom query`);
+        logger_1.default.debug(customer_ids_query);
+        customers = await executor.getCustomerIds(customers, customer_ids_query);
+    }
+    if (customers.length === 0) {
+        console.log(chalk_1.default.redBright(`No customers found for processing`));
+        process.exit(-1);
+    }
     logger_1.default.info(`Customers to process (${customers.length}):`);
     logger_1.default.info(customers);
-    let macros = argv['macro'] || {};
+    let macros = argv["macro"] || {};
     let writer = getWriter(); // NOTE: create writer from argv
-    let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     let options = {
         skipConstants: argv.skipConstants,
         parallelAccounts: argv.parallelAccounts,

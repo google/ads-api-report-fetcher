@@ -40,6 +40,7 @@ class BigQueryWriter {
             projectId: projectId,
             scopes: bq_common_1.OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
+            location: options === null || options === void 0 ? void 0 : options.datasetLocation,
         });
         this.datasetId = dataset;
         this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
@@ -64,7 +65,7 @@ class BigQueryWriter {
         else {
             this.tableId = scriptName;
         }
-        this.dataset = await this.getDataset();
+        this.dataset = await (0, bq_common_1.getDataset)(this.bigquery, this.datasetId, this.datasetLocation);
         this.query = query;
         let schema = this.createSchema(query);
         this.schema = schema;
@@ -73,21 +74,6 @@ class BigQueryWriter {
             let schemaJson = JSON.stringify(schema, undefined, 2);
             await promises_1.default.writeFile(scriptName + ".json", schemaJson);
         }
-    }
-    async getDataset() {
-        let dataset;
-        const options = {
-            location: this.datasetLocation,
-        };
-        try {
-            dataset = this.bigquery.dataset(this.datasetId, options);
-            await dataset.get({ autoCreate: true });
-        }
-        catch (e) {
-            logger_1.default.error(`Failed to get or create the dataset ${this.datasetId}`);
-            throw e;
-        }
-        return dataset;
     }
     beginCustomer(customerId) {
         if (this.rowsByCustomer[customerId]) {
@@ -103,7 +89,6 @@ class BigQueryWriter {
                 node_fs_1.default.rmSync(filepath);
             }
             this.streamsByCustomer[customerId] = node_fs_1.default.createWriteStream(filepath);
-            ;
         }
     }
     getTableFullname(customerId) {
@@ -126,7 +111,7 @@ class BigQueryWriter {
     async loadRows(customerId, tableFullName) {
         let filepath = this.getDataFilepath(tableFullName);
         let rowCount = this.rowCountsByCustomer[customerId];
-        logger_1.default.verbose(`Loading ${rowCount} rows into '${tableFullName}' table`, {
+        logger_1.default.verbose(`Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`, {
             customerId: customerId,
             scriptName: this.tableId,
         });
@@ -136,7 +121,7 @@ class BigQueryWriter {
             sourceFormat: "NEWLINE_DELIMITED_JSON",
             writeDisposition: "WRITE_TRUNCATE",
         });
-        logger_1.default.info(`${rowCount} rows loaded into '${tableFullName}' table`, {
+        logger_1.default.info(`${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`, {
             customerId: customerId,
             scriptName: this.tableId,
         });
@@ -287,14 +272,17 @@ class BigQueryWriter {
                 throw e;
             }
         }
-        if (this.insertMethod === BigQueryInsertMethod.loadTable) {
+        if (!this.dumpData &&
+            this.insertMethod === BigQueryInsertMethod.loadTable) {
             let filepath = this.getDataFilepath(tableFullName);
-            if (!this.dumpData && node_fs_1.default.existsSync(filepath)) {
+            if (node_fs_1.default.existsSync(filepath)) {
+                logger_1.default.verbose(`Removing data file ${filepath}, dumpData=${this.dumpData}`);
                 node_fs_1.default.rmSync(filepath);
             }
         }
-        if (!this.keepData)
+        if (!this.keepData) {
             this.rowsByCustomer[customerId] = [];
+        }
     }
     async endScript() {
         if (!this.tableId) {

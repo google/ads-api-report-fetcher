@@ -237,6 +237,8 @@ function getWriter(): IResultWriter {
     opts.noUnionView = bq_opts['no-union-view'];
     opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
       ? BigQueryInsertMethod.insertAll : BigQueryInsertMethod.loadTable;
+    logger.debug('BigQueryWriterOptions:');
+    logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
   }
   throw new Error(`Unknown output format: '${output}'`);
@@ -283,6 +285,7 @@ async function main() {
   logger.verbose(JSON.stringify(adsConfig, null, 2));
 
   let client = new GoogleAdsApiClient(adsConfig, argv.account);
+  let executor = new AdsQueryExecutor(client);
 
   // NOTE: a note regarding the 'files' argument
   // normaly on *nix OSes (at least in bash and zsh) passing an argument
@@ -318,15 +321,28 @@ async function main() {
     customer_ids_query =
         await getFileContent(<string>argv.customer_ids_query_file);
   }
+
   logger.info(`Fetching customer ids ${
-      customer_ids_query ? ' (using custom query)' : ''}`);
-  let customers = await client.getCustomerIds(customer_ids_query);
+    customer_ids_query ? '(using custom query)' : ''}`);
+  let customers = await client.getCustomerIds();
+  logger.verbose(
+    `Customer ids from the root account ${client.root_cid} (${customers.length}):`
+  );
+  logger.verbose(customers);
+  if (customer_ids_query) {
+    logger.verbose(`Fetching customer ids with custom query`);
+    logger.debug(customer_ids_query);
+    customers = await executor.getCustomerIds(customers, customer_ids_query);
+  }
+  if (customers.length === 0) {
+    console.log(chalk.redBright(`No customers found for processing`));
+    process.exit(-1);
+  }
   logger.info(`Customers to process (${customers.length}):`);
   logger.info(customers);
 
-  let macros = <Record<string, any>>argv['macro'] || {};
+  let macros = <Record<string, any>>argv["macro"] || {};
   let writer = getWriter();  // NOTE: create writer from argv
-  let executor = new AdsQueryExecutor(client);
   let options: AdsQueryExecutorOptions = {
     skipConstants: argv.skipConstants,
     parallelAccounts: argv.parallelAccounts,

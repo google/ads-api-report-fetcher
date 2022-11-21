@@ -57,6 +57,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
   customers: Record<string, Customer>;
   ads_cfg: GoogleAdsApiConfig;
+  root_cid: string;
 
   constructor(adsConfig: GoogleAdsApiConfig, customerId?: string | undefined) {
     if (!adsConfig) {
@@ -81,6 +82,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     });
     // also put the customer as the default one
     this.customers[""] = this.customers[customerId];
+    this.root_cid = customerId;
   }
 
   protected getCustomer(customerId: string | undefined | null): Customer {
@@ -138,22 +140,17 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     }
   }
 
-  async getCustomerIds(customer_ids_query?: string): Promise<string[]> {
-    customer_ids_query =
-      customer_ids_query ||
+  async getCustomerIds(): Promise<string[]> {
+    const query =
       `SELECT
-          customer_client.id,
-          customer_client.manager
+          customer_client.id
         FROM customer_client
         WHERE
           customer_client.status = "ENABLED" AND
           customer_client.manager = False`;
 
-    let rows = await this.executeQuery(customer_ids_query);
-    let ids = [];
-    for (let row of rows) {
-      ids.push(row.customer_client.id!);
-    }
+    let rows = await this.executeQuery(query);
+    let ids = rows.map((row) => row.customer_client.id!);
     return ids;
   }
 }
