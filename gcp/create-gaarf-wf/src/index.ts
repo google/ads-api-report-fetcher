@@ -306,7 +306,7 @@ async function init() {
   const gcp_project_id = await initialize_gcp_project(answers);
 
   const PATH_ADS_QUERIES = 'ads-queries';
-  const PATH_BQ_QUERIES = 'bq-queries'
+  const PATH_BQ_QUERIES = 'bq-queries';
   const name = (
     await prompt(
       [
@@ -324,19 +324,31 @@ async function init() {
     )
   ).name;
   answers.name = name;
+  const ads_queries_folder_candidates = fs
+    .readdirSync(cwd)
+    .find(
+      f =>
+        path.basename(f).includes('ads') && path.basename(f).includes('queries')
+    );
+  const bq_queries_folder_candidates = fs
+    .readdirSync(cwd)
+    .find(
+      f =>
+        path.basename(f).includes('bq') && path.basename(f).includes('queries')
+    );
   const answers1 = await prompt(
     [
       {
         type: 'input',
         name: 'path_to_ads_queries',
         message: 'Relative path to a folder with your Ads queries:',
-        default: PATH_ADS_QUERIES,
+        default: ads_queries_folder_candidates || PATH_ADS_QUERIES,
       },
       {
         type: 'input',
         name: 'path_to_bq_queries',
         message: 'Relative path to a folder with your BigQuery queries:',
-        default: PATH_BQ_QUERIES,
+        default: bq_queries_folder_candidates || PATH_BQ_QUERIES,
       },
       {
         type: 'input',
