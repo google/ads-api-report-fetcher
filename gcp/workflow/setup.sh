@@ -29,6 +29,11 @@ SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 # deploy WF
 ./deploy.sh $@
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
 
 # grant the default service account with read permissions on Cloud Storage
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer

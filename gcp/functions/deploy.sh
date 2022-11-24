@@ -60,6 +60,12 @@ gcloud functions deploy $FUNCTION_NAME \
   --gen2 \
   --source=.
 
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
+
 # If you need to increase memory about 2GB use this (gcloud functions deploy fails with memory sizes above 2GB):
 #gcloud run services update $FUNCTION_NAME --region $REGION --cpu 1 --memory=2048Mi --no-cpu-throttling
 
@@ -74,6 +80,12 @@ gcloud functions deploy $FUNCTION_NAME-getcids \
   --gen2 \
   --source=.
 
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
+
 gcloud functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
@@ -84,6 +96,12 @@ gcloud functions deploy $FUNCTION_NAME-bq \
   --quiet \
   --gen2 \
   --source=.
+
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
 
 gcloud functions deploy $FUNCTION_NAME-bq-view \
   --trigger-http \

@@ -35,7 +35,13 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 ./deploy.sh $@
-# After we deployed CFs we can be use the SA exists (not before)
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
+
+# After we deployed CFs we can assume the SA exists (not before)
 
 # for Gen1:
 # Grant the default service account with the Service Account Token Creator role so it could create GCS signed urls

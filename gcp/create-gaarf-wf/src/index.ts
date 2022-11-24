@@ -313,10 +313,11 @@ async function init() {
         {
           type: 'input',
           name: 'name',
-          message: 'Your project name (spaces will be converted to "_"):',
+          message:
+            'Your project name (spaces/underscores will be converted to "-"):',
           default: path.basename(cwd),
           filter: value => {
-            return value.replaceAll(' ', '_');
+            return value.replaceAll(' ', '-').replaceAll(' ', '-');
           },
         },
       ],
@@ -403,7 +404,7 @@ async function init() {
       new clui.Spinner(`Cloning Gaarf repository (${GIT_REPO}), please wait...`)
     );
   } else {
-    execSync(`cd ${gaarf_folder} && git pull`);
+    execSync(`cd ${gaarf_folder} && git pull --rebase`);
   }
 
   // create a bucket
@@ -486,19 +487,32 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
     cf_memory === '4096MB' ||
     cf_memory === '8192MB'
   ) {
-    deploy_cf_add = `gcloud run services update ${function_name} --region ${cf_region} --cpu 1 --memory=${cf_memory.replaceAll(
+    deploy_cf_add = `
+gcloud run services update ${function_name} --region ${cf_region} --cpu 1 --memory=${cf_memory.replaceAll(
       'MB',
       'Mi'
-    )} --no-cpu-throttling`;
+    )}
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
+
+`;
     cf_memory = '512MB';
   }
   deploy_shell_script(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflow
 cd ./${gaarf_folder}
-git pull
+git pull --rebase
 cd ./gcp/functions
 ./setup.sh -n ${function_name} --memory ${cf_memory}
+exitcode=$?
+if [ $exitcode -ne 0 ]; then
+  echo 'Breaking script as gcloud command failed'
+  exit $exitcode
+fi
 ${deploy_cf_add}
 cd ../workflow
 ./setup.sh -n ${workflow_name}
