@@ -166,7 +166,7 @@ For example:
 CREATE OR REPLACE TABLE `{dst_dataset}.my_dashboard_table` AS
 SELECT * FROM {ads_ds}.{campaign}
 ```
-In this case gaarf-bq will check for existance of a dataset specified as 'dst_dataset' macro. 
+In this case gaarf-bq will check for existance of a dataset specified as 'dst_dataset' macro.
 
 
 There are two type of parameters that you can pass to a script: macro and sql-parameter. First one is just a substitution in script text.
@@ -288,10 +288,10 @@ output: "2022-08-20"
 ### Dynamic dates
 Macro values can contain a special syntax for dynamic dates. If a macro value starts with *:YYYY* it will be processed
 as a dynamic expression to calculate a date based on the current date.
-The syntax is: `:PATTERN - N`,
+The syntax is: `:PATTERN-N`,
 where N is a number of days/months/years and PATTERN is one of the following:
 * *:YYYY* - current year, `:YYYY-1` - one year ago
-* *:YYYYMM* - current month, `:YYYYMM -2` - two months ago
+* *:YYYYMM* - current month, `:YYYYMM-2` - two months ago
 * *:YYYYMMDD* - current date, `:YYYYMMDD-7` - 7 days ago
 
 Example with providing values for macro start_date and end_date (that can be used in queries as date range) as
@@ -307,8 +307,8 @@ end_date will be '2022-07-28' (minus one day).
 
 
 > NOTE: dynamic date macro (:YYYY) can be defined as expressions as well (e.g. `${today()-1}` instead of ':YYYYMMDD-1')
-> so they are two alternatives. But with expressions you won't need to provide any arguments. 
-> With expressions we'll have easier deployment (no arguments needed) but 
+> so they are two alternatives. But with expressions you won't need to provide any arguments.
+> With expressions we'll have easier deployment (no arguments needed) but
 > with dynamic date macro more flexibility if you need to provide different values (sometimes dynamic, sometimes fixed).
 
 
@@ -383,7 +383,7 @@ There are differences in how tools process Ads queries.
 Python version sends queries to Ads API and parses the result. From the result it creates a BigQuery schema. That's becasue tables in BQ are created only when a query retuned some data.
 NodeJS on the contrary parses queries and initializes BigQuery schema before execution. So that it creates BQ tables regardless of the results.
 
-There are differences in BigQuery table structures as well. 
+There are differences in BigQuery table structures as well.
 Python version creates one table per script. While NodeJS creates a table per script per customer and then creates a view to combine all customer tables.
 For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll a table.
 For NodeJS it'll a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
