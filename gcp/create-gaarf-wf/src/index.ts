@@ -367,6 +367,13 @@ async function init() {
         message: 'Path to your google-ads.yaml:',
         default: 'google-ads.yaml',
       },
+      {
+        type: 'input',
+        name: 'custom_ids_query_path',
+        message:
+          'Sql file path with a query to filter customer accounts (leave empty if not needed)',
+        default: '',
+      },
     ],
     answers
   );
@@ -384,6 +391,7 @@ async function init() {
     fs.mkdirSync(path_to_bq_queries_abs);
     console.log(chalk.grey(`Created '${path_to_bq_queries_abs}' folder`));
   }
+  const custom_ids_query_path = answers1.custom_ids_query_path;
 
   gcs_bucket = (gcs_bucket || gcp_project_id).trim();
 
@@ -414,6 +422,17 @@ async function init() {
   }
 
   // Create deploy-scripts.sh
+  let deploy_custom_query_snippet = '';
+  let custom_query_gcs_path;
+  if (custom_ids_query_path) {
+    if (!fs.existsSync(custom_ids_query_path)) {
+      console.log(
+        chalk.red(`Could not find script '${custom_ids_query_path}'`)
+      );
+    }
+    custom_query_gcs_path = `gs://${gcs_bucket}/${name}/get-accounts.sql`;
+    deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
+  }
   // Note that we deploy queries to hard-coded paths
   deploy_shell_script(
     'deploy-scripts.sh',
@@ -422,6 +441,7 @@ GCS_BUCKET=gs://${gcs_bucket}
 GCS_BASE_PATH=$GCS_BUCKET/${name}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
+${deploy_custom_query_snippet}
 
 gsutil rm -r $GCS_BASE_PATH/${path_to_ads_queries}
 gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
@@ -431,9 +451,10 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
 `
   );
 
+  // Create deploy-wf.sh
   const workflow_name = name + '-wf';
-
-  const cf_memory = (
+  const function_name = name;
+  let cf_memory = (
     await prompt(
       [
         {
@@ -455,14 +476,30 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
       answers
     )
   ).cf_memory;
-  // Create deploy-wf.sh
+  // NOTE: Cloud Function Gen2 (in contrast to Gen1) don't support arbitrary memory size, for using >1GB you need to increase CPU
+  //       but `gcloud functions` command doesn't support this.
+  //       So have to deploy via `gcloud functions` with small memory and then update via `gcloud run` to update CPU and memory.
+  const cf_region = 'us-central1';
+  let deploy_cf_add = '';
+  if (
+    cf_memory === '2048MB' ||
+    cf_memory === '4096MB' ||
+    cf_memory === '8192MB'
+  ) {
+    deploy_cf_add = `gcloud run services update ${function_name} --region ${cf_region} --cpu 1 --memory=${cf_memory.replaceAll(
+      'MB',
+      'Mi'
+    )} --no-cpu-throttling`;
+    cf_memory = '512MB';
+  }
   deploy_shell_script(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflow
 cd ./${gaarf_folder}
 git pull
 cd ./gcp/functions
-./setup.sh -n ${name} --memory ${cf_memory}
+./setup.sh -n ${function_name} --memory ${cf_memory}
+${deploy_cf_add}
 cd ../workflow
 ./setup.sh -n ${workflow_name}
 `
@@ -582,7 +619,8 @@ cd ../workflow
     dataset: output_dataset,
     cid: customer_id,
     ads_config_path: `gs://${gcs_bucket}/${name}/google-ads.yaml`,
-    bq_dataset_location: '',
+    customer_ids_query: custom_query_gcs_path,
+    bq_dataset_location: '', // TODO: should we ask the user about a region? By default 'us' will be used
     ads_macro: macro_ads,
     bq_macro: macro_bq,
     bq_sql: {},
