@@ -49,6 +49,8 @@ done
 #For GCF 1st gen functions, cannot be more than 540s.
 #For GCF 2nd gen functions, cannot be more than 3600s.
 
+gcloud functions delete $FUNCTION_NAME --gen2 --region=$REGION --quiet
+
 gcloud functions deploy $FUNCTION_NAME \
   --trigger-http \
   --entry-point=main \
@@ -69,6 +71,8 @@ fi
 # If you need to increase memory about 2GB use this (gcloud functions deploy fails with memory sizes above 2GB):
 #gcloud run services update $FUNCTION_NAME --region $REGION --cpu 1 --memory=2048Mi --no-cpu-throttling
 
+gcloud functions delete $FUNCTION_NAME-getcids --gen2 --region=$REGION --quiet
+
 gcloud functions deploy $FUNCTION_NAME-getcids \
   --trigger-http \
   --entry-point=main_getcids \
@@ -86,6 +90,8 @@ if [ $exitcode -ne 0 ]; then
   exit $exitcode
 fi
 
+gcloud functions delete $FUNCTION_NAME-bq --gen2 --region=$REGION --quiet
+
 gcloud functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
@@ -102,6 +108,8 @@ if [ $exitcode -ne 0 ]; then
   echo 'Breaking script as gcloud command failed'
   exit $exitcode
 fi
+
+gcloud functions delete $FUNCTION_NAME-bq-view --gen2 --region=$REGION --quiet
 
 gcloud functions deploy $FUNCTION_NAME-bq-view \
   --trigger-http \
