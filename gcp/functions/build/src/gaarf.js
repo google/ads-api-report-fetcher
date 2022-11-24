@@ -14,37 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main = void 0;
-const fs_1 = __importDefault(require("fs"));
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const utils_1 = require("./utils");
 const main = async (req, res) => {
     console.log(req.body);
     console.log(req.query);
     // prepare Ads API parameters
-    let adsConfig;
-    const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
-    if (adsConfigFile) {
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile, req.query.customer_id);
-    }
-    else {
-        adsConfig = {
-            developer_token: process.env.DEVELOPER_TOKEN,
-            login_customer_id: process.env.LOGIN_CUSTOMER_ID,
-            client_id: process.env.CLIENT_ID,
-            client_secret: process.env.CLIENT_SECRET,
-            refresh_token: process.env.REFRESH_TOKEN,
-        };
-    }
-    if (!adsConfig && fs_1.default.existsSync('google-ads.yaml')) {
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)('google-ads.yaml', req.query.customer_id);
-    }
+    const adsConfig = await (0, utils_1.getAdsConfig)(req);
     console.log('Ads API config:');
-    console.log(adsConfig);
+    const { refresh_token, ...ads_config_wo_token } = adsConfig;
+    console.log(ads_config_wo_token);
     if (!adsConfig.developer_token || !adsConfig.refresh_token) {
         throw new Error('Ads API configuration is not complete.');
     }
@@ -58,21 +39,20 @@ const main = async (req, res) => {
     if (!customerId)
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
     const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
-    const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
-    const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, {
-        keepData: !!req.query.get_data,
-        datasetLocation: req.query.bq_dataset_location,
-    });
     // TODO: support CsvWriter and output path to GCS
     // (csv.destination_folder=gs://bucket/path)
     const singleCustomer = req.query.single_customer;
     const body = req.body || {};
     const macroParams = body.macro;
+    const bq_writer_options = {
+        datasetLocation: req.query.bq_dataset_location,
+    };
     const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     let customers;
     if (singleCustomer) {
-        console.log(`[${scriptName}] Executing for a single customer ids: ${customerId}`);
+        console.log(`[${scriptName}] Executing for a single customer id: ${customerId}`);
         customers = [customerId];
+        bq_writer_options.noUnionView = true;
     }
     else {
         console.log(`[${scriptName}] Fetching customer ids`);
@@ -80,15 +60,12 @@ const main = async (req, res) => {
         console.log(`[${scriptName}] Customers to process (${customers.length}):`);
         console.log(customers);
     }
+    const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
+    const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, bq_writer_options);
     const result = await executor.execute(scriptName, queryText, customers, macroParams, writer);
     console.log(`[${scriptName}] Cloud Function compeleted`);
-    if (req.query.get_data) {
-        res.send(writer.rowsByCustomer);
-    }
-    else {
-        // we're returning a map of customer to number of rows
-        res.send(result);
-    }
+    // we're returning a map of customer to number of rows
+    res.json(result);
     res.end();
 };
 exports.main = main;

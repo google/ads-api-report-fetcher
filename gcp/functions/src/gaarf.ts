@@ -18,6 +18,8 @@ import fs from 'fs';
 import {
   AdsQueryExecutor,
   BigQueryWriter,
+  BigQueryWriterOptions,
+  getFileContent,
   GoogleAdsApiClient,
   loadAdsConfigYaml,
 } from 'google-ads-api-report-fetcher';
@@ -25,7 +27,7 @@ import {
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
 import {GoogleAdsApiConfig} from 'google-ads-api-report-fetcher/src/lib/ads-api-client';
-import {getScript} from './utils';
+import {getAdsConfig, getScript} from './utils';
 
 export const main: HttpFunction = async (
   req: express.Request,
@@ -35,32 +37,10 @@ export const main: HttpFunction = async (
   console.log(req.query);
 
   // prepare Ads API parameters
-  let adsConfig: GoogleAdsApiConfig;
-  const adsConfigFile =
-    <string>req.query.ads_config_path || process.env.ADS_CONFIG;
-  if (adsConfigFile) {
-    adsConfig = await loadAdsConfigYaml(
-      adsConfigFile,
-      <string>req.query.customer_id
-    );
-  } else {
-    adsConfig = <GoogleAdsApiConfig>{
-      developer_token: <string>process.env.DEVELOPER_TOKEN,
-      login_customer_id: <string>process.env.LOGIN_CUSTOMER_ID,
-      client_id: <string>process.env.CLIENT_ID,
-      client_secret: <string>process.env.CLIENT_SECRET,
-      refresh_token: <string>process.env.REFRESH_TOKEN,
-    };
-  }
-  if (!adsConfig && fs.existsSync('google-ads.yaml')) {
-    adsConfig = await loadAdsConfigYaml(
-      'google-ads.yaml',
-      <string>req.query.customer_id
-    );
-  }
-
+  const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
   console.log('Ads API config:');
-  console.log(adsConfig);
+  const {refresh_token, ...ads_config_wo_token} = adsConfig;
+  console.log(ads_config_wo_token);
   if (!adsConfig.developer_token || !adsConfig.refresh_token) {
     throw new Error('Ads API configuration is not complete.');
   }
@@ -82,31 +62,38 @@ export const main: HttpFunction = async (
     );
 
   const ads_client = new GoogleAdsApiClient(adsConfig, <string>customerId);
-  const executor = new AdsQueryExecutor(ads_client);
-  const writer = new BigQueryWriter(<string>projectId, <string>dataset, {
-    keepData: !!req.query.get_data,
-    datasetLocation: <string>req.query.bq_dataset_location,
-  });
   // TODO: support CsvWriter and output path to GCS
   // (csv.destination_folder=gs://bucket/path)
 
   const singleCustomer = req.query.single_customer;
   const body = req.body || {};
   const macroParams = body.macro;
+  const bq_writer_options: BigQueryWriterOptions = {
+    datasetLocation: <string>req.query.bq_dataset_location,
+  };
 
   const {queryText, scriptName} = await getScript(req);
   let customers: string[];
   if (singleCustomer) {
     console.log(
-      `[${scriptName}] Executing for a single customer ids: ${customerId}`
+      `[${scriptName}] Executing for a single customer id: ${customerId}`
     );
     customers = [<string>customerId];
+    bq_writer_options.noUnionView = true;
   } else {
     console.log(`[${scriptName}] Fetching customer ids`);
     customers = await ads_client.getCustomerIds();
     console.log(`[${scriptName}] Customers to process (${customers.length}):`);
     console.log(customers);
   }
+
+  const executor = new AdsQueryExecutor(ads_client);
+  const writer = new BigQueryWriter(
+    <string>projectId,
+    <string>dataset,
+    bq_writer_options
+  );
+
   const result = await executor.execute(
     scriptName,
     queryText,
@@ -116,11 +103,7 @@ export const main: HttpFunction = async (
   );
 
   console.log(`[${scriptName}] Cloud Function compeleted`);
-  if (req.query.get_data) {
-    res.send(writer.rowsByCustomer);
-  } else {
-    // we're returning a map of customer to number of rows
-    res.send(result);
-  }
+  // we're returning a map of customer to number of rows
+  res.json(result);
   res.end();
 };

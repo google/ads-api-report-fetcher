@@ -10,14 +10,15 @@ There are the following components provided:
 So for using Cloud Workflow you need to deploy the workflow and cloud functions. But you can use cloud functions independently if you need.
 
 ## Table of content
+ - [Installation](#installation)
  - [Cloud Functions](#cloud-functions)
       - [Configuration](#configuration)
       - [Parameters](#functions-parameters)
  - [Cloud Workflow](#cloud-workflow)
       - [Parameters](#workflow-parameters)
- - [Deployment](#deployment)
+      - [Deployment](#deployment)
 
-## Installtion
+## Installation
 
 The easiest way to initialize a Google Cloud infrastructure for automated running of your queries is to use our interactive generator [create-gaarf-wf](https://www.npmjs.com/package/create-gaarf-wf).
 
@@ -28,14 +29,21 @@ To better understand what the generator creates for you we recommend to read the
 
 ## Cloud Functions
 
-We provide two cloud functions that correlate to two cli tools: gaarf and gaarf-bq. Accordingly by default functions are deployed under names of gaarf and gaarf-bq. But you can change names during deployment by supplying a `-n` parameter for `deploy.sh` and/or `setup.sh`.
+We provide several cloud functions that correlate to cli tools: gaarf and gaarf-bq. Default name of main function is 'gaarf'
+and other ones' names based on it with suffixes. You can change the base name during deployment by supplying a `-n` parameter for `deploy.sh` and/or `setup.sh`.
 
 To deploy cloud functions you need to execute `setup.sh` which enables required APIs, sets up permissions and does actual deployment of functions using `deploy.sh`. So later on if something changed in functions' code or Ads API settings you can redeploy by executing `deploy.sh`.
 
 Additionally you can customize region (`-r`) and memory (`-m`).
 
+There are following functions provided:
+* gaarf-getcids - fetches and returns customer account ids (CIDs) for further processing
+* gaarf - the main function for executing Ads queries, correlates to the `gaarf` cli tool
+* gaarf-bq-view - function for creating unified views for all customer-based tables in BQ with data from Ads API
+* gaarf-bq - function for executing post-processing queries in BigQuery, correlates to the `gaarf-bq` cli tool
+
 ### Configuration
-Please note that you need to copy your `google-ads.yaml` somewhere where the function can find it. Preferably onto Cloud Storage. Then you should provide `ads_config_path` query argument or `ADS_CONFIG` environment variable with a path to the Ads config (e.g. gs://myproject/path/to/google-ads.yaml). As a last resort the function will search for `google-ads.yaml` locally, so we can just copy your config to function' folder before deployment.
+Please note that you need to copy your `google-ads.yaml` somewhere where functions (gaarf and gaarf-getcids) can find it. Preferably onto Cloud Storage. Then you should provide `ads_config_path` query argument or `ADS_CONFIG` environment variable with a path to the Ads config (e.g. gs://myproject/path/to/google-ads.yaml). As a last resort the function will search for `google-ads.yaml` locally, so we can just copy your config to function' folder before deployment.
 Alternatively you can provide all configuration values for Ads API via environment variables (you can supply env vars via `--env-vars-file env.yaml` cli option for gcloud tool - you'll need to adapt the `deploy.sh` for this):
 * DEVELOPER_TOKEN,
 * LOGIN_CUSTOMER_ID
@@ -46,6 +54,8 @@ Alternatively you can provide all configuration values for Ads API via environme
 ### Functions Parameters
 > Normally your functions are called by Cloud Workflow and you don't need to bother about their parameters' format.
 
+> Note that actual functions names are chosen on deployment. Here they are mentioned under default ones.
+
 #### gaarf
 Body:
 * `script` - an object with two fields `query` and `name`, where `query` contains an Ads query text (as alternative to providing it via the `script_path` query argument) and `name` is a name (normally base file name would use) used for target table with data retuned by the script
@@ -54,15 +64,14 @@ Body:
 Query string:
 * `ads_config_path` - a path to Ads config, e.g. gs://bucket/path/to/google-ads.yaml, if not passed then a local file will be tried to used (should be deployed with the function)
 * `script_path` - a path to Ads query file, currently only GCS paths are supported, e.g. gs://bucket/path/to/file, it's mandatory if script/name were not provided via body
-* `single_customer` - true/false, pass true to prevent from fetching child account for a given customer id
+* `single_customer` - true/false, pass true to prevent fetching child accounts for a given customer id (`customer_id`)
 * `customer_id` - customer id (CID), without '-', can be specified in google-ads.yaml as well, if so then can be omitted
 * `bq_project_id` - BigQuery project id for output
 * `bq_dataset` - BiQuery dataset id for output
 * `bq_dataset_location` - BigQuery dataset location
-* `get_data` - true/false, pass true to get all data from executing script (a map of CID to rows)
 
 Returns:
-If `get_data` query argument passed then a map of CID to rows will be returned, otherwise a map to row counts will be returned
+* A map of CID (customer account id) to row counts.
 
 #### gaarf-bq
 Body:
@@ -77,9 +86,31 @@ Query string:
 Returns:
 * an object with `rowCount` field with a row count if the script returned data, otherwise (the script is a DDL like create view) response is empty
 
+#### gaarf-getcids
+Query string:
+* `ads_config_path` - a path to Ads config, same as for gaarf
+* `customer_id` - customer id (CID), without '-', can be specified in google-ads.yaml as well, if so then can be omitted
+* `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`, same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID)
+
+Body:
+* `customer_ids_query` - same as QueryString's argument as alternative
+
+Returns:
+* Array of CIDs (customer account ids) for a given account
+
+
+#### gaarf-bq-view
+Query string:
+* `project_id` - a GCP project id
+* `dataset` - BiQuery dataset id
+* `dataset_location` - BigQuery dataset location
+* `script_path` - a path to Ads query file to get table id from (file base name will be used)
+* `table` - table id, not needed if `script_path` is specified
+
+
 ## Cloud Workflow
 
-To deploy workflow for gaarf you can use `ads-api-fetcher/gcp/workflow/setup.sh` script. It accepts parameters:
+To deploy workflow for gaarf you can use `gcp/workflow/setup.sh` script. It accepts parameters:
 * `-n` or `--name` - name of the workflow, by default it will be `gaarf-wf`
 * `-l` or `--location` - location region for workflow, be default it will be `us-central1`
 
@@ -141,17 +172,17 @@ Please notice the escaping of quotes for job's argument.
 * `bq_sql` - an object with sql parameters for BigQuery queries
 
 
-## Deployment
+### Deployment
+For deployment we recommend using our interactive generator [create-gaarf-wf](https://www.npmjs.com/package/create-gaarf-wf).
+It greatly simplifies deployment. As a result of running it creates a bunch of shell scripts that reviewed here.
+
 Common deployment scripts are:
 * deploy-scripts.sh - copy queries and google-ads.yaml to GCS
 * deploy-wf.sh - deploy cloud functions and cloud workflow
 * schedule-wf.sh - create a schedule job with parameters
 
->The following snippets for mentioned files content are provided just as an example. In the future gaarf will contain more automated deployement tools.
-
 For deployment of all components you can use the [setup.sh](setup.sh) script with an argument with a name of your project.
-Providing you supplied a name "myproject" the script will deploy functions "myproject" and "myproject-bq", and "myproject-wf"
-workflow. You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders.
+Providing you supplied a name "myproject" the script will deploy functions with base name "myproject" ("myproject-bq", "myproject-getcids", "myproject-bq-view") and a workflow "myproject-wf". You can always customize names and other settings for components by adjusting `setup.sh` scripts in components' folders.
 
 
 #### deploy-scripts.sh

@@ -6,7 +6,7 @@ main:
         - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
         - location: ${default(map.get(args, "location"), "us-central1")}
         - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
-        - bq_dataset_location: ${default(map.get(args, "bq_dataset_location"), "us")}
+        - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
     - run_ads_workflow:
         call: runAdsQueries
@@ -16,11 +16,12 @@ main:
           function_name: ${cloud_function}
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.ads_queries_path}
+          ads_config_path: ${args.ads_config_path}
+          cid: ${args.cid}
+          customer_ids_query: ${map.get(args, "customer_ids_query")}
           bq_dataset: ${args.dataset}
           bq_dataset_location: ${bq_dataset_location}
-          cid: ${args.cid}
           macros: ${map.get(args, "ads_macro")}
-          ads_config_path: ${args.ads_config_path}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -34,10 +35,10 @@ main:
           sqlParams: ${map.get(args, "bq_sql")}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, bq_dataset, bq_dataset_location, cid, macros, ads_config_path]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
-    # get CF function URL (specially usefull for v2 CF)
+    # get CF 'gaarf' function's URL
     - get_function:
         call: http.get
         args:
@@ -50,10 +51,52 @@ runAdsQueries:
         #args:
         #  name: ${"projects/" + project + "/locations/" + location + "/functions/" + function_name}
         #result: function
+    # get CF 'gaarf-getcids' function's URL
+    - get_function_cids:
+        call: http.get
+        args:
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name + "-getcids"}
+          auth:
+            type: OAuth2
+        result: function_cids
+    # get CF 'gaarf-bq-view' function's URL
+    - get_function_view:
+        call: http.get
+        args:
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name + "-bq-view"}
+          auth:
+            type: OAuth2
+        result: function_view
     - log_functions_metadata:
         call: sys.log
         args:
-          data: ${function}
+          json:
+            gaarf: ${function.body.serviceConfig.uri}
+            gaarf-getcids: ${function_cids.body.serviceConfig.uri}
+            gaarf-bq-view: ${function_view.body.serviceConfig.uri}
+    #call 'gaarf-getcids' CF to get a list of customer ids for further processing
+    - call_gaarf_cids_cf:
+        call: http.post
+        args:
+          url: ${function_cids.body.serviceConfig.uri}
+          timeout: 1800 # maximum allowed timeout in Workflows is 1800 despite the fact CF gen2 support 3600
+          query:
+            ads_config_path: ${ads_config_path}
+            customer_id: ${cid}
+            customer_ids_query: ${default(customer_ids_query, "")}
+          auth:
+            type: OIDC
+        result: accounts_response
+    - set_accounts_from_cf_response:
+        assign:
+          - accounts: ${accounts_response.body}
+    - log_cids:
+        call: sys.log
+        args:
+          json:
+            count: ${len(accounts)}
+            account: ${accounts}
+          severity: "INFO"
     # fetch script from GCS
     - get_ads_scripts_from_gcs:
         call: googleapis.storage.v1.objects.list
@@ -64,59 +107,81 @@ runAdsQueries:
     - log_ads_scripts:
         call: sys.log
         args:
-          data: ${scripts.items}
+          json:
+            count: ${len(scripts.items)}
+            scripts: ${scripts.items}
           severity: "INFO"
+    # parallel loop over queries on GCS
     - runAdsQueries:
         parallel:
-          shared: [scripts]
+          shared: [scripts, accounts]
           for:
             value: script_item
             in: ${scripts.items}
             steps:
-              - call_gaarf_cf:
-                  try:
-                    call: http.post
-                    args:
-                      url: ${function.body.serviceConfig.uri}
-                      timeout: 1800
-                      query:
-                        script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
-                        bq_project_id: ${project}
-                        bq_dataset: ${bq_dataset}
-                        bq_dataset_location: ${bq_dataset_location}
-                        customer_id: ${cid}
-                        ads_config_path: ${ads_config_path}
-                      body:
-                        macro: ${macros}
-                      auth:
-                        type: OIDC
-                    result: script_results
-                  retry:
-                    predicate: ${custom_retry_predicate}
-                    max_retries: 3
-                    backoff:
-                      initial_delay: 2
-                      max_delay: 60
-                      multiplier: 2
-              - log_script_result:
-                  call: sys.log
+              - check_for_constant:
+                  switch:
+                    - condition: ${text.match_regex(script_item.name, "_constant")}
+                      next: execute_constant_script
+                  next: parallel_loop_over_accounts
+              # execute constant query for a single (first) account
+              - execute_constant_script:
+                  call: executeAdsQuery
                   args:
-                    data: ${script_results.body}
-                    severity: "INFO"
-
-custom_retry_predicate:
-  params: [e]
-  steps:
-    - what_to_repeat:
-        switch:
-          - condition: ${e.code == 500}
-            return: true
-    - otherwise:
-        return: false
+                    cf_uri: ${function.body.serviceConfig.uri}
+                    script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                    account: ${accounts[0]}
+                    macros: ${macros}
+                    project: ${project}
+                    bq_dataset: ${bq_dataset}
+                    bq_dataset_location: ${bq_dataset_location}
+                    ads_config_path: ${ads_config_path}
+                    is_constant: true
+                  next: continue # continue loop over queries
+              # parallel nested loop over accounts
+              - parallel_loop_over_accounts:
+                  parallel:
+                    shared: [accounts]
+                    for:
+                      value: account
+                      in: ${accounts}
+                      steps:
+                        - execute_script:
+                            call: executeAdsQuery
+                            args:
+                              cf_uri: ${function.body.serviceConfig.uri}
+                              script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                              account: ${account}
+                              macros: ${macros}
+                              project: ${project}
+                              bq_dataset: ${bq_dataset}
+                              bq_dataset_location: ${bq_dataset_location}
+                              ads_config_path: ${ads_config_path}
+              # create a view in BQ to combine all account tables into a single view
+              - call_create_view_cf:
+                  call: http.post
+                  args:
+                    url: ${function_view.body.serviceConfig.uri}
+                    query:
+                      project_id: ${project}
+                      dataset: ${bq_dataset}
+                      dataset_location: ${bq_dataset_location}
+                      script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                    body:
+                      accounts: ${accounts}
+                    auth:
+                      type: OIDC
+                  result: create_view_response
+              # - log_script_completed:
+              #     call: sys.log
+              #     args:
+              #       data:
+              #         query: ${script_item.name}
+              #         message: "Unified view created"
+              #       severity: "INFO"
 
 runBigQueryQueries:
   params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
-
   steps:
     - get_bq_scripts_from_gcs:
         call: googleapis.storage.v1.objects.list
@@ -172,6 +237,57 @@ runBigQueryQueries:
                 args:
                   data: ${script_results.body}
                   severity: "INFO"
-# TODO:
-# * safely ignore the absence of scripts on GCS
-# * BQ scripts should be executed sequentially
+
+executeAdsQuery:
+  params: [cf_uri, script_path, account, macros, project, bq_dataset, bq_dataset_location, ads_config_path, is_constant: false]
+  steps:
+    - call_gaarf_cf:
+        try:
+          call: http.post
+          args:
+            url: ${cf_uri}
+            timeout: 1800 # maximum allowed timeout in Workflows is 1800 despite the fact CF gen2 support 3600
+            query:
+              script_path: ${script_path}
+              ads_config_path: ${ads_config_path}
+              bq_project_id: ${project}
+              bq_dataset: ${bq_dataset}
+              bq_dataset_location: ${bq_dataset_location}
+              customer_id: ${account}
+              single_customer: true # it's important to prevent fetching child accounts for the supplied cid
+            body:
+              macro: ${macros}
+            auth:
+              type: OIDC
+          result: script_results
+        retry:
+          predicate: ${custom_retry_predicate}
+          max_retries: 3
+          backoff:
+            initial_delay: 2
+            max_delay: 60
+            multiplier: 2
+    - log_script_result:
+        call: sys.log
+        args:
+          data:
+            is_constant: ${is_constant}
+            query: ${script_path}
+            account: ${account}
+            rowCount: ${map.get(script_results.body, "" + account)}
+          severity: "INFO"
+
+custom_retry_predicate:
+  params: [e]
+  steps:
+    - log_call_gaarf_cf_failure:
+        call: sys.log
+        args:
+          data: ${e}
+          severity: "WARNING"
+    - what_to_repeat:
+        switch:
+          - condition: ${e.code == 500}
+            return: true
+    - otherwise:
+        return: false

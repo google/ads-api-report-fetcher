@@ -29,22 +29,22 @@ export const main_bq: HttpFunction = async (
   const projectId = req.query.project_id || process.env.PROJECT_ID;
   // note: projectId isn't mandatory (should be detected from ADC)
 
-  const body = req.body || {};
-  const sqlParams = body.sql;
-  const macroParams = body.macro;
-  const {queryText, scriptName} = await getScript(req);
-
   const options: BigQueryExecutorOptions = {
     datasetLocation: <string>req.query.dataset_location,
   };
+  const {queryText, scriptName} = await getScript(req);
   const executor = new BigQueryExecutor(<string>projectId, options);
+
+  const body = req.body || {};
+  const sqlParams = body.sql;
+  const macroParams = body.macro;
 
   const result = await executor.execute(scriptName, queryText, {
     sqlParams,
     macroParams,
   });
   if (result && result.length) {
-    res.send({rowCount: result.length});
+    res.json({rowCount: result.length});
   } else {
     res.sendStatus(200);
   }

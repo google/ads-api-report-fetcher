@@ -74,14 +74,15 @@ export class BigQueryWriter implements IResultWriter {
     dataset: string,
     options?: BigQueryWriterOptions
   ) {
+    const datasetLocation = options?.datasetLocation || 'us';
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
       keyFilename: options?.keyFilePath,
-      location: options?.datasetLocation,
+      location: datasetLocation,
     });
     this.datasetId = dataset;
-    this.datasetLocation = options?.datasetLocation;
+    this.datasetLocation = datasetLocation;
     this.tableTemplate = options?.tableTemplate;
     this.dumpSchema = options?.dumpSchema || false;
     this.dumpData = options?.dumpData || false;

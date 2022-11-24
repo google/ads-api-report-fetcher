@@ -25,13 +25,14 @@ const utils_1 = require("./utils");
 const bq_common_1 = require("./bq-common");
 class BigQueryExecutor {
     constructor(projectId, options) {
+        const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || "us";
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
             scopes: bq_common_1.OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
-            location: options === null || options === void 0 ? void 0 : options.datasetLocation,
+            location: datasetLocation,
         });
-        this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
+        this.datasetLocation = datasetLocation;
     }
     async execute(scriptName, queryText, params) {
         if (params === null || params === void 0 ? void 0 : params.macroParams) {

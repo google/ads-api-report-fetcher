@@ -23,20 +23,20 @@ const main_bq = async (req, res) => {
     console.log(req.query);
     const projectId = req.query.project_id || process.env.PROJECT_ID;
     // note: projectId isn't mandatory (should be detected from ADC)
-    const body = req.body || {};
-    const sqlParams = body.sql;
-    const macroParams = body.macro;
-    const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     const options = {
         datasetLocation: req.query.dataset_location,
     };
+    const { queryText, scriptName } = await (0, utils_1.getScript)(req);
     const executor = new google_ads_api_report_fetcher_1.BigQueryExecutor(projectId, options);
+    const body = req.body || {};
+    const sqlParams = body.sql;
+    const macroParams = body.macro;
     const result = await executor.execute(scriptName, queryText, {
         sqlParams,
         macroParams,
     });
     if (result && result.length) {
-        res.send({ rowCount: result.length });
+        res.json({ rowCount: result.length });
     }
     else {
         res.sendStatus(200);

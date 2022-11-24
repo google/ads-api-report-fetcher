@@ -45,6 +45,10 @@ while :; do
   shift
 done
 
+# NOTE:
+#For GCF 1st gen functions, cannot be more than 540s.
+#For GCF 2nd gen functions, cannot be more than 3600s.
+
 gcloud functions deploy $FUNCTION_NAME \
   --trigger-http \
   --entry-point=main \
@@ -56,20 +60,43 @@ gcloud functions deploy $FUNCTION_NAME \
   --gen2 \
   --source=.
 
-#  --env-vars-file .env.yaml
-#  --allow-unauthenticated \
-#  --timeout=540s
-#For GCF 1st gen functions, cannot be more than 540s.
-#For GCF 2nd gen functions, cannot be more than 3600s.
+# If you need to increase memory about 2GB use this (gcloud functions deploy fails with memory sizes above 2GB):
+#gcloud run services update $FUNCTION_NAME --region $REGION --cpu 1 --memory=2048Mi --no-cpu-throttling
 
+gcloud functions deploy $FUNCTION_NAME-getcids \
+  --trigger-http \
+  --entry-point=main_getcids \
+  --runtime=nodejs16 \
+  --memory=512MB \
+  --timeout=3600s \
+  --region=$REGION \
+  --quiet \
+  --gen2 \
+  --source=.
 
 gcloud functions deploy $FUNCTION_NAME-bq \
   --trigger-http \
   --entry-point=main_bq \
   --runtime=nodejs16 \
+  --memory=512MB \
   --timeout=3600s \
-  --memory=$MEMORY \
   --region=$REGION \
   --quiet \
   --gen2 \
   --source=.
+
+gcloud functions deploy $FUNCTION_NAME-bq-view \
+  --trigger-http \
+  --entry-point=main_bq_view \
+  --runtime=nodejs16 \
+  --memory=512MB \
+  --timeout=3600s \
+  --region=$REGION \
+  --quiet \
+  --gen2 \
+  --source=.
+
+
+#  --env-vars-file .env.yaml
+#  --allow-unauthenticated \
+#  --timeout=540s

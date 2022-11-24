@@ -36,14 +36,15 @@ var BigQueryInsertMethod;
 })(BigQueryInsertMethod = exports.BigQueryInsertMethod || (exports.BigQueryInsertMethod = {}));
 class BigQueryWriter {
     constructor(projectId, dataset, options) {
+        const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || 'us';
         this.bigquery = new bigquery_1.BigQuery({
             projectId: projectId,
             scopes: bq_common_1.OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
-            location: options === null || options === void 0 ? void 0 : options.datasetLocation,
+            location: datasetLocation,
         });
         this.datasetId = dataset;
-        this.datasetLocation = options === null || options === void 0 ? void 0 : options.datasetLocation;
+        this.datasetLocation = datasetLocation;
         this.tableTemplate = options === null || options === void 0 ? void 0 : options.tableTemplate;
         this.dumpSchema = (options === null || options === void 0 ? void 0 : options.dumpSchema) || false;
         this.dumpData = (options === null || options === void 0 ? void 0 : options.dumpData) || false;

@@ -31,4 +31,6 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./gaarf"), exports);
 __exportStar(require("./gaarf-bq"), exports);
+__exportStar(require("./gaarf-getcids"), exports);
+__exportStar(require("./gaarf-bq-view"), exports);
 //# sourceMappingURL=index.js.map

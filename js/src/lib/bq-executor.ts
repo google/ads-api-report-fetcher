@@ -37,13 +37,14 @@ export class BigQueryExecutor {
     projectId?: string | undefined,
     options?: BigQueryExecutorOptions
   ) {
+    const datasetLocation = options?.datasetLocation || "us";
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
       keyFilename: options?.keyFilePath,
-      location: options?.datasetLocation,
+      location: datasetLocation,
     });
-    this.datasetLocation = options?.datasetLocation;
+    this.datasetLocation = datasetLocation;
   }
 
   async execute(
