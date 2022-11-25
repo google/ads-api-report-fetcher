@@ -162,6 +162,7 @@ runAdsQueries:
                   call: http.post
                   args:
                     url: ${function_view.body.serviceConfig.uri}
+                    timeout: 1800
                     query:
                       project_id: ${project}
                       dataset: ${bq_dataset}
@@ -222,6 +223,7 @@ runBigQueryQueries:
                 call: http.post
                 args:
                   url: ${function_bq.body.serviceConfig.uri}
+                  timeout: 1800
                   query:
                     script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
                     project_id: ${project}
@@ -241,12 +243,15 @@ runBigQueryQueries:
 executeAdsQuery:
   params: [cf_uri, script_path, account, macros, project, bq_dataset, bq_dataset_location, ads_config_path, is_constant: false]
   steps:
+    - init_vars:
+        assign:
+          - started: ${sys.now()}
     - call_gaarf_cf:
         try:
           call: http.post
           args:
             url: ${cf_uri}
-            timeout: 1800 # maximum allowed timeout in Workflows is 1800 despite the fact CF gen2 support 3600
+            timeout: 1800 # maximum allowed timeout in Workflows is 1800 (30min) despite the fact CF gen2 support 3600 (60min)
             query:
               script_path: ${script_path}
               ads_config_path: ${ads_config_path}
@@ -275,6 +280,8 @@ executeAdsQuery:
             query: ${script_path}
             account: ${account}
             rowCount: ${map.get(script_results.body, "" + account)}
+            started: ${time.format(started)}
+            elapsed: ${sys.now() - started}
           severity: "INFO"
 
 custom_retry_predicate:

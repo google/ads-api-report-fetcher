@@ -86,12 +86,14 @@ function exec_cmd(cmd, spinner, options) {
                     const arr = line.split('\r');
                     return arr[arr.length - 1];
                 });
-                const row_count = lines
-                    .map(line => ((line.length / terminal_width) | 0) + 1)
-                    .reduce((total, count) => (total += count));
-                process.stdout.cursorTo(0);
-                process.stdout.moveCursor(0, -row_count + 1);
-                process.stdout.clearScreenDown();
+                if (lines.length > 0) {
+                    const row_count = lines
+                        .map(line => ((line.length / terminal_width) | 0) + 1)
+                        .reduce((total, count) => (total += count), 0);
+                    process.stdout.cursorTo(0);
+                    process.stdout.moveCursor(0, -row_count + 1);
+                    process.stdout.clearScreenDown();
+                }
             }
             if (stderr && !(options === null || options === void 0 ? void 0 : options.realtime) && !(options === null || options === void 0 ? void 0 : options.silent) && code !== 0) {
                 // by default, if not switched off and not realtime output, show error
@@ -185,12 +187,32 @@ async function initialize_gcp_project(answers) {
     }
     return gcp_project_id;
 }
+/**
+ * Walks throught directory structure and returns a list of full file paths.
+ * @param dirpath a directory path
+ * @returns a list of full paths of files in the directory (recursively)
+ */
+function readDir(dirpath) {
+    let results = [];
+    const entries = fs.readdirSync(dirpath, { withFileTypes: true });
+    entries.forEach((entry) => {
+        const entry_path = path.resolve(dirpath, entry.name);
+        if (entry.isDirectory()) {
+            /* Recurse into a subdirectory */
+            results = results.concat(readDir(entry_path));
+        }
+        else {
+            /* Is a file */
+            results.push(entry_path);
+        }
+    });
+    return results;
+}
 function getMacroValues(folder_path, answers, prefix) {
-    const filelist = fs.readdirSync(folder_path);
+    const filelist = readDir(folder_path);
     const macro = {};
-    for (const name of filelist) {
-        if (name.endsWith('.sql')) {
-            const file_path = path.join(folder_path, name);
+    for (const file_path of filelist) {
+        if (file_path.endsWith('.sql')) {
             let script_content = fs.readFileSync(file_path, 'utf-8');
             // if script_content contains FUNCTIONS block we should cut it off  before searching for macro
             const fn_match = script_content.match(/FUNCTIONS/i);
@@ -255,7 +277,7 @@ async function init() {
             message: 'Your project name (spaces/underscores will be converted to "-"):',
             default: path.basename(cwd),
             filter: value => {
-                return value.replaceAll(' ', '-').replaceAll(' ', '-');
+                return value.replaceAll(' ', '-').replaceAll('_', '-');
             },
         },
     ], answers)).name;
@@ -325,7 +347,7 @@ async function init() {
         await exec_cmd(`git clone ${GIT_REPO} --depth 1 ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${GIT_REPO}), please wait...`));
     }
     else {
-        execSync(`cd ${gaarf_folder} && git pull --rebase`);
+        execSync(`cd ${gaarf_folder} && git pull --ff`);
     }
     // create a bucket
     const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
@@ -345,6 +367,7 @@ async function init() {
     }
     // Note that we deploy queries to hard-coded paths
     deploy_shell_script('deploy-scripts.sh', `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
+set -e
 GCS_BUCKET=gs://${gcs_bucket}
 GCS_BASE_PATH=$GCS_BUCKET/${name}
 
@@ -387,28 +410,18 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
         cf_memory === '8192MB') {
         deploy_cf_add = `
 gcloud run services update ${function_name} --region ${cf_region} --cpu 1 --memory=${cf_memory.replaceAll('MB', 'Mi')}
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
-
-`;
+`; //--no-cpu-throttling (add or not?)
         cf_memory = '512MB';
     }
     deploy_shell_script('deploy-wf.sh', `# Deploy Cloud Functions and Cloud Workflow
+set -e
 cd ./${gaarf_folder}
-git pull --rebase
+git pull --ff
 cd ./gcp/functions
-./setup.sh -n ${function_name} --memory ${cf_memory}
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
+./setup.sh --name ${function_name} --memory ${cf_memory} --region ${cf_region}
 ${deploy_cf_add}
 cd ../workflow
-./setup.sh -n ${workflow_name}
+./setup.sh --name ${workflow_name} --region ${cf_region}
 `);
     const has_ads_queries = !!fs.readdirSync(path_to_ads_queries).length;
     const has_bq_queries = !!fs.readdirSync(path_to_bq_queries).length;
@@ -425,28 +438,6 @@ cd ../workflow
         wf_created: false,
         wf_scheduled: false,
     };
-    if (ready_to_deploy_scripts) {
-        if ((await prompt({
-            type: 'confirm',
-            name: 'deploy_scripts',
-            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
-            default: true,
-        }, answers)).deploy_scripts) {
-            await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
-                realtime: true,
-            });
-            progress.scripts_deployed = true;
-        }
-    }
-    if ((await prompt({
-        type: 'confirm',
-        name: 'deploy_wf',
-        message: 'Do you want to deploy Cloud components:',
-        default: true,
-    }, answers)).deploy_wf) {
-        await exec_cmd(path.join(cwd, './deploy-wf.sh'), new clui.Spinner('Deploying Cloud components, please wait...'));
-        progress.wf_created = true;
-    }
     // now we need parameters for running the WF
     let ads_customer_id;
     if (fs.existsSync(path_to_googleads_config)) {
@@ -491,7 +482,7 @@ cd ../workflow
   --data='${JSON.stringify(wf_data, null, 2)}'
 `);
     const answers3 = await prompt({
-        when: progress.scripts_deployed && progress.wf_created,
+        //when: progress.scripts_deployed && progress.wf_created,
         type: 'confirm',
         name: 'schedule_wf',
         message: 'Do you want to schedule a job for executing workflow:',
@@ -499,15 +490,23 @@ cd ../workflow
     }, answers);
     let schedule_cron = '0 0 * * *';
     if (answers3.schedule_wf) {
-        const answers_schedule = await prompt({
-            type: 'input',
-            name: 'schedule_time',
-            message: 'Enter time (hh:mm) for job to start:',
-            default: '00:00',
-            validate: (input) => !input.match(/\d+(:\d+)*/gi) ? 'Please use the format 00:00' : true,
-        }, answers);
+        const answers_schedule = await prompt([
+            {
+                type: 'input',
+                name: 'schedule_time',
+                message: 'Enter time (hh:mm) for job to start:',
+                default: '00:00',
+                validate: (input) => !input.match(/\d+(:\d+)*/gi) ? 'Please use the format 00:00' : true,
+            },
+            {
+                type: 'confirm',
+                name: 'run_job',
+                message: 'Do you want to run the job right now',
+            },
+        ], answers);
         const time_parts = answers_schedule.schedule_time.split(':');
         schedule_cron = `${time_parts.length > 1 ? time_parts[1] : 0} ${time_parts[0]} * * *`;
+        answers3.run_job = answers_schedule.run_job;
     }
     // Create schedule-wf.sh
     deploy_shell_script('schedule-wf.sh', `# Create Scheduler Job to execute Cloud Workflow
@@ -516,7 +515,7 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 # be default Cloud Worflows run under the Compute Engine default service account:
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-REGION=us-central1
+REGION=${cf_region}
 WORKFLOW_NAME=${workflow_name}
 JOB_NAME=$WORKFLOW_NAME
 
@@ -536,12 +535,45 @@ gcloud scheduler jobs create http $JOB_NAME \\
 #  --time-zone="TIME_ZONE" \
 # timezone: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 `);
+    // now execute some scripts
+    if (ready_to_deploy_scripts) {
+        if ((await prompt({
+            type: 'confirm',
+            name: 'deploy_scripts',
+            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+            default: true,
+        }, answers)).deploy_scripts) {
+            await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+                realtime: true,
+            });
+            progress.scripts_deployed = true;
+        }
+        else {
+            console.log(chalk.yellow("Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"));
+        }
+    }
+    if ((await prompt({
+        type: 'confirm',
+        name: 'deploy_wf',
+        message: 'Do you want to deploy Cloud components:',
+        default: true,
+    }, answers)).deploy_wf) {
+        await exec_cmd(path.join(cwd, './deploy-wf.sh'), new clui.Spinner('Deploying Cloud components, please wait...'));
+        progress.wf_created = true;
+    }
+    else {
+        console.log(chalk.yellow("Please note that before you deploy cloud components (deploy-wf.sh) there's no sense in running a scheduler job"));
+    }
     if (answers3.schedule_wf) {
         const res = await exec_cmd(path.join(cwd, './schedule-wf.sh'), new clui.Spinner('Creating a Scheduler Job, please wait...'));
         if (res.code === 0) {
             console.log('Created a Scheduler Job. You can recreate it with different settings by running schedule-wf.sh');
         }
         progress.wf_scheduled = true;
+        if (answers3.run_job) {
+            // running the job
+            exec_cmd(`gcloud scheduler jobs run ${workflow_name} --location=${cf_region}`, null, { realtime: true });
+        }
     }
     // creating scripts for directly executing gaarf
     const ads_macro_clistr = Object.entries(macro_ads)

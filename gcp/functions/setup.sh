@@ -13,7 +13,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------
+
+# causes the shell to exit if any subcommand or pipeline returns a non-zero status
+# (free us of checking exitcode after every command)
+set -e
 
 enable_api() {
   gcloud services enable run.googleapis.com # required for Gen2 GCF
@@ -35,11 +39,6 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 ./deploy.sh $@
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
 
 # After we deployed CFs we can assume the SA exists (not before)
 

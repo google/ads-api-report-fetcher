@@ -14,6 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #------------------------------------------------------------------------------
+
+# causes the shell to exit if any subcommand or pipeline returns a non-zero status
+# (free us of checking exitcode after every command)
+set -e
+
 enable_api() {
   gcloud services enable workflows.googleapis.com
   gcloud services enable cloudscheduler.googleapis.com
@@ -38,7 +43,7 @@ fi
 # grant the default service account with read permissions on Cloud Storage
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
 # grant the default service account with execute permissions on Cloud Functions gen1 (CF)
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.invoker
+#gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.invoker
 # grant the default service account with execute permissions on Cloud Functions gen2 (CF)
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/run.invoker
 # grant the default service account with write permissions on Cloud Logging

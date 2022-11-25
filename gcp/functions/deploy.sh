@@ -45,82 +45,48 @@ while :; do
   shift
 done
 
+function redeploy_cf() {
+  local deployable_function=$1
+  local entry_point=$2
+  local memory=$3
+  if [ ! $memory ]; then
+    memory='512MB' # default memory for CF Gen2 usually not enough to build them, with 512 it works fine
+  fi
+  # it's ok if it fails:
+  gcloud functions delete $deployable_function --gen2 --region=$REGION --quiet
+
+  gcloud functions deploy $deployable_function \
+      --trigger-http \
+      --entry-point=$entry_point \
+      --runtime=nodejs16 \
+      --timeout=3600s \
+      --memory=$memory \
+      --region=$REGION \
+      --quiet \
+      --gen2 \
+      --source=.
+
+  exitcode=$?
+  if [ $exitcode -ne 0 ]; then
+    echo 'Breaking script as gcloud command failed'
+    exit $exitcode
+  fi
+}
+
 # NOTE:
 #For GCF 1st gen functions, cannot be more than 540s.
 #For GCF 2nd gen functions, cannot be more than 3600s.
 
-gcloud functions delete $FUNCTION_NAME --gen2 --region=$REGION --quiet
-
-gcloud functions deploy $FUNCTION_NAME \
-  --trigger-http \
-  --entry-point=main \
-  --runtime=nodejs16 \
-  --timeout=3600s \
-  --memory=$MEMORY \
-  --region=$REGION \
-  --quiet \
-  --gen2 \
-  --source=.
-
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
+redeploy_cf $FUNCTION_NAME main $MEMORY
 
 # If you need to increase memory about 2GB use this (gcloud functions deploy fails with memory sizes above 2GB):
 #gcloud run services update $FUNCTION_NAME --region $REGION --cpu 1 --memory=2048Mi --no-cpu-throttling
 
-gcloud functions delete $FUNCTION_NAME-getcids --gen2 --region=$REGION --quiet
+redeploy_cf $FUNCTION_NAME-getcids main_getcids
 
-gcloud functions deploy $FUNCTION_NAME-getcids \
-  --trigger-http \
-  --entry-point=main_getcids \
-  --runtime=nodejs16 \
-  --memory=512MB \
-  --timeout=3600s \
-  --region=$REGION \
-  --quiet \
-  --gen2 \
-  --source=.
+redeploy_cf $FUNCTION_NAME-bq main_bq
 
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
-
-gcloud functions delete $FUNCTION_NAME-bq --gen2 --region=$REGION --quiet
-
-gcloud functions deploy $FUNCTION_NAME-bq \
-  --trigger-http \
-  --entry-point=main_bq \
-  --runtime=nodejs16 \
-  --memory=512MB \
-  --timeout=3600s \
-  --region=$REGION \
-  --quiet \
-  --gen2 \
-  --source=.
-
-exitcode=$?
-if [ $exitcode -ne 0 ]; then
-  echo 'Breaking script as gcloud command failed'
-  exit $exitcode
-fi
-
-gcloud functions delete $FUNCTION_NAME-bq-view --gen2 --region=$REGION --quiet
-
-gcloud functions deploy $FUNCTION_NAME-bq-view \
-  --trigger-http \
-  --entry-point=main_bq_view \
-  --runtime=nodejs16 \
-  --memory=512MB \
-  --timeout=3600s \
-  --region=$REGION \
-  --quiet \
-  --gen2 \
-  --source=.
+redeploy_cf $FUNCTION_NAME-bq-view main_bq_view
 
 
 #  --env-vars-file .env.yaml
