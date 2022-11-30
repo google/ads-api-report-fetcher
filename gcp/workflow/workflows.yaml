@@ -294,7 +294,8 @@ custom_retry_predicate:
           severity: "WARNING"
     - what_to_repeat:
         switch:
-          - condition: ${e.code == 500 or e.code == 429}
+          # NOTE: sometime errors happen inside Workflow and there's no any code
+          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or e.code == 500 or e.code == 429}
             return: true
     - otherwise:
         return: false
