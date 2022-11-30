@@ -22,6 +22,8 @@ npm init gaarf-wf -- --debug
 It's supposed that you will be running `npm init gaarf-wf` command in a folder where you placed google-ads.yaml and Ads and BigQuery queries.
 
 
+> Please note that if you're running the tool in Google Cloud Shell then you need to remove npm cache manually via `rm -rf ~/.npm/`.
+
 ## Disclaimer
 This is not an officially supported Google product.
 

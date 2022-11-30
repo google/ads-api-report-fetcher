@@ -7,7 +7,7 @@ import os from 'node:os';
 import child_process from 'child_process';
 import minimist from 'minimist';
 import inquirer, {Answers, QuestionCollection} from 'inquirer';
-import prompts, {PromptType} from 'prompts';
+import prompts, {Choice, PromptType} from 'prompts';
 import figlet from 'figlet';
 import chalk from 'chalk';
 import clui from 'clui';
@@ -192,7 +192,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
   let response = await prompts({
     type: 'autocomplete',
     name: 'project_id',
-    message: 'Please choose a GCP project',
+    message: 'Please choose a GCP project:',
     choices: options,
   });
   gcp_project_id = response.project_id;
@@ -200,7 +200,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
     response = await prompts({
       type: 'text',
       name: 'project_id',
-      message: 'Please enter a GCP project id',
+      message: 'Please enter a GCP project id:',
     });
     // make sure the entered project does exist
     const describe_output = execSync(
@@ -224,14 +224,14 @@ async function initialize_gcp_project(answers: Partial<any>) {
  * @param dirpath a directory path
  * @returns a list of full paths of files in the directory (recursively)
  */
-function readDir(dirpath: string) {
+function read_dir(dirpath: string) {
   let results: string[] = [];
   const entries = fs.readdirSync(dirpath, {withFileTypes: true});
   entries.forEach((entry: fs.Dirent) => {
     const entry_path = path.resolve(dirpath, entry.name);
     if (entry.isDirectory()) {
       /* Recurse into a subdirectory */
-      results = results.concat(readDir(entry_path));
+      results = results.concat(read_dir(entry_path));
     } else {
       /* Is a file */
       results.push(entry_path);
@@ -240,12 +240,12 @@ function readDir(dirpath: string) {
   return results;
 }
 
-function getMacroValues(
+function get_macro_values(
   folder_path: string,
   answers: Partial<any>,
   prefix: string
 ) {
-  const filelist = readDir(folder_path);
+  const filelist = read_dir(folder_path);
   const macro: Record<string, null> = {};
   for (const file_path of filelist) {
     if (file_path.endsWith('.sql')) {
@@ -299,6 +299,135 @@ async function prompt(
   const actual_answers = await inquirer.prompt(questions, answers);
   Object.assign(answers, actual_answers);
   return actual_answers;
+}
+
+function get_lookerstudio_create_report_url(
+  report_id: string,
+  report_name: string,
+  project_id: string,
+  dataset_id: string,
+  datasources: Record<string, string>
+) {
+  let url = 'https://lookerstudio.google.com/reporting/create?';
+  report_name = encodeURIComponent(report_name);
+  url += `c.mode=edit&c.reportId=${report_id}&r.reportName=${report_name}&ds.*.refreshFields=false`;
+  if (datasources) {
+    Object.entries(datasources).map(entries => {
+      const alias = entries[0];
+      const table = entries[1];
+      url +=
+        `&ds.${alias}.connector=bigQuery` +
+        `&ds.${alias}.datasourceName=${table}` +
+        `&ds.${alias}.projectId=${project_id}` +
+        `&ds.${alias}.datasetId=${dataset_id}` +
+        `&ds.${alias}.type=TABLE` +
+        `&ds.${alias}.tableId=${table}`;
+    });
+  }
+  return url;
+}
+
+async function ask_for_dashboard_datasources(
+  datasources: Record<string, string>
+): Promise<Record<string, string>> {
+  const idx = Object.keys(datasources).length;
+  const questions: QuestionCollection = [
+    {
+      type: 'input',
+      name: 'dashboard_datasource',
+      message: `(${idx}) Enter a datasource alias in Looker Studio dashboard:`,
+    },
+    {
+      type: 'input',
+      name: 'dashboard_table',
+      message: `(${idx}) Enter a BigQuery table id with data for Looker Studio datasource:`,
+      when: answers => !!answers.dashboard_datasource,
+    },
+    {
+      type: 'confirm',
+      name: 'dashboard_more_tables',
+      message: 'Do you want to enter another datasource:',
+      default: false,
+      when: answers => !!answers.dashboard_datasource,
+    },
+  ];
+  const answers = await inquirer.prompt(questions);
+  if (answers.dashboard_datasource) {
+    datasources[answers.dashboard_datasource] = answers.dashboard_table;
+  }
+  if (answers.dashboard_more_tables) {
+    return await ask_for_dashboard_datasources(datasources);
+  }
+  return datasources;
+}
+
+async function deploy_dashboard(
+  answers: Partial<any>,
+  project_id: string,
+  output_dataset: string,
+  macro_bq: Record<string, any>
+) {
+  const dash_answers = await prompt(
+    [
+      {
+        type: 'input',
+        name: 'dashboard_id',
+        message:
+          'Looker Studio dashboard id (00000000-0000-0000-0000-000000000000):',
+      },
+      {
+        type: 'input',
+        name: 'dashboard_name',
+        message: 'Looker Studio dashboard name:',
+      },
+    ],
+    answers
+  );
+  // extract datasource from bq_macros
+  const ds_candidates = Object.entries(macro_bq)
+    .filter(
+      values => values[0].includes('dataset') && values[1] !== output_dataset
+    )
+    .map(values => {
+      return {title: values[1], value: values[1]};
+    })
+    .concat({title: output_dataset, value: output_dataset});
+
+  let dataset_id = answers.dashboard_dataset;
+  if (!dataset_id) {
+    // TODO: should we provide an ability to enter a dataset manually (could be useful if it's hard-coded in queries)
+    if (ds_candidates.length === 1) {
+      dataset_id = ds_candidates[0].title;
+    } else {
+      dataset_id = (
+        await prompts({
+          type: 'autocomplete',
+          name: 'dashboard_dataset',
+          message: 'Please choose a BigQuery dataset for report tables:',
+          choices: ds_candidates,
+        })
+      ).dashboard_dataset;
+    }
+  }
+
+  // for cloning datasources we need BQ table-id AND datasource alias in Looker Studio
+  // (see https://developers.google.com/looker-studio/integrate/linking-api#data-source-alias)
+  let datasources = answers.dashboard_datasources || {};
+  if (Object.keys(datasources).length === 0) {
+    datasources = await ask_for_dashboard_datasources(datasources);
+    answers.dashboard_datasources = datasources;
+  }
+  const dashboard_url = get_lookerstudio_create_report_url(
+    dash_answers.dashboard_id,
+    dash_answers.dashboard_name,
+    project_id,
+    dataset_id,
+    datasources
+  );
+  console.log(
+    'As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard:'
+  );
+  console.log(chalk.cyanBright(dashboard_url));
 }
 
 async function init() {
@@ -394,7 +523,7 @@ async function init() {
         type: 'input',
         name: 'custom_ids_query_path',
         message:
-          'Sql file path with a query to filter customer accounts (leave empty if not needed)',
+          'Sql file path with a query to filter customer accounts (leave blank if not needed):',
         default: '',
       },
     ],
@@ -443,6 +572,7 @@ async function init() {
     console.log(chalk.red(`Could not create a bucket ${gcs_bucket}`));
     console.log(res.stderr);
   }
+  const gcs_base_path = `gs://${gcs_bucket}/${name}`;
 
   // Create deploy-scripts.sh
   let deploy_custom_query_snippet = '';
@@ -453,7 +583,7 @@ async function init() {
         chalk.red(`Could not find script '${custom_ids_query_path}'`)
       );
     }
-    custom_query_gcs_path = `gs://${gcs_bucket}/${name}/get-accounts.sql`;
+    custom_query_gcs_path = `${gcs_base_path}/get-accounts.sql`;
     deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
   }
   // Note that we deploy queries to hard-coded paths
@@ -461,8 +591,8 @@ async function init() {
     'deploy-scripts.sh',
     `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
 set -e
-GCS_BUCKET=gs://${gcs_bucket}
-GCS_BASE_PATH=$GCS_BUCKET/${name}
+
+GCS_BASE_PATH=${gcs_base_path}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
 ${deploy_custom_query_snippet}
@@ -483,7 +613,7 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
       [
         {
           type: 'list',
-          message: 'Memory limit for the Cloud Functions',
+          message: 'Memory limit for the Cloud Functions:',
           name: 'cf_memory',
           default: '512MB',
           choices: [
@@ -584,12 +714,12 @@ cd ../workflow
   );
 
   // now we detect macro used in queries and ask for their values
-  const macro_ads = await getMacroValues(
+  const macro_ads = await get_macro_values(
     path.join(cwd, path_to_ads_queries),
     answers,
     'ads_macro'
   );
-  const macro_bq = await getMacroValues(
+  const macro_bq = await get_macro_values(
     path.join(cwd, path_to_bq_queries),
     answers,
     'bq_macro'
@@ -604,7 +734,7 @@ cd ../workflow
     bq_queries_path: `${name}/${PATH_BQ_QUERIES}/`,
     dataset: output_dataset,
     cid: customer_id,
-    ads_config_path: `gs://${gcs_bucket}/${name}/google-ads.yaml`,
+    ads_config_path: `${gcs_base_path}/google-ads.yaml`,
     customer_ids_query: custom_query_gcs_path,
     bq_dataset_location: '', // TODO: should we ask the user about a region? By default 'us' will be used
     ads_macro: macro_ads,
@@ -619,6 +749,62 @@ cd ../workflow
   --data='${JSON.stringify(wf_data, null, 2)}'
 `
   );
+
+  // now execute some scripts
+  if (ready_to_deploy_scripts) {
+    if (
+      (
+        await prompt(
+          {
+            type: 'confirm',
+            name: 'deploy_scripts',
+            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+            default: true,
+          },
+          answers
+        )
+      ).deploy_scripts
+    ) {
+      // deploying query and ads config to GCS
+      await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+        realtime: true,
+      });
+      progress.scripts_deployed = true;
+    } else {
+      console.log(
+        chalk.yellow(
+          "Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"
+        )
+      );
+    }
+  }
+
+  if (
+    (
+      await prompt(
+        {
+          type: 'confirm',
+          name: 'deploy_wf',
+          message: 'Do you want to deploy Cloud components:',
+          default: true,
+        },
+        answers
+      )
+    ).deploy_wf
+  ) {
+    // deploying GCP components
+    await exec_cmd(
+      path.join(cwd, './deploy-wf.sh'),
+      new clui.Spinner('Deploying Cloud components, please wait...')
+    );
+    progress.wf_created = true;
+  } else {
+    console.log(
+      chalk.yellow(
+        "Please note that before you deploy cloud components (deploy-wf.sh) there's no sense in running a scheduler job"
+      )
+    );
+  }
 
   const answers3 = await prompt(
     {
@@ -645,7 +831,7 @@ cd ../workflow
         {
           type: 'confirm',
           name: 'run_job',
-          message: 'Do you want to run the job right now',
+          message: 'Do you want to run the job right now:',
         },
       ],
       answers
@@ -684,62 +870,11 @@ gcloud scheduler jobs create http $JOB_NAME \\
 
 #  --time-zone="TIME_ZONE" \
 # timezone: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+
+# to run the job:
+#gcloud scheduler jobs run ${workflow_name} --location=${cf_region}
 `
   );
-
-  // now execute some scripts
-  if (ready_to_deploy_scripts) {
-    if (
-      (
-        await prompt(
-          {
-            type: 'confirm',
-            name: 'deploy_scripts',
-            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
-            default: true,
-          },
-          answers
-        )
-      ).deploy_scripts
-    ) {
-      await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
-        realtime: true,
-      });
-      progress.scripts_deployed = true;
-    } else {
-      console.log(
-        chalk.yellow(
-          "Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"
-        )
-      );
-    }
-  }
-
-  if (
-    (
-      await prompt(
-        {
-          type: 'confirm',
-          name: 'deploy_wf',
-          message: 'Do you want to deploy Cloud components:',
-          default: true,
-        },
-        answers
-      )
-    ).deploy_wf
-  ) {
-    await exec_cmd(
-      path.join(cwd, './deploy-wf.sh'),
-      new clui.Spinner('Deploying Cloud components, please wait...')
-    );
-    progress.wf_created = true;
-  } else {
-    console.log(
-      chalk.yellow(
-        "Please note that before you deploy cloud components (deploy-wf.sh) there's no sense in running a scheduler job"
-      )
-    );
-  }
 
   if (answers3.schedule_wf) {
     const res = await exec_cmd(
@@ -755,7 +890,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
 
     if (answers3.run_job) {
       // running the job
-      exec_cmd(
+      await exec_cmd(
         `gcloud scheduler jobs run ${workflow_name} --location=${cf_region}`,
         null,
         {realtime: true}
@@ -781,6 +916,37 @@ gcloud scheduler jobs create http $JOB_NAME \\
   deploy_shell_script(
     'run-gaarf-bq.sh',
     `${gaarf_folder}/js/gaarf-bq ${path_to_bq_queries}/*.sql --project=${gcp_project_id} ${bq_macro_clistr}`
+  );
+
+  // clone dashboard
+  if (
+    (
+      await prompt(
+        {
+          type: 'confirm',
+          name: 'clone_dashboard',
+          message: 'Do you want to clone a Looker Studio dashboard:',
+          default: false,
+        },
+        answers
+      )
+    ).clone_dashboard
+  ) {
+    await deploy_dashboard(answers, gcp_project_id, output_dataset, macro_bq);
+  }
+
+  // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
+  await exec_cmd(
+    `gsutil -m cp *.sh ${gcs_base_path}/scripts/`,
+    new clui.Spinner(
+      `Copying all shell scripts to GCS ${gcs_base_path}/scripts`
+    ),
+    {silent: true}
+  );
+  console.log(
+    `All generated shell scripts were uploaded to GCS ${chalk.cyan(
+      gcs_base_path + '/scripts'
+    )}`
   );
 
   console.log(chalk.green('All done'));
