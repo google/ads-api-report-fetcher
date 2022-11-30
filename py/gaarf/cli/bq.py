@@ -16,7 +16,7 @@ import os
 import argparse
 from concurrent import futures
 import logging
-import sys
+from rich.logging import RichHandler
 
 from gaarf.io import reader  # type: ignore
 from gaarf.bq_executor import BigQueryExecutor
@@ -41,10 +41,10 @@ def main():
     main_args = args[0]
 
     logging.basicConfig(
-        format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
-        stream=sys.stdout,
+        format="%(message)s",
         level=main_args.loglevel.upper(),
-        datefmt="%Y-%m-%d %H:%M:%S")
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[RichHandler(rich_tracebacks=True)])
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)
