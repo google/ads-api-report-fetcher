@@ -27,6 +27,10 @@ npm init gaarf-wf
 ```
 To better understand what the generator creates for you we recommend to read the following sections.
 
+>NOTE: if you're installing on Google Cloud Shell then it's worth cleaning npm cache first to make sure you're using the latest versions:
+>`rm -rf ~/.npm/`
+
+
 ## Cloud Functions
 
 We provide several cloud functions that correlate to cli tools: gaarf and gaarf-bq. Default name of main function is 'gaarf'

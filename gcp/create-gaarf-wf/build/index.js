@@ -443,7 +443,21 @@ async function init() {
         await exec_cmd(`git clone ${GIT_REPO} --depth 1 ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${GIT_REPO}), please wait...`));
     }
     else {
-        execSync(`cd ${gaarf_folder} && git pull --ff`);
+        execSync(`cd ${gaarf_folder}`);
+        let git_user_name = '';
+        try {
+            git_user_name = execSync(`git config --get user.name`).toString().trim();
+            // eslint-disable-next-line no-empty
+        }
+        catch (_a) { }
+        if (!git_user_name) {
+            // there's no user identity, git pull -ff can fail, let's set some arbitrary identity
+            const git_user_name = execSync('echo $USER').toString().trim() || 'user';
+            const git_user_email = execSync('echo $USER_EMAIL').toString().trim() || 'user@example.com';
+            execSync(`git config --local user.name ${git_user_name}`);
+            execSync(`git config --local user.email ${git_user_email}`);
+        }
+        execSync('git pull --ff');
     }
     // create a bucket
     const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
@@ -464,8 +478,6 @@ async function init() {
     }
     // Note that we deploy queries to hard-coded paths
     deploy_shell_script('deploy-scripts.sh', `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
-set -e
-
 GCS_BASE_PATH=${gcs_base_path}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
