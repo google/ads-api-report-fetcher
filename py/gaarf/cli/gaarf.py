@@ -14,10 +14,10 @@
 from typing import Any, Dict
 
 from concurrent import futures
-import sys
 import argparse
 from pathlib import Path
 import logging
+from rich.logging import RichHandler
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
@@ -63,10 +63,10 @@ def main():
     main_args = args[0]
 
     logging.basicConfig(
-        format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
-        stream=sys.stdout,
+        format="%(message)s",
         level=main_args.loglevel.upper(),
-        datefmt="%Y-%m-%d %H:%M:%S")
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[RichHandler(rich_tracebacks=True)])
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
@@ -121,8 +121,8 @@ def main():
         logger.info("Running queries sequentially")
         for query in main_args.query:
             callback = ads_query_executor.execute(query, customer_ids,
-                                                 reader_client, writer_client,
-                                                 config.params)
+                                                  reader_client, writer_client,
+                                                  config.params)
             gaarf_runner(query, callback, logger)
 
 
