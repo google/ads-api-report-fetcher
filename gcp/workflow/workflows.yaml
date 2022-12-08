@@ -8,6 +8,12 @@ main:
         - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
         - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
+        - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
+    - check_shortcut_arg:
+        switch:
+          - condition: ${only_run_bq}
+            next: run_bq_workflow
+        next: run_ads_workflow
     - run_ads_workflow:
         call: runAdsQueries
         args:
