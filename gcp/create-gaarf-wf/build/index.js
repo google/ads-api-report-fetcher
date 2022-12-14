@@ -317,7 +317,9 @@ async function deploy_dashboard(answers, project_id, output_dataset, macro_bq) {
     ], answers);
     // extract datasource from bq_macros
     const ds_candidates = Object.entries(macro_bq)
-        .filter(values => values[0].includes('dataset') && values[1] !== output_dataset)
+        .filter(values => values[0].includes('dataset') &&
+        values[1] &&
+        values[1] !== output_dataset)
         .map(values => {
         return { title: values[1], value: values[1] };
     })
@@ -443,10 +445,13 @@ async function init() {
         await exec_cmd(`git clone ${GIT_REPO} --depth 1 ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${GIT_REPO}), please wait...`));
     }
     else {
-        execSync(`cd ${gaarf_folder}`);
         let git_user_name = '';
         try {
-            git_user_name = execSync(`git config --get user.name`).toString().trim();
+            git_user_name = execSync('git config --get user.name', {
+                cwd: path.join(cwd, gaarf_folder),
+            })
+                .toString()
+                .trim();
             // eslint-disable-next-line no-empty
         }
         catch (_a) { }
@@ -454,10 +459,14 @@ async function init() {
             // there's no user identity, git pull -ff can fail, let's set some arbitrary identity
             const git_user_name = execSync('echo $USER').toString().trim() || 'user';
             const git_user_email = execSync('echo $USER_EMAIL').toString().trim() || 'user@example.com';
-            execSync(`git config --local user.name ${git_user_name}`);
-            execSync(`git config --local user.email ${git_user_email}`);
+            execSync(`git config --local user.name ${git_user_name}`, {
+                cwd: path.join(cwd, gaarf_folder),
+            });
+            execSync(`git config --local user.email ${git_user_email}`, {
+                cwd: path.join(cwd, gaarf_folder),
+            });
         }
-        execSync('git pull --ff');
+        execSync('git pull --ff', { cwd: path.join(cwd, gaarf_folder) });
     }
     // create a bucket
     const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });

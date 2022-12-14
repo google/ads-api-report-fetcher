@@ -386,7 +386,10 @@ async function deploy_dashboard(
   // extract datasource from bq_macros
   const ds_candidates = Object.entries(macro_bq)
     .filter(
-      values => values[0].includes('dataset') && values[1] !== output_dataset
+      values =>
+        values[0].includes('dataset') &&
+        values[1] &&
+        values[1] !== output_dataset
     )
     .map(values => {
       return {title: values[1], value: values[1]};
@@ -555,10 +558,13 @@ async function init() {
       new clui.Spinner(`Cloning Gaarf repository (${GIT_REPO}), please wait...`)
     );
   } else {
-    execSync(`cd ${gaarf_folder}`);
     let git_user_name = '';
     try {
-      git_user_name = execSync(`git config --get user.name`).toString().trim();
+      git_user_name = execSync('git config --get user.name', {
+        cwd: path.join(cwd, gaarf_folder),
+      })
+        .toString()
+        .trim();
       // eslint-disable-next-line no-empty
     } catch {}
     if (!git_user_name) {
@@ -566,10 +572,14 @@ async function init() {
       const git_user_name = execSync('echo $USER').toString().trim() || 'user';
       const git_user_email =
         execSync('echo $USER_EMAIL').toString().trim() || 'user@example.com';
-      execSync(`git config --local user.name ${git_user_name}`);
-      execSync(`git config --local user.email ${git_user_email}`);
+      execSync(`git config --local user.name ${git_user_name}`, {
+        cwd: path.join(cwd, gaarf_folder),
+      });
+      execSync(`git config --local user.email ${git_user_email}`, {
+        cwd: path.join(cwd, gaarf_folder),
+      });
     }
-    execSync('git pull --ff');
+    execSync('git pull --ff', {cwd: path.join(cwd, gaarf_folder)});
   }
 
   // create a bucket
