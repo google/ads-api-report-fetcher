@@ -53,14 +53,26 @@ def test_multi_column_report_get_element_as_attribute(multi_column_report):
     assert [row.campaign_id for row in multi_column_report] == [1, 2, 3]
 
 
-def test_getitem_raise_index_error(multi_column_report):
+def test_getitem_raise_index_error_for_out_of_index_value(multi_column_report):
     with pytest.raises(IndexError):
         [row[99] for row in multi_column_report] == [1, 2, 3]
 
 
-def test_get_return_non_value(multi_column_report):
-    assert [row.get("missing_value")
-            for row in multi_column_report] == [None, None, None]
+def test_get_raises_attribute_error_for_missing_value(multi_column_report):
+    with pytest.raises(AttributeError):
+        [row.get("missing_value")
+         for row in multi_column_report] == [None, None, None]
+
+
+def test_getattr_raises_attribute_error_for_missing_value(multi_column_report):
+    with pytest.raises(AttributeError):
+        [getattr(row, "missing_value")
+                for row in multi_column_report] == [None, None, None]
+
+
+def test_hasattr_return_false_for_missing_value(multi_column_report):
+    assert [hasattr(row, "missing_value")
+            for row in multi_column_report] == [False, False, False]
 
 
 def test_convert_report_to_pandas(multi_column_report):

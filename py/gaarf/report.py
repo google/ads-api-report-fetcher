@@ -73,16 +73,20 @@ class GaarfRow:
         self.column_names = column_names
 
     def __getattr__(self, element: str) -> Any:
-        return self.data[self.column_names.index(element)]
+        if element in self.column_names:
+            return self.data[self.column_names.index(element)]
+        raise AttributeError(f"cannot find {element} element!")
 
     def __getitem__(self, element: Union[str, int]) -> Any:
         if isinstance(element, int) and element < self.n_elements:
             return self.data[element]
         if isinstance(element, str):
-            return self.data[self.column_names.index(element)]
+            return self.__getattr__(element)
         raise IndexError(f"cannot find {element} element!")
 
     def get(self, item: str) -> Any:
-        if item in self.column_names:
-            return self.data[self.column_names.index(item)]
-        return None
+        return self.__getattr__(item)
+
+    def __repr__(self):
+        dict_data = {x[1]: x[0] for x in zip(self.data, self.column_names)}
+        return f"GaarfRow(\n{dict_data}\n)"
