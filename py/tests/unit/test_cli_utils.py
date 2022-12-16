@@ -49,6 +49,12 @@ def param_parser():
     return utils.ParamsParser(["macro", "sql", "template"])
 
 
+def test_if_incorrect_param_is_provided(param_parser):
+    with pytest.raises(utils.GaarfParamsException):
+        parsed_params = param_parser.parse(
+            ["--macros.start_date=2022-01-01", "--fake_param.end_date=2022-12-31"])
+
+
 def test_identify_param_pair_existing(param_parser):
     param_pair = param_parser._identify_param_pair(
         "macro", ["--macro.start_date", "2022-01-01"])
@@ -62,7 +68,7 @@ def test_identify_param_pair_empty(param_parser):
 
 
 def test_identify_param_pair_raises_error(param_parser):
-    with pytest.raises(ValueError):
+    with pytest.raises(utils.GaarfParamsException):
         param_parser._identify_param_pair(
             "macro", ["--macro.start_date", ":YYYYMMDD", "extra_element"])
 

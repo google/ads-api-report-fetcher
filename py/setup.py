@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="google-ads-api-report-fetcher",
-    version="0.1.7",
+    version="0.1.9",
     description=
     "Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
     long_description=README,
@@ -27,7 +27,7 @@ setup(
     install_requires=[
         "google-ads>=16.0.0", "google-cloud-bigquery", "pandas>=1.3.4",
         "pyarrow>=6.0.1", "tabulate", "smart_open[all]", "jinja2", "python-dateutil",
-        "sqlalchemy"
+        "sqlalchemy", "rich"
     ],
     setup_requires=["pytest-runner"],
     tests_requires=["pytest"],
