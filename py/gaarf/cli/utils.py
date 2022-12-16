@@ -23,6 +23,7 @@ import traceback
 
 from gaarf.io.writer import ZeroRowException
 
+
 @dataclasses.dataclass
 class GaarfConfig:
     output: str
@@ -117,8 +118,7 @@ class GaarfBqConfigBuilder(BaseConfigBuilder):
     def _build_gaarf_config(self) -> GaarfBqConfig:
         main_args, query_args = self.args[0], self.args[1]
         params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
-        return GaarfBqConfig(project=main_args.project,
-                             params=params)
+        return GaarfBqConfig(project=main_args.project, params=params)
 
 
 class ParamsParser:
@@ -128,7 +128,8 @@ class ParamsParser:
     def __init__(self, identifiers: Sequence[str]):
         self.identifiers = identifiers
 
-    def parse(self, params: Sequence[Any]) -> Dict[str, Optional[Dict[str, Any]]]:
+    def parse(self,
+              params: Sequence[Any]) -> Dict[str, Optional[Dict[str, Any]]]:
         return {
             identifier: self._parse_params(identifier, params)
             for identifier in self.identifiers
@@ -150,12 +151,22 @@ class ParamsParser:
         key = param[0]
         if identifier not in key:
             return None
-        key = key.replace(f"--{identifier}.", "")
+        provided_identifier, key = key.split(".")
+        if provided_identifier.replace("--", "") not in self.identifiers:
+            raise GaarfParamsException(
+                f"CLI argument {provided_identifier} is not supported"
+                f", supported arguments {', '.join(self.identifiers)}"
+            )
         key = key.replace("-", "_")
         if len(param) == 2:
             return {key: param[1]}
-        raise ValueError(f"{identifier} {key} is invalid,"
-                         f"--{identifier}.key=value is the correct format")
+        raise GaarfParamsException(
+            f"{identifier} {key} is invalid,"
+            f"--{identifier}.key=value is the correct format")
+
+
+class GaarfParamsException(Exception):
+    pass
 
 
 def convert_date(date_string: str) -> str:
@@ -245,8 +256,7 @@ def _remove_empty_values(dict_object: Dict[str, Any]) -> Dict[str, Any]:
         return {
             key: value
             for key, value in ((key, _remove_empty_values(value))
-                               for key, value in dict_object.items())
-            if value
+                               for key, value in dict_object.items()) if value
         }
     if isinstance(dict_object, (int, str)):
         return dict_object
@@ -265,13 +275,10 @@ def gaarf_runner(query: str, callback: Callable, logger) -> None:
             query,
             ex.error.code().name)
         for error in ex.failure.errors:
-            logger.error("\tError with message %s .",
-                         error.message)
+            logger.error("\tError with message %s .", error.message)
             if error.location:
                 for field in error.location.field_path_elements:
-                    logger.error("\t\tOn field %s",
-                                 field.field_name)
+                    logger.error("\t\tOn field %s", field.field_name)
     except Exception as e:
         traceback.print_tb(e.__traceback__)
-        logger.error("%s generated an exception: %s", query,
-                     str(e))
+        logger.error("%s generated an exception: %s", query, str(e))
