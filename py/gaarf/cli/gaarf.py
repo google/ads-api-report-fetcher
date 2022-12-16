@@ -62,11 +62,10 @@ def main():
     args = parser.parse_known_args()
     main_args = args[0]
 
-    logging.basicConfig(
-        format="%(message)s",
-        level=main_args.loglevel.upper(),
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[RichHandler(rich_tracebacks=True)])
+    logging.basicConfig(format="%(message)s",
+                        level=main_args.loglevel.upper(),
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                        handlers=[RichHandler(rich_tracebacks=True)])
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
@@ -83,47 +82,54 @@ def main():
 
     ads_client = api_clients.GoogleAdsApiClient(
         path_to_config=main_args.config, version=f"v{config.api_version}")
-    writer_client = writer.WriterFactory().create_writer(
-        config.output, **config.writer_params)
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
 
-    if main_args.customer_ids_query:
-        console_reader = reader_factory.create_reader("console")
-        customer_ids_query = console_reader.read(main_args.customer_ids_query)
-    elif main_args.customer_ids_query_file:
+    if config.customer_ids_query:
+        customer_ids_query = config.customer_ids_query
+    elif config.customer_ids_query_file:
         file_reader = reader_factory.create_reader("file")
         customer_ids_query = file_reader.read(
-            main_args.customer_ids_query_file)
+            config.customer_ids_query_file)
     else:
         customer_ids_query = None
 
     customer_ids = utils.get_customer_ids(ads_client, config.account,
                                           customer_ids_query)
-    ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
+    if customer_ids:
+        writer_client = writer.WriterFactory().create_writer(
+            config.output, **config.writer_params)
+        if config.output == "bq":
+            _ = writer_client.create_or_get_dataset()
+        ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
-    logger.info("Total number of customer_ids is %d, accounts=[%s]",
-                len(customer_ids), ",".join(map(str, customer_ids)))
+        logger.info("Total number of customer_ids is %d, accounts=[%s]",
+                    len(customer_ids), ",".join(map(str, customer_ids)))
 
-    if main_args.parallel_queries:
-        logger.info("Running queries in parallel")
-        with futures.ThreadPoolExecutor() as executor:
-            future_to_query = {
-                executor.submit(ads_query_executor.execute, query,
-                                customer_ids, reader_client, writer_client,
-                                config.params): query
-                for query in main_args.query
-            }
-            for future in futures.as_completed(future_to_query):
-                query = future_to_query[future]
-                gaarf_runner(query, future.result, logger)
+        if main_args.parallel_queries:
+            logger.info("Running queries in parallel")
+            with futures.ThreadPoolExecutor() as executor:
+                future_to_query = {
+                    executor.submit(ads_query_executor.execute, query,
+                                    customer_ids, reader_client, writer_client,
+                                    config.params): query
+                    for query in main_args.query
+                }
+                for future in futures.as_completed(future_to_query):
+                    query = future_to_query[future]
+                    gaarf_runner(query, future.result, logger)
+        else:
+            logger.info("Running queries sequentially")
+            for query in main_args.query:
+                callback = ads_query_executor.execute(query, customer_ids,
+                                                      reader_client,
+                                                      writer_client,
+                                                      config.params)
+                gaarf_runner(query, callback, logger)
     else:
-        logger.info("Running queries sequentially")
-        for query in main_args.query:
-            callback = ads_query_executor.execute(query, customer_ids,
-                                                  reader_client, writer_client,
-                                                  config.params)
-            gaarf_runner(query, callback, logger)
+        logger.warning(
+            "Not a single under MCC %s is found that satisfies the following customer_id query: '%s'",
+            config.account, customer_ids_query)
 
 
 if __name__ == "__main__":

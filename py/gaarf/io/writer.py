@@ -115,11 +115,19 @@ class BigQueryWriter(AbsWriter):
     def __str__(self):
         return f"[BigQuery] - {self.dataset_id} at {self.location} location."
 
+    def create_or_get_dataset(self):
+        try:
+            bq_dataset = self.client.get_dataset(self.dataset_id)
+        except NotFound:
+            bq_dataset = bigquery.Dataset(self.dataset_id)
+            bq_dataset.location = self.location
+            bq_dataset = self.client.create_dataset(bq_dataset, timeout=30)
+        return bq_dataset
+
     def write(self, results, destination) -> str:
         fake_report = results.is_fake
         column_names, results = self.get_columns_results(results)
         schema = self._define_schema(results, column_names)
-        self._create_or_get_dataset()
         destination = DestinationFormatter.format_extension(destination)
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
                                           schema)
@@ -188,15 +196,6 @@ class BigQueryWriter(AbsWriter):
                     field_type="STRING" if not element_type else element_type,
                     mode="REPEATED" if value.get("repeated") else "NULLABLE"))
         return schema
-
-    def _create_or_get_dataset(self):
-        try:
-            bq_dataset = self.client.get_dataset(self.dataset_id)
-        except NotFound:
-            bq_dataset = bigquery.Dataset(self.dataset_id)
-            bq_dataset.location = self.location
-            bq_dataset = self.client.create_dataset(bq_dataset, timeout=30)
-        return bq_dataset
 
     def _create_or_get_table(self, table_name, schema):
         try:
