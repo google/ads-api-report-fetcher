@@ -1,6 +1,6 @@
 {
   "name": "create-gaarf-wf",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "description": "Interactive generator for Gaarf (Google Ads API Report Fetcher) Workflow",
   "type": "module",
   "bin": {
@@ -45,6 +45,7 @@
     "chalk": "^5.0.1",
     "clui": "^0.3.6",
     "figlet": "^1.5.2",
+    "google-oauth-authenticator": "^0.1.0",
     "inquirer": "^9.1.0",
     "js-yaml": "^4.1.0",
     "minimist": "^1.2.6",

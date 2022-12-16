@@ -1,5 +1,20 @@
 #!/usr/bin/env node
 /* eslint-disable no-process-exit */
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -12,6 +27,7 @@ import figlet from 'figlet';
 import chalk from 'chalk';
 import clui from 'clui';
 import yaml from 'js-yaml';
+import {generateRefreshToken} from 'google-oauth-authenticator';
 
 const execSync = child_process.execSync;
 const spawn = child_process.spawn;
@@ -433,6 +449,125 @@ async function deploy_dashboard(
   console.log(chalk.cyanBright(dashboard_url));
 }
 
+async function initialize_googleads_config(answers: Partial<any>) {
+  const googleads_config_candidate = fs.readdirSync(cwd).find(f => {
+    const file_name = path.basename(f);
+    return !!(
+      file_name.includes('google-ads') &&
+      (file_name.endsWith('yaml') || file_name.endsWith('.yml'))
+    );
+  });
+  const answers_new = await prompt(
+    [
+      {
+        type: 'confirm',
+        name: 'use_googleads_config',
+        message:
+          'Do you want to use a google-ads.yaml config (Y) or enter credentials one by one (N)?:',
+        default: true,
+      },
+    ],
+    answers
+  );
+  let path_to_googleads_config = '';
+  if (answers_new.use_googleads_config) {
+    const answers_new = await prompt(
+      [
+        {
+          type: 'input',
+          name: 'path_to_googleads_config',
+          message: 'Path to your google-ads.yaml:',
+          default: googleads_config_candidate || 'google-ads.yaml',
+        },
+      ],
+      answers
+    );
+    path_to_googleads_config = answers_new.path_to_googleads_config;
+    const has_adsconfig = fs.existsSync(path_to_googleads_config);
+    if (!has_adsconfig) {
+      console.log(
+        chalk.yellow('Currently the file ') +
+          chalk.cyan(path_to_googleads_config) +
+          chalk.yellow(
+            "does not exist, please note that you need to upload it before you can actually deploy and run, after that you'll need to run "
+          ) +
+          chalk.cyan('deploy-scripts.sh')
+      );
+    }
+  } else {
+    // entering credentials one by one
+    let refresh_token = '';
+    const answers_new = await prompt(
+      [
+        {
+          type: 'input',
+          name: 'googleads_config_clientid',
+          message: 'OAuth client id:',
+        },
+        {
+          type: 'input',
+          name: 'googleads_config_clientsecret',
+          message: 'OAuth client secret:',
+        },
+        {
+          type: 'input',
+          name: 'googleads_config_devtoken',
+          message: 'Google Ads API developer token:',
+        },
+        {
+          type: 'confirm',
+          name: 'googleads_config_generate_refreshtoken',
+          message:
+            'Do you want to generate a refresh token (Y) or you will enter it manually (N)?:',
+        },
+      ],
+      answers
+    );
+    if (answers_new.googleads_config_generate_refreshtoken) {
+      const flow = await generateRefreshToken(
+        answers_new.googleads_config_clientid,
+        answers_new.googleads_config_clientsecret,
+        'https://www.googleapis.com/auth/adwords'
+      );
+      console.log('Navigate to the following url on the current machine:');
+      console.log(chalk.cyan(flow.authorizeUrl));
+      refresh_token = await flow.getToken();
+      if (refresh_token) {
+        console.log('Successfully acquired a refresh token');
+      }
+    } else {
+      refresh_token = (
+        await prompt(
+          [
+            {
+              type: 'input',
+              name: 'googleads_config_refreshtoken',
+              message: 'Enter refresh token:',
+            },
+          ],
+          answers
+        )
+      ).googleads_config_refreshtoken;
+    }
+
+    // google-ads.yaml wasn't specified (credentials were entered), so let create it under the default name
+    path_to_googleads_config = 'google-ads.yaml';
+    const yaml_content = `# File was generated with create-gaarf-wf at ${new Date()}
+developer_token: ${answers_new.googleads_config_devtoken}
+client_id: ${answers_new.googleads_config_clientid}
+client_secret: ${answers_new.googleads_config_clientsecret}
+refresh_token: ${refresh_token}
+    `;
+    fs.writeFileSync(path_to_googleads_config, yaml_content, {
+      encoding: 'utf8',
+    });
+    console.log(
+      `Google Ads API credentials were saved to ${path_to_googleads_config}`
+    );
+  }
+  return path_to_googleads_config;
+}
+
 async function init() {
   let answers: Partial<any> = {};
   if (argv.answers) {
@@ -448,7 +583,11 @@ async function init() {
     chalk.yellow(figlet.textSync('Gaarf Workflow', {horizontalLayout: 'full'}))
   );
   console.log(
-    'Welcome to interactive generator for Gaarf Workflow (Google Ads API Report Fetcher Workflow)'
+    `Welcome to interactive generator for Gaarf Workflow (${chalk.redBright(
+      'G'
+    )}oogle ${chalk.redBright('A')}ds ${chalk.redBright(
+      'A'
+    )}PI ${chalk.redBright('R')}eport ${chalk.redBright('F')}etcher Workflow)`
   );
   console.log(
     'You will be asked a bunch of questions to prepare and initialize your cloud infrastructure'
@@ -516,12 +655,12 @@ async function init() {
             : value;
         },
       },
-      {
-        type: 'input',
-        name: 'path_to_googleads_config',
-        message: 'Path to your google-ads.yaml:',
-        default: 'google-ads.yaml',
-      },
+      // {
+      //   type: 'input',
+      //   name: 'path_to_googleads_config',
+      //   message: 'Path to your google-ads.yaml:',
+      //   default: 'google-ads.yaml',
+      // },
       {
         type: 'input',
         name: 'custom_ids_query_path',
@@ -537,7 +676,7 @@ async function init() {
   const path_to_bq_queries = answers1.path_to_bq_queries;
   const path_to_bq_queries_abs = path.join(cwd, path_to_bq_queries);
   let gcs_bucket = answers1.gcs_bucket;
-  const path_to_googleads_config = answers1.path_to_googleads_config;
+
   if (!fs.existsSync(path_to_ads_queries_abs)) {
     fs.mkdirSync(path_to_ads_queries_abs);
     console.log(chalk.grey(`Created '${path_to_ads_queries_abs}' folder`));
@@ -549,6 +688,8 @@ async function init() {
   const custom_ids_query_path = answers1.custom_ids_query_path;
 
   gcs_bucket = (gcs_bucket || gcp_project_id).trim();
+
+  const path_to_googleads_config = await initialize_googleads_config(answers);
 
   // clone gaarf repo
   const gaarf_folder = 'ads-api-fetcher';
