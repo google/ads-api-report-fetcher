@@ -69,9 +69,12 @@ def extract_datasets(macros: Optional[Dict[str, Any]]) -> Optional[List[str]]:
 
 def expand_jinja(query_text, **template_params):
     for key, value in template_params.items():
-        if len(splitted_param := value.split(",")) > 1:
-            template_params[key] = splitted_param
+        if value:
+            if len(splitted_param := value.split(",")) > 1:
+                template_params[key] = splitted_param
+            else:
+                template_params[key] = [value]
         else:
-            template_params[key] = [value]
+            template_params = ""
     template = Template(query_text)
     return template.render(template_params)
