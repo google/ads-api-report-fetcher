@@ -25,6 +25,7 @@ Useful Resources:
 You need a Google Cloud project with enabled Google Ads API. 
 See details here: [Configure a Google API Console Project for the Google Ads API](https://developers.google.com/google-ads/api/docs/oauth/cloud-project)
 
+Create an OAuth credentials (for the first time you'll need to create a concent screen either).
 Please note you need to generate OAuth2 credentials for **desktop application**.
 
 
@@ -33,30 +34,27 @@ Please note you need to generate OAuth2 credentials for **desktop application**.
   3.1. Generate refresh token using `generate_user_credentials.py`
 
 >Before proceeding with token generation you need to make sure that either [your oauth brand](https://console.cloud.google.com/apis/credentials/consent)
-made public (published) or you added yourself as a test user if it's in testing status.
+made public (published) or you added yourself as a test user if it's in testing status (it's not recommended because refresh tokens will exprire in 7 days).
 
-For this step you need to have local Python 3 installed.
+First you need to download [oauth2l](https://github.com/google/oauth2l) tool ("oauth tool").
+For Windows and Linux please download [pre-compiled binaries](https://github.com/google/oauth2l#pre-compiled-binaries),
+for MacOS you can install via Homebrew: `brew install oauth2l`.
 
 As soon as you generated a OAuth2 credentials:
 * Click the download icon next to the credentials that you just created and save file to your computer
 * Copy the file name under which you saved secrets file -
 `~/client_secret_XXX.apps.googleusercontent.com.json` where XXX will be values specific to your project 
 (or just save it under `client_secret.json` name for simplicity)
-* Run desktop authentication with downloaded credentials file
-(assuming the file was saved to your HOME folder, othewise please adjust the path) from the previous step:  
+* Run desktop authentication with downloaded credentials file using oauth2l in the same folder where you put the downloaded secret file (assuming its name is client_secret.json):
 ```
-curl -s https://raw.githubusercontent.com/googleads/google-ads-python/main/examples/authentication/generate_user_credentials.py | python3 - -c=${HOME}/client_secret_XXX.apps.googleusercontent.com.json
+oauth2l fetch --credentials ./client_secret.json  --scope adwords --output_format refresh_token
 ```
-* If you saved the downloaded credentials file under `client_secret.json` and running the command in the same folder then the command will be a bit simpler:
-```
-curl -s https://raw.githubusercontent.com/googleads/google-ads-python/main/examples/authentication/generate_user_credentials.py | python3 - -c=client_secret.json
-``` 
-* Copy from the output a refresh token
+* Copy a refresh token from the output
 
 
   3.2. Generate refresh token using OAuth Playground
 
-If you don't have a local Python installation and don't mean to run scripts locally then you can use [OAuth Playground](https://developers.google.com/oauthplayground/).
+Alternately (if you can't or don't want to download anything locally) you can use [OAuth Playground](https://developers.google.com/oauthplayground/).
 Please follow guidence in this video for setting up Web Flow with the OAuth Playground - https://www.youtube.com/watch?v=KFICa7Ngzng&t=812s
 
 Please note you'll need to use another OAuth2 credentials type - Web application, and set "https://developers.google.com/oauthplayground" as redirect url in it.
