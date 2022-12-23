@@ -108,7 +108,7 @@ class BigQueryWriter(AbsWriter):
                  dataset: str,
                  location: str = "US",
                  **kwargs):
-        self.client = bigquery.Client()
+        self.client = bigquery.Client(project)
         self.dataset_id = f"{project}.{dataset}"
         self.location = location
 
