@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 
 class BigQueryExecutor:
 
-    def __init__(self, project_id: str):
+    def __init__(self, project_id: str, location: Optional[str] = None):
         self.project_id = project_id
+        self.location = location
         self.client = bigquery.Client(project_id)
 
     def execute(self, script_name: str, query_text: str,
@@ -56,6 +57,7 @@ class BigQueryExecutor:
                         bq_dataset = self.client.get_dataset(dataset_id)
                     except NotFound:
                         bq_dataset = bigquery.Dataset(dataset_id)
+                        bq_dataset.location = self.location
                         bq_dataset = self.client.create_dataset(bq_dataset,
                                                                 timeout=30)
                         logger.debug("Created new dataset %s", dataset_id)

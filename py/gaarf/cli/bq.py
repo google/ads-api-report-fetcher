@@ -28,23 +28,27 @@ def main():
     parser.add_argument("query", nargs="+")
     parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
     parser.add_argument("--project", dest="project")
-    parser.add_argument("--target", dest="dataset")
-    parser.add_argument("--save-config", dest="save_config", action="store_true")
-    parser.add_argument("--no-save-config", dest="save_config", action="store_false")
-    parser.add_argument("--config-destination", dest="save_config_dest", default="config.yaml")
-    parser.add_argument("--log",
-                        "--loglevel",
-                        dest="loglevel",
-                        default="info")
+    parser.add_argument("--dataset-location",
+                        dest="dataset_location",
+                        default=None)
+    parser.add_argument("--save-config",
+                        dest="save_config",
+                        action="store_true")
+    parser.add_argument("--no-save-config",
+                        dest="save_config",
+                        action="store_false")
+    parser.add_argument("--config-destination",
+                        dest="save_config_dest",
+                        default="config.yaml")
+    parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.set_defaults(save_config=False)
     args = parser.parse_known_args()
     main_args = args[0]
 
-    logging.basicConfig(
-        format="%(message)s",
-        level=main_args.loglevel.upper(),
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[RichHandler(rich_tracebacks=True)])
+    logging.basicConfig(format="%(message)s",
+                        level=main_args.loglevel.upper(),
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                        handlers=[RichHandler(rich_tracebacks=True)])
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)
@@ -57,7 +61,8 @@ def main():
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
 
-    bq_executor = BigQueryExecutor(config.project)
+    bq_executor = BigQueryExecutor(project_id=config.project,
+                                   location=config.dataset_location)
     bq_executor.create_datasets(config.params.get("macro"))
 
     reader_client = reader.FileReader()

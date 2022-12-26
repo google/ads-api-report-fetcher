@@ -38,6 +38,7 @@ class GaarfConfig:
 @dataclasses.dataclass
 class GaarfBqConfig:
     project: str
+    dataset_location: Optional[str]
     params: Dict[str, Any]
 
 
@@ -113,12 +114,13 @@ class GaarfBqConfigBuilder(BaseConfigBuilder):
             raise ValueError("Invalid config, must have `gaarf-bq` section!")
         params = gaarf_section.get("params")
         return GaarfBqConfig(project=gaarf_section.get("project"),
+                             dataset_location=gaarf_section.get("dataset_location"),
                              params=params)
 
     def _build_gaarf_config(self) -> GaarfBqConfig:
         main_args, query_args = self.args[0], self.args[1]
         params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
-        return GaarfBqConfig(project=main_args.project, params=params)
+        return GaarfBqConfig(project=main_args.project, dataset_location=main_args.dataset_location, params=params)
 
 
 class ParamsParser:

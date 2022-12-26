@@ -97,6 +97,7 @@ Options specific for CSV writer:
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
 * `bq.dataset` - BigQuery dataset id where tables with output data will be created
+* `bq.location` - BigQuery [locations](https://cloud.google.com/bigquery/docs/locations)
 * `bq.table-template`  - template for tables names, `{script}` references script base name, plus you can use [expressions](#expressions-and-macros) (*NodeJS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
 * `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
@@ -152,6 +153,7 @@ gaarf-bq <files> [options]
 
 Options:
 * `project` - GCP project id
+* `dataset-location` - BigQuery [locations](https://cloud.google.com/bigquery/docs/locations) for newly created dataset(s)
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
 
