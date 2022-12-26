@@ -21,6 +21,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class BigQueryExecutorException(Exception):
+    pass
+
+
 class BigQueryExecutor:
 
     def __init__(self, project_id: str, location: Optional[str] = None):
@@ -45,8 +49,7 @@ class BigQueryExecutor:
             job.result()
             logger.debug("%s launched successfully", script_name)
         except Exception as e:
-            logger.error("Error launching %s query! Check errors: %s",
-                         script_name, str(e))
+            raise BigQueryExecutorException(e) from e
 
     def create_datasets(self, macros: Optional[Dict[str, Any]]) -> None:
         if macros:
