@@ -267,7 +267,11 @@ class DestinationFormatter:
     def format_extension(path_object: str,
                          current_extension: str = ".sql",
                          new_extension: str = "") -> str:
-        return Path(path_object).name.replace(current_extension, new_extension)
+        path_object_name = Path(path_object).name
+        if len(path_object_name.split(".")) > 1:
+            return path_object_name.replace(current_extension, new_extension)
+        else:
+            return f"{path_object}{new_extension}"
 
 
 class ZeroRowException(Exception):
