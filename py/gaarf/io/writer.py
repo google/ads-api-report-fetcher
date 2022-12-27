@@ -21,6 +21,9 @@ from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from pathlib import Path
 import csv
+import rich
+from rich.console import Console
+from rich.table import Table
 import pandas as pd  # type: ignore
 from sqlalchemy import create_engine
 from tabulate import tabulate
@@ -46,26 +49,23 @@ class AbsWriter(abc.ABC):
 
 class StdoutWriter(AbsWriter):
 
-    def __init__(self, page_size=10, **kwargs):
-        self.page_size = page_size
+    def __init__(self, page_size: int = 10, **kwargs):
+        self.page_size = int(page_size)
 
     def write(self, results, destination):
+        console = Console()
+        table = Table(
+            title=f"showing results for query <{destination.split('/')[-1]}>",
+            caption=
+            f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
+            box=rich.box.MARKDOWN)
         column_names, results = self.get_columns_results(results)
-        results_generator = self._paginate_rows(results, self.page_size)
-        message = f"showing results for query {destination}"
-        print("=" * len(message))
-        print(message)
-        print("=" * len(message))
-        print(tabulate(next(results_generator), headers=column_names))
-
-    def _define_header(self, results, header):
-        pass
-
-    def _paginate_rows(self, results, page_size):
-        for i in range(0, len(results), page_size):
-            print(f"showing rows {i+1}-{i+page_size} out of total "
-                  f"{len(results)} rows")
-            yield results[i:(i + page_size)]
+        for header in column_names:
+            table.add_column(header)
+        for i, row in enumerate(results):
+            if i < self.page_size:
+                table.add_row(*[str(field) for field in row])
+        console.print(table)
 
 
 class CsvWriter(AbsWriter):
