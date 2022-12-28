@@ -26,7 +26,6 @@ from rich.console import Console
 from rich.table import Table
 import pandas as pd  # type: ignore
 from sqlalchemy import create_engine
-from tabulate import tabulate
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
