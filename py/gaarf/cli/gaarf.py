@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--ads-config",
                         dest="config",
                         default=str(Path.home() / "google-ads.yaml"))
-    parser.add_argument("--api-version", dest="api_version", default=10)
+    parser.add_argument("--api-version", dest="api_version", default=12)
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
