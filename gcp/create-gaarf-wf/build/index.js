@@ -162,7 +162,7 @@ async function initialize_gcp_project(answers) {
     }
     // otherwise let the user to choose a project
     const projects_csv = child_process
-        .execSync('gcloud projects list --format="csv(projectId,projectName)" --sort-by=projectId --limit=500')
+        .execSync('gcloud projects list --format="csv(projectId,name)" --sort-by=projectId --limit=500')
         .toString();
     const rows = projects_csv.split('\n').map(row => row.split(','));
     rows.splice(0, 1); // remove header row

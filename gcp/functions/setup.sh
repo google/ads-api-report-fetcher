@@ -27,6 +27,7 @@ enable_api() {
   gcloud services enable cloudbuild.googleapis.com
   gcloud services enable bigquery.googleapis.com
   gcloud services enable cloudfunctions.googleapis.com
+  gcloud services enable googleads.googleapis.com
 }
 
 enable_api
@@ -38,10 +39,6 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 # Gen2:
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-./deploy.sh $@
-
-# After we deployed CFs we can assume the SA exists (not before)
-
 # for Gen1:
 # Grant the default service account with the Service Account Token Creator role so it could create GCS signed urls
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/iam.serviceAccountTokenCreator
@@ -52,4 +49,8 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 # Grant the default service account with admin permissions in BigQuery
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
 
+# For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/artifactregistry.repoAdmin
+#gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.serviceAgent
+
+./deploy.sh $@
