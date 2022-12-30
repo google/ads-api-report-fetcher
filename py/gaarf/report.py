@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from typing import Any, Sequence, Union
+from collections import abc
 import pandas as pd
 
 
@@ -24,6 +25,7 @@ class GaarfReport:
                  is_fake: bool = False):
         self.results = results
         self.column_names = column_names
+        self.multi_column_report = len(column_names) > 1
         self.is_fake = is_fake
 
     def to_list(self) -> Sequence[Any]:
@@ -36,32 +38,16 @@ class GaarfReport:
         return len(self.results)
 
     def __iter__(self):
-        return GaarfIterator(self.results, self.column_names)
+        for result in self.results:
+            if self.multi_column_report:
+                yield GaarfRow(result, self.column_names)
+            elif isinstance(result, abc.Sequence):
+                yield result[0]
+            else:
+                yield result
 
     def __str__(self):
         return f"{self.results}"
-
-
-class GaarfIterator:
-
-    def __init__(self, results, column_names):
-
-        self.results = results
-        self.column_names = column_names
-        self.single_column_report = len(self.column_names) == 1
-        self.index = 0
-
-    def __next__(self):
-        try:
-            result = self.results[self.index]
-            if not isinstance(result, Sequence):
-                result = [result]
-        except IndexError as e:
-            raise StopIteration from e
-        self.index += 1
-        if self.single_column_report:
-            return result[0]
-        return GaarfRow(result, self.column_names)
 
 
 class GaarfRow:
@@ -69,7 +55,10 @@ class GaarfRow:
     def __init__(self, data: Sequence[Union[int, float, str]],
                  column_names: Sequence[str]):
         self.data = data
-        self.n_elements = len(data)
+        try:
+            self.n_elements = len(data)
+        except TypeError:
+            self.n_elements = 1
         self.column_names = column_names
 
     def __getattr__(self, element: str) -> Any:

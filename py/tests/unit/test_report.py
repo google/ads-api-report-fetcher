@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
-from gaarf.report import GaarfReport, GaarfRow, GaarfIterator
+from collections import abc
+from gaarf.report import GaarfReport, GaarfRow
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ def test_multi_column_report_returns_gaarf_row(multi_column_report):
 
 def test_multi_column_report_support_iteration_with_gaarf_iterator(
         multi_column_report):
-    assert isinstance(iter(multi_column_report), GaarfIterator)
+    assert isinstance(iter(multi_column_report), abc.Iterable)
 
 
 def test_multi_column_report_get_element_by_id(multi_column_report):
