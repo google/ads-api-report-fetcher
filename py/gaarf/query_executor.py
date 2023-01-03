@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 import logging
 
@@ -27,18 +27,24 @@ logger = logging.getLogger(__name__)
 
 class AdsReportFetcher:
 
-    def __init__(self, api_client: api_clients.BaseClient,
-                 customer_ids: Union[List[str], str]):
+    def __init__(
+        self,
+        api_client: api_clients.BaseClient,
+        customer_ids: Union[List[str], str],
+        parser = parsers.GoogleAdsRowParser()
+    ) -> None:
         self.api_client = api_client
         self.customer_ids = [
             customer_ids
         ] if not isinstance(customer_ids, list) else customer_ids
+        self.parser = parser
 
     def fetch(
         self,
         query_specification: Union[str, QueryElements],
     ) -> GaarfReport:
-        total_results = []
+        total_results: List[List[Tuple[Any]]] = []
+        is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
                 str(query_specification)).generate()
@@ -57,13 +63,21 @@ class AdsReportFetcher:
                 logger.error("Cannot execute query %s for %s",
                              query_specification.query_title, customer_id)
                 logger.error(str(e))
+        if not total_results:
+            row = self.api_client.google_ads_row
+            results = [self.parser.parse_ads_row(row, query_specification)]
+            total_results.extend(results)
+            is_fake_report = True
+            logger.warning(
+                "Query %s generated zero results, using placeholders to infer schema",
+                query_specification.query_title)
         return GaarfReport(results=total_results,
-                           column_names=query_specification.column_names)
+                           column_names=query_specification.column_names,
+                           is_fake=is_fake_report)
 
     def _parse_ads_response(self, query_specification: QueryElements,
-                            customer_id: str) -> Sequence[Any]:
-        parser = parsers.GoogleAdsRowParser()
-        total_results = []
+                            customer_id: str) -> List[List[Tuple[Any]]]:
+        total_results: List[List[Tuple[Any]]] = []
         logger.debug("Getting response for query %s for customer_id %s",
                      query_specification.query_title, customer_id)
         response = self.api_client.get_response(
@@ -75,7 +89,7 @@ class AdsReportFetcher:
             logger.debug("Parsing batch for query %s for customer_id %s",
                          query_specification.query_title, customer_id)
             results = [
-                parser.parse_ads_row(row, query_specification)
+                self.parser.parse_ads_row(row, query_specification)
                 for row in batch.results
             ]
             total_results.extend(results)
@@ -95,7 +109,7 @@ class AdsQueryExecutor:
                 customer_ids: Union[List[str], str],
                 reader_client: reader.AbsReader,
                 writer_client: writer.AbsWriter,
-                args: Dict[Any, Any] = None) -> None:
+                args: Optional[Dict[str, Any]] = None) -> None:
         """Reads query, extract results and stores them in a specified location.
 
         Attributes:
@@ -112,15 +126,8 @@ class AdsQueryExecutor:
                                                  args).generate()
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification)
-        if len(results) == 0:
-            data_types = self.api_client.infer_types(
-                query_specification.fields)
-            d = {str: "", int: 0, float: 0.0, bool: False}
-            results = GaarfReport([(d[type_] for type_ in data_types)],
-                                  query_specification.column_names,
-                                  is_fake=True)
         logger.debug("Start writing data for query %s via %s writer",
-                      query_specification.query_title, type(writer_client))
+                     query_specification.query_title, type(writer_client))
         writer_client.write(results, query_specification.query_title)
         logger.debug("Finish writing data for query %s via %s writer",
-                      query_specification.query_title, type(writer_client))
+                     query_specification.query_title, type(writer_client))
