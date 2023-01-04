@@ -29,7 +29,7 @@ def main():
     parser.add_argument("query", nargs="+")
     parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
     parser.add_argument("--account", dest="customer_id")
-    parser.add_argument("--output", dest="save", default="csv")
+    parser.add_argument("--output", dest="save", default="console")
     parser.add_argument("--input", dest="input", default="file")
     parser.add_argument("--ads-config",
                         dest="config",
