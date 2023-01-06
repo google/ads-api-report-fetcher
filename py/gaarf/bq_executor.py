@@ -46,7 +46,9 @@ class BigQueryExecutor:
                              query_text)
         job = self.client.query(query_text)
         try:
-            job.result()
+            result = job.result()
+            if result.total_rows:
+                print(result.to_dataframe())
             logger.debug("%s launched successfully", script_name)
         except Exception as e:
             raise BigQueryExecutorException(e) from e
