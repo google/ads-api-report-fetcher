@@ -7,6 +7,7 @@
  - [Aliases](#aliases)
  - [Nested Resources](#nested-resources)
  - [Resource Indices](#resource-indices)
+ - [Virtual Attributes](#virtual-attributes)
 
 
 ## Intro
@@ -46,6 +47,7 @@ FROM resource
 * Nested resources (`:nested.resource.name`)
 * Resource indices (`~position`)
 * Functions (`:$func`) - only in Node.js
+* Virtual attributes (`metric.name / metric.name_2 AS alias`) - only in Python
 
 ### Aliases
 
@@ -93,7 +95,7 @@ FROM change_event
 
 Resource indices are used to extract a particular element from data type
 *RESOURCE_NAME*. I.e., if we want to get resource name for `campaign_audience_view.resource_name`
-and save it somewhere, the saved result will contain a string *customers/{customer_id}/campaignAudienceViews/{campaign_id}~{criterion_id}*. 
+and save it somewhere, the saved result will contain a string *customers/{customer_id}/campaignAudienceViews/{campaign_id}~{criterion_id}*.
 Usually we want to get only the last element from (`criterion_id`) and
 it can be extracted with `~N` syntax  where *N* is a position of an element you want to extract
 (indexing is starting from 0).
@@ -107,4 +109,21 @@ SELECT
     campaign_audience_view.resource_name~1 AS criterion_id
 FROM campaign_audience_view
 ```
+
+### Virtual Attributes
+
+Virtual attributes allow to specify in GAQL query some fields or expressions that are not present in Google Ads API.
+
+```
+SELECT
+    1 AS counter,
+    metrics.clicks / metrics.impressions AS ctr,
+    metrics.cost_micros * 1e6 AS cost,
+    campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type
+FROM campaign
+```
+
+There are two types of virtual attributes:
+    * `built-in` - adds column with the result as is (i.e. `1 AS counter` will add new column `counter` filled with `1`)
+    * `expression` - calculates results of specified expression and saves it under provided alias (i.e. `metrics.clicks / metrics.impressions AS ctr` will calculate `metrics.clicks / metrics.impressions` for each GoogleAdsRow and store the results in a new column `ctr`
 

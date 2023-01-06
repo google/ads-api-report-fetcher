@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Tuple, Sequence, Union
+from collections import abc
+from typing import Any, Dict, Tuple, Sequence, Union
 from operator import attrgetter
+import datetime
 import re
 import proto  # type: ignore
 from proto.marshal.collections.repeated import (  # type: ignore
     Repeated, RepeatedComposite)  # type: ignore
+from google.protobuf.internal.containers import (
+    RepeatedScalarFieldContainer,
+    RepeatedCompositeFieldContainer)  # type: ignore
+
+from .query_editor import VirtualAttribute, VirtualAttributeError
 
 
 class BaseParser:
@@ -34,7 +41,10 @@ class BaseParser:
 class RepeatedParser(BaseParser):
 
     def parse(self, request):
-        if isinstance(request, Repeated) and "customer" in str(request):
+        if isinstance(
+                request,
+            (Repeated,
+             RepeatedScalarFieldContainer)) and "customer" in str(request):
             elements = []
             for request_element in request:
                 element = ResourceFormatter.get_resource_id(request_element)
@@ -46,7 +56,8 @@ class RepeatedParser(BaseParser):
 class RepeatedCompositeParser(BaseParser):
 
     def parse(self, request):
-        if isinstance(request, RepeatedComposite):
+        if isinstance(request,
+                      (RepeatedComposite, RepeatedCompositeFieldContainer)):
             elements = []
             for request_element in request:
                 resource = ResourceFormatter.get_resource(request_element)
@@ -78,9 +89,14 @@ class EmptyAttributeParser(BaseParser):
 
 class GoogleAdsRowParser:
 
-    def __init__(self, nested_fields=None):
+    def __init__(self, query_specification, nested_fields=None):
         self.nested_fields = nested_fields
         self.parser = self._init_parsers()
+        self.row_getter = attrgetter(*query_specification.fields)
+        self.fields = query_specification.fields
+        self.customizers = query_specification.customizers
+        self.virtual_attributes = query_specification.virtual_attributes
+        self.column_names = query_specification.column_names
 
     def _init_parsers(self):
         parser_chain = BaseParser(None)
@@ -95,61 +111,110 @@ class GoogleAdsRowParser:
     def parse(self, request):
         return self.parser.parse(request)
 
-    def parse_ads_row(self, row, query_specification) -> Sequence[Any]:
+    def parse_ads_row(self, row) -> Sequence[Any]:
         final_rows = []
-        extracted_rows = self._get_attributes_from_row(
-            row, query_specification.fields)
-        customizers = query_specification.customizers
-        for i, extracted_row in enumerate(extracted_rows):
-            if customizers:
-                if (caller := customizers.get(i)):
-                    if caller.get("type") == "nested_field":
-                        values_ = caller.get("value").split(".")
-                        extracted_row_ = getattr(
-                            extracted_row, values_[0]) if hasattr(
-                                extracted_row, values_[0]) else extracted_row
-                        try:
-                            if isinstance(
-                                    extracted_row,
-                                (Repeated, RepeatedComposite)) or isinstance(
-                                    extracted_row_,
-                                    (Repeated, RepeatedComposite)):
-                                if isinstance(extracted_row_,
-                                              (Repeated, RepeatedComposite)):
-                                    extracted_row = extracted_row_
-                                if len(values_) > 1:
-                                    value = values_[1]
-                                else:
-                                    value = caller.get("value")
-                                extracted_row = list(
-                                    set([
-                                        attrgetter(value)(element)
-                                        for element in extracted_row
-                                    ]))
-                            else:
-                                extracted_row = attrgetter(
-                                    caller.get("value"))(extracted_row)
-                        except AttributeError:
-                            raise ValueError(f"{caller} is incorrect")
-                    elif caller.get("type") == "resource_index":
-                        extracted_row = re.split(
-                            "~", extracted_row)[caller.get("value")]
-                        extracted_row = re.split("/", extracted_row)[-1]
-            if isinstance(extracted_row, list):
-                parsed_element = [
-                    self.parser.parse(element) or element
-                    for element in extracted_row
-                ]
+        extracted_attributes = self._get_attributes_from_row(
+            row, self.row_getter)
+        index = 0
+        virtual_attributes = {}
+        for i, column in enumerate(self.column_names):
+            if column in self.virtual_attributes.keys():
+                parsed_element = self._convert_virtual_attribute(
+                    row, self.virtual_attributes[column])
             else:
-                parsed_element = self.parser.parse(
-                    extracted_row) or extracted_row
+                extracted_attribute = extracted_attributes[index]
+                index += 1
+                if self.customizers:
+                    if (caller := self.customizers.get(column)):
+                        if caller.get("type") == "nested_field":
+                            values_ = caller.get("value").split(".")
+                            extracted_attribute_ = getattr(
+                                extracted_attribute, values_[0]) if hasattr(
+                                    extracted_attribute,
+                                    values_[0]) else extracted_attribute
+                            try:
+                                if isinstance(
+                                        extracted_attribute,
+                                    (Repeated, RepeatedComposite,
+                                     RepeatedScalarFieldContainer,
+                                     RepeatedCompositeFieldContainer
+                                     )) or isinstance(
+                                         extracted_attribute_,
+                                         (Repeated, RepeatedComposite,
+                                          RepeatedScalarFieldContainer,
+                                          RepeatedCompositeFieldContainer)):
+                                    if isinstance(
+                                            extracted_attribute_,
+                                        (Repeated, RepeatedComposite)):
+                                        extracted_attribute = extracted_attribute_
+                                    if len(values_) > 1:
+                                        value = values_[1]
+                                    else:
+                                        value = caller.get("value")
+                                    extracted_attribute = list(
+                                        set([
+                                            attrgetter(value)(element)
+                                            for element in extracted_attribute
+                                        ]))
+                                else:
+                                    extracted_attribute = attrgetter(
+                                        caller.get("value"))(
+                                            extracted_attribute)
+                            except AttributeError:
+                                raise ValueError(f"{caller} is incorrect")
+                        elif caller.get("type") == "resource_index":
+                            extracted_attribute = re.split(
+                                "~", extracted_attribute)[caller.get("value")]
+                            extracted_attribute = re.split(
+                                "/", extracted_attribute)[-1]
+                if isinstance(extracted_attribute, list):
+                    parsed_element = [
+                        self.parser.parse(element) or element
+                        for element in extracted_attribute
+                    ]
+                else:
+                    parsed_element = self.parser.parse(
+                        extracted_attribute) or extracted_attribute
             final_rows.append(parsed_element)
         return final_rows if len(final_rows) > 1 else final_rows[0]
 
-    def _get_attributes_from_row(self, row, fields) -> Tuple[Any, ...]:
-        getter = attrgetter(*fields)
-        rows = getter(row)
-        return rows if isinstance(rows, tuple) else (rows, )
+    def _get_attributes_from_row(self, row, getter) -> Tuple[Any, ...]:
+        attributes = getter(row)
+        return attributes if isinstance(attributes, tuple) else (attributes, )
+
+    def _convert_virtual_attribute(self, row,
+                                   virtual_attribute: VirtualAttribute) -> str:
+        if virtual_attribute.type == "built-in":
+            return virtual_attribute.value
+        elif virtual_attribute.type == "expression":
+            virtual_attribute_getter = attrgetter(*virtual_attribute.fields)
+            virtual_attribute_values = virtual_attribute_getter(row)
+            try:
+                iter(virtual_attribute_values)
+            except TypeError:
+                virtual_attribute_values = (virtual_attribute_values, )
+            virtual_attribute_replacements = {
+                field.replace(".", "_"): value
+                for field, value in zip(virtual_attribute.fields,
+                                        virtual_attribute_values)
+            }
+            try:
+                result = eval(
+                    virtual_attribute.substitute_expression.format(
+                        **virtual_attribute_replacements))
+            except ZeroDivisionError:
+                return 0
+            except TypeError:
+                raise VirtualAttributeError(
+                    f"cannot parse virtual_attribute {virtual_attribute.value}"
+                )
+            except Exception as e:
+                return virtual_attribute.value
+            return result
+        else:
+            raise ValueError(
+                f"Unsupported virtual attribute type: {virtual_attribute_type}"
+            )
 
 
 class ResourceFormatter:

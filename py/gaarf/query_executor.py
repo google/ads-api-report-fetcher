@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 import logging
@@ -27,23 +26,19 @@ logger = logging.getLogger(__name__)
 
 class AdsReportFetcher:
 
-    def __init__(
-        self,
-        api_client: api_clients.BaseClient,
-        customer_ids: Union[List[str], str],
-        parser = parsers.GoogleAdsRowParser()
-    ) -> None:
+    def __init__(self, api_client: api_clients.BaseClient,
+                 customer_ids: Union[List[str], str]) -> None:
         self.api_client = api_client
         self.customer_ids = [
             customer_ids
         ] if not isinstance(customer_ids, list) else customer_ids
-        self.parser = parser
 
     def fetch(
         self,
         query_specification: Union[str, QueryElements],
     ) -> GaarfReport:
         total_results: List[List[Tuple[Any]]] = []
+        parser = parsers.GoogleAdsRowParser(query_specification)
         is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
@@ -54,7 +49,7 @@ class AdsReportFetcher:
                          query_specification.query_title, customer_id)
             try:
                 results = self._parse_ads_response(query_specification,
-                                                   customer_id)
+                                                   customer_id, parser)
                 total_results.extend(results)
                 if query_specification.is_constant_resource:
                     logger.debug("Constant resource query: running only once")
@@ -65,7 +60,7 @@ class AdsReportFetcher:
                 logger.error(str(e))
         if not total_results:
             row = self.api_client.google_ads_row
-            results = [self.parser.parse_ads_row(row, query_specification)]
+            results = [parser.parse_ads_row(row)]
             total_results.extend(results)
             is_fake_report = True
             logger.warning(
@@ -75,8 +70,9 @@ class AdsReportFetcher:
                            column_names=query_specification.column_names,
                            is_fake=is_fake_report)
 
-    def _parse_ads_response(self, query_specification: QueryElements,
-                            customer_id: str) -> List[List[Tuple[Any]]]:
+    def _parse_ads_response(
+            self, query_specification: QueryElements, customer_id: str,
+            parser: parsers.GoogleAdsRowParser) -> List[List[Tuple[Any]]]:
         total_results: List[List[Tuple[Any]]] = []
         logger.debug("Getting response for query %s for customer_id %s",
                      query_specification.query_title, customer_id)
@@ -88,10 +84,7 @@ class AdsReportFetcher:
         for batch in response:
             logger.debug("Parsing batch for query %s for customer_id %s",
                          query_specification.query_title, customer_id)
-            results = [
-                self.parser.parse_ads_row(row, query_specification)
-                for row in batch.results
-            ]
+            results = [parser.parse_ads_row(row) for row in batch.results]
             total_results.extend(results)
         return total_results
 

@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from dataclasses import dataclass
 from proto import Message
 import gaarf.parsers as parsers
+from gaarf.query_editor import VirtualAttribute, VirtualAttributeError
 
 
 @dataclass
@@ -28,17 +29,46 @@ class ValueAttribute:
 
 
 @dataclass
+class Metric:
+    clicks: int
+    impressions: int
+
+
+@dataclass
 class FakeAdsRowMultipleElements:
     campaign_type: NameAttribute
     clicks: int
     resource: str
     value: str
+    metrics: Metric
 
 
 @dataclass
 class FakeQuerySpecification:
     customizers: Dict[str, Any]
+    virtual_attributes: Dict[str, Any]
     fields: List[str]
+    column_names: List[str]
+
+
+@pytest.fixture
+def fake_query_specification():
+    customizers = {
+        "resource": {
+            "type": "resource_index",
+            "value": 0
+        },
+        "value": {
+            "type": "nested_field",
+            "value": "value"
+        }
+    }
+    virtual_attributes = {"date": {"type": "built-in", "value": "date"}}
+    return FakeQuerySpecification(
+        customizers=customizers,
+        virtual_attributes=virtual_attributes,
+        fields=["campaign_type", "clicks", "resource", "value"],
+        column_names=["campaign_type", "clicks", "resource", "value"])
 
 
 @pytest.fixture
@@ -47,8 +77,8 @@ def fake_google_ads_row_element():
 
 
 @pytest.fixture
-def google_ads_row_parser():
-    return parsers.GoogleAdsRowParser()
+def google_ads_row_parser(fake_query_specification):
+    return parsers.GoogleAdsRowParser(fake_query_specification)
 
 
 def test_google_ads_row_parser_return_last_parser_in_chain(
@@ -134,32 +164,71 @@ def test_google_ads_row_parser(google_ads_row_parser, text_attribute,
 
 @pytest.fixture
 def fake_ads_row():
-    return FakeAdsRowMultipleElements(NameAttribute("SEARCH"), 1,
-                                      "customers/1/resource/2",
-                                      ValueAttribute(1))
-
-
-@pytest.fixture
-def fake_query_specification():
-    customizers = {
-        2: {
-            "type": "resource_index",
-            "value": 0
-        },
-        3: {
-            "type": "nested_field",
-            "value": "value"
-        }
-    }
-    return FakeQuerySpecification(
-        customizers, ["campaign_type", "clicks", "resource", "value"])
+    return FakeAdsRowMultipleElements(campaign_type=NameAttribute("SEARCH"),
+                                      clicks=1,
+                                      resource="customers/1/resource/2",
+                                      value=ValueAttribute(1),
+                                      metrics=Metric(clicks=10,
+                                                     impressions=10))
 
 
 def test_get_attributes_from_row(google_ads_row_parser, fake_ads_row,
                                  fake_query_specification):
     extracted_rows = google_ads_row_parser._get_attributes_from_row(
-        fake_ads_row, ["campaign_type", "clicks", "resource", "value"])
+        fake_ads_row, google_ads_row_parser.row_getter)
     assert extracted_rows == (NameAttribute("SEARCH"), 1,
                               "customers/1/resource/2", ValueAttribute(1))
-    assert google_ads_row_parser.parse_ads_row(
-        fake_ads_row, fake_query_specification) == ["SEARCH", 1, "2", 1]
+    assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
+        "SEARCH", 1, "2", 1
+    ]
+
+
+def test_convert_builtin_virtual_attribute(google_ads_row_parser,
+                                           fake_ads_row):
+    fake_builtin_virtual_attribute = VirtualAttribute(type="built-in",
+                                                      value="fake_value")
+    result = google_ads_row_parser._convert_virtual_attribute(
+        fake_ads_row, fake_builtin_virtual_attribute)
+    assert result == "fake_value"
+
+
+@pytest.fixture
+def fake_expression_virtual_attribute():
+    return VirtualAttribute(
+        type="expression",
+        value="metrics.clicks / metrics.impressions",
+        fields=["metrics.clicks", "metrics.impressions"],
+        substitute_expression="{metrics_clicks} / {metrics_impressions}")
+
+
+def test_convert_expression_virtual_attribute(
+        google_ads_row_parser, fake_ads_row,
+        fake_expression_virtual_attribute):
+    result = google_ads_row_parser._convert_virtual_attribute(
+        fake_ads_row, fake_expression_virtual_attribute)
+    assert result == 1.0
+
+
+def test_convert_expression_virtual_attribute_with_zero_denominator_returns_zero(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+    fake_ads_row.metrics.impressions = 0
+    result = google_ads_row_parser._convert_virtual_attribute(
+        fake_ads_row, fake_expression_virtual_attribute)
+    assert result == 0
+
+
+def test_if_convert_expression_virtual_attribute_raises_type_error_raise_virtual_attribute_error(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+    fake_ads_row.metrics.impressions = "str"
+    with pytest.raises(VirtualAttributeError):
+        result = google_ads_row_parser._convert_virtual_attribute(
+            fake_ads_row, fake_expression_virtual_attribute)
+
+
+def test_if_convert_expression_virtual_attribute_fails_return_attribute_value(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+    fake_ads_row.metrics.impressions = "0 +"  # this should raise SyntaxError
+    result = google_ads_row_parser._convert_virtual_attribute(
+        fake_ads_row, fake_expression_virtual_attribute)
+    assert result == fake_expression_virtual_attribute.value
+

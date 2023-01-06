@@ -15,6 +15,20 @@
 from typing import Any, Dict, List, Optional, Tuple
 import dataclasses
 import re
+from .api_clients import BaseClient
+from operator import attrgetter
+
+
+@dataclasses.dataclass(frozen=True)
+class VirtualAttribute:
+    type: str
+    value: str
+    fields: Optional[List[str]] = None
+    substitute_expression: Optional[str] = None
+
+
+class VirtualAttributeError(Exception):
+    pass
 
 
 @dataclasses.dataclass
@@ -32,17 +46,22 @@ class QueryElements:
     query_text: str
     fields: List[str]
     column_names: List[str]
-    customizers: Optional[Dict[int, Dict[str, str]]]
+    customizers: Optional[Dict[str, Dict[str, str]]]
+    virtual_attributes: Optional[Dict[str, VirtualAttribute]]
     resource_name: str
     is_constant_resource: bool
 
 
 class QuerySpecification:
-    def __init__(self, text: str, title: str = None,
+
+    def __init__(self,
+                 text: str,
+                 title: str = None,
                  args: Dict[Any, Any] = None):
         self.text = text
         self.title = title
         self.args = args
+        self.base_client = BaseClient()
 
     def generate(self) -> QueryElements:
         """Reads query from a file and returns different elements of a query.
@@ -58,38 +77,66 @@ class QuerySpecification:
         query_lines = self.cleanup_query_text(self.text)
         resource_name = self.extract_resource_from_query(self.text)
         is_constant_resource = bool(resource_name.endswith("_constant"))
-        query_text = self.normalize_query(" ".join(query_lines))
+        query_text = " ".join(query_lines)
         if self.args:
             if (macros := self.args.get("macro")):
                 query_text = query_text.format(**macros)
         fields = []
         column_names = []
         customizers = {}
+        virtual_attributes = {}
 
-        field_index = 0
         query_lines = self.extract_query_lines(" ".join(query_lines))
         for line in query_lines:
-            field_elements, alias = self.extract_fields_and_aliases(line)
-            field_name, customizer_type, customizer_value = \
-                self.extract_fields_and_customizers(field_elements)
-            field_name = field_name.strip().replace(",", "")
+            field_name = None
+            customizer_type = None
+            field_elements, alias, virtual_attribute = self.extract_fields_and_aliases(
+                line)
+            if field_elements:
+                for field_element in field_elements:
+                    field_name, customizer_type, customizer_value = \
+                        self.extract_fields_and_customizers(field_element)
+                    field_name = field_name.strip().replace(",", "")
+                    fields.append(self.format_type_field_name(field_name))
+            if not alias and not field_name:
+                raise ValueError("Virtual attributes should be aliased")
+            else:
+                column_name = alias.strip().replace(
+                    ",", "") if alias else field_name
+                column_names.append(self.normalize_column_name(column_name))
+
+            if virtual_attribute:
+                virtual_attributes[column_name] = virtual_attribute
             if customizer_type:
-                customizers[field_index] = {
+                customizers[column_name] = {
                     "type": customizer_type,
                     "value": customizer_value
                 }
-            fields.append(self.format_type_field_name(field_name))
-            field_index += 1
-            column_name = alias.strip().replace(",",
-                                                "") if alias else field_name
-            column_names.append(self.normalize_column_name(column_name))
+        query_text = self.create_query_text(fields, virtual_attributes,
+                                            query_text)
         return QueryElements(query_title=self.title,
                              query_text=query_text,
                              fields=fields,
                              column_names=column_names,
                              customizers=customizers,
+                             virtual_attributes=virtual_attributes,
                              resource_name=resource_name,
                              is_constant_resource=is_constant_resource)
+
+    def create_query_text(self, fields: List[str],
+                          virtual_attributes: Dict[str, VirtualAttribute],
+                          query_text: str) -> str:
+        virtual_fields = [
+            field for name, attribute in virtual_attributes.items()
+            if attribute.type == "expression" for field in attribute.fields
+        ]
+        if virtual_fields:
+            fields = fields + virtual_fields
+        query_text = f"SELECT {', '.join(fields)} {self.extract_from_statement(query_text)}"
+        query_text = self._remove_traling_comma(query_text)
+        query_text = self._unformat_type_field_name(query_text)
+        query_text = re.sub("\s+", " ", query_text).strip()
+        return query_text
 
     def cleanup_query_text(self, query: str) -> List[str]:
         query_lines = query.split("\n")
@@ -111,10 +158,48 @@ class QuerySpecification:
                                  flags=re.IGNORECASE).split(",")
         return [field.strip() for field in selected_fields if field != " "]
 
+    def extract_from_statement(self, query_text: str) -> str:
+        return re.search(" FROM .+", query_text, re.IGNORECASE).group(0)
+
     def extract_fields_and_aliases(
-            self, query_line: str) -> Tuple[str, Optional[str]]:
+        self, query_line: str
+    ) -> Tuple[Optional[List[str]], Optional[str], Optional[VirtualAttribute]]:
+        fields = []
+        virtual_attribute = None
         field_raw, *alias = re.split(" [Aa][Ss] ", query_line)
-        return field_raw, alias[0] if alias else None
+        field_raw = field_raw.replace("\s+", "").strip()
+        virtual_field, _, _ = self.extract_fields_and_customizers(field_raw)
+        try:
+            _ = attrgetter(virtual_field)(self.base_client.google_ads_row)
+        except AttributeError:
+            operators = ("/", "\*", "\+", "-")
+            if len(expressions := re.split("|".join(operators),
+                                           field_raw)) > 1:
+                virtual_attribute_fields = []
+                substitute_expression = virtual_field
+                for element in expressions:
+                    element = element.strip()
+                    try:
+                        _ = attrgetter(element)(
+                            self.base_client.google_ads_row)
+                        virtual_attribute_fields.append(element)
+                        substitute_expression = substitute_expression.replace(
+                            element, f"{{{element}}}")
+                    except AttributeError:
+                        pass
+                virtual_attribute = VirtualAttribute(
+                    type="expression",
+                    value=virtual_field,
+                    fields=virtual_attribute_fields,
+                    substitute_expression=substitute_expression.replace(".", "_"))
+            else:
+                virtual_attribute = VirtualAttribute(type="built-in",
+                                                     value=virtual_field)
+        if not virtual_attribute and field_raw:
+            fields = [field_raw]
+        else:
+            fields = None
+        return fields, alias[0] if alias else None, virtual_attribute
 
     def extract_fields_and_customizers(self, line_elements: str):
         resources = self.extract_resource_element(line_elements)
@@ -146,27 +231,8 @@ class QuerySpecification:
     def normalize_column_name(self, column_name: str) -> str:
         return re.sub(r"\.", "_", column_name)
 
-    def normalize_query(self, query: str) -> str:
-        query = self._remove_alias(query)
-        query = self._remove_pointers(query)
-        query = self._remove_nested_fields(query)
-        query = self._clean_spaces_tabs_new_lines(query)
-        query = self._remove_traling_comma(query)
-        return query
-
-    def _remove_alias(self, query: str) -> str:
-        return re.sub(r"\s+[Aa][Ss]\s+(\w+)", "", query)
-
-    def _remove_pointers(self, query: str) -> str:
-        query = re.sub(r"->(\w+)|->", "", query)
-        query = re.sub(r"~(\w+)|->", "", query)
-        return query
-
-    def _remove_nested_fields(self, query: str) -> str:
-        return re.sub(r":((\w+)\.*){1,}", "", query)
-
-    def _clean_spaces_tabs_new_lines(self, query: str) -> str:
-        return re.sub(r"\s+", " ", query).strip()
-
     def _remove_traling_comma(self, query: str) -> str:
         return re.sub(r",\s+from", " FROM", query, re.IGNORECASE)
+
+    def _unformat_type_field_name(self, query: str) -> str:
+        return re.sub(r"\.type_", ".type", query)
