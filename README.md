@@ -222,6 +222,11 @@ will be evaluated to:
 `WHERE start_date >= '2022-06-20 AND end_date <= '2022-07-20'`
 if today is 2022 July 20th.
 
+Also you can use expressions for making table names dynamic (in BQ scripts), e.g.
+```
+CREATE OR REPLACE TABLE `{bq_dataset}_bq.assetssnapshots_${format(yesterday(),'yyyyMMdd')}` AS
+```
+
 Supported functions:
 * `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`)
 * `date` - factory function to create a Date object, supported formats: `date(2022,12,31)`, `date('2022-12-31')`, `date('12/31/2022','M/d/yyyy')`

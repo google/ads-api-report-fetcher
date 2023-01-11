@@ -117,7 +117,7 @@ async function loadAdsConfigFromFile(configFilepath, customerId) {
             client_id: doc["client_id"],
             client_secret: doc["client_secret"],
             refresh_token: doc["refresh_token"],
-            login_customer_id: (_a = doc["login_customer_id"]) === null || _a === void 0 ? void 0 : _a.toString(),
+            login_customer_id: (_a = (doc["login_customer_id"] || customerId)) === null || _a === void 0 ? void 0 : _a.toString(),
             customer_id: (_b = (customerId ||
                 doc["customer_id"] ||
                 doc["login_customer_id"])) === null || _b === void 0 ? void 0 : _b.toString(),

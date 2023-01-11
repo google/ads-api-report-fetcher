@@ -116,6 +116,7 @@ const argv =
         })
         .option('csv.destination-folder', {
           type: 'string',
+          alias: 'csv.destination',
           description: 'output folder for generated CSV files'
         })
         .option('console.transpose', {
@@ -123,6 +124,10 @@ const argv =
           default: 'auto',
           description:
               'transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose'
+        })
+        .option('console.page_size', {
+          type: 'number',
+          description: 'Maximum row count to output per each script'
         })
         .option('bq', {hidden: true})
         .option('csv', {hidden: true})
@@ -174,7 +179,7 @@ const argv =
             ],
             'BigQuery writer options:')
         .group('csv.destination-folder', 'CSV writer options:')
-        .group('console.transpose', 'Console writer options:')
+        .group(['console.transpose', 'console.page_size'], 'Console writer options:')
         .env('GAARF')
         .config(configObj)
         .config(

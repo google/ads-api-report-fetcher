@@ -169,7 +169,7 @@ export async function loadAdsConfigFromFile(
       client_id: doc["client_id"],
       client_secret: doc["client_secret"],
       refresh_token: doc["refresh_token"],
-      login_customer_id: doc["login_customer_id"]?.toString(),
+      login_customer_id: (doc["login_customer_id"] || customerId)?.toString(),
       customer_id: (
         customerId ||
         doc["customer_id"] ||

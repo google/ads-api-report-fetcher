@@ -108,6 +108,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     default: 'auto',
     description: 'transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose'
 })
+    .option('console.page_size', {
+    type: 'number',
+    description: 'Maximum row count to output per each script'
+})
     .option('bq', { hidden: true })
     .option('csv', { hidden: true })
     .option('console', { hidden: true })
@@ -148,7 +152,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     'bq.location', 'bq.no-union-view', 'bq.dump-data', 'bq.insert-method'
 ], 'BigQuery writer options:')
     .group('csv.destination-folder', 'CSV writer options:')
-    .group('console.transpose', 'Console writer options:')
+    .group(['console.transpose', 'console.page_size'], 'Console writer options:')
     .env('GAARF')
     .config(configObj)
     .config('config', 'Path to JSON or YAML config file', function (configPath) {

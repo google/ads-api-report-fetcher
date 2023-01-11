@@ -27,7 +27,9 @@ class ConsoleWriter {
     constructor(options) {
         this.rowsByCustomer = {};
         options = options || {};
-        this.transpose = TransposeModes[options.transpose || 'auto'];
+        this.transpose =
+            TransposeModes[options.transpose || "auto"];
+        this.pageSize = options.page_size || 0;
     }
     beginScript(scriptName, query) {
         this.scriptName = scriptName;
@@ -40,54 +42,68 @@ class ConsoleWriter {
         this.rowsByCustomer[customerId] = [];
     }
     addRow(customerId, parsedRow, rawRow) {
+        if (this.pageSize > 0 &&
+            this.rowsByCustomer[customerId].length >= this.pageSize)
+            return;
         this.rowsByCustomer[customerId].push(parsedRow);
     }
     endCustomer(customerId) {
-        let cc = { wrapWord: true, alignment: 'right', truncate: 200, };
+        let cc = {
+            wrapWord: true,
+            alignment: "right",
+            truncate: 200,
+        };
         let rows = this.rowsByCustomer[customerId];
         console.log(this.scriptName);
-        rows = rows.map(row => {
-            return row.map(col => {
+        rows = rows.map((row) => {
+            return row.map((col) => {
                 if (col === undefined)
-                    return '';
+                    return "";
                 return col;
             });
         });
         // original table plus a row (first) with headers (columns names)
         let data = [this.query.columnNames].concat(rows);
         // transpose table (rows become columns)
-        let data_trans = data[0].map((_, colIndex) => data.map(row => row[colIndex]));
+        let data_trans = data[0].map((_, colIndex) => data.map((row) => row[colIndex]));
         // and a row with indexes
-        data_trans.splice(0, 0, ['index', ...[...Array(rows.length).keys()].map(i => (++i).toString())]);
+        data_trans.splice(0, 0, [
+            "index",
+            ...[...Array(rows.length).keys()].map((i) => (++i).toString()),
+        ]);
         let tableConfig = {
-            border: (0, table_1.getBorderCharacters)('norc'),
-            columnDefault: { paddingLeft: 0, paddingRight: 1, truncate: 200, wrapWord: true },
+            border: (0, table_1.getBorderCharacters)("norc"),
+            columnDefault: {
+                paddingLeft: 0,
+                paddingRight: 1,
+                truncate: 200,
+                wrapWord: true,
+            },
             drawVerticalLine: () => true,
             drawHorizontalLine: (lineIndex, rowCount) => {
                 return lineIndex === 0 || lineIndex === 1 || lineIndex === rowCount;
             },
-            columns: this.query.columnNames.map(c => cc),
+            columns: this.query.columnNames.map((c) => cc),
             // singleLine: true
         };
         let data_formatted_orig = (0, table_1.table)(data, tableConfig);
         let data_formatted_trans = (0, table_1.table)(data_trans, tableConfig);
         let use_trans = this.transpose == TransposeModes.always;
-        let data_formatted = '';
+        let data_formatted = "";
         if (process.stdout.columns && this.transpose != TransposeModes.never) {
             // we're in Terminal (not streaming to a file)
             if (!use_trans) {
-                let first_line = data_formatted_orig.slice(0, data_formatted_orig.indexOf('\n'));
+                let first_line = data_formatted_orig.slice(0, data_formatted_orig.indexOf("\n"));
                 if (first_line.length > process.stdout.columns) {
                     // table isn't fitting into terminal window, transpose it
                     use_trans = true;
                 }
             }
             if (use_trans) {
-                let first_line_trans = data_formatted_trans.slice(0, data_formatted_trans.indexOf('\n'));
+                let first_line_trans = data_formatted_trans.slice(0, data_formatted_trans.indexOf("\n"));
                 if (first_line_trans.length > process.stdout.columns) {
                     // transposed table also isn't fitting, split it onto several tables
-                    data_formatted =
-                        this.processTransposedTable(data_trans, this.query.columnNames);
+                    data_formatted = this.processTransposedTable(data_trans, this.query.columnNames);
                 }
             }
         }
@@ -99,20 +115,25 @@ class ConsoleWriter {
     }
     processTransposedTable(data_trans, headers) {
         let tableConfig = {
-            border: (0, table_1.getBorderCharacters)('norc'),
-            columnDefault: { paddingLeft: 0, paddingRight: 1, truncate: 200, wrapWord: true },
+            border: (0, table_1.getBorderCharacters)("norc"),
+            columnDefault: {
+                paddingLeft: 0,
+                paddingRight: 1,
+                truncate: 200,
+                wrapWord: true,
+            },
             drawVerticalLine: () => true,
             drawHorizontalLine: () => false,
-            columns: this.query.columnNames.map(c => {
+            columns: this.query.columnNames.map((c) => {
                 return {
                     wrapWord: true,
-                    alignment: 'right',
+                    alignment: "right",
                     truncate: 200,
                 };
             }),
             // singleLine: true
         };
-        let output = '';
+        let output = "";
         let part = 1;
         let done = false;
         while (!done) {
@@ -122,24 +143,27 @@ class ConsoleWriter {
             // note: we're starting from 1 because there's always a header columns coming first
             for (let i = 1; i < column_count; i++) {
                 // slice matrix up to i-th column
-                let submatrix = data_trans.slice(0, row_count + 1)
-                    .map(row => row.slice(0, i + 1));
+                let submatrix = data_trans
+                    .slice(0, row_count + 1)
+                    .map((row) => row.slice(0, i + 1));
                 let submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
-                let first_line = submatrix_formatted.slice(0, submatrix_formatted.indexOf('\n'));
+                let first_line = submatrix_formatted.slice(0, submatrix_formatted.indexOf("\n"));
                 if (first_line.length > process.stdout.columns) {
                     // we have to break at this column - dump sub-matrix from 0 to (i-1)th column
-                    submatrix = data_trans.slice(0, row_count + 1)
-                        .map(row => row.slice(0, i));
+                    submatrix = data_trans
+                        .slice(0, row_count + 1)
+                        .map((row) => row.slice(0, i));
                     submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
                     if (output)
-                        output += '\n';
-                    output = output + '#' + part + '\n' + submatrix_formatted;
+                        output += "\n";
+                    output = output + "#" + part + "\n" + submatrix_formatted;
                     part++;
                     // now remove the columns that have been dumped,
-                    data_trans = data_trans.slice(0, row_count + 1)
-                        .map(row => row.slice(i, column_count + 1));
+                    data_trans = data_trans
+                        .slice(0, row_count + 1)
+                        .map((row) => row.slice(i, column_count + 1));
                     // append headers at matrix first column (for each row)
-                    data_trans[0].splice(0, 0, 'index');
+                    data_trans[0].splice(0, 0, "index");
                     for (let j = 0; j < headers.length; j++) {
                         data_trans[j + 1].splice(0, 0, headers[j]);
                     }
@@ -152,9 +176,9 @@ class ConsoleWriter {
             }
             if (done || column_count <= 2) {
                 if (part > 1) {
-                    output = output + '\n#' + part;
+                    output = output + "\n#" + part;
                 }
-                output = output + '\n' + (0, table_1.table)(data_trans, tableConfig);
+                output = output + "\n" + (0, table_1.table)(data_trans, tableConfig);
             }
         }
         return output;
