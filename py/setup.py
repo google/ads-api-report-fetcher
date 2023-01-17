@@ -27,7 +27,7 @@ setup(
     install_requires=[
         "google-ads>=16.0.0", "google-cloud-bigquery", "pandas>=1.3.4",
         "pyarrow>=6.0.1", "smart_open[all]", "jinja2", "python-dateutil",
-        "sqlalchemy", "rich"
+        "sqlalchemy", "rich", "Faker"
     ],
     setup_requires=["pytest-runner"],
     tests_requires=["pytest"],
@@ -35,5 +35,6 @@ setup(
         "console_scripts": [
             "gaarf=gaarf.cli.gaarf:main",
             "gaarf-bq=gaarf.cli.bq:main",
+            "gaarf-simulator=gaarf.cli.simulator:main",
         ]
     })
