@@ -23,12 +23,22 @@ suite('AdsQueryEditor', () => {
   test('parse aliases', function() {
     let editor = new AdsQueryEditor();
     let query_text = `
-      SELECT campaign.id, customer.id AS customer_id FROM campaign
+      SELECT
+        campaign.id,
+        customer.id AS customer_id,
+        campaign.target_cpa.target_cpa_micros,
+        campaign.target_cpa.target_cpa_micros as campaign_cpa
+      FROM campaign
     `;
     let query = editor.parseQuery(query_text, {});
-    assert.deepEqual(query.columnNames, ['campaign_id', 'customer_id'])
+    assert.deepEqual(query.columnNames, [
+      "id",
+      "customer_id",
+      "target_cpa_target_cpa_micros",
+      "campaign_cpa",
+    ]);
     assert.deepEqual(
-        query.columnTypes.map(t => t.typeName), ['int64', 'int64']);
+        query.columnTypes.map(t => t.typeName), ['int64', 'int64', 'int64', 'int64']);
   });
   test('handle hanging comma in select list', function() {
     let editor = new AdsQueryEditor();

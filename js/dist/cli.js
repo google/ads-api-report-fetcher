@@ -101,6 +101,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option('csv.destination-folder', {
     type: 'string',
+    alias: 'csv.destination',
     description: 'output folder for generated CSV files'
 })
     .option('console.transpose', {

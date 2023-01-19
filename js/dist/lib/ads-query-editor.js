@@ -36,7 +36,8 @@ class AdsQueryEditor {
         this.primitiveTypes = ['string', 'int64', 'int32', 'float', 'double', 'bool'];
     }
     /**
-     * Remove comments and empty lines, normilize newlines.
+     * Remove comments and empty lines, normilize newlines,
+     * i.e. remove insugnificat elements
      */
     cleanupQueryText(query) {
         let queryLines = [];
@@ -91,8 +92,23 @@ class AdsQueryEditor {
     parseQuery(query, macros) {
         query = this.cleanupQueryText(query);
         let queryNormalized = this.normalizeQuery(query, macros || {});
-        let selectFields = query.replace(/(^\s*SELECT)|(\s*FROM .*)/gi, '')
-            .split(',')
+        // parse query metadata (resource type)
+        let match = query.match(/ FROM ([^\s]+)/i);
+        if (!match || !match.length)
+            throw new Error(`Could not parse resource from the query`);
+        let resourceName = match[1];
+        let resourceTypeFrom = this.getResource(resourceName);
+        if (!resourceTypeFrom)
+            throw new Error(`Could not find resource ${resourceName} specified in FROM in protobuf schema`);
+        let resourceInfo = {
+            name: resourceName,
+            typeName: resourceTypeFrom.name,
+            typeMeta: resourceTypeFrom,
+            isConstant: resourceName.endsWith("_constant"),
+        };
+        let selectFields = query
+            .replace(/(^\s*SELECT)|(\s*FROM .*)/gi, "")
+            .split(",")
             .filter(function (field) {
             return field.length > 0;
         });
@@ -112,8 +128,12 @@ class AdsQueryEditor {
             }
             fields.push(parsedExpr.field);
             // fields.push(this.format_type_field_name(parsed_expr.field_name))
-            let column_name = alias || parsedExpr.field.replace(/\./, '_');
-            column_name = column_name.replace(/[ ]/g, '');
+            let column_name = alias || parsedExpr.field.replaceAll(/\./g, "_");
+            if (!alias && column_name.startsWith(resourceName + "_")) {
+                // cut off the current resource name from auto-generated column name
+                column_name = column_name.substring(resourceName.length + 1);
+            }
+            column_name = column_name.replaceAll(/[ ]/g, "");
             // check for uniquniess
             if (column_names.includes(column_name)) {
                 throw new Error(`InvalidQuerySyntax: duplicating column name ${column_name} at index ${field_index}`);
@@ -121,25 +141,11 @@ class AdsQueryEditor {
             column_names.push(column_name);
             field_index++;
         }
-        // parse query metadata (resource type)
-        let match = query.match(/ FROM ([^\s]+)/i);
-        if (!match || !match.length)
-            throw new Error(`Could not parse resource from the query`);
-        let resourceName = match[1];
-        let resourceTypeFrom = this.getResource(resourceName);
-        if (!resourceTypeFrom)
-            throw new Error(`Could not find resource ${resourceName} specified in FROM in protobuf schema`);
-        let resourceInfo = {
-            name: resourceName,
-            typeName: resourceTypeFrom.name,
-            typeMeta: resourceTypeFrom,
-            isConstant: resourceName.endsWith('_constant')
-        };
         // initialize columns types
         let columnTypes = [];
         for (let i = 0; i < fields.length; i++) {
             let field = fields[i];
-            let nameParts = field.split('.');
+            let nameParts = field.split(".");
             let curType = this.getResource(nameParts[0]);
             let fieldType = this.getFieldType(curType, nameParts.slice(1));
             let customizer = customizers[i];
@@ -154,21 +160,20 @@ class AdsQueryEditor {
                         throw new Error(`InvalidQuery: field ${field} contains nested field accessor (:) but selected field's type enum (${fieldType.typeName})`);
                     }
                     let repeated = fieldType.repeated;
-                    fieldType =
-                        this.getFieldType(fieldType.type, customizer.selector.split('.'));
+                    fieldType = this.getFieldType(fieldType.type, customizer.selector.split("."));
                     fieldType.repeated = repeated || fieldType.repeated;
                 }
                 else if (customizer.type === types_1.CustomizerType.ResourceIndex) {
-                    fieldType.typeName = 'int64';
-                    fieldType.type = 'int64';
+                    fieldType.typeName = "int64";
+                    fieldType.type = "int64";
                     fieldType.kind = types_1.FieldTypeKind.primitive;
                 }
                 else if (customizer.type === types_1.CustomizerType.Function) {
                     // expect that function's return type is always string
                     // TODO: we could explicitly tell the type in query, e.g.
                     // "field:$fun<int> AS field"
-                    fieldType.type = 'string';
-                    fieldType.typeName = 'string';
+                    fieldType.type = "string";
+                    fieldType.typeName = "string";
                     fieldType.kind = types_1.FieldTypeKind.primitive;
                     // TODO: we could support functions that return arrays or scalar
                     // but how to tell it in a query ? e.g. field:$fun<int,string[]>
@@ -340,6 +345,7 @@ class AdsQueryEditor {
         return resourceType;
     }
     parseExpression(selectExpr) {
+        // remove index (resource~N)
         let resources = selectExpr.split('~');
         if (resources.length > 1) {
             if (!lodash_1.default.isInteger(+resources[1])) {
@@ -350,6 +356,7 @@ class AdsQueryEditor {
                 customizer: { type: types_1.CustomizerType.ResourceIndex, index: +resources[1] }
             };
         }
+        // nested resource accessor
         let nestedFields = selectExpr.split(':');
         if (nestedFields.length > 1) {
             let value = nestedFields[1];
@@ -368,11 +375,14 @@ class AdsQueryEditor {
                 customizer: { type: types_1.CustomizerType.NestedField, selector: value }
             };
         }
+        // TODO: support VirtualColumn
         return { field: selectExpr };
     }
+    /** Remove all extensions from the query and return Ads API compatible query */
     normalizeQuery(query, macros) {
         query = this.removeAliases(query);
         query = this.removeCustomizers(query);
+        // TODO: remove virtual columns
         // remove section FUNCTIONS
         query = query.replace(/FUNCTIONS .*/gi, '');
         // cut off the last comma (after last column before FROM)
