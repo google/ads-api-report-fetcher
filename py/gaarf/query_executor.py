@@ -38,12 +38,12 @@ class AdsReportFetcher:
         query_specification: Union[str, QueryElements],
     ) -> GaarfReport:
         total_results: List[List[Tuple[Any]]] = []
-        parser = parsers.GoogleAdsRowParser(query_specification)
         is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
                 str(query_specification)).generate()
 
+        parser = parsers.GoogleAdsRowParser(query_specification)
         for customer_id in self.customer_ids:
             logger.debug("Running query %s for customer_id %s",
                          query_specification.query_title, customer_id)
