@@ -164,12 +164,12 @@ class GoogleAdsApiClient(BaseClient):
 
     def _init_client(self, path, config_dict, yaml_str,
                      version) -> Optional[GoogleAdsClient]:
-        if path:
-            return GoogleAdsClient.load_from_storage(path, version)
         if config_dict:
             return GoogleAdsClient.load_from_dict(config_dict, version)
         if yaml_str:
             return GoogleAdsClient.load_from_string(yaml_str, version)
+        if path:
+            return GoogleAdsClient.load_from_storage(path, version)
         try:
             return GoogleAdsClient.load_from_env(version)
         except Exception as e:

@@ -57,6 +57,9 @@ def main():
     parser.add_argument("--no-parallel-queries",
                         dest="parallel_queries",
                         action="store_false")
+    parser.add_argument("--optimize-performance",
+                        dest="optimize_performance",
+                        default="NONE")
     parser.set_defaults(save_config=False)
     parser.set_defaults(parallel_queries=True)
     args = parser.parse_known_args()
@@ -89,8 +92,7 @@ def main():
         customer_ids_query = config.customer_ids_query
     elif config.customer_ids_query_file:
         file_reader = reader_factory.create_reader("file")
-        customer_ids_query = file_reader.read(
-            config.customer_ids_query_file)
+        customer_ids_query = file_reader.read(config.customer_ids_query_file)
     else:
         customer_ids_query = None
 
@@ -112,7 +114,8 @@ def main():
                 future_to_query = {
                     executor.submit(ads_query_executor.execute, query,
                                     customer_ids, reader_client, writer_client,
-                                    config.params): query
+                                    config.params,
+                                    main_args.optimize_performance): query
                     for query in main_args.query
                 }
                 for future in futures.as_completed(future_to_query):

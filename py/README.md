@@ -39,10 +39,10 @@ Once `google-ads-api-report-fetcher` is installed you can use it as a library.
 ```python
 from gaarf.api_clients import GoogleAdsApiClient
 from gaarf.query_executor import AdsReportFetcher, AdsQueryExecutor
-from gaarf.io import writer
+from gaarf.io import reader, writer
 
 # initialize Google Ads API client
-client = GoogleAdsApiClient(path_to_config="google-ads.yaml", version="v10")
+client = GoogleAdsApiClient(path_to_config="google-ads.yaml", version="v12")
 
 customer_ids = ['1', '2']
 
@@ -56,16 +56,20 @@ query_text = "SELECT campaign.id AS campaign_id FROM campaign"
 # Execute query and store campaigns variable
 campaigns = report_fetcher.fetch(query_text)
 
+# iterate over report
+unique_campaigns = set([row.campaign_id for row in campaigns])
+
 # convert `campaigns` to common data structures
 campaigns_list = campaigns.to_list()
 campaigns_df = campaigns.to_pandas()
 
-# Fetch report and save it to CSV
+# Execute query from file and save results to CSV
 # initialize query_executor to fetch report and store them in local/remote storage
 query_executor = AdsQueryExecutor(client)
 
 # initialize writer
-csv_writer = writer.CsvWriter(".tmp")
+csv_writer = writer.CsvWriter(destination_folder="/tmp")
+reader_client = reader.FileReader()
 
 # specify path to GAQL query
 query_path = "path/to/query.sql"
@@ -74,9 +78,14 @@ query_path = "path/to/query.sql"
 query_executor.execute(query_path, customer_ids, reader_client, csv_writer)
 ```
 
+## Python specific command line flags
+
+* `--optimize-performance` - accepts one of the following values:
+    * `NONE` - no optimizations are done
+    * `PROTOBUF` - convert Google Ads API response to protobuf before parsing
+        (speeds up query execution 5x times but forces conversion of ENUMs to integers instead of strings)
+    * `BATCH` -  converts all response of Ads API to a list and then parses its content in parallel 
+    * `BATCH_PROTOBUF` - combines `BATCH` and `PROTOBUF` approaches.
 
 ## Disclaimer
 This is not an officially supported Google product.
-
-Copyright 2022 Google LLC. This solution, including any related sample code or data, is made available on an “as is,” “as available,” and “with all faults” basis, solely for illustrative purposes, and without warranty or representation of any kind. This solution is experimental, unsupported and provided solely for your convenience. Your use of it is subject to your agreements with Google, as applicable, and may constitute a beta feature as defined under those agreements. To the extent that you make any data available to Google in connection with your use of the solution, you represent and warrant that you have all necessary and appropriate rights, consents and permissions to permit Google to use and process that data. By using any portion of this solution, you acknowledge, assume and accept all risks, known and unknown, associated with its usage, including with respect to your deployment of any portion of this solution in your systems, or usage in connection with your business, if at all.
-

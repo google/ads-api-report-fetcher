@@ -167,7 +167,7 @@ class GoogleAdsRowParser:
                                 "~", extracted_attribute)[caller.get("value")]
                             extracted_attribute = re.split(
                                 "/", extracted_attribute)[-1]
-                if isinstance(extracted_attribute, list):
+                if isinstance(extracted_attribute, abc.MutableSequence):
                     parsed_element = [
                         self.parser.parse(element) or element
                         for element in extracted_attribute

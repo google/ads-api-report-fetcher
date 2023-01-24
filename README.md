@@ -373,7 +373,7 @@ Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. 
 Please see the [README](gcp/README.md) there for all information.
 
 
-## Differencies in Python and NodeJS versions
+## Differences in Python and NodeJS versions
 
 ### Query syntax and features
 There are differences in which features supported for queries.
