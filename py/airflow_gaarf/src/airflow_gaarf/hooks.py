@@ -38,7 +38,8 @@ class GaarfHook(BaseHook):
     def get_client(self) -> GoogleAdsApiClient:
         self._get_config()
         try:
-            return GoogleAdsApiClient(config_dict=self.google_ads_config,
+            return GoogleAdsApiClient(path_to_config=None,
+                                      config_dict=self.google_ads_config,
                                       version=self.api_version)
         except GoogleAuthError as e:
             self.log.error("Google Auth Error: %s", e)
@@ -59,7 +60,6 @@ class GaarfBqHook(BaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.config = Dict[str, Any]
 
-
     @cached_property
     def get_bq_executor(self) -> BigQueryExecutor:
         self._get_config()
@@ -72,6 +72,5 @@ class GaarfBqHook(BaseHook):
     def _get_config(self) -> None:
         conn = self.get_connection(self.gcp_conn_id)
         if "cloud" not in conn.extra_dejson:
-            raise AirflowException(
-                "cloud not found in extra field")
+            raise AirflowException("cloud not found in extra field")
         self.config = conn.extra_dejson["cloud"]

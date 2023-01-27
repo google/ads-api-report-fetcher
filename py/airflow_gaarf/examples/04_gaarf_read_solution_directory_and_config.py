@@ -26,11 +26,11 @@ from airflow.utils.task_group import TaskGroup
 from gaarf.io.writer import WriterFactory
 from gaarf.io.reader import FileReader
 
-from airflow_gaarf.utils import GaarfExecutor, GaarfBqExecutor
+from airflow_gaarf.utils import GaarfExecutor, GaarfBqExecutor, GaarfMccExpander
 
 solution_directory = r"absolute-path-to-solution-directory"
 path_to_config = r"config.yaml"
-dag_name = "replace-with-your-name"
+dag_name = "04_gaarf_solutions_directory"
 
 google_ads_queries = pathlib.Path(solution_directory + "google_ads_queries")
 bq_queries = pathlib.Path(solution_directory + "bq_queries")
@@ -44,13 +44,15 @@ writer_client = WriterFactory().create_writer(output_option,
                                               **gaarf.get(output_option))
 reader_client = FileReader()
 
-customer_id = gaarf.get("accont")
+accounts = GaarfMccExpander().expand_seed_customer_id(
+    customer_id=gaarf.get("account"),
+    customer_ids_query=gaarf.get("customer_ids_query"))
 
 query_params = gaarf.get("params")
 
 bq_query_params = config.get("gaarf-bq").get("params")
 
-gaarf_executor = GaarfExecutor(query_params, customer_id, writer_client,
+gaarf_executor = GaarfExecutor(query_params, accounts, writer_client,
                                reader_client)
 bq_executor = GaarfBqExecutor(bq_query_params, reader_client)
 

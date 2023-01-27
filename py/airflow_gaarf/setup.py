@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="airflow-google-ads-api-report-fetcher",
-    version="0.0.1",
+    version="0.1.0",
     description=
     "Library for running google-ads-api-report-fetcher in Apache Airflow.",
     long_description=README,

@@ -12,14 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
 import os
 import pathlib
+from gaarf.utils import get_customer_ids
 
+from .hooks import GaarfHook
 from .operators import GaarfOperator, GaarfBqOperator
 
 
 def get_query_basename(query_path: pathlib.Path) -> str:
     return os.path.basename(query_path)[:-4]
+
+
+class GaarfMccExpander:
+
+    def __init__(self,
+                 google_ads_conn_id: str = "google_ads_default",
+                 api_version: str = "v12") -> None:
+        self.client = GaarfHook(google_ads_conn_id=google_ads_conn_id,
+                                api_version=api_version)
+
+    def expand_seed_customer_id(self, customer_id: str, customer_ids_query: str) -> List[str]:
+        return get_customer_ids(self.client.get_client, customer_id, customer_ids_query)
 
 
 class GaarfExecutor:
@@ -30,7 +45,7 @@ class GaarfExecutor:
                  writer_client,
                  reader_client,
                  google_ads_conn_id="google_ads_default",
-                 api_version="v10"):
+                 api_version="v12"):
         self.query_params = query_params
         self.customer_ids = customer_ids
         self.writer_client = writer_client
