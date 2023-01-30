@@ -54,6 +54,8 @@ def main():
 
     writer_client = writer.WriterFactory().create_writer(
         config.output, **config.writer_params)
+    if config.output == "bq":
+        _ = writer_client.create_or_get_dataset()
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
 
