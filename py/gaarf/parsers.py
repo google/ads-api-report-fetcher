@@ -160,8 +160,10 @@ class GoogleAdsRowParser:
                                     extracted_attribute = attrgetter(
                                         caller.get("value"))(
                                             extracted_attribute)
-                            except AttributeError:
-                                raise ValueError(f"{caller} is incorrect")
+                            except AttributeError as e:
+                                raise ValueError(
+                                    f"customizer {caller} is incorrect,\ndetails: '{e}',\n"
+                                    f"row: '{row}'")
                         elif caller.get("type") == "resource_index":
                             extracted_attribute = re.split(
                                 "~", extracted_attribute)[caller.get("value")]
