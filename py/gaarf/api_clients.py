@@ -155,6 +155,10 @@ class GoogleAdsApiClient(BaseClient):
                                         config_dict=config_dict,
                                         yaml_str=yaml_str,
                                         version=version)
+        if hasattr(self.client, "use_proto_plus"):
+            self.client.use_proto_plus = True
+        else:
+            raise ValueError("Specify 'use_proto_plus: True' in your google-ads.yaml file")
         self.ads_service = self.client.get_service("GoogleAdsService")
 
     def get_response(self, entity_id, query_text):
