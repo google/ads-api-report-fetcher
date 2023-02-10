@@ -25,45 +25,37 @@ const types_1 = require("./types");
 const utils_1 = require("./utils");
 class AdsRowParser {
     parseRow(row, query) {
-        // flatten the tree of object into a flat array of values
+        // flatten the tree of object into a flat obejct with all properties
         let row_values = {};
         for (let field of Object.keys(row)) {
             let item = row[field];
+            row_values[field] = item;
             (0, utils_1.traverseObject)(item, (name, value, path, object) => {
-                let field_full = path.join('.');
+                let field_full = path.join(".");
                 row_values[field_full] = value;
             }, [field]);
         }
-        // process customizers
+        // process customizers and flatten row object into array
         let row_values_arr = [];
-        for (let i = 0; i < query.fields.length; i++) {
-            let field = query.fields[i];
-            let customizer = query.customizers[i];
-            let value = row_values[field];
-            if (customizer && customizer.type === types_1.CustomizerType.Function) {
-                value = this.getValueWithCustomizer(value, customizer, query);
+        for (let i = 0; i < query.columns.length; i++) {
+            let column = query.columns[i];
+            let value;
+            if (column.customizer) {
+                value = this.getValueWithCustomizer(row_values, column, column.customizer, query);
             }
-            else if (value && customizer) {
-                if (lodash_1.default.isArray(value)) {
-                    let new_value = [];
-                    for (let j = 0; j < value.length; j++) {
-                        new_value[j] =
-                            this.getValueWithCustomizer(value[j], customizer, query);
-                    }
-                    value = new_value;
-                }
-                else {
-                    value = this.getValueWithCustomizer(value, customizer, query);
-                }
+            else {
+                value = row_values[column.expression];
             }
             row_values_arr.push(value);
         }
-        // parse numbers as enum's field names
-        for (let i = 0; i < query.fields.length; i++) {
-            let field = query.fields[i];
+        // post process enum (convert number to enum field names) and structs
+        for (let i = 0; i < query.columns.length; i++) {
+            let column = query.columns[i];
             let value = row_values_arr[i];
-            let colType = query.columnTypes[i];
-            if (colType.kind === types_1.FieldTypeKind.enum && colType.repeated &&
+            //let colType = query.columnTypes[i];
+            let colType = column.type;
+            if (colType.kind === types_1.FieldTypeKind.enum &&
+                colType.repeated &&
                 lodash_1.default.isArray(value)) {
                 for (let j = 0; j < value.length; j++) {
                     let subval = value[j];
@@ -91,27 +83,54 @@ class AdsRowParser {
         }
         return row_values_arr;
     }
-    getValueWithCustomizer(value, customizer, query) {
-        if (!value)
-            return value;
+    getValueWithCustomizer(row, column, customizer, query) {
+        let value;
+        if (customizer.type === types_1.CustomizerType.VirtualColumn) {
+            try {
+                value = customizer.evaluator.evaluate(row);
+            }
+            catch (e) {
+                if (e.message.includes("TypeError: Cannot read properties of null")) {
+                    value = null;
+                }
+            }
+        }
+        else {
+            value = row[column.expression];
+            if (!value)
+                return value;
+            if (customizer.type === types_1.CustomizerType.Function) {
+                let func = query.functions[customizer.function];
+                value = func(value);
+            }
+            else {
+                // for other customers we support arrays specifically
+                if (lodash_1.default.isArray(value)) {
+                    let new_value = [];
+                    for (let j = 0; j < value.length; j++) {
+                        new_value[j] = this.parseScalarValue(value[j], customizer);
+                    }
+                    value = new_value;
+                }
+                else {
+                    value = this.parseScalarValue(value, customizer);
+                }
+            }
+        }
+        return value;
+    }
+    parseScalarValue(value, customizer) {
         if (customizer.type === types_1.CustomizerType.NestedField) {
             value = (0, utils_1.navigateObject)(value, customizer.selector);
         }
         else if (customizer.type === types_1.CustomizerType.ResourceIndex) {
-            value = value.split('~')[customizer.index];
+            value = value.split("~")[customizer.index];
             if (value) {
                 if (customizer.index === 0) {
                     value = value.match(/[^/]+\/(\d+)$/)[1];
                 }
                 value = (0, utils_1.tryParseNumber)(value);
             }
-        }
-        else if (customizer.type === types_1.CustomizerType.Function) {
-            let func = query.functions[customizer.function];
-            // TODO: move the check to ads-query-editor
-            if (!func)
-                throw new Error(`InvalidQuerySyntax: unknown function ${customizer.function}`);
-            value = func(value);
         }
         return value;
     }

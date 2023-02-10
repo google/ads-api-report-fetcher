@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
+exports.QueryElements0 = exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
 var CustomizerType;
 (function (CustomizerType) {
     CustomizerType["ResourceIndex"] = "ResourceIndex";
     CustomizerType["NestedField"] = "NestedField";
     CustomizerType["Function"] = "Function";
+    CustomizerType["VirtualColumn"] = "VirtualColumn";
 })(CustomizerType = exports.CustomizerType || (exports.CustomizerType = {}));
 var FieldTypeKind;
 (function (FieldTypeKind) {
@@ -33,8 +34,25 @@ function isEnumType(type) {
 }
 exports.isEnumType = isEnumType;
 class QueryElements {
+    constructor(query, columns, resource, functions) {
+        this.queryText = "";
+        this.queryText = query;
+        this.columns = columns;
+        this.resource = resource;
+        this.functions = functions;
+    }
+    get columnNames() {
+        return this.columns.map(col => col.name);
+    }
+    get columnTypes() {
+        return this.columns.map(col => col.type);
+    }
+}
+exports.QueryElements = QueryElements;
+class QueryElements0 {
     constructor(query, fields, column_names, customizers, resource, columnTypes, functions) {
-        this.queryText = '';
+        this.queryText = "";
+        /** column aliases from original query (either specified via AS or infered from select field) */
         this.columnNames = [];
         this.queryText = query;
         this.fields = fields;
@@ -45,5 +63,5 @@ class QueryElements {
         this.functions = functions;
     }
 }
-exports.QueryElements = QueryElements;
+exports.QueryElements0 = QueryElements0;
 //# sourceMappingURL=types.js.map

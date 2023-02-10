@@ -67,7 +67,7 @@ export class AdsQueryExecutor {
     queryText: string,
     customers: string[],
     macros: Record<string, any>,
-    writer: IResultWriter | undefined,
+    writer?: IResultWriter | undefined,
     options?: AdsQueryExecutorOptions
   ): Promise<Record<string, number>> {
     let skipConstants = !!options?.skipConstants;

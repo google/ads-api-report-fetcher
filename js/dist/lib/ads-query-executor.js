@@ -210,6 +210,7 @@ class AdsQueryExecutor {
         let rawRows = [];
         let parsedRows = [];
         for await (const row of stream) {
+            //logger.debug(row);
             let parsedRow = this.parser.parseRow(row, query);
             rowCount++;
             // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied

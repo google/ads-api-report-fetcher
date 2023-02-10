@@ -64,10 +64,11 @@ class CsvWriter {
         let csvOptions = {
             header: !this.appending,
             quoted: false,
-            columns: this.query.columnNames,
+            columns: this.query.columns.map(col => col.name),
+            //columns: this.query!.columnNames,
             cast: {
-                boolean: (value, context) => value ? 'true' : 'false'
-            }
+                boolean: (value, context) => value ? "true" : "false",
+            },
         };
         let csv = (0, sync_1.stringify)(rows, csvOptions);
         fs_1.default.writeFileSync(this.filename, csv, { encoding: 'utf-8', flag: this.appending ? 'a' : 'w' });

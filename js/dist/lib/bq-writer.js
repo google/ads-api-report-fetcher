@@ -105,6 +105,7 @@ class BigQueryWriter {
         let filepath = `.${tableFullName}.json`;
         if (process.env.K_SERVICE) {
             // we're in GCloud - file system is readonly, the only writable place is /tmp
+            // TODO: use streaming uploads (https://cloud.google.com/storage/docs/streaming-uploads)
             filepath = node_path_1.default.join("/tmp", filepath);
         }
         return filepath;
@@ -320,7 +321,7 @@ class BigQueryWriter {
     }
     createSchema(query) {
         let schema = { fields: [] };
-        for (let i = 0; i < query.fields.length; i++) {
+        for (let i = 0; i < query.columns.length; i++) {
             let colName = query.columnNames[i];
             let colType = query.columnTypes[i];
             let field = {

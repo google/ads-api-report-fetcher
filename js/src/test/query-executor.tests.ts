@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import assert from 'assert';
-
+import {LocalDate} from "@js-joda/core";
 import {AdsQueryExecutor} from '../lib/ads-query-executor';
 import {QueryResult} from '../lib/types';
 
@@ -136,11 +136,11 @@ suite('AdsQueryExecutor', () => {
     assert.equal(result.rows![0][1], 'сб');
   });
 
-  test('indices', async function() {
+  test('indices', async function () {
     const campaignId = 2;
     const resId = 853097294612;
     const resName = `customers/1/campaignAudienceViews/${campaignId}~${resId}`;
-    let mockResult = [{campaign_audience_view: {resource_name: resName}}];
+    let mockResult = [{ campaign_audience_view: { resource_name: resName } }];
     let queryText = `
       SELECT
         campaign_audience_view.resource_name as res_name,
@@ -149,20 +149,57 @@ suite('AdsQueryExecutor', () => {
       FROM campaign_audience_view
     `;
 
-    let customerId = '1';
+    let customerId = "1";
     let client = new MockGoogleAdsApiClient([customerId]);
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
 
-    // act (using executeGen with for-await)
-    for await (const result of executor.executeGen(
-        'campaign_audience_view', queryText, [customerId])) {
-      // assert
-      let row = result.rows![0];
-      assert.deepEqual(
-          result.query.columnNames, ['res_name', 'res_base', 'res_id']);
-      assert.deepStrictEqual(row, [resName, campaignId, resId]);
-      break;
-    }
-  })
+    // act (using executeOne)
+    let query = executor.parseQuery(queryText);
+    let res = await executor.executeOne(query, customerId);
+
+    // assert
+    assert.ok(res.rows);
+    assert.deepStrictEqual(res.rows[0], [resName, campaignId, resId]);
+  });
+
+  test('virtual columns', async function () {
+    let queryText = `
+      SELECT
+        '$\{today()\}' as date,
+        1 AS counter,
+        metrics.clicks / metrics.impressions AS ctr,
+        metrics.cost_micros * 1000 AS cost,
+        campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type
+      FROM campaign
+    `;
+    let mockResult = [
+      {
+        campaign: {
+          app_campaign_setting: {
+            bidding_strategy_goal_type: 2, // OPTIMIZE_INSTALLS_TARGET_INSTALL_COST
+          },
+        },
+        metrics: {
+          clicks: 10,
+          impressions: 2,
+          cost_micros: 3,
+        },
+      },
+    ];
+    let customerId = "1";
+    let client = new MockGoogleAdsApiClient([customerId]);
+    client.setupResult(mockResult);
+    let executor = new AdsQueryExecutor(client);
+    let query = executor.parseQuery(queryText);
+    let res = await executor.executeOne(query, customerId);
+    assert.ok(res.rows);
+    assert.deepStrictEqual(res.rows[0], [
+      LocalDate.now().toString(),
+      1,
+      10 / 2,
+      3 * 1000,
+      "OPTIMIZE_INSTALLS_TARGET_INSTALL_COST",
+    ]);
+  });
 });

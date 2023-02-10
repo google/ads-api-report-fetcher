@@ -37,13 +37,11 @@
     "runCoverageAfterFileSave": false,
     "reporters": []
   },
-  "mocha.sideBarOptions": {
-    "lens": true,
-    "decoration": true,
-    "autoUpdateTime": 2000,
-    "showDebugTestStatus": true
-  },
   "files.exclude": {
     "dist/": true
-  }
+  },
+  "mochaExplorer.files": "src/test/**/*.ts",
+  "mochaExplorer.require": ["ts-node/register", "src/test/fixtures.ts"],
+  "mochaExplorer.ui": "tdd",
+  "mochaExplorer.timeout": 60
 }

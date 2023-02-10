@@ -75,11 +75,11 @@ export class CsvWriter implements IResultWriter {
     let csvOptions: csvStringify.Options = {
       header: !this.appending,
       quoted: false,
-      columns: this.query!.columnNames,
+      columns: this.query!.columns.map(col => col.name),
       cast: {
         boolean: (value: boolean, context: csvStringify.CastingContext) =>
-            value ? 'true' : 'false'
-      }
+          value ? "true" : "false",
+      },
     };
     let csv = stringify(rows, csvOptions);
     fs.writeFileSync(

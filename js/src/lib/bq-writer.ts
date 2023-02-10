@@ -148,6 +148,7 @@ export class BigQueryWriter implements IResultWriter {
     let filepath = `.${tableFullName}.json`;
     if (process.env.K_SERVICE) {
       // we're in GCloud - file system is readonly, the only writable place is /tmp
+      // TODO: use streaming uploads (https://cloud.google.com/storage/docs/streaming-uploads)
       filepath = path.join("/tmp", filepath);
     }
     return filepath;
@@ -383,13 +384,11 @@ export class BigQueryWriter implements IResultWriter {
 
   createSchema(query: QueryElements): bigquery.ITableSchema {
     let schema: bigquery.ITableSchema = { fields: [] };
-    for (let i = 0; i < query.fields.length; i++) {
-      let colName = query.columnNames[i];
-      let colType = query.columnTypes[i];
+    for (let column of query.columns) {
       let field: bigquery.ITableFieldSchema = {
-        mode: colType.repeated ? "REPEATED" : "NULLABLE",
-        name: colName.replace(/\./g, "_"),
-        type: this.getBigQueryFieldType(colType),
+        mode: column.type.repeated ? "REPEATED" : "NULLABLE",
+        name: column.name.replace(/\./g, "_"),
+        type: this.getBigQueryFieldType(column.type),
       };
       // STRING, BYTES, INTEGER, INT64 (same as INTEGER), FLOAT, FLOAT64 (same
       // as FLOAT), NUMERIC, BIGNUMERIC, BOOLEAN, BOOL (same as BOOLEAN),
@@ -405,8 +404,10 @@ export class BigQueryWriter implements IResultWriter {
     if (_.isString(colType.type)) {
       switch (colType.type.toLowerCase()) {
         case "int32":
+        case "int64":
           return "INT64";
         case "double":
+        case "float":
           return "FLOAT";
       }
       return colType.type;

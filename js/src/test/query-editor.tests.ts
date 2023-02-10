@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ suite('AdsQueryEditor', () => {
     assert.deepEqual(
         query.columnTypes.map(t => t.typeName), ['int64', 'int64', 'int64', 'int64']);
   });
+
   test('handle hanging comma in select list', function() {
     let editor = new AdsQueryEditor();
     let query_text = `
@@ -50,6 +51,7 @@ suite('AdsQueryEditor', () => {
     let query = editor.parseQuery(query_text, {});
     assert.deepEqual(query.queryText, 'SELECT customer.id FROM campaign');
   });
+
   test('nested field', function() {
     let editor = new AdsQueryEditor();
     let queryText = `
@@ -61,12 +63,10 @@ suite('AdsQueryEditor', () => {
     assert(query.columnTypes[0].repeated);
     assert.equal(query.columnTypes[0].typeName, 'string');
     assert.deepEqual(
-        query.customizers[0], {type: 'NestedField', selector: 'asset'});
-    assert.deepEqual(
-        query.fields,
-        ['ad_group_ad.ad.responsive_display_ad.marketing_images']);
+        query.columns[0].customizer, {type: 'NestedField', selector: 'asset'});
     assert.deepEqual(query.columnNames, ['asset_id']);
   });
+
   test('nested field2', function() {
     let editor = new AdsQueryEditor();
     let queryText = `SELECT
@@ -81,5 +81,21 @@ suite('AdsQueryEditor', () => {
     assert(query.columnTypes[1].repeated);
     assert.equal(query.columnTypes[1].kind, FieldTypeKind.enum);
     assert.equal(query.columnTypes[1].typeName, 'FrequencyCapLevel');
+  });
+
+  test('remove comments', function () {
+    let editor = new AdsQueryEditor();
+    let query_text = `/* Copyleft (x) 2030
+https://www.apache.org/licenses/LICENSE-2.0
+*/
+      SELECT
+        --campagin
+        campaign.id -- campaign id
+      FROM campaign
+      /*WHERE campaign
+      */
+    `;
+    let query = editor.parseQuery(query_text, {});
+    assert.deepEqual(query.queryText, "SELECT campaign.id FROM campaign");
   });
 });

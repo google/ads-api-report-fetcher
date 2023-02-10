@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { EvalFunction } from "mathjs";
+
 export interface CustomizerResourceIndex {
   type: CustomizerType.ResourceIndex;
   index: number;
@@ -26,12 +28,22 @@ export interface CustomizerFunction {
   type: CustomizerType.Function;
   function: string;
 }
+export interface CustomizerVirtualColumn {
+  type: CustomizerType.VirtualColumn;
+  evaluator: EvalFunction
+}
+
 export type Customizer =
-    CustomizerResourceIndex|CustomizerSelector|CustomizerFunction;
+  | CustomizerResourceIndex
+  | CustomizerSelector
+  | CustomizerFunction
+  | CustomizerVirtualColumn;
+
 export enum CustomizerType {
   ResourceIndex = 'ResourceIndex',
   NestedField = 'NestedField',
-  Function = "Function"
+  Function = "Function",
+  VirtualColumn = "VirtualColumn"
 }
 
 export enum FieldTypeKind {
@@ -93,28 +105,39 @@ export interface FieldType {
   type: string|ProtoTypeMeta|ProtoEnumMeta
 }
 
+export interface Column {
+  name: string;
+  expression: string;
+  type: FieldType;
+  customizer: Customizer | null | undefined;
+}
 export class QueryElements {
-  queryText: string = '';
-  fields: string[];
-  columnNames: string[] = [];
-  customizers: Array<Customizer|null>;
+  queryText: string = "";
+  columns: Column[];
   resource: ResourceInfo;
-  columnTypes: FieldType[];
   functions: Record<string, Function>;
 
   constructor(
-      query: string, fields: string[], column_names: string[],
-      customizers: Array<Customizer|null>, resource: ResourceInfo,
-      columnTypes: FieldType[], functions: Record<string, Function>) {
+    query: string,
+    columns: Column[],
+    resource: ResourceInfo,
+    functions: Record<string, Function>
+  ) {
     this.queryText = query;
-    this.fields = fields;
-    this.columnNames = column_names;
-    this.customizers = customizers;
+    this.columns = columns;
     this.resource = resource;
-    this.columnTypes = columnTypes;
     this.functions = functions;
   }
+
+  public get columnNames(): string[] {
+    return this.columns.map(col => col.name);
+  }
+
+  public get columnTypes(): FieldType[] {
+    return this.columns.map(col => col.type);
+  }
 }
+
 export interface QueryResult {
   rawRows?: Record<string, any>[];
   rows?: any[];
