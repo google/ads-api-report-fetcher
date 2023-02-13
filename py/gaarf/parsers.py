@@ -24,7 +24,7 @@ from google.protobuf.internal.containers import (
     RepeatedScalarFieldContainer,
     RepeatedCompositeFieldContainer)  # type: ignore
 
-from .query_editor import VirtualAttribute, VirtualAttributeError
+from .query_editor import VirtualColumn, VirtualColumnError
 
 
 class BaseParser:
@@ -95,7 +95,7 @@ class GoogleAdsRowParser:
         self.row_getter = attrgetter(*query_specification.fields)
         self.fields = query_specification.fields
         self.customizers = query_specification.customizers
-        self.virtual_attributes = query_specification.virtual_attributes
+        self.virtual_columns = query_specification.virtual_columns
         self.column_names = query_specification.column_names
 
     def _init_parsers(self):
@@ -116,11 +116,11 @@ class GoogleAdsRowParser:
         extracted_attributes = self._get_attributes_from_row(
             row, self.row_getter)
         index = 0
-        virtual_attributes = {}
+        virtual_columns = {}
         for i, column in enumerate(self.column_names):
-            if column in self.virtual_attributes.keys():
-                parsed_element = self._convert_virtual_attribute(
-                    row, self.virtual_attributes[column])
+            if column in self.virtual_columns.keys():
+                parsed_element = self._convert_virtual_column(
+                    row, self.virtual_columns[column])
             else:
                 extracted_attribute = extracted_attributes[index]
                 index += 1
@@ -184,38 +184,38 @@ class GoogleAdsRowParser:
         attributes = getter(row)
         return attributes if isinstance(attributes, tuple) else (attributes, )
 
-    def _convert_virtual_attribute(self, row,
-                                   virtual_attribute: VirtualAttribute) -> str:
-        if virtual_attribute.type == "built-in":
-            return virtual_attribute.value
-        elif virtual_attribute.type == "expression":
-            virtual_attribute_getter = attrgetter(*virtual_attribute.fields)
-            virtual_attribute_values = virtual_attribute_getter(row)
+    def _convert_virtual_column(self, row,
+                                   virtual_column: VirtualColumn) -> str:
+        if virtual_column.type == "built-in":
+            return virtual_column.value
+        elif virtual_column.type == "expression":
+            virtual_column_getter = attrgetter(*virtual_column.fields)
+            virtual_column_values = virtual_column_getter(row)
             try:
-                iter(virtual_attribute_values)
+                iter(virtual_column_values)
             except TypeError:
-                virtual_attribute_values = (virtual_attribute_values, )
-            virtual_attribute_replacements = {
+                virtual_column_values = (virtual_column_values, )
+            virtual_column_replacements = {
                 field.replace(".", "_"): value
-                for field, value in zip(virtual_attribute.fields,
-                                        virtual_attribute_values)
+                for field, value in zip(virtual_column.fields,
+                                        virtual_column_values)
             }
             try:
                 result = eval(
-                    virtual_attribute.substitute_expression.format(
-                        **virtual_attribute_replacements))
+                    virtual_column.substitute_expression.format(
+                        **virtual_column_replacements))
             except ZeroDivisionError:
                 return 0
             except TypeError:
-                raise VirtualAttributeError(
-                    f"cannot parse virtual_attribute {virtual_attribute.value}"
+                raise VirtualColumnError(
+                    f"cannot parse virtual_column {virtual_column.value}"
                 )
             except Exception as e:
-                return virtual_attribute.value
+                return virtual_column.value
             return result
         else:
             raise ValueError(
-                f"Unsupported virtual attribute type: {virtual_attribute_type}"
+                f"Unsupported virtual column type: {virtual_column_type}"
             )
 
 

@@ -57,7 +57,7 @@ class AdsReportFetcher:
 
         Args:
             query_specification: query text that will be passed to Ads API
-                alongside column_names, customizers and virtual attributes.
+                alongside column_names, customizers and virtual columns.
             optimize_strategy: strategy for speeding up query execution
                 ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
 
@@ -110,7 +110,7 @@ class AdsReportFetcher:
 
         Args:
             query_specification: query text that will be passed to Ads API
-                alongside column_names, customizers and virtual attributes.
+                alongside column_names, customizers and virtual columns.
             customer_id: account for which data should be requested.
             parser: instance of parser class that transforms each row from
                 request into desired format.
