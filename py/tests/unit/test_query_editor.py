@@ -101,18 +101,18 @@ def test_is_constant_resource(sample_query):
     assert sample_query.is_constant_resource == False
 
 
-def test_has_virtual_attributes(sample_query):
-    assert sample_query.virtual_attributes == {
+def test_has_virtual_columns(sample_query):
+    assert sample_query.virtual_columns == {
         "date":
-        query_editor.VirtualAttribute(type="built-in", value="'20230101'"),
+        query_editor.VirtualColumn(type="built-in", value="'20230101'"),
         "ctr":
-        query_editor.VirtualAttribute(
+        query_editor.VirtualColumn(
             type="expression",
             value="metrics.clicks / metrics.impressions",
             fields=["metrics.clicks", "metrics.impressions"],
             substitute_expression="{metrics_clicks} / {metrics_impressions}"),
         "cost":
-        query_editor.VirtualAttribute(
+        query_editor.VirtualColumn(
             type="expression",
             value="metrics.cost_micros * 1e6",
             fields=["metrics.cost_micros"],

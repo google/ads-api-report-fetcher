@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from dataclasses import dataclass
 from proto import Message
 import gaarf.parsers as parsers
-from gaarf.query_editor import VirtualAttribute, VirtualAttributeError
+from gaarf.query_editor import VirtualColumn, VirtualColumnError
 
 
 @dataclass
@@ -46,7 +46,7 @@ class FakeAdsRowMultipleElements:
 @dataclass
 class FakeQuerySpecification:
     customizers: Dict[str, Any]
-    virtual_attributes: Dict[str, Any]
+    virtual_columns: Dict[str, Any]
     fields: List[str]
     column_names: List[str]
 
@@ -63,10 +63,10 @@ def fake_query_specification():
             "value": "value"
         }
     }
-    virtual_attributes = {"date": {"type": "built-in", "value": "date"}}
+    virtual_columns = {"date": {"type": "built-in", "value": "date"}}
     return FakeQuerySpecification(
         customizers=customizers,
-        virtual_attributes=virtual_attributes,
+        virtual_columns=virtual_columns,
         fields=["campaign_type", "clicks", "resource", "value"],
         column_names=["campaign_type", "clicks", "resource", "value"])
 
@@ -183,52 +183,52 @@ def test_get_attributes_from_row(google_ads_row_parser, fake_ads_row,
     ]
 
 
-def test_convert_builtin_virtual_attribute(google_ads_row_parser,
+def test_convert_builtin_virtual_column(google_ads_row_parser,
                                            fake_ads_row):
-    fake_builtin_virtual_attribute = VirtualAttribute(type="built-in",
+    fake_builtin_virtual_column = VirtualColumn(type="built-in",
                                                       value="fake_value")
-    result = google_ads_row_parser._convert_virtual_attribute(
-        fake_ads_row, fake_builtin_virtual_attribute)
+    result = google_ads_row_parser._convert_virtual_column(
+        fake_ads_row, fake_builtin_virtual_column)
     assert result == "fake_value"
 
 
 @pytest.fixture
-def fake_expression_virtual_attribute():
-    return VirtualAttribute(
+def fake_expression_virtual_column():
+    return VirtualColumn(
         type="expression",
         value="metrics.clicks / metrics.impressions",
         fields=["metrics.clicks", "metrics.impressions"],
         substitute_expression="{metrics_clicks} / {metrics_impressions}")
 
 
-def test_convert_expression_virtual_attribute(
+def test_convert_expression_virtual_column(
         google_ads_row_parser, fake_ads_row,
-        fake_expression_virtual_attribute):
-    result = google_ads_row_parser._convert_virtual_attribute(
-        fake_ads_row, fake_expression_virtual_attribute)
+        fake_expression_virtual_column):
+    result = google_ads_row_parser._convert_virtual_column(
+        fake_ads_row, fake_expression_virtual_column)
     assert result == 1.0
 
 
-def test_convert_expression_virtual_attribute_with_zero_denominator_returns_zero(
-        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+def test_convert_expression_virtual_column_with_zero_denominator_returns_zero(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_column):
     fake_ads_row.metrics.impressions = 0
-    result = google_ads_row_parser._convert_virtual_attribute(
-        fake_ads_row, fake_expression_virtual_attribute)
+    result = google_ads_row_parser._convert_virtual_column(
+        fake_ads_row, fake_expression_virtual_column)
     assert result == 0
 
 
-def test_if_convert_expression_virtual_attribute_raises_type_error_raise_virtual_attribute_error(
-        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+def test_if_convert_expression_virtual_column_raises_type_error_raise_virtual_column_error(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_column):
     fake_ads_row.metrics.impressions = "str"
-    with pytest.raises(VirtualAttributeError):
-        result = google_ads_row_parser._convert_virtual_attribute(
-            fake_ads_row, fake_expression_virtual_attribute)
+    with pytest.raises(VirtualColumnError):
+        result = google_ads_row_parser._convert_virtual_column(
+            fake_ads_row, fake_expression_virtual_column)
 
 
-def test_if_convert_expression_virtual_attribute_fails_return_attribute_value(
-        google_ads_row_parser, fake_ads_row, fake_expression_virtual_attribute):
+def test_if_convert_expression_virtual_column_fails_return_column_value(
+        google_ads_row_parser, fake_ads_row, fake_expression_virtual_column):
     fake_ads_row.metrics.impressions = "0 +"  # this should raise SyntaxError
-    result = google_ads_row_parser._convert_virtual_attribute(
-        fake_ads_row, fake_expression_virtual_attribute)
-    assert result == fake_expression_virtual_attribute.value
+    result = google_ads_row_parser._convert_virtual_column(
+        fake_ads_row, fake_expression_virtual_column)
+    assert result == fake_expression_virtual_column.value
 
