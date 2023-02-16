@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 import dataclasses
 import os
 import datetime
+from smart_open import open
 from dateutil.relativedelta import relativedelta
 import yaml
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
