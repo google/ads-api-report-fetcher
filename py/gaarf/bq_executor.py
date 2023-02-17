@@ -17,6 +17,7 @@ from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from jinja2 import Template
 import logging
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,11 @@ class BigQueryExecutor:
         self.location = location
         self.client = bigquery.Client(project_id)
 
-    def execute(self, script_name: str, query_text: str,
-                params: Optional[Dict[str, Any]]) -> None:
+    def execute(
+            self,
+            script_name: str,
+            query_text: str,
+            params: Optional[Dict[str, Any]] = None) -> Optional[pd.DataFrame]:
         logger.debug("Original query text:\n%s", query_text)
         if params:
             if (templates := params.get("template")):
@@ -47,9 +51,10 @@ class BigQueryExecutor:
         job = self.client.query(query_text)
         try:
             result = job.result()
-            if result.total_rows:
-                print(result.to_dataframe())
             logger.debug("%s launched successfully", script_name)
+            if result.total_rows:
+                return result.to_dataframe()
+            return None
         except Exception as e:
             raise BigQueryExecutorException(e) from e
 

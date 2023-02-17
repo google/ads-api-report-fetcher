@@ -41,7 +41,11 @@ def main():
                         dest="save_config_dest",
                         default="config.yaml")
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
+    parser.add_argument("--dry-run",
+                        dest="dry_run",
+                        action="store_true")
     parser.set_defaults(save_config=False)
+    parser.set_defaults(dry_run=False)
     args = parser.parse_known_args()
     main_args = args[0]
 
@@ -57,6 +61,8 @@ def main():
     logger.debug("config: %s", config)
     if main_args.save_config and not main_args.gaarf_config:
         ConfigSaver(main_args.save_config_dest).save(config)
+    if main_args.dry_run:
+        exit()
 
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
