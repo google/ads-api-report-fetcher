@@ -20,14 +20,14 @@ from operator import attrgetter
 
 
 @dataclasses.dataclass(frozen=True)
-class VirtualAttribute:
+class VirtualColumn:
     type: str
     value: str
     fields: Optional[List[str]] = None
     substitute_expression: Optional[str] = None
 
 
-class VirtualAttributeError(Exception):
+class VirtualColumnError(Exception):
     pass
 
 
@@ -47,7 +47,7 @@ class QueryElements:
     fields: List[str]
     column_names: List[str]
     customizers: Optional[Dict[str, Dict[str, str]]]
-    virtual_attributes: Optional[Dict[str, VirtualAttribute]]
+    virtual_columns: Optional[Dict[str, VirtualColumn]]
     resource_name: str
     is_constant_resource: bool
 
@@ -84,13 +84,13 @@ class QuerySpecification:
         fields = []
         column_names = []
         customizers = {}
-        virtual_attributes = {}
+        virtual_columns = {}
 
         query_lines = self.extract_query_lines(" ".join(query_lines))
         for line in query_lines:
             field_name = None
             customizer_type = None
-            field_elements, alias, virtual_attribute = self.extract_fields_and_aliases(
+            field_elements, alias, virtual_column = self.extract_fields_and_aliases(
                 line)
             if field_elements:
                 for field_element in field_elements:
@@ -105,30 +105,30 @@ class QuerySpecification:
                     ",", "") if alias else field_name
                 column_names.append(self.normalize_column_name(column_name))
 
-            if virtual_attribute:
-                virtual_attributes[column_name] = virtual_attribute
+            if virtual_column:
+                virtual_columns[column_name] = virtual_column
             if customizer_type:
                 customizers[column_name] = {
                     "type": customizer_type,
                     "value": customizer_value
                 }
-        query_text = self.create_query_text(fields, virtual_attributes,
+        query_text = self.create_query_text(fields, virtual_columns,
                                             query_text)
         return QueryElements(query_title=self.title,
                              query_text=query_text,
                              fields=fields,
                              column_names=column_names,
                              customizers=customizers,
-                             virtual_attributes=virtual_attributes,
+                             virtual_columns=virtual_columns,
                              resource_name=resource_name,
                              is_constant_resource=is_constant_resource)
 
     def create_query_text(self, fields: List[str],
-                          virtual_attributes: Dict[str, VirtualAttribute],
+                          virtual_columns: Dict[str, VirtualColumn],
                           query_text: str) -> str:
         virtual_fields = [
-            field for name, attribute in virtual_attributes.items()
-            if attribute.type == "expression" for field in attribute.fields
+            field for name, column in virtual_columns.items()
+            if column.type == "expression" for field in column.fields
         ]
         if virtual_fields:
             fields = fields + virtual_fields
@@ -163,9 +163,9 @@ class QuerySpecification:
 
     def extract_fields_and_aliases(
         self, query_line: str
-    ) -> Tuple[Optional[List[str]], Optional[str], Optional[VirtualAttribute]]:
+    ) -> Tuple[Optional[List[str]], Optional[str], Optional[VirtualColumn]]:
         fields = []
-        virtual_attribute = None
+        virtual_column = None
         field_raw, *alias = re.split(" [Aa][Ss] ", query_line)
         field_raw = field_raw.replace("\s+", "").strip()
         virtual_field, _, _ = self.extract_fields_and_customizers(field_raw)
@@ -175,31 +175,31 @@ class QuerySpecification:
             operators = ("/", "\*", "\+", "-")
             if len(expressions := re.split("|".join(operators),
                                            field_raw)) > 1:
-                virtual_attribute_fields = []
+                virtual_column_fields = []
                 substitute_expression = virtual_field
                 for element in expressions:
                     element = element.strip()
                     try:
                         _ = attrgetter(element)(
                             self.base_client.google_ads_row)
-                        virtual_attribute_fields.append(element)
+                        virtual_column_fields.append(element)
                         substitute_expression = substitute_expression.replace(
                             element, f"{{{element}}}")
                     except AttributeError:
                         pass
-                virtual_attribute = VirtualAttribute(
+                virtual_column = VirtualColumn(
                     type="expression",
                     value=virtual_field,
-                    fields=virtual_attribute_fields,
+                    fields=virtual_column_fields,
                     substitute_expression=substitute_expression.replace(".", "_"))
             else:
-                virtual_attribute = VirtualAttribute(type="built-in",
+                virtual_column = VirtualColumn(type="built-in",
                                                      value=virtual_field)
-        if not virtual_attribute and field_raw:
+        if not virtual_column and field_raw:
             fields = [field_raw]
         else:
             fields = None
-        return fields, alias[0] if alias else None, virtual_attribute
+        return fields, alias[0] if alias else None, virtual_column
 
     def extract_fields_and_customizers(self, line_elements: str):
         resources = self.extract_resource_element(line_elements)
