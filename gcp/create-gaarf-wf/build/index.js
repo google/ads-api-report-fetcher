@@ -27,8 +27,6 @@ import chalk from 'chalk';
 import clui from 'clui';
 import yaml from 'js-yaml';
 import { generateRefreshToken } from 'google-oauth-authenticator';
-const execSync = child_process.execSync;
-const spawn = child_process.spawn;
 const GIT_REPO = 'https://github.com/google/ads-api-report-fetcher.git';
 const LOG_FILE = '.create-gaarf-wf-out.log';
 const argv = minimist(process.argv.slice(2));
@@ -57,6 +55,17 @@ function deploy_shell_script(fileName, content) {
     execSync(`chmod +x ${fileName}`);
     console.log(chalk.gray(`Created ${fileName}`));
 }
+function execSync(cmd, options) {
+    options = Object.assign(options || {}, {
+        stdio: 'pipe',
+        shell: true,
+    });
+    const child = child_process.spawnSync(cmd, options);
+    if (child.status) {
+        return child.stderr.toString();
+    }
+    return child.stdout.toString();
+}
 function exec_cmd(cmd, spinner, options) {
     options = options || {};
     if (spinner && options.realtime === undefined) {
@@ -72,7 +81,7 @@ function exec_cmd(cmd, spinner, options) {
         console.log(chalk.gray(cmd));
         fs.appendFileSync(LOG_FILE, `[${new Date()}] Running ${cmd}\n`);
     }
-    const cp = spawn(cmd, [], {
+    const cp = child_process.spawn(cmd, [], {
         shell: true,
         // inherit stdin, and wrap stdout/stderr
         stdio: ['inherit', 'pipe', 'pipe'],
@@ -128,6 +137,53 @@ function exec_cmd(cmd, spinner, options) {
         });
     });
 }
+async function get_gcp_regions(answers) {
+    if (answers && answers.gcp_region) {
+        return answers.gcp_region;
+    }
+    // TODO: this is an ugly hard-code but at the moment of Jan 2023 there's no way to automate it
+    // The list contains GCP regions where all three services are supported:
+    // Cloud Functions (gcloud functions regions list), Cloud Scheduler (gcloud scheduler regions list),
+    // Cloud Workflows (no API! only doc - https://cloud.google.com/workflows/docs/locations)
+    const regions = [
+        'asia-east1',
+        'asia-east2',
+        'asia-northeast1',
+        'asia-northeast2',
+        'asia-south1',
+        'asia-southeast1',
+        'australia-southeast1',
+        'europe-central2',
+        'europe-west1',
+        'europe-west2',
+        'europe-west3',
+        'europe-west6',
+        'northamerica-northeast1',
+        'southamerica-east1',
+        'us-central1',
+        'us-east1',
+        'us-east4',
+        'us-west1',
+        'us-west2',
+        'us-west3',
+        'us-west4',
+    ];
+    const MANUAL_ITEM = '__MANUAL__';
+    const options = [{ title: 'Enter manually', value: MANUAL_ITEM }].concat(regions.map(item => {
+        return {
+            title: item,
+            value: item,
+        };
+    }));
+    //options = [{title: 'Enter manually', value: MANUAL_ITEM}].concat(options);
+    const response = await prompts({
+        type: 'autocomplete',
+        name: 'gcp_region',
+        message: 'Region for Cloud services (workflows, functions, scheduler):',
+        choices: options,
+    });
+    return response.gcp_region;
+}
 async function initialize_gcp_project(answers) {
     // check for gcloud
     const gcloud_res = await exec_cmd('which gcloud', null, { silent: true });
@@ -161,9 +217,7 @@ async function initialize_gcp_project(answers) {
         }
     }
     // otherwise let the user to choose a project
-    const projects_csv = child_process
-        .execSync('gcloud projects list --format="csv(projectId,name)" --sort-by=projectId --limit=500')
-        .toString();
+    const projects_csv = execSync('gcloud projects list --format="csv(projectId,name)" --sort-by=projectId --limit=500').toString();
     const rows = projects_csv.split('\n').map(row => row.split(','));
     rows.splice(0, 1); // remove header row
     let options = rows
@@ -517,12 +571,6 @@ async function init() {
                     : value;
             },
         },
-        // {
-        //   type: 'input',
-        //   name: 'path_to_googleads_config',
-        //   message: 'Path to your google-ads.yaml:',
-        //   default: 'google-ads.yaml',
-        // },
         {
             type: 'input',
             name: 'custom_ids_query_path',
@@ -605,6 +653,7 @@ gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
 gsutil rm -r $GCS_BASE_PATH/${path_to_bq_queries}
 gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
 `);
+    const gcp_region = await get_gcp_regions(answers);
     // Create deploy-wf.sh
     const workflow_name = name + '-wf';
     const function_name = name;
@@ -628,13 +677,12 @@ gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
     // NOTE: Cloud Function Gen2 (in contrast to Gen1) don't support arbitrary memory size, for using >1GB you need to increase CPU
     //       but `gcloud functions` command doesn't support this.
     //       So have to deploy via `gcloud functions` with small memory and then update via `gcloud run` to update CPU and memory.
-    const cf_region = 'us-central1';
     let deploy_cf_add = '';
     if (cf_memory === '2048MB' ||
         cf_memory === '4096MB' ||
         cf_memory === '8192MB') {
         deploy_cf_add = `
-gcloud run services update ${function_name} --region ${cf_region} --cpu 1 --memory=${cf_memory.replaceAll('MB', 'Mi')}
+gcloud run services update ${function_name} --region ${gcp_region} --cpu 1 --memory=${cf_memory.replaceAll('MB', 'Mi')}
 `; //--no-cpu-throttling (add or not?)
         cf_memory = '512MB';
     }
@@ -643,10 +691,10 @@ set -e
 cd ./${gaarf_folder}
 git pull --ff
 cd ./gcp/functions
-./setup.sh --name ${function_name} --memory ${cf_memory} --region ${cf_region}
+./setup.sh --name ${function_name} --memory ${cf_memory} --region ${gcp_region}
 ${deploy_cf_add}
 cd ../workflow
-./setup.sh --name ${workflow_name} --region ${cf_region}
+./setup.sh --name ${workflow_name} --region ${gcp_region}
 `);
     const has_ads_queries = !!fs.readdirSync(path_to_ads_queries).length;
     const has_bq_queries = !!fs.readdirSync(path_to_bq_queries).length;
@@ -686,6 +734,7 @@ cd ../workflow
     // now we detect macro used in queries and ask for their values
     const macro_ads = await get_macro_values(path.join(cwd, path_to_ads_queries), answers, 'ads_macro');
     const macro_bq = await get_macro_values(path.join(cwd, path_to_bq_queries), answers, 'bq_macro');
+    const bq_location = gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
     const output_dataset = answers2.output_dataset;
     const customer_id = answers2.customer_id;
     const wf_data = {
@@ -697,7 +746,7 @@ cd ../workflow
         cid: customer_id,
         ads_config_path: `${gcs_base_path}/google-ads.yaml`,
         customer_ids_query: custom_query_gcs_path,
-        bq_dataset_location: '',
+        bq_dataset_location: bq_location,
         ads_macro: macro_ads,
         bq_macro: macro_bq,
         bq_sql: {},
@@ -771,7 +820,7 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumbe
 # be default Cloud Worflows run under the Compute Engine default service account:
 SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-REGION=${cf_region}
+REGION=${gcp_region}
 WORKFLOW_NAME=${workflow_name}
 JOB_NAME=$WORKFLOW_NAME
 
@@ -792,7 +841,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
 # timezone: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 # to run the job:
-#gcloud scheduler jobs run ${workflow_name} --location=${cf_region}
+#gcloud scheduler jobs run ${workflow_name} --location=${gcp_region}
 `);
     if (answers3.schedule_wf) {
         const res = await exec_cmd(path.join(cwd, './schedule-wf.sh'), new clui.Spinner('Creating a Scheduler Job, please wait...'));
@@ -802,7 +851,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
         progress.wf_scheduled = true;
         if (answers3.run_job) {
             // running the job
-            await exec_cmd(`gcloud scheduler jobs run ${workflow_name} --location=${cf_region}`, null, { realtime: true });
+            await exec_cmd(`gcloud scheduler jobs run ${workflow_name} --location=${gcp_region}`, null, { realtime: true });
         }
     }
     // creating scripts for directly executing gaarf

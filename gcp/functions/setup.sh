@@ -20,8 +20,8 @@
 set -e
 
 enable_api() {
-  gcloud services enable run.googleapis.com # required for Gen2 GCF
   gcloud services enable artifactregistry.googleapis.com # required for Gen2 GCF
+  gcloud services enable run.googleapis.com # required for Gen2 GCF
   gcloud services enable cloudresourcemanager.googleapis.com
   gcloud services enable iamcredentials.googleapis.com
   gcloud services enable cloudbuild.googleapis.com
