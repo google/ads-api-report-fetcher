@@ -23,6 +23,7 @@ import { math_parse } from "./math-engine";
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0];  // e.g. "v9"
+export const AdsApiVersion = protoVer;
 const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
 const protoResources = protoRoot[protoVer].nested.resources.nested;
 const protoEnums = protoRoot[protoVer].nested.enums.nested;

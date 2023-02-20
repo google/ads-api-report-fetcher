@@ -36,12 +36,15 @@ const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-    .scriptName('gaarf')
-    .command('$0 <files..>', 'Execute ads queries (GAQL)', {})
-    .positional('files', {
+    .scriptName("gaarf")
+    .wrap(yargs_1.default.terminalWidth())
+    .version()
+    .alias("v", "version")
+    .command("$0 <files..>", "Execute ads queries (GAQL)", {})
+    .positional("files", {
     array: true,
-    type: 'string',
-    description: 'List of files with Ads queries (can be gcs:// resources)'
+    type: "string",
+    description: "List of files with Ads queries (can be gcs:// resources)",
 })
     // .command(
     //     'bigquery <files>', 'Execute BigQuery queries',
@@ -49,44 +52,53 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     // NOTE: when/if we introduce another command, then all options will
     //       move to the defaul command's suboptions
     //       But having them at root level is better for TS typings
-    .option('ads-config', {
-    type: 'string',
-    description: 'path to yaml config for Google Ads (google-ads.yaml)'
+    .option("ads-config", {
+    type: "string",
+    description: "path to yaml config for Google Ads (google-ads.yaml)",
 })
-    .option('ads', { hidden: true })
-    .option('ads.developer_token', { type: 'string', description: 'Ads API developer token' })
-    .option('ads.client_id', { type: 'string', description: 'OAuth client_id' })
-    .option('ads.client_secret', { type: 'string', description: 'OAuth client_secret' })
-    .option('ads.refresh_token', { type: 'string', description: 'OAuth refresh token' })
-    .option('ads.login_customer_id', {
-    type: 'string',
-    description: 'Ads API login account (can be the same as account argument)'
+    .option("ads", { hidden: true })
+    .option("ads.developer_token", {
+    type: "string",
+    description: "Ads API developer token",
 })
-    .option('account', {
-    alias: ['customer', 'customer-id', 'customer_id'],
-    type: 'string',
-    description: 'Google Ads account id (w/o dashes), a.k.a customer id'
+    .option("ads.client_id", { type: "string", description: "OAuth client_id" })
+    .option("ads.client_secret", {
+    type: "string",
+    description: "OAuth client_secret",
 })
-    .option('customer-ids-query', {
-    alias: ['customer_ids_query'],
-    type: 'string',
-    description: 'GAQL query that refines for which accounts to execute scripts'
+    .option("ads.refresh_token", {
+    type: "string",
+    description: "OAuth refresh token",
 })
-    .option('customer-ids-query-file', {
-    alias: ['customer_ids_query_file'],
-    type: 'string',
-    description: 'Same as customer-ids-query but a file path to a query script'
+    .option("ads.login_customer_id", {
+    type: "string",
+    description: "Ads API login account (can be the same as account argument)",
 })
-    .conflicts('customer-ids-query', 'customer-ids-query-file')
-    .option('output', {
-    choices: ['csv', 'bq', 'bigquery', 'console'],
-    alias: 'o',
-    description: 'output writer to use'
+    .option("account", {
+    alias: ["customer", "customer-id", "customer_id"],
+    type: "string",
+    description: "Google Ads account id (w/o dashes), a.k.a customer id",
 })
-    .option('loglevel', {
-    alias: ['log-level', 'll', 'log_level'],
-    choises: ['debug', 'verbose', 'info', 'warn', 'error'],
-    description: 'Logging level. By default - \'info\', for output=console - \'warn\''
+    .option("customer-ids-query", {
+    alias: ["customer_ids_query"],
+    type: "string",
+    description: "GAQL query that refines for which accounts to execute scripts",
+})
+    .option("customer-ids-query-file", {
+    alias: ["customer_ids_query_file"],
+    type: "string",
+    description: "Same as customer-ids-query but a file path to a query script",
+})
+    .conflicts("customer-ids-query", "customer-ids-query-file")
+    .option("output", {
+    choices: ["csv", "bq", "bigquery", "console"],
+    alias: "o",
+    description: "output writer to use",
+})
+    .option("loglevel", {
+    alias: ["log-level", "ll", "log_level"],
+    choises: ["debug", "verbose", "info", "warn", "error"],
+    description: "Logging level. By default - 'info', for output=console - 'warn'",
 })
     // TODO: support parallel query execution (to catch up with Python)
     // .option('parallel-queries', {
@@ -94,80 +106,93 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     //   description: 'How queries are being processed: in parallel (true) or sequentially (false, default)',
     //   default: false
     // })
-    .option('parallel-accounts', {
-    type: 'boolean',
-    description: 'How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)',
-    default: true
+    .option("parallel-accounts", {
+    type: "boolean",
+    description: "How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)",
+    default: true,
 })
-    .option('csv.destination-folder', {
-    type: 'string',
-    alias: 'csv.destination',
-    description: 'output folder for generated CSV files'
+    .option("csv.destination-folder", {
+    type: "string",
+    alias: "csv.destination",
+    description: "output folder for generated CSV files",
 })
-    .option('console.transpose', {
-    choices: ['auto', 'never', 'always'],
-    default: 'auto',
-    description: 'transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose'
+    .option("console.transpose", {
+    choices: ["auto", "never", "always"],
+    default: "auto",
+    description: "transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
 })
-    .option('console.page_size', {
-    type: 'number',
-    description: 'Maximum row count to output per each script'
+    .option("console.page_size", {
+    type: "number",
+    description: "Maximum row count to output per each script",
 })
-    .option('bq', { hidden: true })
-    .option('csv', { hidden: true })
-    .option('console', { hidden: true })
-    .option('bq.project', { type: 'string', description: 'GCP project id for BigQuery' })
-    .option('bq.dataset', {
-    type: 'string',
-    description: 'BigQuery dataset id where tables will be created'
+    .option("bq", { hidden: true })
+    .option("csv", { hidden: true })
+    .option("console", { hidden: true })
+    .option("bq.project", {
+    type: "string",
+    description: "GCP project id for BigQuery",
 })
-    .option('bq.location', { type: 'string', description: 'BigQuery dataset location' })
-    .option('bq.table-template', {
-    type: 'string',
-    description: 'template for tables names, you can use {script} macro inside'
+    .option("bq.dataset", {
+    type: "string",
+    description: "BigQuery dataset id where tables will be created",
 })
-    .option('bq.dump-schema', {
-    type: 'boolean',
-    description: 'flag that enables dumping json files with schemas for tables'
+    .option("bq.location", {
+    type: "string",
+    description: "BigQuery dataset location",
 })
-    .option('bq.dump-data', {
-    type: 'boolean',
-    description: 'flag that enables dumping json files with tables data'
+    .option("bq.table-template", {
+    type: "string",
+    description: "template for tables names, you can use {script} macro inside",
 })
-    .option('bq.no-union-view', {
-    type: 'boolean',
-    description: 'disable creation of union views (combining data from customer\'s table'
+    .option("bq.dump-schema", {
+    type: "boolean",
+    description: "flag that enables dumping json files with schemas for tables",
 })
-    .option('bq.insert-method', {
-    type: 'string',
-    choices: ['insert-all', 'load-table'],
-    hidden: true
+    .option("bq.dump-data", {
+    type: "boolean",
+    description: "flag that enables dumping json files with tables data",
 })
-    .option('skip-constants', {
-    type: 'boolean',
-    description: 'do not execute scripts for constant resources'
+    .option("bq.no-union-view", {
+    type: "boolean",
+    description: "disable creation of union views (combining data from customer's tables)",
 })
-    .option('dump-query', { type: 'boolean' })
+    .option("bq.insert-method", {
+    type: "string",
+    choices: ["insert-all", "load-table"],
+    hidden: true,
+})
+    .option("skip-constants", {
+    type: "boolean",
+    description: "do not execute scripts for constant resources",
+})
+    .option("dump-query", { type: "boolean" })
     .group([
-    'bq.project', 'bq.dataset', 'bq.dump-schema', 'bq.table-template',
-    'bq.location', 'bq.no-union-view', 'bq.dump-data', 'bq.insert-method'
-], 'BigQuery writer options:')
-    .group('csv.destination-folder', 'CSV writer options:')
-    .group(['console.transpose', 'console.page_size'], 'Console writer options:')
-    .env('GAARF')
+    "bq.project",
+    "bq.dataset",
+    "bq.dump-schema",
+    "bq.table-template",
+    "bq.location",
+    "bq.no-union-view",
+    "bq.dump-data",
+    "bq.insert-method",
+], "BigQuery writer options:")
+    .group("csv.destination-folder", "CSV writer options:")
+    .group(["console.transpose", "console.page_size"], "Console writer options:")
+    .env("GAARF")
     .config(configObj)
-    .config('config', 'Path to JSON or YAML config file', function (configPath) {
-    let content = fs_1.default.readFileSync(configPath, 'utf-8');
-    if (configPath.endsWith('.yaml')) {
+    .config("config", "Path to JSON or YAML config file", async function (configPath) {
+    let content = await (0, file_utils_1.getFileContent)(configPath);
+    if (configPath.endsWith(".yaml")) {
         return js_yaml_1.default.load(content);
     }
     return JSON.parse(content);
 })
-    .help()
-    .example('$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds', 'Execute ads queries and upload results to BigQuery, table per script')
-    .example('$0 queries/**/*.sql --output=csv --csv.destination-folder=output', 'Execute ads queries and output results to csv files, one per script')
-    .example('$0 queries/**/*.sql --config=gaarf.json', 'Execute ads queries with passing arguments via config file (can be json or yaml)')
-    .epilog('(c) Google 2022. Not officially supported product.')
+    .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${ads_query_executor_1.AdsApiVersion}.`)
+    .example("$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds", "Execute ads queries and upload results to BigQuery, table per script")
+    .example("$0 queries/**/*.sql --output=csv --csv.destination-folder=output", "Execute ads queries and output results to csv files, one per script")
+    .example("$0 queries/**/*.sql --config=gaarf.json", "Execute ads queries with passing arguments via config file (can be json or yaml)")
+    .epilog(`(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`)
+    // TODO: .completion()
     .parseSync();
 function getWriter() {
     let output = (argv.output || '').toString();

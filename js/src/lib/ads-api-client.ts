@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import fs from "fs";
 import {
   ClientOptions,
   Customer,

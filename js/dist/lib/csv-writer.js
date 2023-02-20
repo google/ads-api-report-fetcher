@@ -65,7 +65,6 @@ class CsvWriter {
             header: !this.appending,
             quoted: false,
             columns: this.query.columns.map(col => col.name),
-            //columns: this.query!.columnNames,
             cast: {
                 boolean: (value, context) => value ? "true" : "false",
             },

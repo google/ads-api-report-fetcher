@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdsQueryEditor = void 0;
+exports.AdsQueryEditor = exports.AdsApiVersion = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 const logger_1 = __importDefault(require("./logger"));
@@ -27,6 +27,7 @@ const utils_1 = require("./utils");
 const math_engine_1 = require("./math-engine");
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
+exports.AdsApiVersion = protoVer;
 const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
 const protoResources = protoRoot[protoVer].nested.resources.nested;
 const protoEnums = protoRoot[protoVer].nested.enums.nested;
@@ -52,10 +53,12 @@ class AdsQueryEditor {
             if (line.length > 0)
                 queryLines.push(line);
         }
-        // TODO: support block comments /* */
         query = queryLines.join("\n\r");
+        // remove block comments /* */
+        query = query.replaceAll(/\/\*([\s\S]*?)\*\//g, "");
+        // remove non-single whitespaces
         query = "" + query.replace(/\s{2,}/g, " ");
-        return query;
+        return query.trim();
     }
     parseFunctions(query) {
         let match = query.match(/FUNCTIONS (.*)/i);
@@ -249,10 +252,6 @@ class AdsQueryEditor {
                     }
                     fields.push(field);
                     continue;
-                    // let typeParts = protoRowType.fields[resourceName].type.split(".");
-                    // let typeName = typeParts[typeParts.length - 1];
-                    // const resourceType = protoResources[typeName];
-                    // let res_field = resourceType.fields[parsedExpr.field];
                 }
             }
             const field = {

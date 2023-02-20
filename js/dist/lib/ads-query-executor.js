@@ -18,8 +18,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdsQueryExecutor = void 0;
+exports.AdsQueryExecutor = exports.AdsApiVersion = void 0;
 const ads_query_editor_1 = require("./ads-query-editor");
+Object.defineProperty(exports, "AdsApiVersion", { enumerable: true, get: function () { return ads_query_editor_1.AdsApiVersion; } });
 const ads_row_parser_1 = require("./ads-row-parser");
 const logger_1 = __importDefault(require("./logger"));
 const utils_1 = require("./utils");
@@ -210,7 +211,6 @@ class AdsQueryExecutor {
         let rawRows = [];
         let parsedRows = [];
         for await (const row of stream) {
-            //logger.debug(row);
             let parsedRow = this.parser.parseRow(row, query);
             rowCount++;
             // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied

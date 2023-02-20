@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryElements0 = exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
+exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
 var CustomizerType;
 (function (CustomizerType) {
     CustomizerType["ResourceIndex"] = "ResourceIndex";
@@ -49,19 +49,4 @@ class QueryElements {
     }
 }
 exports.QueryElements = QueryElements;
-class QueryElements0 {
-    constructor(query, fields, column_names, customizers, resource, columnTypes, functions) {
-        this.queryText = "";
-        /** column aliases from original query (either specified via AS or infered from select field) */
-        this.columnNames = [];
-        this.queryText = query;
-        this.fields = fields;
-        this.columnNames = column_names;
-        this.customizers = customizers;
-        this.resource = resource;
-        this.columnTypes = columnTypes;
-        this.functions = functions;
-    }
-}
-exports.QueryElements0 = QueryElements0;
 //# sourceMappingURL=types.js.map

@@ -321,13 +321,11 @@ class BigQueryWriter {
     }
     createSchema(query) {
         let schema = { fields: [] };
-        for (let i = 0; i < query.columns.length; i++) {
-            let colName = query.columnNames[i];
-            let colType = query.columnTypes[i];
+        for (let column of query.columns) {
             let field = {
-                mode: colType.repeated ? "REPEATED" : "NULLABLE",
-                name: colName.replace(/\./g, "_"),
-                type: this.getBigQueryFieldType(colType),
+                mode: column.type.repeated ? "REPEATED" : "NULLABLE",
+                name: column.name.replace(/\./g, "_"),
+                type: this.getBigQueryFieldType(column.type),
             };
             // STRING, BYTES, INTEGER, INT64 (same as INTEGER), FLOAT, FLOAT64 (same
             // as FLOAT), NUMERIC, BIGNUMERIC, BOOLEAN, BOOL (same as BOOLEAN),
@@ -342,8 +340,10 @@ class BigQueryWriter {
         if (lodash_1.default.isString(colType.type)) {
             switch (colType.type.toLowerCase()) {
                 case "int32":
+                case "int64":
                     return "INT64";
                 case "double":
+                case "float":
                     return "FLOAT";
             }
             return colType.type;

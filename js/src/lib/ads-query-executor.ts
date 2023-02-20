@@ -17,11 +17,12 @@
 import _ from 'lodash';
 
 import {IGoogleAdsApiClient} from './ads-api-client';
-import {AdsQueryEditor} from './ads-query-editor';
+import {AdsQueryEditor,AdsApiVersion} from "./ads-query-editor";
 import {AdsRowParser} from './ads-row-parser';
 import logger from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 import { dumpMemory, getElapsed } from './utils';
+export {AdsApiVersion};
 
 export interface AdsQueryExecutorOptions {
   /** Do not execute script for constant resources */
