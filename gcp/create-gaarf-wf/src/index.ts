@@ -946,6 +946,7 @@ cd ../workflow
   const wf_data = {
     cloud_function: name,
     gcs_bucket: gcs_bucket,
+    location: gcp_region,
     ads_queries_path: `${name}/${PATH_ADS_QUERIES}/`,
     bq_queries_path: `${name}/${PATH_BQ_QUERIES}/`,
     dataset: output_dataset,
@@ -961,7 +962,7 @@ cd ../workflow
   // Create run-wf.sh
   deploy_shell_script(
     'run-wf.sh',
-    `gcloud workflows run ${workflow_name} \
+    `gcloud workflows run ${workflow_name} --location=${gcp_region} \
   --data='${JSON.stringify(wf_data, null, 2)}'
 `
   );

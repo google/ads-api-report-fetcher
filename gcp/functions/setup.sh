@@ -43,6 +43,9 @@ SERVICE_ACCOUNT=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
 # Grant the default service account with the Service Account Token Creator role so it could create GCS signed urls
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/iam.serviceAccountTokenCreator
 
+# Required for calling Cloud Function Gen2
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.serviceAgent
+
 # Grant the default service account with read permissions on Cloud Storage
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
 
@@ -51,6 +54,6 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 
 # For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/artifactregistry.repoAdmin
-#gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.serviceAgent
+
 
 ./deploy.sh $@
