@@ -18,6 +18,8 @@ import argparse
 from pathlib import Path
 import logging
 from rich.logging import RichHandler
+from smart_open import open
+import yaml
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
@@ -89,8 +91,11 @@ def main():
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
 
+    with open(main_args.config, "r", encoding="utf-8") as f:
+        google_ads_config_dict = yaml.safe_load(f)
+
     ads_client = api_clients.GoogleAdsApiClient(
-        path_to_config=main_args.config, version=f"v{config.api_version}")
+        config_dict=google_ads_config_dict, version=f"v{config.api_version}")
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
 
