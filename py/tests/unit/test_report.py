@@ -88,3 +88,9 @@ def test_get_report_length(multi_column_report):
 
 def test_report_str(single_element_report):
     assert str(single_element_report) == "[1]"
+
+
+def test_report_bool(single_element_report):
+    assert single_element_report
+    single_element_report.is_fake = True
+    assert not single_element_report
