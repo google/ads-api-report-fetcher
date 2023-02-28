@@ -417,8 +417,9 @@ async function deploy_dashboard(answers, project_id, output_dataset, macro_bq) {
         answers.dashboard_datasources = datasources;
     }
     const dashboard_url = get_lookerstudio_create_report_url(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
-    console.log('As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard:');
+    console.log('As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):');
     console.log(chalk.cyanBright(dashboard_url));
+    fs.writeFileSync('dashboard_url.txt', dashboard_url);
 }
 async function initialize_googleads_config(answers) {
     const googleads_config_candidate = fs.readdirSync(cwd).find(f => {

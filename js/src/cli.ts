@@ -238,18 +238,17 @@ function getWriter(): IResultWriter {
     // TODO: move all options to BigQueryWriterOptions
     if (!argv.bq) {
       throw new Error(
-          `For BigQuery writer (---output=bq) we should specify at least a project and a dataset id`);
+          `For BigQuery writer (---output=bq) we should specify at least a dataset id`);
     }
-    let projectId = (<any>argv.bq).project
-    let dataset = (<any>argv.bq).dataset;
-    if (!projectId) {
-      console.warn(`bq.project option should be specified (GCP project id)`);
-      process.exit(-1);
-    }
+    const dataset = (<any>argv.bq).dataset;
     if (!dataset) {
       console.warn(
           `bq.dataset option should be specified (BigQuery dataset id)`);
       process.exit(-1);
+    }
+    const projectId = (<any>argv.bq).project;
+    if (!projectId) {
+      console.warn(`GCP project id was not specified explicitly (bq.project option), so we're using the current default project`);
     }
     let opts: BigQueryWriterOptions = {};
     let bq_opts = <any>argv.bq;

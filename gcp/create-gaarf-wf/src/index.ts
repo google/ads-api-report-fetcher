@@ -501,9 +501,10 @@ async function deploy_dashboard(
     datasources
   );
   console.log(
-    'As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard:'
+    'As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):'
   );
   console.log(chalk.cyanBright(dashboard_url));
+  fs.writeFileSync('dashboard_url.txt', dashboard_url);
 }
 
 async function initialize_googleads_config(answers: Partial<any>) {
