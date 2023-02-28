@@ -46,6 +46,9 @@ class GaarfReport:
             else:
                 yield result
 
+    def __bool__(self):
+        return not self.is_fake
+
     def __str__(self):
         return f"{self.results}"
 

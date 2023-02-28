@@ -30,7 +30,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", nargs="+")
     parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
-    parser.add_argument("--account", dest="customer_id")
+    parser.add_argument("--account", dest="customer_id", default=None)
     parser.add_argument("--output", dest="save", default="console")
     parser.add_argument("--input", dest="input", default="file")
     parser.add_argument("--ads-config",
@@ -62,9 +62,7 @@ def main():
     parser.add_argument("--optimize-performance",
                         dest="optimize_performance",
                         default="NONE")
-    parser.add_argument("--dry-run",
-                        dest="dry_run",
-                        action="store_true")
+    parser.add_argument("--dry-run", dest="dry_run", action="store_true")
     parser.set_defaults(save_config=False)
     parser.set_defaults(parallel_queries=True)
     parser.set_defaults(dry_run=False)
@@ -80,7 +78,18 @@ def main():
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)
 
+    with open(main_args.config, "r", encoding="utf-8") as f:
+        google_ads_config_dict = yaml.safe_load(f)
+
     config = GaarfConfigBuilder(args).build()
+    if account := main_args.customer_id:
+        config.account = account
+    elif mcc := google_ads_config_dict.get("login_customer_id"):
+        config.account = str(mcc)
+    else:
+        raise ValueError(
+            "No account found, please specify via --account CLI flag"
+            "or add as login_customer_id in google-ads.yaml")
     logger.debug("config: %s", config)
 
     if main_args.save_config and not main_args.gaarf_config:
@@ -90,9 +99,6 @@ def main():
 
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
-
-    with open(main_args.config, "r", encoding="utf-8") as f:
-        google_ads_config_dict = yaml.safe_load(f)
 
     ads_client = api_clients.GoogleAdsApiClient(
         config_dict=google_ads_config_dict, version=f"v{config.api_version}")

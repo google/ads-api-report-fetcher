@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="google-ads-api-report-fetcher",
-    version="0.1.13",
+    version="1.0.0",
     description=
     "Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
     long_description=README,
