@@ -29,6 +29,7 @@ import yaml from 'js-yaml';
 import { generateRefreshToken } from 'google-oauth-authenticator';
 const GIT_REPO = 'https://github.com/google/ads-api-report-fetcher.git';
 const LOG_FILE = '.create-gaarf-wf-out.log';
+const DASHBOARD_LINK_FILE = 'dashboard_url.txt';
 const argv = minimist(process.argv.slice(2));
 const is_diag = argv.diag;
 const is_debug = argv.debug || argv.diag;
@@ -419,7 +420,8 @@ async function deploy_dashboard(answers, project_id, output_dataset, macro_bq) {
     const dashboard_url = get_lookerstudio_create_report_url(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
     console.log('As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):');
     console.log(chalk.cyanBright(dashboard_url));
-    fs.writeFileSync('dashboard_url.txt', dashboard_url);
+    fs.writeFileSync(DASHBOARD_LINK_FILE, dashboard_url);
+    return dashboard_url;
 }
 async function initialize_googleads_config(answers) {
     const googleads_config_candidate = fs.readdirSync(cwd).find(f => {
@@ -874,6 +876,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
         default: false,
     }, answers)).clone_dashboard) {
         await deploy_dashboard(answers, gcp_project_id, output_dataset, macro_bq);
+        await exec_cmd(`gsutil cp ${DASHBOARD_LINK_FILE} ${gcs_base_path}/`, new clui.Spinner(`Copying ${DASHBOARD_LINK_FILE} to GCS ${gcs_base_path}/`), { silent: true });
     }
     // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
     await exec_cmd(`gsutil -m cp *.sh ${gcs_base_path}/scripts/`, new clui.Spinner(`Copying all shell scripts to GCS ${gcs_base_path}/scripts`), { silent: true });

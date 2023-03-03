@@ -31,6 +31,7 @@ import {generateRefreshToken} from 'google-oauth-authenticator';
 
 const GIT_REPO = 'https://github.com/google/ads-api-report-fetcher.git';
 const LOG_FILE = '.create-gaarf-wf-out.log';
+const DASHBOARD_LINK_FILE = 'dashboard_url.txt';
 
 const argv = minimist(process.argv.slice(2));
 const is_diag = argv.diag;
@@ -439,7 +440,7 @@ async function deploy_dashboard(
   project_id: string,
   output_dataset: string,
   macro_bq: Record<string, any>
-) {
+): Promise<string> {
   const dash_answers = await prompt(
     [
       {
@@ -504,7 +505,8 @@ async function deploy_dashboard(
     'As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):'
   );
   console.log(chalk.cyanBright(dashboard_url));
-  fs.writeFileSync('dashboard_url.txt', dashboard_url);
+  fs.writeFileSync(DASHBOARD_LINK_FILE, dashboard_url);
+  return dashboard_url;
 }
 
 async function initialize_googleads_config(answers: Partial<any>) {
@@ -1151,6 +1153,13 @@ gcloud scheduler jobs create http $JOB_NAME \\
     ).clone_dashboard
   ) {
     await deploy_dashboard(answers, gcp_project_id, output_dataset, macro_bq);
+    await exec_cmd(
+      `gsutil cp ${DASHBOARD_LINK_FILE} ${gcs_base_path}/`,
+      new clui.Spinner(
+        `Copying ${DASHBOARD_LINK_FILE} to GCS ${gcs_base_path}/`
+      ),
+      {silent: true}
+    );
   }
 
   // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
