@@ -9,6 +9,7 @@ main:
         - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
         - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
+        - competion_topic: ${default(map.get(args, "competion_topic"), "gaarf_wf_completed")}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -39,6 +40,18 @@ main:
           dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "bq_macro")}
           sqlParams: ${map.get(args, "bq_sql")}
+    - create_completion_message:
+        assign:
+          - message: {"accounts": len(accounts)}
+          - base64Msg: ${base64.encode(json.encode(message))}
+    - publish_completion_message:
+        call: googleapis.pubsub.v1.projects.topics.publish
+        args:
+          topic: ${"projects/" + project + "/topics/" + competion_topic}
+          body:
+            messages:
+              - data: ${base64Msg}
+        result: publishResult
 
 runAdsQueries:
   params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros]
