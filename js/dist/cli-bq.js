@@ -26,7 +26,7 @@ const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
 const bq_executor_1 = require("./lib/bq-executor");
 const file_utils_1 = require("./lib/file-utils");
-const logger_1 = __importDefault(require("./lib/logger"));
+const logger_1 = require("./lib/logger");
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .scriptName('gaarf-bq')
     .command('$0 <files..>', 'Execute BigQuery queries', {})
@@ -56,7 +56,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
 async function main() {
-    logger_1.default.verbose(JSON.stringify(argv, null, 2));
+    logger_1.logger.verbose(JSON.stringify(argv, null, 2));
     if (!argv.files || !argv.files.length) {
         console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
         process.exit(-1);
@@ -71,7 +71,7 @@ async function main() {
     let executor = new bq_executor_1.BigQueryExecutor(projectId, options);
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
-        logger_1.default.info(`Processing query from ${scriptPath}`);
+        logger_1.logger.info(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         await executor.execute(scriptName, queryText, { sqlParams, macroParams });
     }

@@ -22,7 +22,7 @@ exports.loadAdsConfigFromFile = exports.GoogleAdsApiClient = void 0;
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const file_utils_1 = require("./file-utils");
-const logger_1 = __importDefault(require("./logger"));
+const logger_1 = require("./logger");
 class GoogleAdsApiClient {
     constructor(adsConfig, customerId) {
         if (!adsConfig) {
@@ -69,7 +69,7 @@ class GoogleAdsApiClient {
     }
     handleGoogleAdsError(error, query) {
         if (error.errors)
-            logger_1.default.debug(`An error occured on executing query: ${query}\nError: ` +
+            logger_1.logger.debug(`An error occured on executing query: ${query}\nError: ` +
                 JSON.stringify(error.errors[0], null, 2));
     }
     async executeQuery(query, customerId) {

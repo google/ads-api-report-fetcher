@@ -22,7 +22,7 @@ exports.NullWriter = exports.CsvWriter = void 0;
 const sync_1 = require("csv-stringify/sync");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const logger_1 = __importDefault(require("./logger"));
+const logger_1 = require("./logger");
 class CsvWriter {
     constructor(options) {
         this.appending = false;
@@ -72,7 +72,7 @@ class CsvWriter {
         let csv = (0, sync_1.stringify)(rows, csvOptions);
         fs_1.default.writeFileSync(this.filename, csv, { encoding: 'utf-8', flag: this.appending ? 'a' : 'w' });
         if (rows.length > 0) {
-            logger_1.default.info((this.appending ? 'Updated ' : 'Created ') + this.filename +
+            logger_1.logger.info((this.appending ? 'Updated ' : 'Created ') + this.filename +
                 ` with ${rows.length} rows`, { customerId: customerId, scriptName: this.filename });
         }
         this.appending = true;

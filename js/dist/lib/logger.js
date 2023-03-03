@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LOG_LEVEL = void 0;
+exports.logger = exports.LOG_LEVEL = void 0;
 /**
  * Copyright 2022 Google LLC
  *
@@ -45,10 +45,9 @@ const transports = [];
 transports.push(new winston_1.default.transports.Console({
     format: format.combine(...formats)
 }));
-const logger = winston_1.default.createLogger({
+exports.logger = winston_1.default.createLogger({
     level: exports.LOG_LEVEL,
     format: format.combine(format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:SSS' })),
     transports
 });
-exports.default = logger;
 //# sourceMappingURL=logger.js.map

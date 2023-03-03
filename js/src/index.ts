@@ -27,3 +27,4 @@ export * from './lib/file-utils';
 export * from './lib/google-cloud';
 
 export * from './lib/types';
+export * from './lib/logger';

@@ -21,7 +21,7 @@ import fs_async from 'node:fs/promises';
 import path from "node:path";
 import _ from "lodash";
 
-import logger from "./logger";
+import {logger} from "./logger";
 import {
   FieldType,
   FieldTypeKind,

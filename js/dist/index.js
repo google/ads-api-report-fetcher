@@ -41,4 +41,5 @@ __exportStar(require("./lib/csv-writer"), exports);
 __exportStar(require("./lib/file-utils"), exports);
 __exportStar(require("./lib/google-cloud"), exports);
 __exportStar(require("./lib/types"), exports);
+__exportStar(require("./lib/logger"), exports);
 //# sourceMappingURL=index.js.map

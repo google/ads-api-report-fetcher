@@ -29,7 +29,7 @@ import {BigQueryInsertMethod, BigQueryWriter, BigQueryWriterOptions} from './lib
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
-import logger from './lib/logger';
+import {logger} from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
 import {getElapsed} from './lib/utils';
 

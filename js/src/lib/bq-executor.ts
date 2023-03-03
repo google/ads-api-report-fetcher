@@ -16,9 +16,9 @@
 import {BigQuery, Dataset, Query} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 
-import logger from './logger';
+import {logger} from './logger';
 import {substituteMacros} from './utils';
-import { getDataset, OAUTH_SCOPES } from "./bq-common";
+import {getDataset, OAUTH_SCOPES} from "./bq-common";
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;

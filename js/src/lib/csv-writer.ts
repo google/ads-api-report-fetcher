@@ -19,7 +19,7 @@ import {stringify} from 'csv-stringify/sync';
 import fs from 'fs';
 import path from 'path';
 
-import logger from './logger';
+import {logger} from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface CsvWriterOptions {

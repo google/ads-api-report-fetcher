@@ -23,9 +23,9 @@ import {
 } from "google-ads-api";
 import yaml from "js-yaml";
 import _ from "lodash";
-import { getFileContent } from "./file-utils";
+import {getFileContent} from "./file-utils";
 
-import logger from "./logger";
+import {logger} from "./logger";
 
 export interface IGoogleAdsApiClient {
   executeQueryStream(

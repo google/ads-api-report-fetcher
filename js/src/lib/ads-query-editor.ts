@@ -16,10 +16,10 @@
 
 import _ from 'lodash';
 const ads_protos = require('google-ads-node/build/protos/protos.json');
-import logger from './logger';
+import {logger} from './logger';
 import {Customizer, CustomizerType, Column, FieldType, FieldTypeKind, isEnumType, ProtoTypeMeta, QueryElements, ResourceInfo} from './types';
-import { substituteMacros } from './utils';
-import { math_parse } from "./math-engine";
+import {substituteMacros} from './utils';
+import {math_parse} from "./math-engine";
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0];  // e.g. "v9"

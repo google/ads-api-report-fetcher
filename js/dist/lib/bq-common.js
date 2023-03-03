@@ -14,12 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDataset = exports.OAUTH_SCOPES = void 0;
-const logger_1 = __importDefault(require("./logger"));
+const logger_1 = require("./logger");
 exports.OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/cloud-platform.read-only",
@@ -36,7 +33,7 @@ async function getDataset(bigquery, datasetId, datasetLocation) {
         await dataset.get({ autoCreate: true });
     }
     catch (e) {
-        logger_1.default.error(`Failed to get or create the dataset ${datasetId}`);
+        logger_1.logger.error(`Failed to get or create the dataset ${datasetId}`);
         throw e;
     }
     return dataset;

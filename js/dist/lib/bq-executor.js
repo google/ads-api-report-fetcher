@@ -1,7 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigQueryExecutor = void 0;
 /**
@@ -20,7 +17,7 @@ exports.BigQueryExecutor = void 0;
  * limitations under the License.
  */
 const bigquery_1 = require("@google-cloud/bigquery");
-const logger_1 = __importDefault(require("./logger"));
+const logger_1 = require("./logger");
 const utils_1 = require("./utils");
 const bq_common_1 = require("./bq-common");
 class BigQueryExecutor {
@@ -62,11 +59,11 @@ class BigQueryExecutor {
         //}
         try {
             let [values] = await this.bigquery.query(query);
-            logger_1.default.info(`Query '${scriptName}' executed successfully`);
+            logger_1.logger.info(`Query '${scriptName}' executed successfully`);
             return values;
         }
         catch (e) {
-            logger_1.default.error(`Query '${scriptName}' failed to execute: ${e}`);
+            logger_1.logger.error(`Query '${scriptName}' failed to execute: ${e}`);
             throw e;
         }
     }
@@ -94,7 +91,7 @@ class BigQueryExecutor {
             await dataset.get({ autoCreate: true });
         }
         catch (e) {
-            logger_1.default.error(`Failed to get or create the dataset '${datasetId}'`);
+            logger_1.logger.error(`Failed to get or create the dataset '${datasetId}'`);
             throw e;
         }
         return dataset;

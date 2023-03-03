@@ -16,7 +16,7 @@
 
 import { BigQuery, Dataset } from "@google-cloud/bigquery";
 import bigquery from "@google-cloud/bigquery/build/src/types";
-import logger from "./logger";
+import {logger} from "./logger";
 
 export var OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",

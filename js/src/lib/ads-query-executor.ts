@@ -19,9 +19,9 @@ import _ from 'lodash';
 import {IGoogleAdsApiClient} from './ads-api-client';
 import {AdsQueryEditor,AdsApiVersion} from "./ads-query-editor";
 import {AdsRowParser} from './ads-row-parser';
-import logger from './logger';
+import {logger} from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
-import { dumpMemory, getElapsed } from './utils';
+import {dumpMemory, getElapsed} from './utils';
 export {AdsApiVersion};
 
 export interface AdsQueryExecutorOptions {

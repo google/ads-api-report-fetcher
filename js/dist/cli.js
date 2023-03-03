@@ -31,7 +31,7 @@ const bq_writer_1 = require("./lib/bq-writer");
 const console_writer_1 = require("./lib/console-writer");
 const csv_writer_1 = require("./lib/csv-writer");
 const file_utils_1 = require("./lib/file-utils");
-const logger_1 = __importDefault(require("./lib/logger"));
+const logger_1 = require("./lib/logger");
 const utils_1 = require("./lib/utils");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
@@ -228,8 +228,8 @@ function getWriter() {
         opts.noUnionView = bq_opts['no-union-view'];
         opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
             ? bq_writer_1.BigQueryInsertMethod.insertAll : bq_writer_1.BigQueryInsertMethod.loadTable;
-        logger_1.default.debug('BigQueryWriterOptions:');
-        logger_1.default.debug(opts);
+        logger_1.logger.debug('BigQueryWriterOptions:');
+        logger_1.logger.debug(opts);
         return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
     }
     throw new Error(`Unknown output format: '${output}'`);
@@ -239,7 +239,7 @@ async function main() {
     if (argv.account) {
         argv.account = argv.account.toString();
     }
-    logger_1.default.verbose(JSON.stringify(argv, null, 2));
+    logger_1.logger.verbose(JSON.stringify(argv, null, 2));
     let adsConfig = undefined;
     let adConfigFilePath = argv.adsConfig;
     if (adConfigFilePath) {
@@ -267,8 +267,8 @@ async function main() {
         console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
         process.exit(-1);
     }
-    logger_1.default.verbose('Using ads config:');
-    logger_1.default.verbose(JSON.stringify(adsConfig, null, 2));
+    logger_1.logger.verbose('Using ads config:');
+    logger_1.logger.verbose(JSON.stringify(adsConfig, null, 2));
     let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     // NOTE: a note regarding the 'files' argument
@@ -289,7 +289,7 @@ async function main() {
     if (argv.output === 'console') {
         // for console writer by default increase default log level to 'warn' (to
         // hide all auxillary info)
-        logger_1.default.transports.forEach((transport) => {
+        logger_1.logger.transports.forEach((transport) => {
             if (transport.name === 'console' && !argv.loglevel) {
                 transport.level = 'warn';
             }
@@ -303,21 +303,21 @@ async function main() {
         customer_ids_query =
             await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
     }
-    logger_1.default.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
+    logger_1.logger.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
     let customers = await client.getCustomerIds();
-    logger_1.default.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
-    logger_1.default.verbose(customers);
+    logger_1.logger.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
+    logger_1.logger.verbose(customers);
     if (customer_ids_query) {
-        logger_1.default.verbose(`Fetching customer ids with custom query`);
-        logger_1.default.debug(customer_ids_query);
+        logger_1.logger.verbose(`Fetching customer ids with custom query`);
+        logger_1.logger.debug(customer_ids_query);
         customers = await executor.getCustomerIds(customers, customer_ids_query);
     }
     if (customers.length === 0) {
         console.log(chalk_1.default.redBright(`No customers found for processing`));
         process.exit(-1);
     }
-    logger_1.default.info(`Customers to process (${customers.length}):`);
-    logger_1.default.info(customers);
+    logger_1.logger.info(`Customers to process (${customers.length}):`);
+    logger_1.logger.info(customers);
     let macros = argv["macro"] || {};
     let writer = getWriter(); // NOTE: create writer from argv
     let options = {
@@ -325,20 +325,20 @@ async function main() {
         parallelAccounts: argv.parallelAccounts,
         dumpQuery: argv.dumpQuery,
     };
-    logger_1.default.info(`Found ${scriptPaths.length} script to process`);
-    logger_1.default.debug(JSON.stringify(scriptPaths, null, 2));
+    logger_1.logger.info(`Found ${scriptPaths.length} script to process`);
+    logger_1.logger.debug(JSON.stringify(scriptPaths, null, 2));
     let started = new Date();
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
-        logger_1.default.info(`Processing query from ${chalk_1.default.gray(scriptPath)}`);
+        logger_1.logger.info(`Processing query from ${chalk_1.default.gray(scriptPath)}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         let started_script = new Date();
         await executor.execute(scriptName, queryText, customers, macros, writer, options);
         let elapsed_script = (0, utils_1.getElapsed)(started_script);
-        logger_1.default.info(`Query from ${chalk_1.default.gray(scriptPath)} processing for all customers completed. Elapsed: ${elapsed_script}`);
+        logger_1.logger.info(`Query from ${chalk_1.default.gray(scriptPath)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }
     let elapsed = (0, utils_1.getElapsed)(started);
-    logger_1.default.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
+    logger_1.logger.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
 async function loadAdsConfig(configFilepath, customerId) {
     try {

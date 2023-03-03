@@ -22,7 +22,7 @@ import {hideBin} from 'yargs/helpers'
 
 import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor';
 import {getFileContent} from './lib/file-utils';
-import logger from './lib/logger';
+import {logger} from './lib/logger';
 
 const argv =
     yargs(hideBin(process.argv))
