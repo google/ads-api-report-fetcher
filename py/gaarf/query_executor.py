@@ -69,7 +69,8 @@ class AdsReportFetcher:
         is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
-                str(query_specification)).generate()
+                text=str(query_specification),
+                api_version=self.api_client.api_version).generate()
 
         parser = parsers.GoogleAdsRowParser(query_specification)
         for customer_id in self.customer_ids:
@@ -232,8 +233,8 @@ class AdsQueryExecutor:
         """
 
         query_text = reader_client.read(query)
-        query_specification = QuerySpecification(query_text, query,
-                                                 args).generate()
+        query_specification = QuerySpecification(
+            query_text, query, args, self.api_client.api_version).generate()
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification,
                                        optimize_performance)
