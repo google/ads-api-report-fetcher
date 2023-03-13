@@ -235,15 +235,6 @@ class ConfigSaver:
             config.update({"gaarf-bq": gaarf})
         return config
 
-    @staticmethod
-    def _handle_target_param(gaarf_config: GaarfBqConfig,
-                             target: List[str]) -> List[str]:
-        if isinstance(gaarf_config.target, str):
-            target.append(gaarf_config.target)
-        elif isinstance(gaarf_config.target, list):
-            target.extend(gaarf_config.target)
-        return target
-
 
 def initialize_runtime_parameters(config: Union[GaarfConfig, GaarfBqConfig]):
     for key, param in config.params.items():

@@ -57,11 +57,12 @@ class QuerySpecification:
     def __init__(self,
                  text: str,
                  title: str = None,
-                 args: Dict[Any, Any] = None):
+                 args: Dict[Any, Any] = None,
+                 api_version: str = "v12"):
         self.text = text
         self.title = title
         self.args = args
-        self.base_client = BaseClient()
+        self.base_client = BaseClient(api_version)
 
     def generate(self) -> QueryElements:
         """Reads query from a file and returns different elements of a query.

@@ -37,10 +37,16 @@ def simulate_data(
     report_fetcher = AdsReportFetcher(client, [])
     other_types = client.infer_types(query_specification.fields)
     v = report_fetcher.fetch(query_specification)
+    try:
+        iter(v.results[0])
+        results = v.results[0]
+    except TypeError:
+        results = [v.results[0]]
+    if not results:
+        results = [results]
     types = [
-        FakeField(type(field_value),
-                  field_name) for field_value, field_name in zip(
-                      v.results[0], query_specification.fields)
+        FakeField(type(field_value), field_name)
+        for field_value, field_name in zip(results, query_specification.fields)
     ]
     values = []
     for _ in range(simulator_specification.n_rows):
