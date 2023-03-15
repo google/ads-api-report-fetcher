@@ -129,9 +129,9 @@ def main():
             logger.info("Running queries in parallel")
             with futures.ThreadPoolExecutor() as executor:
                 future_to_query = {
-                    executor.submit(ads_query_executor.execute, query,
-                                    customer_ids, reader_client, writer_client,
-                                    config.params,
+                    executor.submit(ads_query_executor.execute,
+                                    reader_client.read(query), query,
+                                    customer_ids, writer_client, config.params,
                                     main_args.optimize_performance): query
                     for query in main_args.query
                 }
@@ -141,10 +141,10 @@ def main():
         else:
             logger.info("Running queries sequentially")
             for query in main_args.query:
-                callback = ads_query_executor.execute(query, customer_ids,
-                                                      reader_client,
-                                                      writer_client,
-                                                      config.params)
+                callback = ads_query_executor.execute(
+                    reader_client.read(query), query, customer_ids,
+                    writer_client, config.params,
+                    main_args._optimize_performance)
                 gaarf_runner(query, callback, logger)
     else:
         logger.warning(

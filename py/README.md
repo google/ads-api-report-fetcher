@@ -71,11 +71,20 @@ query_executor = AdsQueryExecutor(client)
 csv_writer = writer.CsvWriter(destination_folder="/tmp")
 reader_client = reader.FileReader()
 
-# specify path to GAQL query
-query_path = "path/to/query.sql"
+# execute query and save to csv
+query_executor.execute(
+    query_text=query_text,
+    query_name="campaign",
+    customer_ids=customer_ids,
+    write_client=csv_writer)
 
 # execute query from file and save to csv
-query_executor.execute(query_path, customer_ids, reader_client, csv_writer)
+query_path="path/to/query.sql"
+query_executor.execute(
+    query_text=reader_client.read(query_path),
+    query_name=query_path,
+    customer_ids=customer_ids,
+    write_client=csv_writer)
 ```
 
 ## Python specific command line flags

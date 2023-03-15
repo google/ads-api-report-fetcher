@@ -213,18 +213,17 @@ class AdsQueryExecutor:
         self.api_client = api_client
 
     def execute(self,
-                query: str,
+                query_text: str,
+                query_name: str,
                 customer_ids: Union[List[str], str],
-                reader_client: reader.AbsReader,
-                writer_client: writer.AbsWriter,
+                writer_client: writer.AbsWriter = writer.StdoutWriter(),
                 args: Optional[Dict[str, Any]] = None,
                 optimize_performance: str = "NONE") -> None:
         """Reads query, extract results and stores them in a specified location.
 
         Args:
-            query: Path to a file that contains query text.
+            query_text: Text for the query.
             customer_ids: All accounts for which query will be executed.
-            reader_client: Client responsible for reading data from local storage
             writer_client: Client responsible for writing data to local/remote
                 location.
             args: Arguments that need to be passed to the query
@@ -232,9 +231,9 @@ class AdsQueryExecutor:
                 ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF")
         """
 
-        query_text = reader_client.read(query)
         query_specification = QuerySpecification(
-            query_text, query, args, self.api_client.api_version).generate()
+            query_text, query_name, args,
+            self.api_client.api_version).generate()
         report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
         results = report_fetcher.fetch(query_specification,
                                        optimize_performance)
