@@ -68,7 +68,7 @@ def test_get_raises_attribute_error_for_missing_value(multi_column_report):
 def test_getattr_raises_attribute_error_for_missing_value(multi_column_report):
     with pytest.raises(AttributeError):
         [getattr(row, "missing_value")
-                for row in multi_column_report] == [None, None, None]
+         for row in multi_column_report] == [None, None, None]
 
 
 def test_hasattr_return_false_for_missing_value(multi_column_report):
@@ -94,3 +94,23 @@ def test_report_bool(single_element_report):
     assert single_element_report
     single_element_report.is_fake = True
     assert not single_element_report
+
+
+def test_add_two_reports(multi_column_report):
+    added_report = multi_column_report + multi_column_report
+    assert len(added_report) == 6
+
+
+def test_add_report_and_non_report_raises_type_error(multi_column_report):
+    with pytest.raises(TypeError):
+        multi_column_report + 1
+
+
+def test_add_non_report_and_report_raises_type_error(multi_column_report):
+    with pytest.raises(TypeError):
+        1 + multi_column_report
+
+def test_add_reports_with_different_columns_raises_value_error(
+        multi_column_report, single_element_report):
+    with pytest.raises(ValueError):
+        multi_column_report + single_element_report

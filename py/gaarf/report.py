@@ -52,6 +52,14 @@ class GaarfReport:
     def __str__(self):
         return f"{self.results}"
 
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            raise TypeError("Add operation is supported only for GaarfReport")
+        if self.column_names != other.column_names:
+            raise ValueError("column_names should be the same in GaarfReport")
+        return GaarfReport(results=self.results + other.results,
+                           column_names=self.column_names)
+
 
 class GaarfRow:
 
