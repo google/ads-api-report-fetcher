@@ -1,13 +1,20 @@
 import pathlib
 from setuptools import setup, find_packages
+from itertools import chain
 
 HERE = pathlib.Path(__file__).parent
 
 README = (HERE / "README.md").read_text()
 
+EXTRAS_REQUIRE = {
+    "sqlalchemy": ["sqlalchemy"],
+    "simulator": ["Faker"]
+}
+EXTRAS_REQUIRE['full'] = list(set(chain(*EXTRAS_REQUIRE.values())))
+
 setup(
     name="google-ads-api-report-fetcher",
-    version="1.1.0",
+    version="1.2.0",
     description=
     "Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
     long_description=README,
@@ -27,8 +34,9 @@ setup(
     install_requires=[
         "google-ads>=16.0.0", "google-cloud-bigquery", "pandas>=1.3.4",
         "pyarrow>=6.0.1", "smart_open[all]", "jinja2", "python-dateutil",
-        "sqlalchemy", "rich", "Faker"
+        "rich"
     ],
+    extras_require=EXTRAS_REQUIRE,
     setup_requires=["pytest-runner"],
     tests_requires=["pytest"],
     entry_points={

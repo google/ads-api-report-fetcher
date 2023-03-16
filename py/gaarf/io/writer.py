@@ -25,7 +25,6 @@ import rich
 from rich.console import Console
 from rich.table import Table
 import pandas as pd  # type: ignore
-from sqlalchemy import create_engine
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
@@ -229,6 +228,7 @@ class SqlAlchemyWriter(AbsWriter):
         logger.debug("Writing to %s is completed", destination)
 
     def _create_engine(self):
+        from sqlalchemy import create_engine
         return create_engine(self.connection_string)
 
 

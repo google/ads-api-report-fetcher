@@ -22,6 +22,14 @@ source gaarf/bin/activate
 pip install google-ads-api-report-fetcher
 ```
 > install the latest development version with `pip install -e git+https://github.com/google/ads-api-report-fetcher.git#egg=google-ads-api-report-fetcher\&subdirectory=py`
+
+#### Versions of the library
+
+*  `google-ads-api-report-fetcher[sqlalchemy]` - version with SQLalchemy support
+* `google-ads-api-report-fetcher[simulator]` - version with support for [simulating
+    query results](../docs/simulating-data-with-gaarf.md) instead of calling Google Ads API.
+* `google-ads-api-report-fetcher[full]` - full version
+
 2.  Run the tool with `gaarf` command:
 
 ```shell
@@ -93,7 +101,7 @@ query_executor.execute(
     * `NONE` - no optimizations are done
     * `PROTOBUF` - convert Google Ads API response to protobuf before parsing
         (speeds up query execution 5x times but forces conversion of ENUMs to integers instead of strings)
-    * `BATCH` -  converts all response of Ads API to a list and then parses its content in parallel 
+    * `BATCH` -  converts all response of Ads API to a list and then parses its content in parallel
     * `BATCH_PROTOBUF` - combines `BATCH` and `PROTOBUF` approaches.
 
 ## Disclaimer

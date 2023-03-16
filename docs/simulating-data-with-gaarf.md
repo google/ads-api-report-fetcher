@@ -5,7 +5,7 @@
 Sometimes we need to generate some data for prototyping without actually calling
 Google Ads API.
 
-There's `gaarf-simulator` CLI tool installed with `google-ads-api-report-fetcher`
+There's `gaarf-simulator` CLI tool installed with `google-ads-api-report-fetcher[simulator]`
 which allows to simulate data based on provided queries.
 
 `gaarf-simulator` can be used both with `gaarf_config.yaml` and with a set of
