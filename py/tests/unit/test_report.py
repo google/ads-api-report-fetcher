@@ -110,7 +110,14 @@ def test_add_non_report_and_report_raises_type_error(multi_column_report):
     with pytest.raises(TypeError):
         1 + multi_column_report
 
+
 def test_add_reports_with_different_columns_raises_value_error(
         multi_column_report, single_element_report):
     with pytest.raises(ValueError):
         multi_column_report + single_element_report
+
+
+def test_iteration_over_fake_report_returns_empty_list(multi_column_report):
+    multi_column_report.is_fake = True
+    results = [row for row in multi_column_report]
+    assert results == []

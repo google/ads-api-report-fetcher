@@ -38,6 +38,8 @@ class GaarfReport:
         return len(self.results)
 
     def __iter__(self):
+        if self.is_fake:
+            return None
         for result in self.results:
             if self.multi_column_report:
                 yield GaarfRow(result, self.column_names)
