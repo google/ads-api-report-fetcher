@@ -392,15 +392,15 @@ NodeJS on the contrary parses queries and initializes BigQuery schema before exe
 
 There are differences in BigQuery table structures as well.
 Python version creates one table per script. While NodeJS creates a table per script per customer and then creates a view to combine all customer tables.
-For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll a table.
-For NodeJS it'll a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
+For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll be a table.
+For NodeJS it'll be a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
 
 From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator. In NodeJS version the result will be a repeated field (array).
 If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
 
 ### API support
 Python version supports any API version (currently available).
-While as NodeJS parses query structure it supports only one particular version.
+While as NodeJS parses query structure it supports only one particular version (it's printed when you run `gaarf` without arguments).
 
 
 ## Disclaimer

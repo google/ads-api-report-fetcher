@@ -31,7 +31,7 @@ Please note you need to generate OAuth2 credentials for **desktop application**.
 
 3. Generate refresh token
 
-  3.1. Generate refresh token using `generate_user_credentials.py`
+  3.1. Generate refresh token using `oauth2l`
 
 >Before proceeding with token generation you need to make sure that either [your oauth brand](https://console.cloud.google.com/apis/credentials/consent)
 made public (published) or you added yourself as a test user if it's in testing status (it's not recommended because refresh tokens will exprire in 7 days).
@@ -40,12 +40,12 @@ First you need to download [oauth2l](https://github.com/google/oauth2l) tool ("o
 For Windows and Linux please download [pre-compiled binaries](https://github.com/google/oauth2l#pre-compiled-binaries),
 for MacOS you can install via Homebrew: `brew install oauth2l`.
 
-As soon as you generated a OAuth2 credentials:
+As soon as you generated OAuth2 credentials:
 * Click the download icon next to the credentials that you just created and save file to your computer
 * Copy the file name under which you saved secrets file -
 `~/client_secret_XXX.apps.googleusercontent.com.json` where XXX will be values specific to your project 
 (or just save it under `client_secret.json` name for simplicity)
-* Run desktop authentication with downloaded credentials file using oauth2l in the same folder where you put the downloaded secret file (assuming its name is client_secret.json):
+* Run desktop authentication with downloaded credentials file using `oauth2l` in the same folder where you put the downloaded secret file (assuming its name is client_secret.json):
 ```
 oauth2l fetch --credentials ./client_secret.json  --scope adwords --output_format refresh_token
 ```
@@ -59,6 +59,14 @@ Please follow guidence in this video for setting up Web Flow with the OAuth Play
 
 Please note you'll need to use another OAuth2 credentials type - Web application, and set "https://developers.google.com/oauthplayground" as redirect url in it.
 
+
+  3.3. Generate refresh token using `generate_user_credentials.py`
+
+If you have Python 3 installed on your machine, instead of downloading oauth2l tool you can use a Python script with the following one-liner
+(run it in a folder with client_secret.json file containing your OAuth client id or adapt the file name in the command):
+```
+curl -s https://raw.githubusercontent.com/googleads/google-ads-python/main/examples/authentication/generate_user_credentials.py | python3 - -c=client_secret.json
+```
 
 4. What's next
 
