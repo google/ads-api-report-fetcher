@@ -84,12 +84,13 @@ def main():
     config = GaarfConfigBuilder(args).build()
     if account := main_args.customer_id:
         config.account = account
-    elif mcc := google_ads_config_dict.get("login_customer_id"):
-        config.account = str(mcc)
-    else:
-        raise ValueError(
-            "No account found, please specify via --account CLI flag"
-            "or add as login_customer_id in google-ads.yaml")
+    if not config.account:
+        if mcc := google_ads_config_dict.get("login_customer_id"):
+            config.account = str(mcc)
+        else:
+            raise ValueError(
+                "No account found, please specify via --account CLI flag"
+                "or add as login_customer_id in google-ads.yaml")
     logger.debug("config: %s", config)
 
     if main_args.save_config and not main_args.gaarf_config:
