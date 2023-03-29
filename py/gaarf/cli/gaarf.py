@@ -82,10 +82,10 @@ def main():
         google_ads_config_dict = yaml.safe_load(f)
 
     config = GaarfConfigBuilder(args).build()
+    if account := main_args.customer_id:
+        config.account = account
     if not config.account:
-        if account := main_args.customer_id:
-            config.account = account
-        elif mcc := google_ads_config_dict.get("login_customer_id"):
+        if mcc := google_ads_config_dict.get("login_customer_id")):
             config.account = str(mcc)
         else:
             raise ValueError(
