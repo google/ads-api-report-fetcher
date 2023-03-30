@@ -16,23 +16,20 @@
 import {BigQueryExecutor} from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import {getScript} from './utils';
+import {getProject, getScript} from './utils';
 import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
+import {createLogger, ILogger} from './logger';
 
-export const main_bq: HttpFunction = async (
+async function main_bq_unsafe(
   req: express.Request,
-  res: express.Response
-) => {
-  console.log(req.body);
-  console.log(req.query);
-
-  const projectId = req.query.project_id || process.env.PROJECT_ID;
-  // note: projectId isn't mandatory (should be detected from ADC)
-
+  res: express.Response,
+  projectId: string,
+  logger: ILogger
+) {
   const options: BigQueryExecutorOptions = {
     datasetLocation: <string>req.query.dataset_location,
   };
-  const {queryText, scriptName} = await getScript(req);
+  const {queryText, scriptName} = await getScript(req, logger);
   const executor = new BigQueryExecutor(<string>projectId, options);
 
   const body = req.body || {};
@@ -47,5 +44,25 @@ export const main_bq: HttpFunction = async (
     res.json({rowCount: result.length});
   } else {
     res.sendStatus(200);
+  }
+}
+
+export const main_bq: HttpFunction = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const projectId = await getProject();
+  const logger = createLogger(
+    req,
+    projectId,
+    process.env.K_SERVICE || 'gaarf-bq'
+  );
+  await logger.info('request', {body: req.body, query: req.query});
+
+  try {
+    await main_bq_unsafe(req, res, projectId, logger);
+  } catch (e) {
+    await logger.error(e.message, e);
+    res.status(500).send(e.message).end();
   }
 };

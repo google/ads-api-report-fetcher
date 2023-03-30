@@ -16,7 +16,7 @@
 
 import { BigQuery, Dataset } from "@google-cloud/bigquery";
 import bigquery from "@google-cloud/bigquery/build/src/types";
-import {logger} from "./logger";
+import {getLogger} from "./logger";
 
 export var OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",
@@ -38,6 +38,7 @@ export async function getDataset(
       dataset = bigquery.dataset(datasetId, options);
       await dataset.get({ autoCreate: true });
     } catch (e) {
+      const logger = getLogger();
       logger.error(`Failed to get or create the dataset ${datasetId}`);
       throw e;
     }

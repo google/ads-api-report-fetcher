@@ -26,6 +26,7 @@ class AdsQueryExecutor {
         this.client = client;
         this.editor = new ads_query_editor_1.AdsQueryEditor();
         this.parser = new ads_row_parser_1.AdsRowParser();
+        this.logger = (0, logger_1.getLogger)();
     }
     parseQuery(queryText, macros) {
         return this.editor.parseQuery(queryText, macros);
@@ -46,17 +47,17 @@ class AdsQueryExecutor {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         if (sync)
-            logger_1.logger.verbose(`Running in synchronous mode`, { scriptName });
+            this.logger.verbose(`Running in synchronous mode`, { scriptName });
         let query = this.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
-            logger_1.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
+            this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
                 scriptName,
             });
             return {};
         }
         if (options === null || options === void 0 ? void 0 : options.dumpQuery) {
-            logger_1.logger.info(`Script text to execute:\n` + query.queryText);
+            this.logger.info(`Script text to execute:\n` + query.queryText);
         }
         if (writer)
             await writer.beginScript(scriptName, query);
@@ -68,7 +69,7 @@ class AdsQueryExecutor {
             let cid1 = customers[0];
             let res = await this.executeOne(query, cid1, writer, scriptName);
             result_map[cid1] = res.rowCount;
-            logger_1.logger.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId: cid1 });
+            this.logger.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId: cid1 });
             sync = true;
         }
         else {
@@ -88,7 +89,7 @@ class AdsQueryExecutor {
             }
         }
         if (!sync) {
-            logger_1.logger.debug(`Waiting for all tasks (${tasks.length}) to complete`);
+            this.logger.debug(`Waiting for all tasks (${tasks.length}) to complete`);
             let results = await Promise.allSettled(tasks);
             for (let result of results) {
                 if (result.status == "rejected") {
@@ -103,7 +104,7 @@ class AdsQueryExecutor {
         }
         if (writer)
             await writer.endScript();
-        logger_1.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
+        this.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
         return result_map;
     }
     /**
@@ -125,13 +126,13 @@ class AdsQueryExecutor {
         let query = this.parseQuery(queryText, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
-            logger_1.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
+            this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
                 scriptName: scriptName,
             });
             return;
         }
         for (let customerId of customers) {
-            logger_1.logger.info(`Processing customer ${customerId}`, {
+            this.logger.info(`Processing customer ${customerId}`, {
                 scriptName: scriptName,
             });
             let result = await this.executeOne(query, customerId, undefined, scriptName);
@@ -139,7 +140,7 @@ class AdsQueryExecutor {
             // if resource has '_constant' in its name, break the loop over customers
             // (it doesn't depend on them)
             if (skipConstants) {
-                logger_1.logger.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId });
+                this.logger.debug("Detected constant resource script (breaking loop over customers)", { scriptName, customerId });
                 break;
             }
         }
@@ -156,43 +157,43 @@ class AdsQueryExecutor {
     async executeOne(query, customerId, writer, scriptName) {
         if (!customerId)
             throw new Error(`customerId should be specified`);
-        logger_1.logger.verbose(`Starting processing customer ${customerId}`, {
+        this.logger.verbose(`Starting processing customer ${customerId}`, {
             scriptName,
             customerId,
         });
-        if (logger_1.logger.isLevelEnabled("debug")) {
-            logger_1.logger.debug(`[${customerId}] Memory (before customer):\n` + (0, utils_1.dumpMemory)());
+        if (this.logger.isLevelEnabled("debug")) {
+            this.logger.debug(`[${customerId}] Memory (before customer):\n` + (0, utils_1.dumpMemory)());
         }
         let started = new Date();
         try {
             if (writer)
                 await writer.beginCustomer(customerId);
-            logger_1.logger.debug(`Executing query: ${query.queryText}`, {
+            this.logger.debug(`Executing query: ${query.queryText}`, {
                 scriptName,
                 customerId,
             });
             let result = await this.executeQueryAndParse(query, customerId, writer);
-            logger_1.logger.info(`Query executed and parsed. ${result.rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+            this.logger.info(`Query executed and parsed. ${result.rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
                 scriptName,
                 customerId,
             });
             if (writer)
                 await writer.endCustomer(customerId);
-            if (logger_1.logger.isDebugEnabled()) {
-                logger_1.logger.debug(`[${customerId}] Memory (customer completed):\n` + (0, utils_1.dumpMemory)());
+            if (this.logger.isDebugEnabled()) {
+                this.logger.debug(`[${customerId}] Memory (customer completed):\n` + (0, utils_1.dumpMemory)());
             }
-            logger_1.logger.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+            this.logger.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
                 scriptName,
                 customerId,
             });
             return result;
         }
         catch (e) {
-            logger_1.logger.error(`An error occured during executing script '${scriptName}':`, {
+            this.logger.error(`An error occured during executing script '${scriptName}':`, {
                 scriptName,
                 customerId,
             });
-            logger_1.logger.error(e);
+            this.logger.error(e);
             e.customerId = customerId;
             // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
             // but swalling the exception here will possible cause other issue in writer,
@@ -227,7 +228,7 @@ class AdsQueryExecutor {
         let idx = 0;
         for (let id of ids) {
             let result = await this.executeQueryAndParse(query, id);
-            logger_1.logger.verbose(`#${idx}: Fetched ${result.rowCount} rows for ${id} account`);
+            this.logger.verbose(`#${idx}: Fetched ${result.rowCount} rows for ${id} account`);
             if (result.rowCount > 0) {
                 for (let row of result.rows) {
                     accounts.add(row[0]);

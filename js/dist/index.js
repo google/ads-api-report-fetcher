@@ -42,4 +42,5 @@ __exportStar(require("./lib/file-utils"), exports);
 __exportStar(require("./lib/google-cloud"), exports);
 __exportStar(require("./lib/types"), exports);
 __exportStar(require("./lib/logger"), exports);
+__exportStar(require("./lib/logger-factory"), exports);
 //# sourceMappingURL=index.js.map

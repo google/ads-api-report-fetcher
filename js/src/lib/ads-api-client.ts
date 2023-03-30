@@ -24,8 +24,7 @@ import {
 import yaml from "js-yaml";
 import _ from "lodash";
 import {getFileContent} from "./file-utils";
-
-import {logger} from "./logger";
+import { getLogger } from "./logger";
 
 export interface IGoogleAdsApiClient {
   executeQueryStream(
@@ -57,6 +56,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   customers: Record<string, Customer>;
   ads_cfg: GoogleAdsApiConfig;
   root_cid: string;
+  logger;
 
   constructor(adsConfig: GoogleAdsApiConfig, customerId?: string | undefined) {
     if (!adsConfig) {
@@ -82,6 +82,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     // also put the customer as the default one
     this.customers[""] = this.customers[customerId];
     this.root_cid = customerId;
+    this.logger = getLogger();
   }
 
   protected getCustomer(customerId: string | undefined | null): Customer {
@@ -107,7 +108,7 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     query: string
   ) {
     if (error.errors)
-      logger.debug(
+      this.logger.error(
         `An error occured on executing query: ${query}\nError: ` +
           JSON.stringify(error.errors[0], null, 2)
       );

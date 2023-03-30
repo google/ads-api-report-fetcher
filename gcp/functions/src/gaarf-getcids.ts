@@ -21,23 +21,18 @@ import {
 } from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import {getAdsConfig} from './utils';
+import {getAdsConfig, getProject} from './utils';
+import {createLogger, ILogger} from './logger';
 
-export const main_getcids: HttpFunction = async (
+async function main_getcids_unsafe(
   req: express.Request,
-  res: express.Response
-) => {
-  console.log(req.body);
-  console.log(req.query);
-
+  res: express.Response,
+  logger: ILogger
+) {
   // prepare Ads API parameters
   const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
-  console.log('Ads API config:');
   const {refresh_token, ...ads_config_wo_token} = adsConfig;
-  console.log(ads_config_wo_token);
-  if (!adsConfig.developer_token || !adsConfig.refresh_token) {
-    throw new Error('Ads API configuration is not complete.');
-  }
+  await logger.info('Ads API config', ads_config_wo_token);
 
   const customerId = req.query.customer_id || adsConfig.customer_id;
   if (!customerId)
@@ -56,7 +51,7 @@ export const main_getcids: HttpFunction = async (
     );
   }
   if (customer_ids_query) {
-    console.log(
+    await logger.info(
       `Fetching customer id using custom query: ${customer_ids_query}`
     );
     const executor = new AdsQueryExecutor(ads_client);
@@ -65,4 +60,24 @@ export const main_getcids: HttpFunction = async (
 
   res.json(accounts);
   res.end();
+}
+
+export const main_getcids: HttpFunction = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const projectId = await getProject();
+  const logger = createLogger(
+    req,
+    projectId,
+    process.env.K_SERVICE || 'gaarf-getcids'
+  );
+  await logger.info('request', {body: req.body, query: req.query});
+
+  try {
+    await main_getcids_unsafe(req, res, logger);
+  } catch (e) {
+    await logger.error(e.message, e);
+    res.status(500).send(e.message).end();
+  }
 };

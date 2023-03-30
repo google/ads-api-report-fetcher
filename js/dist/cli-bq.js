@@ -55,8 +55,9 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .example('$0 bq-queries/**/*.sql --config=gaarf_bq.json', 'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
     .epilog('(c) Google 2022. Not officially supported product.')
     .parseSync();
+const logger = (0, logger_1.getLogger)();
 async function main() {
-    logger_1.logger.verbose(JSON.stringify(argv, null, 2));
+    logger.verbose(JSON.stringify(argv, null, 2));
     if (!argv.files || !argv.files.length) {
         console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
         process.exit(-1);
@@ -71,7 +72,7 @@ async function main() {
     let executor = new bq_executor_1.BigQueryExecutor(projectId, options);
     for (let scriptPath of scriptPaths) {
         let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
-        logger_1.logger.info(`Processing query from ${scriptPath}`);
+        logger.info(`Processing query from ${scriptPath}`);
         let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
         await executor.execute(scriptName, queryText, { sqlParams, macroParams });
     }

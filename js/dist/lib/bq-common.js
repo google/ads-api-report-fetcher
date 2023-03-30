@@ -33,7 +33,8 @@ async function getDataset(bigquery, datasetId, datasetLocation) {
         await dataset.get({ autoCreate: true });
     }
     catch (e) {
-        logger_1.logger.error(`Failed to get or create the dataset ${datasetId}`);
+        const logger = (0, logger_1.getLogger)();
+        logger.error(`Failed to get or create the dataset ${datasetId}`);
         throw e;
     }
     return dataset;

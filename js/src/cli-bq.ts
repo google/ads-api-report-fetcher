@@ -22,7 +22,7 @@ import {hideBin} from 'yargs/helpers'
 
 import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor';
 import {getFileContent} from './lib/file-utils';
-import {logger} from './lib/logger';
+import {getLogger} from './lib/logger';
 
 const argv =
     yargs(hideBin(process.argv))
@@ -65,6 +65,8 @@ const argv =
             'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
         .epilog('(c) Google 2022. Not officially supported product.')
         .parseSync();
+
+const logger = getLogger();
 
 async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));

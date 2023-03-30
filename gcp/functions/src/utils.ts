@@ -1,4 +1,5 @@
 import express from 'express';
+import {GoogleAuth} from 'google-auth-library';
 import {
   getFileContent,
   GoogleAdsApiConfig,
@@ -6,9 +7,11 @@ import {
 } from 'google-ads-api-report-fetcher';
 import path from 'node:path';
 import fs from 'node:fs';
+import {ILogger} from './logger';
 
 export async function getScript(
-  req: express.Request
+  req: express.Request,
+  logger: ILogger
 ): Promise<{queryText: string; scriptName: string}> {
   const scriptPath = req.query.script_path;
   const body = req.body || {};
@@ -17,11 +20,11 @@ export async function getScript(
   if (body.script) {
     queryText = body.script.query;
     scriptName = body.script.name;
-    console.log('Executing inline query from request');
+    await logger.info('Executing inline query from request');
   } else if (scriptPath) {
     queryText = await getFileContent(<string>scriptPath);
     scriptName = path.basename(<string>scriptPath).split('.sql')[0];
-    console.log(`Executing query from '${scriptPath}'`);
+    await logger.info(`Executing query from '${scriptPath}'`);
   }
   if (!queryText)
     throw new Error(
@@ -34,7 +37,7 @@ export async function getScript(
 export async function getAdsConfig(
   req: express.Request
 ): Promise<GoogleAdsApiConfig> {
-  let adsConfig: GoogleAdsApiConfig;
+  let adsConfig: GoogleAdsApiConfig | undefined;
   const adsConfigFile =
     <string>req.query.ads_config_path || process.env.ADS_CONFIG;
   if (adsConfigFile) {
@@ -42,7 +45,22 @@ export async function getAdsConfig(
       adsConfigFile,
       <string>req.query.customer_id
     );
-  } else {
+  } else if (req.body && req.body.ads_config) {
+    // get from request body
+    adsConfig = <GoogleAdsApiConfig>{
+      developer_token: <string>req.body.ads_config.developer_token,
+      login_customer_id: <string>req.body.ads_config.login_customer_id,
+      client_id: <string>req.body.ads_config.client_id,
+      client_secret: <string>req.body.ads_config.client_secret,
+      refresh_token: <string>req.body.ads_config.refresh_token,
+    };
+  } else if (
+    process.env.REFRESH_TOKEN &&
+    process.env.DEVELOPER_TOKEN &&
+    process.env.CLIENT_ID &&
+    process.env.CLIENT_SECRET
+  ) {
+    // get from environment variables
     adsConfig = <GoogleAdsApiConfig>{
       developer_token: <string>process.env.DEVELOPER_TOKEN,
       login_customer_id: <string>process.env.LOGIN_CUSTOMER_ID,
@@ -50,12 +68,30 @@ export async function getAdsConfig(
       client_secret: <string>process.env.CLIENT_SECRET,
       refresh_token: <string>process.env.REFRESH_TOKEN,
     };
-  }
-  if (!adsConfig && fs.existsSync('google-ads.yaml')) {
+  } else if (fs.existsSync('google-ads.yaml')) {
+    // get from a local file
     adsConfig = await loadAdsConfigYaml(
       'google-ads.yaml',
       <string>req.query.customer_id
     );
   }
+  if (
+    !adsConfig ||
+    !adsConfig.developer_token ||
+    !adsConfig.refresh_token ||
+    !adsConfig.client_id ||
+    !adsConfig.client_secret
+  ) {
+    throw new Error('Ads API configuration is not complete.');
+  }
+
   return adsConfig;
+}
+
+export async function getProject() {
+  const auth = new GoogleAuth({
+    scopes: 'https://www.googleapis.com/auth/cloud-platform',
+  });
+  const projectId = await auth.getProjectId();
+  return projectId;
 }

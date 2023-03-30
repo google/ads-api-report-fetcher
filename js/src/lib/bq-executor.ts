@@ -16,7 +16,7 @@
 import {BigQuery, Dataset, Query} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 
-import {logger} from './logger';
+import {getLogger} from './logger';
 import {substituteMacros} from './utils';
 import {getDataset, OAUTH_SCOPES} from "./bq-common";
 
@@ -32,6 +32,7 @@ export interface BigQueryExecutorParams {
 export class BigQueryExecutor {
   bigquery: BigQuery;
   datasetLocation?: string;
+  logger;
 
   constructor(
     projectId?: string | undefined,
@@ -45,6 +46,7 @@ export class BigQueryExecutor {
       location: datasetLocation,
     });
     this.datasetLocation = datasetLocation;
+    this.logger = getLogger();
   }
 
   async execute(
@@ -81,10 +83,10 @@ export class BigQueryExecutor {
     //}
     try {
       let [values] = await this.bigquery.query(query);
-      logger.info(`Query '${scriptName}' executed successfully`);
+      this.logger.info(`Query '${scriptName}' executed successfully`);
       return values;
     } catch (e) {
-      logger.error(`Query '${scriptName}' failed to execute: ${e}`);
+      this.logger.error(`Query '${scriptName}' failed to execute: ${e}`);
       throw e;
     }
   }
@@ -121,7 +123,7 @@ export class BigQueryExecutor {
       dataset = this.bigquery.dataset(datasetId, options);
       await dataset.get({ autoCreate: true });
     } catch (e) {
-      logger.error(`Failed to get or create the dataset '${datasetId}'`);
+      this.logger.error(`Failed to get or create the dataset '${datasetId}'`);
       throw e;
     }
     return dataset;

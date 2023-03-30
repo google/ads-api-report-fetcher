@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2022 Google LLC
  *
@@ -14,47 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import winston from 'winston';
-const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
+import { createLogger } from "./logger-factory";
+import winston from "winston";
 
-const {format} = winston;
+//export let logger = createLogger();
 
-/** Default log level */
-export const LOG_LEVEL = argv.loglevel || process.env.LOG_LEVEL ||
-    (process.env.NODE_ENV === 'production' ? 'info' : 'verbose');
+let logger: winston.Logger | undefined;
 
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'white',
-  verbose: 'gray',
-  debug: 'grey',
-};
-
-
-function wrap(str: string) {
-  return str ? ' [' + str + ']' : '';
+export function getLogger() {
+  if (!logger) {
+    logger = createLogger();
+  }
+  return logger;
 }
-const formats: winston.Logform.Format[] = [];
-if (process.stdout.isTTY) {
-  formats.push(format.colorize({ all: true }));
-  winston.addColors(colors);
-}
-formats.push(
-  format.printf(
-    (info) => `${info.timestamp}${wrap(info.scriptName)}${wrap(info.customerId)}: ${info.message}`,
-  )
-);
-const transports: winston.transport[] = [];
-transports.push(new winston.transports.Console({
-  format: format.combine(...formats)
-}));
-
-export const logger = winston.createLogger({
-  level: LOG_LEVEL,  // NOTE: we use same log level for all transports
-  format: format.combine(
-      format.timestamp({format: 'YYYY-MM-DD HH:mm:ss:SSS'}),
-      ),
-  transports
-});
-

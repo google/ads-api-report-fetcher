@@ -55,6 +55,7 @@ class BigQueryWriter {
         this.rowsByCustomer = {};
         this.rowCountsByCustomer = {};
         this.streamsByCustomer = {};
+        this.logger = (0, logger_1.getLogger)();
     }
     async beginScript(scriptName, query) {
         if (!scriptName)
@@ -71,7 +72,7 @@ class BigQueryWriter {
         let schema = this.createSchema(query);
         this.schema = schema;
         if (this.dumpSchema) {
-            logger_1.logger.debug(JSON.stringify(schema, null, 2));
+            this.logger.debug(JSON.stringify(schema, null, 2));
             let schemaJson = JSON.stringify(schema, undefined, 2);
             await promises_1.default.writeFile(scriptName + ".json", schemaJson);
         }
@@ -113,7 +114,7 @@ class BigQueryWriter {
     async loadRows(customerId, tableFullName) {
         let filepath = this.getDataFilepath(tableFullName);
         let rowCount = this.rowCountsByCustomer[customerId];
-        logger_1.logger.verbose(`Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`, {
+        this.logger.verbose(`Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`, {
             customerId: customerId,
             scriptName: this.tableId,
         });
@@ -123,7 +124,7 @@ class BigQueryWriter {
             sourceFormat: "NEWLINE_DELIMITED_JSON",
             writeDisposition: "WRITE_TRUNCATE",
         });
-        logger_1.logger.info(`${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`, {
+        this.logger.info(`${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`, {
             customerId: customerId,
             scriptName: this.tableId,
         });
@@ -173,7 +174,7 @@ class BigQueryWriter {
                 if (!((_a = this.query) === null || _a === void 0 ? void 0 : _a.resource.isConstant)) {
                     templateSuffix = "_" + customerId;
                 }
-                logger_1.logger.verbose(`Inserting ${rowsChunk.length} rows`, {
+                this.logger.verbose(`Inserting ${rowsChunk.length} rows`, {
                     customerId: customerId,
                 });
                 await table.insert(rows2insert, {
@@ -183,8 +184,8 @@ class BigQueryWriter {
             }
         }
         catch (e) {
-            logger_1.logger.debug(e);
-            logger_1.logger.error(`Failed to insert rows into '${tableFullName}' table`, {
+            this.logger.debug(e);
+            this.logger.error(`Failed to insert rows into '${tableFullName}' table`, {
                 customerId: customerId,
             });
             if (e.name === "PartialFailureError") {
@@ -193,13 +194,13 @@ class BigQueryWriter {
                 let msgDetail = e.errors.length > max_errors_to_show
                     ? `showing first ${max_errors_to_show} errors of ${e.errors.length})`
                     : e.errors.length + " error(s)";
-                logger_1.logger.warn(`Some rows failed to insert (${msgDetail}):`, {
+                this.logger.warn(`Some rows failed to insert (${msgDetail}):`, {
                     customerId: customerId,
                 });
                 // show first 10 rows with errors
                 for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
                     let err = e.errors[i];
-                    logger_1.logger.warn(`#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${err.errors[0].message}`, { customerId: customerId });
+                    this.logger.warn(`#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${err.errors[0].message}`, { customerId: customerId });
                 }
             }
             else if (e.code === 404) {
@@ -214,7 +215,7 @@ class BigQueryWriter {
             }
             throw e;
         }
-        logger_1.logger.info(`${rows.length} rows inserted into '${tableFullName}' table`, {
+        this.logger.info(`${rows.length} rows inserted into '${tableFullName}' table`, {
             customerId: customerId,
         });
     }
@@ -230,14 +231,14 @@ class BigQueryWriter {
         let tableFullName = this.getTableFullname(customerId);
         //  remove customer's table (to make sure you have only fresh data)
         try {
-            logger_1.logger.debug(`Removing table '${tableFullName}'`, {
+            this.logger.debug(`Removing table '${tableFullName}'`, {
                 customerId: customerId,
                 scriptName: this.tableId,
             });
             await this.dataset.table(tableFullName).delete({ ignoreNotFound: true });
         }
         catch (e) {
-            logger_1.logger.error(`Deletion of table '${tableFullName}' failed: ${e}`, {
+            this.logger.error(`Deletion of table '${tableFullName}' failed: ${e}`, {
                 customerId: customerId,
                 scriptName: this.tableId,
             });
@@ -264,13 +265,13 @@ class BigQueryWriter {
             // create an empty one, so we could use it for a union view
             try {
                 await this.dataset.createTable(tableFullName, { schema: this.schema });
-                logger_1.logger.verbose(`Created empty table '${tableFullName}'`, {
+                this.logger.verbose(`Created empty table '${tableFullName}'`, {
                     customerId: customerId,
                     scriptName: this.tableId,
                 });
             }
             catch (e) {
-                logger_1.logger.error(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
+                this.logger.error(`\tCreation of empty table '${tableFullName}' failed: ${e}`);
                 throw e;
             }
         }
@@ -278,7 +279,7 @@ class BigQueryWriter {
             this.insertMethod === BigQueryInsertMethod.loadTable) {
             let filepath = this.getDataFilepath(tableFullName);
             if (node_fs_1.default.existsSync(filepath)) {
-                logger_1.logger.verbose(`Removing data file ${filepath}, dumpData=${this.dumpData}`);
+                this.logger.verbose(`Removing data file ${filepath}, dumpData=${this.dumpData}`);
                 node_fs_1.default.rmSync(filepath);
             }
         }
@@ -307,7 +308,7 @@ class BigQueryWriter {
                     .map((s) => "'" + s + "'")
                     .join(",")})`,
             });
-            logger_1.logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
+            this.logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
                 scriptName: this.tableId,
             });
         }

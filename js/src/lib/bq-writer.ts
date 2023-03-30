@@ -21,7 +21,7 @@ import fs_async from 'node:fs/promises';
 import path from "node:path";
 import _ from "lodash";
 
-import {logger} from "./logger";
+import {getLogger} from "./logger";
 import {
   FieldType,
   FieldTypeKind,
@@ -68,6 +68,7 @@ export class BigQueryWriter implements IResultWriter {
   keepData: boolean;
   noUnionView: boolean;
   insertMethod: BigQueryInsertMethod;
+  logger;
 
   constructor(
     projectId: string,
@@ -93,6 +94,7 @@ export class BigQueryWriter implements IResultWriter {
     this.rowsByCustomer = {};
     this.rowCountsByCustomer = {};
     this.streamsByCustomer = {};
+    this.logger = getLogger();
   }
 
   async beginScript(scriptName: string, query: QueryElements): Promise<void> {
@@ -109,7 +111,7 @@ export class BigQueryWriter implements IResultWriter {
     let schema: bigquery.ITableSchema = this.createSchema(query);
     this.schema = schema;
     if (this.dumpSchema) {
-      logger.debug(JSON.stringify(schema, null, 2));
+      this.logger.debug(JSON.stringify(schema, null, 2));
       let schemaJson = JSON.stringify(schema, undefined, 2);
       await fs_async.writeFile(scriptName + ".json", schemaJson);
     }
@@ -157,7 +159,7 @@ export class BigQueryWriter implements IResultWriter {
   async loadRows(customerId: string, tableFullName: string) {
     let filepath = this.getDataFilepath(tableFullName);
     let rowCount = this.rowCountsByCustomer[customerId];
-    logger.verbose(
+    this.logger.verbose(
       `Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`,
       {
         customerId: customerId,
@@ -170,7 +172,7 @@ export class BigQueryWriter implements IResultWriter {
       sourceFormat: "NEWLINE_DELIMITED_JSON",
       writeDisposition: "WRITE_TRUNCATE",
     });
-    logger.info(
+    this.logger.info(
       `${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`,
       {
         customerId: customerId,
@@ -222,7 +224,7 @@ export class BigQueryWriter implements IResultWriter {
         if (!this.query?.resource.isConstant) {
           templateSuffix = "_" + customerId;
         }
-        logger.verbose(`Inserting ${rowsChunk.length} rows`, {
+        this.logger.verbose(`Inserting ${rowsChunk.length} rows`, {
           customerId: customerId,
         });
         await table!.insert(rows2insert, {
@@ -231,8 +233,8 @@ export class BigQueryWriter implements IResultWriter {
         });
       }
     } catch (e) {
-      logger.debug(e);
-      logger.error(`Failed to insert rows into '${tableFullName}' table`, {
+      this.logger.debug(e);
+      this.logger.error(`Failed to insert rows into '${tableFullName}' table`, {
         customerId: customerId,
       });
       if (e.name === "PartialFailureError") {
@@ -242,13 +244,13 @@ export class BigQueryWriter implements IResultWriter {
           e.errors.length > max_errors_to_show
             ? `showing first ${max_errors_to_show} errors of ${e.errors.length})`
             : e.errors.length + " error(s)";
-        logger.warn(`Some rows failed to insert (${msgDetail}):`, {
+        this.logger.warn(`Some rows failed to insert (${msgDetail}):`, {
           customerId: customerId,
         });
         // show first 10 rows with errors
         for (let i = 0; i < Math.min(e.errors.length, 10); i++) {
           let err = e.errors[i];
-          logger.warn(
+          this.logger.warn(
             `#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${
               err.errors[0].message
             }`,
@@ -267,7 +269,7 @@ export class BigQueryWriter implements IResultWriter {
       }
       throw e;
     }
-    logger.info(`${rows.length} rows inserted into '${tableFullName}' table`, {
+    this.logger.info(`${rows.length} rows inserted into '${tableFullName}' table`, {
       customerId: customerId,
     });
   }
@@ -285,13 +287,13 @@ export class BigQueryWriter implements IResultWriter {
 
     //  remove customer's table (to make sure you have only fresh data)
     try {
-      logger.debug(`Removing table '${tableFullName}'`, {
+      this.logger.debug(`Removing table '${tableFullName}'`, {
         customerId: customerId,
         scriptName: this.tableId,
       });
       await this.dataset!.table(tableFullName).delete({ ignoreNotFound: true });
     } catch (e) {
-      logger.error(`Deletion of table '${tableFullName}' failed: ${e}`, {
+      this.logger.error(`Deletion of table '${tableFullName}' failed: ${e}`, {
         customerId: customerId,
         scriptName: this.tableId,
       });
@@ -316,12 +318,12 @@ export class BigQueryWriter implements IResultWriter {
       // create an empty one, so we could use it for a union view
       try {
         await this.dataset!.createTable(tableFullName, { schema: this.schema });
-        logger.verbose(`Created empty table '${tableFullName}'`, {
+        this.logger.verbose(`Created empty table '${tableFullName}'`, {
           customerId: customerId,
           scriptName: this.tableId,
         });
       } catch (e) {
-        logger.error(
+        this.logger.error(
           `\tCreation of empty table '${tableFullName}' failed: ${e}`
         );
         throw e;
@@ -333,7 +335,7 @@ export class BigQueryWriter implements IResultWriter {
     ) {
       let filepath = this.getDataFilepath(tableFullName);
       if (fs.existsSync(filepath)) {
-        logger.verbose(
+        this.logger.verbose(
           `Removing data file ${filepath}, dumpData=${this.dumpData}`
         );
         fs.rmSync(filepath);
@@ -369,7 +371,7 @@ export class BigQueryWriter implements IResultWriter {
           .map((s) => "'" + s + "'")
           .join(",")})`,
       });
-      logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
+      this.logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
         scriptName: this.tableId,
       });
     }
