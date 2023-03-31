@@ -93,6 +93,9 @@ Options:
 
   >Example usage: `gaarf <queries> --account=123456 --customer-ids-query-file=/path/to/query.sql
 
+* `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level) (*NodeJS version only*).
+  By default Gaarf does account expansion (even with `customer-ids-query`).
+
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
 

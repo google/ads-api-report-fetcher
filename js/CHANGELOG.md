@@ -1,4 +1,8 @@
 # Changelog
+## 1.12 - 2023-03-31
+* Added `disable-account-expansion` flag to disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level)
+* (released as 1.11.9) enhanced logging support for running in Google Cloud (while running as part Gaarf Workflow all log entries have trace id from the root request)
+
 ## 1.11 - 2023-02-11
 * Support for expressions in columns ("virtual columns")
 * Support for block comments in ads queries (/*..*/)
@@ -15,10 +19,10 @@
 * support API v12 (updated google-ads-api to v12)
 
 ## 1.9.0 - 2022-11-21
-* AdsQueryExecutor: introduced `getCustomerIds` method to fetch customer ids with a custom query to additionally filter cids extracted from a root MCC 
-  (previous implementation inside AdsApiClient was not correct) 
-* BigQueryExecutor: introduced `createUnifiedView` method for creating views for combining per-account tables (used by a new CF) 
-* fix: BigQueryExecutor and BigQueryWriter: pass `datasetLocation` to BigQuery ctor 
+* AdsQueryExecutor: introduced `getCustomerIds` method to fetch customer ids with a custom query to additionally filter cids extracted from a root MCC
+  (previous implementation inside AdsApiClient was not correct)
+* BigQueryExecutor: introduced `createUnifiedView` method for creating views for combining per-account tables (used by a new CF)
+* fix: BigQueryExecutor and BigQueryWriter: pass `datasetLocation` to BigQuery ctor
 * fix: winston logger format string didn't output fractional seconds
 
 ## 1.8.0 - 2022-11-10
