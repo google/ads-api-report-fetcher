@@ -356,7 +356,12 @@ function get_macro_values(
       console.log(
         chalk.yellow('Tip: ') +
           chalk.gray(
-            'beside constants you can use :YYYYMMDD-N values and expressions (${..})'
+            'besides constants you can use :YYYYMMDD-N values and expressions (${..})'
+          ) +
+          '\n' +
+          chalk.yellow('Tip: ') +
+          chalk.gray(
+            'For macros with dataset names make sure that you meet BigQuery requirements - use letters, numbers and underscores'
           )
       );
     }
@@ -543,8 +548,7 @@ async function initialize_googleads_config(answers: Partial<any>) {
       answers
     );
     path_to_googleads_config = answers_new.path_to_googleads_config;
-    const has_adsconfig = fs.existsSync(path_to_googleads_config);
-    if (!has_adsconfig) {
+    if (!fs.existsSync(path_to_googleads_config)) {
       console.log(
         chalk.yellow('Currently the file ') +
           chalk.cyan(path_to_googleads_config) +
@@ -553,6 +557,13 @@ async function initialize_googleads_config(answers: Partial<any>) {
           ) +
           chalk.cyan('deploy-scripts.sh')
       );
+    } else if (!fs.statSync(path_to_googleads_config).isFile()) {
+      console.log(
+        chalk.red(
+          'The path to google-ads.yaml you specified does not exist. You can a full or relative file path but it should include a file name'
+        )
+      );
+      process.exit(-1);
     }
   } else {
     // entering credentials one by one
@@ -910,15 +921,23 @@ cd ../workflow
     const yamldoc = <any>(
       yaml.load(fs.readFileSync(path_to_googleads_config, 'utf-8'))
     );
-    ads_customer_id = yamldoc['customer_id'] || yamldoc['client_customer_id'];
+    // look up for the default default value for account id (CID) from google-ads.yaml
+    ads_customer_id =
+      yamldoc['customer_id'] ||
+      yamldoc['client_customer_id'] ||
+      yamldoc['login_customer_id'];
   }
   const answers2 = await prompt(
     [
       {
         type: 'input',
         name: 'output_dataset',
-        message: 'BigQuery dataset for ads queries results:',
+        message:
+          'BigQuery dataset for ads queries results ("-" will be converted to "_"):',
         default: name + '_ads',
+        filter(input) {
+          return input.replace(/[ -]/g, '_');
+        },
       },
       {
         type: 'input',
@@ -966,7 +985,7 @@ cd ../workflow
   deploy_shell_script(
     'run-wf.sh',
     `gcloud workflows run ${workflow_name} --location=${gcp_region} \
-  --data='${JSON.stringify(wf_data, null, 2)}'
+--data='${JSON.stringify(wf_data, null, 2)}'
 `
   );
 
@@ -1051,7 +1070,7 @@ cd ../workflow
         {
           type: 'confirm',
           name: 'run_job',
-          message: 'Do you want to run the job right now:',
+          message: "Do you want to run the job right now (it's asynchronous):",
         },
       ],
       answers
@@ -1077,9 +1096,12 @@ JOB_NAME=$WORKFLOW_NAME
 
 data='${JSON.stringify(wf_data, null, 2).replaceAll('"', '\\"')}'
 
-gcloud scheduler jobs delete $JOB_NAME --location $REGION --quiet
+JOB_EXISTS=$(gcloud scheduler jobs list --location=$REGION --format="value(ID)" --filter="ID:'$JOB_NAME'")
+if [[ -n $JOB_EXISTS ]]; then
+  gcloud scheduler jobs delete $JOB_NAME --location $REGION --quiet
+fi
 
-# daily at midnight
+# run the job daily at midnight
 gcloud scheduler jobs create http $JOB_NAME \\
   --schedule="${schedule_cron}" \\
   --uri="https://workflowexecutions.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/workflows/$WORKFLOW_NAME/executions" \
@@ -1115,6 +1137,23 @@ gcloud scheduler jobs create http $JOB_NAME \\
         null,
         {realtime: true}
       );
+    }
+  }
+  if (!answers3.run_job) {
+    // Scheduler Job wasn't run, maybe the user want to run the workflow directly (it's synchronous in contract to the scheduler)
+    const answers_wf = await prompt(
+      [
+        {
+          type: 'confirm',
+          name: 'run_wf',
+          message:
+            "Do you want to run the workflow right now (it's synchronous):",
+        },
+      ],
+      answers
+    );
+    if (answers_wf.run_wf) {
+      await exec_cmd(path.join(cwd, './run-wf.sh'), null, {realtime: true});
     }
   }
 
