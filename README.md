@@ -59,14 +59,14 @@ gaarf <queries> [options]
 ```
 
 ### Options
-The required positional arguments are a list of files or a text that contain Ads queries (GAQL).  
-On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.  
+The required positional arguments are a list of files or a text that contain Ads queries (GAQL).
+On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
 A file path can be not only a local path but also a GCS file.
 
 > If you run the tool on a *nix OS then your shell (like zsh/bash) probably
 > supports file names expansion (see [bash](https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html),
 > [zsh](https://zsh.sourceforge.io/Doc/Release/Expansion.html), 14.8 Filename Generation).
-> And so it does expansion of glob pattern (file mask) into a list of files. 
+> And so it does expansion of glob pattern (file mask) into a list of files.
 > Currently the tool doesn't support wildcards for file names (doesn't do expansion) - it's important to understand if you run it in an environment that doesn't support expansion.
 
 Options:
@@ -93,7 +93,7 @@ Options:
 
   >Example usage: `gaarf <queries> --account=123456 --customer-ids-query-file=/path/to/query.sql
 
-* `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level) (*NodeJS version only*).
+* `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level).
   By default Gaarf does account expansion (even with `customer-ids-query`).
 
 Options specific for CSV writer:

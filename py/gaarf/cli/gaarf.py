@@ -63,9 +63,13 @@ def main():
                         dest="optimize_performance",
                         default="NONE")
     parser.add_argument("--dry-run", dest="dry_run", action="store_true")
+    parser.add_argument("--disable-account-expansion",
+                        dest="disable_account_expansion",
+                        action="store_true")
     parser.set_defaults(save_config=False)
     parser.set_defaults(parallel_queries=True)
     parser.set_defaults(dry_run=False)
+    parser.set_defaults(disable_account_expansion=False)
     args = parser.parse_known_args()
     main_args = args[0]
 
@@ -114,8 +118,14 @@ def main():
     else:
         customer_ids_query = None
 
-    customer_ids = utils.get_customer_ids(ads_client, config.account,
-                                          customer_ids_query)
+    if main_args.disable_account_expansion:
+        logger.info(
+            "Skipping account expansion because of disable_account_expansion flag"
+        )
+        customer_ids = [config.account]
+    else:
+        customer_ids = utils.get_customer_ids(ads_client, config.account,
+                                              customer_ids_query)
     if customer_ids:
         writer_client = writer.WriterFactory().create_writer(
             config.output, **config.writer_params)
