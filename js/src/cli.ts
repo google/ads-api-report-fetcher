@@ -29,13 +29,15 @@ import {BigQueryInsertMethod, BigQueryWriter, BigQueryWriterOptions} from './lib
 import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
-import {logger} from './lib/logger';
+import {getLogger} from './lib/logger';
 import {IResultWriter, QueryElements} from './lib/types';
 import {getElapsed} from './lib/utils';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
     configPath ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
+
+const logger = getLogger();
 
 const argv = yargs(hideBin(process.argv))
   .scriptName("gaarf")
@@ -353,7 +355,12 @@ async function main() {
   if (customer_ids_query) {
     logger.verbose(`Fetching customer ids with custom query`);
     logger.debug(customer_ids_query);
-    customers = await executor.getCustomerIds(customers, customer_ids_query);
+    try {
+      customers = await executor.getCustomerIds(customers, customer_ids_query);
+    } catch (e) {
+      logger.error(`Fetching customer ids using customer_ids_query failed: ` + e);
+      process.exit(-1);
+    }
   }
   if (customers.length === 0) {
     console.log(chalk.redBright(`No customers found for processing`));

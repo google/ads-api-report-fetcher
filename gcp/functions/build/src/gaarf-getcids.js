@@ -18,17 +18,12 @@ exports.main_getcids = void 0;
  */
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const utils_1 = require("./utils");
-const main_getcids = async (req, res) => {
-    console.log(req.body);
-    console.log(req.query);
+const logger_1 = require("./logger");
+async function main_getcids_unsafe(req, res, logger) {
     // prepare Ads API parameters
     const adsConfig = await (0, utils_1.getAdsConfig)(req);
-    console.log('Ads API config:');
     const { refresh_token, ...ads_config_wo_token } = adsConfig;
-    console.log(ads_config_wo_token);
-    if (!adsConfig.developer_token || !adsConfig.refresh_token) {
-        throw new Error('Ads API configuration is not complete.');
-    }
+    await logger.info('Ads API config', ads_config_wo_token);
     const customerId = req.query.customer_id || adsConfig.customer_id;
     if (!customerId)
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
@@ -42,12 +37,24 @@ const main_getcids = async (req, res) => {
         customer_ids_query = await (0, google_ads_api_report_fetcher_1.getFileContent)(req.query.customer_ids_query);
     }
     if (customer_ids_query) {
-        console.log(`Fetching customer id using custom query: ${customer_ids_query}`);
+        await logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
         const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
         accounts = await executor.getCustomerIds(accounts, customer_ids_query);
     }
     res.json(accounts);
     res.end();
+}
+const main_getcids = async (req, res) => {
+    const projectId = await (0, utils_1.getProject)();
+    const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-getcids');
+    await logger.info('request', { body: req.body, query: req.query });
+    try {
+        await main_getcids_unsafe(req, res, logger);
+    }
+    catch (e) {
+        await logger.error(e.message, e);
+        res.status(500).send(e.message).end();
+    }
 };
 exports.main_getcids = main_getcids;
 //# sourceMappingURL=gaarf-getcids.js.map

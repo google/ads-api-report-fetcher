@@ -30,6 +30,7 @@ class BigQueryExecutor {
             location: datasetLocation,
         });
         this.datasetLocation = datasetLocation;
+        this.logger = (0, logger_1.getLogger)();
     }
     async execute(scriptName, queryText, params) {
         if (params === null || params === void 0 ? void 0 : params.macroParams) {
@@ -59,11 +60,11 @@ class BigQueryExecutor {
         //}
         try {
             let [values] = await this.bigquery.query(query);
-            logger_1.logger.info(`Query '${scriptName}' executed successfully`);
+            this.logger.info(`Query '${scriptName}' executed successfully`);
             return values;
         }
         catch (e) {
-            logger_1.logger.error(`Query '${scriptName}' failed to execute: ${e}`);
+            this.logger.error(`Query '${scriptName}' failed to execute: ${e}`);
             throw e;
         }
     }
@@ -91,7 +92,7 @@ class BigQueryExecutor {
             await dataset.get({ autoCreate: true });
         }
         catch (e) {
-            logger_1.logger.error(`Failed to get or create the dataset '${datasetId}'`);
+            this.logger.error(`Failed to get or create the dataset '${datasetId}'`);
             throw e;
         }
         return dataset;

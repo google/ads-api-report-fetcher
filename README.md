@@ -59,13 +59,15 @@ gaarf <queries> [options]
 ```
 
 ### Options
-The required positional arguments are a list of files or a text that contain Ads queries (GAQL).
-On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
+The required positional arguments are a list of files or a text that contain Ads queries (GAQL).  
+On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.  
+A file path can be not only a local path but also a GCS file.
 
 > If you run the tool on a *nix OS then your shell (like zsh/bash) probably
 > supports file names expansion (see [bash](https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html),
 > [zsh](https://zsh.sourceforge.io/Doc/Release/Expansion.html), 14.8 Filename Generation).
-> And so it does expansion of glob pattern (file mask) into a list of files.
+> And so it does expansion of glob pattern (file mask) into a list of files. 
+> Currently the tool doesn't support wildcards for file names (doesn't do expansion) - it's important to understand if you run it in an environment that doesn't support expansion.
 
 Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
@@ -79,7 +81,7 @@ Options:
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
   * `sqldb` - writes data to a database supported by SQL Alchemy (Python only).
-* `loglevel` - logging level (*NodeJS version only*): 'debug', 'verbose', 'info', 'warn', 'error'
+* `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
 * `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
@@ -175,21 +177,21 @@ There are two type of parameters that you can pass to a script: macro and sql-pa
 For example:
 ```
 SELECT *
-FROM {ds-src}.{table-src}
+FROM {dst_dataset}.{table-src}
 ```
-Here `ds-src` and `table-src` are macros that can be supplied as:
+Here `dst_dataset` and `table-src` are macros that can be supplied as:
 ```
-gaarf-bq --macro.table-src=table1 --macro.ds-src=dataset1
+gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1
 ```
 
 You can also use normal sql type parameters with `sql` argument:
 ```
 SELECT *
-FROM {ds-src}.{table-src}
+FROM {dst_dataset}.{table-src}
 WHERE name LIKE @name
 ```
 and to execute:
-`gaarf-bq --macro.table-src=table1 --macro.ds-src=dataset1 --sql.name='myname%'`
+`gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1 --sql.name='myname%'`
 
 it will create a parameterized query to run in BQ:
 ```
@@ -198,7 +200,7 @@ FROM dataset1.table1
 WHERE name LIKE @name
 ```
 
-ATTENTION: passing macros into sql query is vulnerable to sql-injection so be very careful where you're taking values from.
+ATTENTION: passing macros into sql queries is vulnerable to sql-injection so be very careful where you're taking values from.
 
 
 ## Expressions and Macros
@@ -207,7 +209,7 @@ ATTENTION: passing macros into sql query is vulnerable to sql-injection so be ve
 As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
 parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
 On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
-They will be executed right after macros substitution. So an expression even can contain macros inside.
+They will be executed right after macros substitution. So macros can contain expressions inside.
 Both expressions and macros deal with query text before submitting it for execution.
 Inside expression block we can do anything that support MathJS library - see https://mathjs.org/docs/index.html
 plus work with date and time. It's all sort of arithmetic operations, strings and dates manipulations.

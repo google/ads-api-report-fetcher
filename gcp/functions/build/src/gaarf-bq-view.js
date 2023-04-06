@@ -21,13 +21,14 @@ exports.main_bq_view = void 0;
  */
 const node_path_1 = __importDefault(require("node:path"));
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const main_bq_view = async (req, res) => {
+const logger_1 = require("./logger");
+const utils_1 = require("./utils");
+async function main_bq_view_unsafe(req, res, projectId, logger) {
     console.log(req.body);
     console.log(req.query);
     const body = req.body || {};
     const datasetId = req.query.dataset || body.dataset;
     const accounts = body.accounts;
-    const projectId = req.query.project_id || process.env.PROJECT_ID;
     let tableId = body.table || req.query.table;
     // note: projectId isn't mandatory (should be detected from ADC)
     const options = {
@@ -38,10 +39,22 @@ const main_bq_view = async (req, res) => {
     if (scriptPath && !tableId) {
         tableId = node_path_1.default.basename(scriptPath).split('.sql')[0];
     }
-    console.log(`[gaarf-bq-view] Creating unified view ${datasetId}.${tableId} for ${accounts.length} accounts`);
+    await logger.info(`Creating an unified view ${datasetId}.${tableId} for ${accounts.length} accounts`);
     await executor.createUnifiedView(datasetId, tableId, accounts);
     res.sendStatus(200);
     res.end();
+}
+const main_bq_view = async (req, res) => {
+    const projectId = await (0, utils_1.getProject)();
+    const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-bq');
+    await logger.info('request', { body: req.body, query: req.query });
+    try {
+        await main_bq_view_unsafe(req, res, projectId, logger);
+    }
+    catch (e) {
+        await logger.error(e.message, e);
+        res.status(500).send(e.message).end();
+    }
 };
 exports.main_bq_view = main_bq_view;
 //# sourceMappingURL=gaarf-bq-view.js.map

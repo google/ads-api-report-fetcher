@@ -29,6 +29,7 @@ class CsvWriter {
         this.customerRows = 0;
         this.rowsByCustomer = {};
         this.destination = options === null || options === void 0 ? void 0 : options.destinationFolder;
+        this.logger = (0, logger_1.getLogger)();
     }
     beginScript(scriptName, query) {
         this.appending = false;
@@ -72,7 +73,7 @@ class CsvWriter {
         let csv = (0, sync_1.stringify)(rows, csvOptions);
         fs_1.default.writeFileSync(this.filename, csv, { encoding: 'utf-8', flag: this.appending ? 'a' : 'w' });
         if (rows.length > 0) {
-            logger_1.logger.info((this.appending ? 'Updated ' : 'Created ') + this.filename +
+            this.logger.info((this.appending ? 'Updated ' : 'Created ') + this.filename +
                 ` with ${rows.length} rows`, { customerId: customerId, scriptName: this.filename });
         }
         this.appending = true;

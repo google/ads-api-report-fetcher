@@ -19,7 +19,7 @@ import {stringify} from 'csv-stringify/sync';
 import fs from 'fs';
 import path from 'path';
 
-import {logger} from './logger';
+import {getLogger} from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface CsvWriterOptions {
@@ -31,10 +31,12 @@ export class CsvWriter implements IResultWriter {
   appending = false;
   customerRows = 0;
   rowsByCustomer: Record<string, any[][]> = {};
-  query: QueryElements|undefined;
+  query: QueryElements | undefined;
+  logger;
 
   constructor(options?: CsvWriterOptions) {
     this.destination = options?.destinationFolder;
+    this.logger = getLogger();
   }
 
   beginScript(scriptName: string, query: QueryElements) {
@@ -87,7 +89,7 @@ export class CsvWriter implements IResultWriter {
         {encoding: 'utf-8', flag: this.appending ? 'a' : 'w'});
 
     if (rows.length > 0) {
-      logger.info(
+      this.logger.info(
           (this.appending ? 'Updated ' : 'Created ') + this.filename +
               ` with ${rows.length} rows`,
           {customerId: customerId, scriptName: this.filename});

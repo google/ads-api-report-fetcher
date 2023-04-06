@@ -34,6 +34,7 @@ const protoEnums = protoRoot[protoVer].nested.enums.nested;
 const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
 class AdsQueryEditor {
     constructor() {
+        this.logger = (0, logger_1.getLogger)();
         this.resourcesMap = {};
         this.primitiveTypes = ["string", "int64", "int32", "float", "double", "bool"];
     }
@@ -84,7 +85,7 @@ class AdsQueryEditor {
                             functions[funcName] = new Function(argName, funcBody);
                         }
                         catch (e) {
-                            logger_1.logger.error(`InvalidQuerySyntax: failed to parse '${funcName}' function's body:\n ${e}`);
+                            this.logger.error(`InvalidQuerySyntax: failed to parse '${funcName}' function's body:\n ${e}`);
                             throw e;
                         }
                         break;

@@ -18,17 +18,21 @@ import {BigQueryExecutor} from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
 import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
+import {createLogger, ILogger} from './logger';
+import {getProject} from './utils';
 
-export const main_bq_view: HttpFunction = async (
+async function main_bq_view_unsafe(
   req: express.Request,
-  res: express.Response
-) => {
+  res: express.Response,
+  projectId: string,
+  logger: ILogger
+) {
   console.log(req.body);
   console.log(req.query);
   const body = req.body || {};
   const datasetId = req.query.dataset || body.dataset;
   const accounts = body.accounts;
-  const projectId = req.query.project_id || process.env.PROJECT_ID;
+
   let tableId = body.table || req.query.table;
   // note: projectId isn't mandatory (should be detected from ADC)
   const options: BigQueryExecutorOptions = {
@@ -39,10 +43,30 @@ export const main_bq_view: HttpFunction = async (
   if (scriptPath && !tableId) {
     tableId = path.basename(<string>scriptPath).split('.sql')[0];
   }
-  console.log(
-    `[gaarf-bq-view] Creating unified view ${datasetId}.${tableId} for ${accounts.length} accounts`
+  await logger.info(
+    `Creating an unified view ${datasetId}.${tableId} for ${accounts.length} accounts`
   );
   await executor.createUnifiedView(datasetId, tableId, accounts);
   res.sendStatus(200);
   res.end();
+}
+
+export const main_bq_view: HttpFunction = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const projectId = await getProject();
+  const logger = createLogger(
+    req,
+    projectId,
+    process.env.K_SERVICE || 'gaarf-bq'
+  );
+  await logger.info('request', {body: req.body, query: req.query});
+
+  try {
+    await main_bq_view_unsafe(req, res, projectId, logger);
+  } catch (e) {
+    await logger.error(e.message, e);
+    res.status(500).send(e.message).end();
+  }
 };

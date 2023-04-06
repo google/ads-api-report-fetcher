@@ -28,3 +28,4 @@ export * from './lib/google-cloud';
 
 export * from './lib/types';
 export * from './lib/logger';
+export * from './lib/logger-factory';

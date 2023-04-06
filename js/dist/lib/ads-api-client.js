@@ -48,6 +48,7 @@ class GoogleAdsApiClient {
         // also put the customer as the default one
         this.customers[""] = this.customers[customerId];
         this.root_cid = customerId;
+        this.logger = (0, logger_1.getLogger)();
     }
     getCustomer(customerId) {
         let customer;
@@ -69,7 +70,7 @@ class GoogleAdsApiClient {
     }
     handleGoogleAdsError(error, query) {
         if (error.errors)
-            logger_1.logger.debug(`An error occured on executing query: ${query}\nError: ` +
+            this.logger.error(`An error occured on executing query: ${query}\nError: ` +
                 JSON.stringify(error.errors[0], null, 2));
     }
     async executeQuery(query, customerId) {

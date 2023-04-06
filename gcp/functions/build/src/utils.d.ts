@@ -1,7 +1,9 @@
 import express from 'express';
 import { GoogleAdsApiConfig } from 'google-ads-api-report-fetcher';
-export declare function getScript(req: express.Request): Promise<{
+import { ILogger } from './logger';
+export declare function getScript(req: express.Request, logger: ILogger): Promise<{
     queryText: string;
     scriptName: string;
 }>;
 export declare function getAdsConfig(req: express.Request): Promise<GoogleAdsApiConfig>;
+export declare function getProject(): Promise<string>;
