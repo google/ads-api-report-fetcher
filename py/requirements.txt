@@ -255,8 +255,8 @@ google-ads==19.0.0 \
     --hash=sha256:7a58d9f0a6c42acdc8a1388f6e74fd4ecd1b51da758d8a4210bfe3e8a32421fa \
     --hash=sha256:cf4ff08714d5466d1cb407448faf8ed63067b613d138b2294a31db798fd9a071
     # via google-ads-api-report-fetcher
-google-ads-api-report-fetcher==0.1.12.4 \
-    --hash=sha256:b21184a34e740ef356076f65da103b50822f994997ea5176ac1e63eae3fd6d0c
+google-ads-api-report-fetcher[full]==1.2.0 \
+    --hash=sha256:b63a58cddfeac96bcd3383daed4b32b6c4d0f69d16baa049c2f2179a6fc52d0c
     # via -r requirements.in
 google-api-core[grpc]==2.10.1 \
     --hash=sha256:92d17123cfe399b5ef7e026c63babf978d8475e1ac877919eb7933e25dea2273 \

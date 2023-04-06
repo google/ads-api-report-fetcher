@@ -14,6 +14,7 @@
 
 from typing import Any, Sequence, Union
 from collections import abc
+import operator
 import pandas as pd
 
 
@@ -53,6 +54,47 @@ class GaarfReport:
 
     def __str__(self):
         return f"{self.results}"
+
+    def __getitem__(self, key):
+        cls = type(self)
+        if isinstance(key, abc.MutableSequence):
+            if set(key).issubset(set(self.column_names)):
+                indices = []
+                for k in key:
+                    indices.append(self.column_names.index(k))
+                results = []
+                for row in self.results:
+                    rows = []
+                    for index in indices:
+                        rows.append(row[index])
+                    results.append(rows)
+                return cls(results, key)
+            else:
+                non_existing_keys = set(key).intersection(set(self.column_names))
+                if len(non_existing_keys) > 1:
+                    message =  f"Columns '{', '.join(list(non_existing_keys))}' cannot be found in the report"
+                message =  f"Column '{non_existing_keys.pop()}' cannot be found in the report"
+                raise TypeError(message)
+        else:
+            if key in self.column_names:
+                index = self.column_names.index(key)
+                results = [[row[index]] for row in self.results]
+                return cls(results, [key])
+        if self.multi_column_report:
+            if isinstance(key, slice):
+                return cls(self.results[key], self.column_names)
+            return cls([self.results[key]], self.column_names)
+        if isinstance(key, slice):
+            return [element[0] for element in self.results[key]]
+        index = operator.index(key)
+        return self.results[key]
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        if self.column_names != other.column_names:
+            return false
+        return self.results == other.results
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):

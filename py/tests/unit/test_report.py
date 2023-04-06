@@ -121,3 +121,47 @@ def test_iteration_over_fake_report_returns_empty_list(multi_column_report):
     multi_column_report.is_fake = True
     results = [row for row in multi_column_report]
     assert results == []
+
+
+def test_slicing_multi_column_gaarf_report_returns_gaarf_report(
+        multi_column_report):
+    new_report = multi_column_report[0:2]
+    assert new_report == GaarfReport(
+        results=[[1, 2], [2, 3]], column_names=["campaign_id", "ad_group_id"])
+
+
+def test_indexing_multi_column_gaarf_report_by_index_returns_gaarf_report(
+        multi_column_report):
+    new_report = multi_column_report[0]
+    assert new_report == GaarfReport(
+        results=[[1, 2]], column_names=["campaign_id", "ad_group_id"])
+
+
+def test_indexing_multi_column_gaarf_report_by_one_column_returns_gaarf_report(
+        multi_column_report):
+    new_report = multi_column_report["campaign_id"]
+    assert new_report == GaarfReport(results=[[1], [2], [3]],
+                                     column_names=["campaign_id"])
+
+
+def test_indexing_multi_column_gaarf_report_by_several_columns_returns_gaarf_report(
+        multi_column_report):
+    new_report = multi_column_report[["campaign_id", "ad_group_id"]]
+    assert new_report == multi_column_report
+
+
+def test_indexing_multi_column_gaarf_report_by_non_existing_column_raises_type_error(
+        multi_column_report):
+    with pytest.raises(TypeError):
+        multi_column_report[["campaign_id", "ad_group"]]
+
+
+def test_slicing_multi_column_gaarf_report_returns_slice(single_column_report):
+    new_report = single_column_report[0:2]
+    assert new_report == [1, 2]
+
+
+def test_slicing_multi_column_gaarf_report_returns_element(
+        single_column_report):
+    new_report = single_column_report[0]
+    assert new_report == [1]
