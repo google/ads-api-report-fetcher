@@ -91,6 +91,11 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     description: "Same as customer-ids-query but a file path to a query script",
 })
     .conflicts("customer-ids-query", "customer-ids-query-file")
+    .option("disable-account-expansion", {
+    alias: ["disable_account_expansion"],
+    type: "boolean",
+    descriptions: "Disable MCC account expansion",
+})
     .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
     alias: "o",
@@ -304,19 +309,26 @@ async function main() {
         customer_ids_query =
             await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
     }
-    logger.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
-    let customers = await client.getCustomerIds();
-    logger.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
-    logger.verbose(customers);
-    if (customer_ids_query) {
-        logger.verbose(`Fetching customer ids with custom query`);
-        logger.debug(customer_ids_query);
-        try {
-            customers = await executor.getCustomerIds(customers, customer_ids_query);
-        }
-        catch (e) {
-            logger.error(`Fetching customer ids using customer_ids_query failed: ` + e);
-            process.exit(-1);
+    let customers;
+    if (argv.disable_account_expansion) {
+        logger.info("Skipping account expansion because of disable_account_expansion flag");
+        customers = [client.root_cid];
+    }
+    else {
+        logger.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
+        customers = await client.getCustomerIds();
+        logger.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
+        logger.verbose(customers);
+        if (customer_ids_query) {
+            logger.verbose(`Fetching customer ids with custom query`);
+            logger.debug(customer_ids_query);
+            try {
+                customers = await executor.getCustomerIds(customers, customer_ids_query);
+            }
+            catch (e) {
+                logger.error(`Fetching customer ids using customer_ids_query failed: ` + e);
+                process.exit(-1);
+            }
         }
     }
     if (customers.length === 0) {
