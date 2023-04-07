@@ -17,6 +17,8 @@ from enum import Enum, auto
 import itertools
 from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 import logging
+from google.api_core import exceptions
+from tenacity import Retrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from . import parsers
 from . import api_clients
@@ -124,9 +126,19 @@ class AdsReportFetcher:
         total_results: List[List[Tuple[Any]]] = []
         logger.debug("Getting response for query %s for customer_id %s",
                      query_specification.query_title, customer_id)
-        response = self.api_client.get_response(
-            entity_id=str(customer_id),
-            query_text=query_specification.query_text)
+        try:
+            for attempt in Retrying(retry=retry_if_exception_type(
+                    exceptions.InternalServerError),
+                                    stop=stop_after_attempt(3),
+                                    wait=wait_exponential()):
+                with attempt:
+                    response = self.api_client.get_response(
+                        entity_id=str(customer_id),
+                        query_text=query_specification.query_text)
+        except RetryError as retry_failure:
+            logger.error("Cannot fetch data from API for query '%s' %d times",
+                         query_specification.query_title,
+                         retry_failure.last_attempt.attempt_number)
         if optimize_strategy in (OptimizeStrategy.BATCH,
                                  OptimizeStrategy.BATCH_PROTOBUF):
             logger.warning("Running gaarf in an optimized mode")
