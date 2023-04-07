@@ -102,7 +102,8 @@ def main():
     if main_args.dry_run:
         exit()
 
-    config = initialize_runtime_parameters(config)
+    if config.params:
+        config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
 
     ads_client = api_clients.GoogleAdsApiClient(

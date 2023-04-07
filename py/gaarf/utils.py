@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.import proto
 
-from typing import Sequence
+from typing import Sequence, Union
+from collections.abc import MutableSequence
 
 from .api_clients import GoogleAdsApiClient
 from .query_editor import QuerySpecification
@@ -20,7 +21,7 @@ from .query_executor import AdsReportFetcher
 
 
 def get_customer_ids(ads_client: GoogleAdsApiClient,
-                     customer_id: str,
+                     customer_id: Union[str, MutableSequence[str]],
                      customer_ids_query: str = None) -> Sequence[str]:
     """Gets list of customer_ids from an MCC account.
 
@@ -37,14 +38,15 @@ def get_customer_ids(ads_client: GoogleAdsApiClient,
     WHERE customer_client.manager = FALSE AND customer_client.status = "ENABLED"
     """
     query_specification = QuerySpecification(query).generate()
+    if not isinstance(customer_id, MutableSequence):
+        customer_id = customer_id.split(",")
     report_fetcher = AdsReportFetcher(ads_client, customer_id)
     customer_ids = report_fetcher.fetch(query_specification).to_list()
     if customer_ids_query:
         report_fetcher = AdsReportFetcher(ads_client, customer_ids)
         query_specification = QuerySpecification(customer_ids_query).generate()
         customer_ids = report_fetcher.fetch(query_specification).to_list()
-    customer_ids = list(set([
-        customer_id for customer_id in customer_ids if customer_id != 0
-    ]))
+    customer_ids = list(
+        set([customer_id for customer_id in customer_ids if customer_id != 0]))
 
     return customer_ids

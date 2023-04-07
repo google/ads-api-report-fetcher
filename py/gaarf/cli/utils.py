@@ -13,7 +13,8 @@
 # limitations under the License.
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
-import dataclasses
+from collections.abc import MutableSequence
+from dataclasses import dataclass, field, asdict
 import os
 import datetime
 from smart_open import open
@@ -25,22 +26,22 @@ import traceback
 from gaarf.io.writer import ZeroRowException
 
 
-@dataclasses.dataclass
+@dataclass
 class GaarfConfig:
     output: str
     api_version: str
     account: str
-    params: Dict[str, Any]
-    writer_params: Dict[str, Any]
-    customer_ids_query: str
-    customer_ids_query_file: str
+    params: Dict[str, Any] = field(default_factory=dict)
+    writer_params: Dict[str, Any] = field(default_factory=dict)
+    customer_ids_query: Optional[str] = None
+    customer_ids_query_file: Optional[str] = None
 
 
-@dataclasses.dataclass
+@dataclass
 class GaarfBqConfig:
     project: str
     dataset_location: Optional[str]
-    params: Dict[str, Any]
+    params: Dict[str, Any] = field(default_factory=dict)
 
 
 class BaseConfigBuilder:
@@ -222,9 +223,11 @@ class ConfigSaver:
 
     def prepare_config(self, config: Dict[Any, Any],
                        gaarf_config: Union[GaarfConfig, GaarfBqConfig]):
-        gaarf = dataclasses.asdict(gaarf_config)
+        gaarf = asdict(gaarf_config)
         if isinstance(gaarf_config, GaarfConfig):
             gaarf[gaarf_config.output] = gaarf_config.writer_params
+            if not isinstance(gaarf_config.account, MutableSequence):
+                gaarf["account"] = gaarf_config.account.split(",")
             del gaarf["writer_params"]
             if gaarf_config.writer_params:
                 del gaarf["params"][gaarf_config.output]
@@ -252,7 +255,7 @@ def _remove_empty_values(dict_object: Dict[str, Any]) -> Dict[str, Any]:
             for key, value in ((key, _remove_empty_values(value))
                                for key, value in dict_object.items()) if value
         }
-    if isinstance(dict_object, (int, str)):
+    if isinstance(dict_object, (int, str, MutableSequence)):
         return dict_object
 
 

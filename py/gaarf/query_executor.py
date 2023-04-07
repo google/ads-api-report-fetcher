@@ -43,7 +43,7 @@ class AdsReportFetcher:
     """
 
     def __init__(self, api_client: api_clients.BaseClient,
-                 customer_ids: Union[List[str], str]) -> None:
+                 customer_ids: Union[Sequence[str], str]) -> None:
 
         self.api_client = api_client
         self.customer_ids = [

@@ -120,6 +120,22 @@ def config_saver(config_args):
     return utils.ConfigSaver("/tmp/config.yaml")
 
 
+def test_gaarf_config_saver_gaarf_transforms_comma_separated_account_into_list(
+        config_saver):
+    gaarf_config = utils.GaarfConfig(output="console",
+                                     api_version="10",
+                                     account="1,2,3")
+
+    config = config_saver.prepare_config({}, gaarf_config)
+    assert config == {
+        "gaarf": {
+            "account": ["1", "2", "3"],
+            "output": "console",
+            "api_version": "10",
+        }
+    }
+
+
 def test_gaarf_config_saver_gaarf_dont_save_empty_values(config_saver):
     gaarf_config = utils.GaarfConfig(output="console",
                                      api_version="10",
@@ -132,7 +148,7 @@ def test_gaarf_config_saver_gaarf_dont_save_empty_values(config_saver):
     config = config_saver.prepare_config({}, gaarf_config)
     assert config == {
         "gaarf": {
-            "account": "1",
+            "account": ["1"],
             "output": "console",
             "api_version": "10",
         }
@@ -153,7 +169,7 @@ def test_gaarf_config_saver_gaarf_dont_save_inner_empty_values(config_saver):
     config = config_saver.prepare_config({}, gaarf_config)
     assert config == {
         "gaarf": {
-            "account": "1",
+            "account": ["1"],
             "output": "console",
             "api_version": "10",
             "params": {
@@ -177,7 +193,7 @@ def test_config_saver_gaarf_save_customer_ids_query_values(config_saver):
     config = config_saver.prepare_config({}, gaarf_config)
     assert config == {
         "gaarf": {
-            "account": "1",
+            "account": ["1"],
             "output": "console",
             "api_version": "10",
             "customer_ids_query": "SELECT",
