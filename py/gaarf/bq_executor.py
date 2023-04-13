@@ -41,9 +41,14 @@ class BigQueryExecutor:
         logger.debug("Original query text:\n%s", query_text)
         if params:
             if (templates := params.get("template")):
-                query_text = expand_jinja(query_text, **templates)
-                logger.debug("Query text after jinja expansion:\n%s",
-                             query_text)
+                query_templates = {
+                    name: value
+                    for name, value in templates.items() if name in query_text
+                }
+                if query_templates:
+                    query_text = expand_jinja(query_text, **query_templates)
+                    logger.debug("Query text after jinja expansion:\n%s",
+                                 query_text)
             if (macros := params.get("macro")):
                 query_text = query_text.format(**macros)
                 logger.debug("Query text after macro substitution:\n%s",
