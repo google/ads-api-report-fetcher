@@ -113,7 +113,7 @@ export function createCloudLogger() {
 
 export function createLogger() {
   if (process.env.K_SERVICE) {
-    // we're in Google Cloud (Run/Funcations)
+    // we're in Google Cloud (Run/Functions)
     return createCloudLogger();
   } else {
     return createConsoleLogger();

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-process.env.K_SERVICE = 'gaarf';
 
 export * from './gaarf';
 export * from './gaarf-bq';

@@ -560,7 +560,7 @@ async function initialize_googleads_config(answers: Partial<any>) {
     } else if (!fs.statSync(path_to_googleads_config).isFile()) {
       console.log(
         chalk.red(
-          'The path to google-ads.yaml you specified does not exist. You can a full or relative file path but it should include a file name'
+          'The path to google-ads.yaml you specified does not exist. You can specify a full or relative file path but it should include a file name'
         )
       );
       process.exit(-1);
