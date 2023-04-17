@@ -37,19 +37,26 @@ import { getDataset, OAUTH_SCOPES } from "./bq-common";
 const MAX_ROWS = 50000;
 
 export interface BigQueryWriterOptions {
-  tableTemplate?: string | undefined;
   datasetLocation?: string | undefined;
+  noUnionView?: boolean;
+  tableTemplate?: string | undefined;
   dumpSchema?: boolean;
   dumpData?: boolean;
   keepData?: boolean;
-  noUnionView?: boolean;
   keyFilePath?: string;
   insertMethod?: BigQueryInsertMethod;
+  arrayHandling?: BigQueryArrayHandling;
+  arraySeparator?: string | undefined;
 }
 export enum BigQueryInsertMethod {
   insertAll,
   loadTable,
 }
+export enum BigQueryArrayHandling {
+  strings = 'strings',
+  arrays = 'arrays'
+}
+
 export class BigQueryWriter implements IResultWriter {
   bigquery: BigQuery;
   datasetId: string;
@@ -69,13 +76,15 @@ export class BigQueryWriter implements IResultWriter {
   noUnionView: boolean;
   insertMethod: BigQueryInsertMethod;
   logger;
+  arrayHandling: BigQueryArrayHandling;
+  arraySeparator: string;
 
   constructor(
     projectId: string,
     dataset: string,
     options?: BigQueryWriterOptions
   ) {
-    const datasetLocation = options?.datasetLocation || 'us';
+    const datasetLocation = options?.datasetLocation || "us";
     this.bigquery = new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
@@ -90,6 +99,8 @@ export class BigQueryWriter implements IResultWriter {
     this.keepData = options?.keepData || false;
     this.noUnionView = options?.noUnionView || false;
     this.insertMethod = options?.insertMethod || BigQueryInsertMethod.loadTable;
+    this.arrayHandling = options?.arrayHandling || BigQueryArrayHandling.arrays;
+    this.arraySeparator = options?.arraySeparator || '|';
     this.customers = [];
     this.rowsByCustomer = {};
     this.rowCountsByCustomer = {};
@@ -106,7 +117,11 @@ export class BigQueryWriter implements IResultWriter {
     } else {
       this.tableId = scriptName;
     }
-    this.dataset = await getDataset(this.bigquery, this.datasetId, this.datasetLocation);
+    this.dataset = await getDataset(
+      this.bigquery,
+      this.datasetId,
+      this.datasetLocation
+    );
     this.query = query;
     let schema: bigquery.ITableSchema = this.createSchema(query);
     this.schema = schema;
@@ -201,6 +216,9 @@ export class BigQueryWriter implements IResultWriter {
             }
           }
         }
+        if (this.arrayHandling === BigQueryArrayHandling.strings) {
+          val = val.join(this.arraySeparator);
+        }
       } else if (colType.kind === FieldTypeKind.struct) {
         // we don't support structs at the moment
         if (val) {
@@ -269,9 +287,12 @@ export class BigQueryWriter implements IResultWriter {
       }
       throw e;
     }
-    this.logger.info(`${rows.length} rows inserted into '${tableFullName}' table`, {
-      customerId: customerId,
-    });
+    this.logger.info(
+      `${rows.length} rows inserted into '${tableFullName}' table`,
+      {
+        customerId: customerId,
+      }
+    );
   }
 
   async endCustomer(customerId: string): Promise<void> {
@@ -371,9 +392,12 @@ export class BigQueryWriter implements IResultWriter {
           .map((s) => "'" + s + "'")
           .join(",")})`,
       });
-      this.logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
-        scriptName: this.tableId,
-      });
+      this.logger.info(
+        `Created a union view '${this.datasetId}.${this.tableId}'`,
+        {
+          scriptName: this.tableId,
+        }
+      );
     }
     this.tableId = undefined;
     this.query = undefined;
@@ -388,7 +412,11 @@ export class BigQueryWriter implements IResultWriter {
     let schema: bigquery.ITableSchema = { fields: [] };
     for (let column of query.columns) {
       let field: bigquery.ITableFieldSchema = {
-        mode: column.type.repeated ? "REPEATED" : "NULLABLE",
+        mode:
+          column.type.repeated &&
+          this.arrayHandling === BigQueryArrayHandling.arrays
+            ? "REPEATED"
+            : "NULLABLE",
         name: column.name.replace(/\./g, "_"),
         type: this.getBigQueryFieldType(column.type),
       };
@@ -403,6 +431,7 @@ export class BigQueryWriter implements IResultWriter {
   }
 
   private getBigQueryFieldType(colType: FieldType): string | undefined {
+    if (this.arrayHandling === BigQueryArrayHandling.strings) return "STRING";
     if (_.isString(colType.type)) {
       switch (colType.type.toLowerCase()) {
         case "int32":

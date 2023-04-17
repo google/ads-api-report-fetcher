@@ -23,10 +23,12 @@ import {getLogger} from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
 
 export interface CsvWriterOptions {
-  destinationFolder?: string|undefined;
+  destinationFolder?: string | undefined;
+  arraySeparator?: string | undefined;
 }
 export class CsvWriter implements IResultWriter {
-  destination: string|undefined;
+  destination: string | undefined;
+  arraySeparator: string;
   filename: string|undefined;
   appending = false;
   customerRows = 0;
@@ -36,6 +38,7 @@ export class CsvWriter implements IResultWriter {
 
   constructor(options?: CsvWriterOptions) {
     this.destination = options?.destinationFolder;
+    this.arraySeparator = options?.arraySeparator || "|";
     this.logger = getLogger();
   }
 
@@ -81,6 +84,8 @@ export class CsvWriter implements IResultWriter {
       cast: {
         boolean: (value: boolean, context: csvStringify.CastingContext) =>
           value ? "true" : "false",
+        object: (value: object, context: csvStringify.CastingContext) =>
+          Array.isArray(value) ? value.join(this.arraySeparator) : JSON.stringify(value)
       },
     };
     let csv = stringify(rows, csvOptions);

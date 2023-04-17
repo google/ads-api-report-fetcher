@@ -29,6 +29,7 @@ class CsvWriter {
         this.customerRows = 0;
         this.rowsByCustomer = {};
         this.destination = options === null || options === void 0 ? void 0 : options.destinationFolder;
+        this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || "|";
         this.logger = (0, logger_1.getLogger)();
     }
     beginScript(scriptName, query) {
@@ -68,6 +69,7 @@ class CsvWriter {
             columns: this.query.columns.map(col => col.name),
             cast: {
                 boolean: (value, context) => value ? "true" : "false",
+                object: (value, context) => Array.isArray(value) ? value.join(this.arraySeparator) : JSON.stringify(value)
             },
         };
         let csv = (0, sync_1.stringify)(rows, csvOptions);

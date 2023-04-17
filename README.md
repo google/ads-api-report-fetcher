@@ -98,6 +98,7 @@ Options:
 
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
+* `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
 
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
@@ -106,6 +107,8 @@ Options specific for BigQuery writer:
 * `bq.table-template`  - template for tables names, `{script}` references script base name, plus you can use [expressions](#expressions-and-macros) (*NodeJS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
 * `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
+* `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2") (*NodeJS version only*)
+* `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
 
 Options specific for Console writer (*NodeJS version only*):
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:

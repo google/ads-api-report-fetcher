@@ -128,6 +128,10 @@ const argv = yargs(hideBin(process.argv))
     alias: "csv.destination",
     description: "output folder for generated CSV files",
   })
+  .option("csv.array-separator", {
+    type: "string",
+    description: "arrays separator symbol",
+  })
   .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
@@ -174,6 +178,15 @@ const argv = yargs(hideBin(process.argv))
     type: "string",
     choices: ["insert-all", "load-table"],
     hidden: true,
+  })
+  .option("bq.array-handling", {
+    type: "string",
+    choices: ["arrays", "strings"],
+    description: "arrays handling (as arrays or as strings)",
+  })
+  .option("bq.array-separator", {
+    type: "string",
+    description: "arrays separator symbol (for array-handling=strings)",
   })
   .option("skip-constants", {
     type: "boolean",
@@ -266,6 +279,8 @@ function getWriter(): IResultWriter {
     opts.noUnionView = bq_opts['no-union-view'];
     opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
       ? BigQueryInsertMethod.insertAll : BigQueryInsertMethod.loadTable;
+    opts.arrayHandling = bq_opts['array-handling'];
+    opts.arraySeparator = bq_opts['array-separator'];
     logger.debug('BigQueryWriterOptions:');
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
