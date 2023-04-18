@@ -127,7 +127,8 @@ class GaarfBqConfigBuilder(BaseConfigBuilder):
 
 class ParamsParser:
 
-    common_params = {"date_iso": datetime.date.today().strftime("%Y%m%d")}
+    common_params = {"date_iso": datetime.date.today().strftime("%Y%m%d"),
+                     "yesterday_iso": (datetime.date.today() - relativedelta(days=1)).strftime("%Y%m%d")}
 
     def __init__(self, identifiers: Sequence[str]):
         self.identifiers = identifiers
