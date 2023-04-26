@@ -70,6 +70,8 @@ async function main_unsafe(
   const macroParams = body.macro;
   const bq_writer_options: BigQueryWriterOptions = {
     datasetLocation: <string>req.query.bq_dataset_location,
+    arrayHandling: body.bq_writer_options?.array_handling,
+    arraySeparator: body.bq_writer_options?.array_separator,
   };
 
   const {queryText, scriptName} = await getScript(req, logger);
@@ -127,7 +129,6 @@ export const main: HttpFunction = async (
   res: express.Response
 ) => {
   const projectId = await getProject();
-  console.log(`Project: ${projectId}`);
   const logger = createLogger(req, projectId, process.env.K_SERVICE || 'gaarf');
   await logger.info('request', {body: req.body, query: req.query});
 

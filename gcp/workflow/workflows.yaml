@@ -9,7 +9,7 @@ main:
         - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
         - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
-        - competion_topic: ${default(map.get(args, "competion_topic"), "gaarf_wf_completed")}
+        - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -29,6 +29,7 @@ main:
           bq_dataset: ${args.dataset}
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
+          bq_writer_options: ${map.get(args, "bq_writer_options")}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -47,14 +48,14 @@ main:
     - publish_completion_message:
         call: googleapis.pubsub.v1.projects.topics.publish
         args:
-          topic: ${"projects/" + project + "/topics/" + competion_topic}
+          topic: ${"projects/" + project + "/topics/" + completion_topic}
           body:
             messages:
               - data: ${base64Msg}
         result: publishResult
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros, bq_writer_options]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf' function's URL
@@ -113,8 +114,9 @@ runAdsQueries:
         call: sys.log
         args:
           json:
+            text: "accounts to process"
             count: ${len(accounts)}
-            account: ${accounts}
+            accounts: ${accounts}
           severity: "INFO"
     # fetch script from GCS
     - get_ads_scripts_from_gcs:
@@ -155,6 +157,7 @@ runAdsQueries:
                     bq_dataset: ${bq_dataset}
                     bq_dataset_location: ${bq_dataset_location}
                     ads_config_path: ${ads_config_path}
+                    bq_writer_options: ${bq_writer_options}
                     is_constant: true
                   next: continue # continue loop over queries
               # parallel nested loop over accounts
@@ -176,6 +179,7 @@ runAdsQueries:
                               bq_dataset: ${bq_dataset}
                               bq_dataset_location: ${bq_dataset_location}
                               ads_config_path: ${ads_config_path}
+                              bq_writer_options: ${bq_writer_options}
               # create a view in BQ to combine all account tables into a single view
               - call_create_view_cf:
                   call: http.post
@@ -260,7 +264,7 @@ runBigQueryQueries:
                   severity: "INFO"
 
 executeAdsQuery:
-  params: [cf_uri, script_path, account, macros, project, bq_dataset, bq_dataset_location, ads_config_path, is_constant: false]
+  params: [cf_uri, script_path, account, macros, project, bq_dataset, bq_dataset_location, ads_config_path, bq_writer_options, is_constant: false]
   steps:
     - init_vars:
         assign:
@@ -281,6 +285,7 @@ executeAdsQuery:
               single_customer: true # it's important to prevent fetching child accounts for the supplied cid
             body:
               macro: ${macros}
+              bq_writer_options: ${bq_writer_options}
             auth:
               type: OIDC
           result: script_results
@@ -314,7 +319,7 @@ custom_retry_predicate:
     - what_to_repeat:
         switch:
           # NOTE: sometime errors happen inside Workflow and there's no any code
-          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or e.code == 500 or e.code == 429}
+          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or map.get(e, "code") == 500 or map.get(e, "code") == 429}
             return: true
     - otherwise:
         return: false

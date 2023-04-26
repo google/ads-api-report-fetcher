@@ -20,42 +20,25 @@ const logging_1 = require("@google-cloud/logging");
 function createLogger(req, projectId, component) {
     const logging = new logging_1.Logging({ projectId: projectId });
     const log = logging.log('gaarf');
-    const log_method = cloud_log.bind(null, log, req, projectId);
+    const log_method = cloud_log.bind(null, log, req, projectId, component);
     const logger = {
         info: async (message, aux) => {
-            return log_method('INFO', message, component, aux);
+            return log_method('INFO', message, aux);
         },
         warn: async (message, aux) => {
-            return log_method('WARN', message, component, aux);
+            return log_method('WARN', message, aux);
         },
         error: async (message, aux) => {
-            return log_method('ERROR', message, component, aux);
+            return log_method('ERROR', message, aux);
         },
     };
+    // NOTE: here we're setting some environment variables for winston logger in gaarf library
     process.env.LOG_COMPONENT = component;
     process.env.GCP_PROJECT = projectId;
-    // const loggingWinston = new LoggingWinston({
-    //   projectId: projectId,
-    //   resource: {
-    //     labels: {
-    //       function_name: component,
-    //     },
-    //     type: 'cloud_function',
-    //   },
-    //   labels: {
-    //     component: component,
-    //   },
-    //   redirectToStdout: true,
-    // });
-    // TODO: integrate with the logger from Gaarf
-    //const transports = [loggingWinston];
-    //let logger2 = gaarf_createLogger(transports);
-    //gaarf_logger.transports.splice(0, gaarf_logger.transports.length);
-    //gaarf_logger.transports.push(loggingWinston);
     return logger;
 }
 exports.createLogger = createLogger;
-async function cloud_log(log, req, project, severity, message, component, aux) {
+async function cloud_log(log, req, project, component, severity, message, aux) {
     const metadata = {
         severity: severity,
         labels: {
@@ -74,13 +57,6 @@ async function cloud_log(log, req, project, severity, message, component, aux) {
         const [trace] = traceHeader.split('/');
         metadata.trace = `projects/${project}/traces/${trace}`;
         process.env.TRACE_ID = metadata.trace;
-    }
-    else {
-        const trace = 2;
-        metadata.trace = `projects/${project}/traces/${trace}`;
-        process.env.TRACE_ID = metadata.trace;
-        // logging.googleapis.com/trace
-        // LOGGING_TRACE_KEY
     }
     const entry = log.entry(metadata, aux ? Object.assign(aux || {}, { text: message }) : message);
     await log.write(entry);

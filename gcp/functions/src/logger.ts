@@ -31,16 +31,16 @@ export function createLogger(
 ): ILogger {
   const logging = new Logging({projectId: projectId});
   const log = logging.log('gaarf');
-  const log_method = cloud_log.bind(null, log, req, projectId);
+  const log_method = cloud_log.bind(null, log, req, projectId, component);
   const logger = {
     info: async (message: string, aux?: any) => {
-      return log_method('INFO', message, component, aux);
+      return log_method('INFO', message, aux);
     },
     warn: async (message: string, aux?: any) => {
-      return log_method('WARN', message, component, aux);
+      return log_method('WARN', message, aux);
     },
     error: async (message: string, aux?: any) => {
-      return log_method('ERROR', message, component, aux);
+      return log_method('ERROR', message, aux);
     },
   };
   // NOTE: here we're setting some environment variables for winston logger in gaarf library
@@ -53,9 +53,9 @@ async function cloud_log(
   log: Log,
   req: express.Request,
   project: string,
+  component: string,
   severity: string,
   message: string,
-  component: string,
   aux?: any
 ) {
   const metadata: LogEntry = {

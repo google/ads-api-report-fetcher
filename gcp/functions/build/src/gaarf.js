@@ -30,6 +30,7 @@ const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher")
 const utils_1 = require("./utils");
 const logger_1 = require("./logger");
 async function main_unsafe(req, res, projectId, logger) {
+    var _a, _b;
     // prepare Ads API parameters
     const adsConfig = await (0, utils_1.getAdsConfig)(req);
     const { refresh_token, ...ads_config_wo_token } = adsConfig;
@@ -50,6 +51,8 @@ async function main_unsafe(req, res, projectId, logger) {
     const macroParams = body.macro;
     const bq_writer_options = {
         datasetLocation: req.query.bq_dataset_location,
+        arrayHandling: (_a = body.bq_writer_options) === null || _a === void 0 ? void 0 : _a.array_handling,
+        arraySeparator: (_b = body.bq_writer_options) === null || _b === void 0 ? void 0 : _b.array_separator,
     };
     const { queryText, scriptName } = await (0, utils_1.getScript)(req, logger);
     let customers;
