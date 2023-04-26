@@ -1,4 +1,11 @@
 # Changelog
+## 1.14 - 2023-04-26
+* support Google Ads API v13 (updated google-ads-api to v13)
+
+## 1.13 - 2023-04-17
+* bq-writer: added `array-handling`, `array-separator` options - array can be represented either as arrays (default) or string (as in Python version) 
+* csv-writer: added `array-separator` option + similar object to bq-writer for array representation (previously JSON.stringify used)
+
 ## 1.12 - 2023-03-31
 * Added `disable-account-expansion` flag to disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level)
 * (released as 1.11.9) enhanced logging support for running in Google Cloud (while running as part Gaarf Workflow all log entries have trace id from the root request)
@@ -16,7 +23,7 @@
 * ConsoleWriter: added `destination` alias for `destination-folder` argument
 
 ## 1.10 - 2022-12-14
-* support API v12 (updated google-ads-api to v12)
+* support Google Ads API v12 (updated google-ads-api to v12)
 
 ## 1.9.0 - 2022-11-21
 * AdsQueryExecutor: introduced `getCustomerIds` method to fetch customer ids with a custom query to additionally filter cids extracted from a root MCC
@@ -33,7 +40,7 @@
 * Fix: @types-packages moved from devDependencies to dependencies to fix ts compilation in projects using gaarf-js as a ts-library
 
 ## 1.7.2 - 2022-09-13
-* support Ads API v11.1
+* support Google Ads API v11.1 (updated google-ads-api to v11)
 
 ## 1.7.1 - 2022-09-09
 * Fix: fixed running in Cloud Function environment

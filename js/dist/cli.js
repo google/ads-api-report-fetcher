@@ -194,8 +194,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     "bq.no-union-view",
     "bq.dump-data",
     "bq.insert-method",
+    "bq.array-handling",
+    "bq.array-separator",
 ], "BigQuery writer options:")
-    .group("csv.destination-folder", "CSV writer options:")
+    .group(["csv.destination-folder", "csv.array-separator"], "CSV writer options:")
     .group(["console.transpose", "console.page_size"], "Console writer options:")
     .env("GAARF")
     .config(configObj)

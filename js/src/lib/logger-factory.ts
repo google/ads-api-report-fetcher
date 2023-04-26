@@ -81,7 +81,7 @@ export function createCloudLogger() {
   const cloudLogger = winston.createLogger({
     level: LOG_LEVEL,
     format: format.combine(
-      //format.errors({ stack: true }),
+      format.errors({ stack: true }),
       format((info) => {
         info.trace = process.env.TRACE_ID;
         info[LOGGING_TRACE_KEY] = process.env.TRACE_ID;
@@ -104,7 +104,7 @@ export function createCloudLogger() {
           type: "cloud_function",
         },
         useMessageField: false,
-        redirectToStdout: false,
+        redirectToStdout: true,
       }),
     ],
   });
