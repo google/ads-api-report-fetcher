@@ -45,7 +45,9 @@ def get_customer_ids(ads_client: GoogleAdsApiClient,
     if customer_ids_query:
         report_fetcher = AdsReportFetcher(ads_client, customer_ids)
         query_specification = QuerySpecification(customer_ids_query).generate()
-        customer_ids = report_fetcher.fetch(query_specification).to_list()
+        customer_ids = report_fetcher.fetch(query_specification)
+        customer_ids = [row.customer_id for row in customer_ids]
+
     customer_ids = list(
         set([customer_id for customer_id in customer_ids if customer_id != 0]))
 
