@@ -454,11 +454,11 @@ async function initialize_googleads_config(answers) {
         if (!fs.existsSync(path_to_googleads_config)) {
             console.log(chalk.yellow('Currently the file ') +
                 chalk.cyan(path_to_googleads_config) +
-                chalk.yellow("does not exist, please note that you need to upload it before you can actually deploy and run, after that you'll need to run ") +
+                chalk.yellow(" does not exist, please note that you need to upload it before you can actually deploy and run, after that you'll need to run ") +
                 chalk.cyan('deploy-scripts.sh'));
         }
         else if (!fs.statSync(path_to_googleads_config).isFile()) {
-            console.log(chalk.red('The path to google-ads.yaml you specified does not exist. You can a full or relative file path but it should include a file name'));
+            console.log(chalk.red('The path to google-ads.yaml you specified does not exist. You can specify a full or relative file path but it should include a file name'));
             process.exit(-1);
         }
     }
@@ -708,9 +708,8 @@ cd ../workflow
     const has_ads_queries = !!fs.readdirSync(path_to_ads_queries).length;
     const has_bq_queries = !!fs.readdirSync(path_to_bq_queries).length;
     const has_adsconfig = fs.existsSync(path_to_googleads_config);
-    const ready_to_deploy_scripts = !!gcp_project_id && has_ads_queries && has_bq_queries && has_adsconfig;
-    if (!has_ads_queries || !has_bq_queries) {
-        console.log(chalk.red(`Please place your ads/bq scripts into '${path_to_ads_queries}' and '${path_to_ads_queries}' folders accordinally`));
+    if (!has_ads_queries) {
+        console.log(chalk.red(`Please place your ads scripts into '${path_to_ads_queries}' folder`));
     }
     if (!has_adsconfig) {
         console.log(chalk.red(`Please put your Ads API config into '${path_to_googleads_config}' file`));
@@ -773,22 +772,20 @@ cd ../workflow
 --data='${JSON.stringify(wf_data, null, 2)}'
 `);
     // now execute some scripts
-    if (ready_to_deploy_scripts) {
-        if ((await prompt({
-            type: 'confirm',
-            name: 'deploy_scripts',
-            message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
-            default: true,
-        }, answers)).deploy_scripts) {
-            // deploying query and ads config to GCS
-            await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
-                realtime: true,
-            });
-            progress.scripts_deployed = true;
-        }
-        else {
-            console.log(chalk.yellow("Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"));
-        }
+    // deploying queries and ads config to GCS
+    if ((await prompt({
+        type: 'confirm',
+        name: 'deploy_scripts',
+        message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+        default: true,
+    }, answers)).deploy_scripts) {
+        await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+            realtime: true,
+        });
+        progress.scripts_deployed = true;
+    }
+    else {
+        console.log(chalk.yellow("Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"));
     }
     if ((await prompt({
         type: 'confirm',
