@@ -130,11 +130,18 @@ def test_slicing_multi_column_gaarf_report_returns_gaarf_report(
         results=[[1, 2], [2, 3]], column_names=["campaign_id", "ad_group_id"])
 
 
-def test_indexing_multi_column_gaarf_report_by_index_returns_gaarf_report(
+def test_indexing_multi_column_gaarf_report_by_single_index_returns_gaarf_row(
         multi_column_report):
     new_report = multi_column_report[0]
+    assert new_report == GaarfRow(data=[1, 2],
+                                  column_names=["campaign_id", "ad_group_id"])
+
+
+def test_indexing_multi_column_gaarf_report_by_multi_index_returns_gaarf_report(
+        multi_column_report):
+    new_report = multi_column_report[0:2]
     assert new_report == GaarfReport(
-        results=[[1, 2]], column_names=["campaign_id", "ad_group_id"])
+        results=[[1, 2], [2, 3]], column_names=["campaign_id", "ad_group_id"])
 
 
 def test_indexing_multi_column_gaarf_report_by_one_column_returns_gaarf_report(
