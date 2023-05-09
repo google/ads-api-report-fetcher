@@ -28,7 +28,7 @@ from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameter
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("query", nargs="+")
+    parser.add_argument("query", nargs="*")
     parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
     parser.add_argument("--account", dest="customer_id", default=None)
     parser.add_argument("--output", dest="save", default="console")
@@ -66,12 +66,19 @@ def main():
     parser.add_argument("--disable-account-expansion",
                         dest="disable_account_expansion",
                         action="store_true")
+    parser.add_argument("-v", "--version", dest="version", action="store_true")
     parser.set_defaults(save_config=False)
     parser.set_defaults(parallel_queries=True)
     parser.set_defaults(dry_run=False)
     parser.set_defaults(disable_account_expansion=False)
     args = parser.parse_known_args()
     main_args = args[0]
+
+    if main_args.version:
+        import pkg_resources
+        version = pkg_resources.require("google-ads-api-report-fetcher")[0].version
+        print(f"gaarf version {version}")
+        exit()
 
     logging.basicConfig(format="%(message)s",
                         level=main_args.loglevel.upper(),
@@ -81,6 +88,10 @@ def main():
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)
+
+    if not main_args.query:
+        logger.error("Please provide one or more queries to run")
+        exit()
 
     with open(main_args.config, "r", encoding="utf-8") as f:
         google_ads_config_dict = yaml.safe_load(f)

@@ -83,7 +83,7 @@ class GaarfReport:
         if self.multi_column_report:
             if isinstance(key, slice):
                 return cls(self.results[key], self.column_names)
-            return cls([self.results[key]], self.column_names)
+            return GaarfRow(self.results[key], self.column_names)
         if isinstance(key, slice):
             return [element[0] for element in self.results[key]]
         index = operator.index(key)
@@ -93,7 +93,7 @@ class GaarfReport:
         if not isinstance(other, self.__class__):
             return False
         if self.column_names != other.column_names:
-            return false
+            return False
         return self.results == other.results
 
     def __add__(self, other):
@@ -130,6 +130,13 @@ class GaarfRow:
 
     def get(self, item: str) -> Any:
         return self.__getattr__(item)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        if self.column_names != other.column_names:
+            return False
+        return self.data == other.data
 
     def __repr__(self):
         dict_data = {x[1]: x[0] for x in zip(self.data, self.column_names)}

@@ -84,7 +84,7 @@ Options:
 * `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
-* `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **only customer.id** in SELECT statement with all the filtering logic going to WHERE statement.
+* `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **customer.id** as the first column in SELECT statement with all the filtering logic going to WHERE statement.
   `account` argument must be a MCC account id in this case.
 
   >Example usage: `gaarf <queries> --account=123456 --customer-ids-query='SELECT customer.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"'`
