@@ -18,6 +18,7 @@ from collections.abc import MutableSequence
 from .api_clients import GoogleAdsApiClient
 from .query_editor import QuerySpecification
 from .query_executor import AdsReportFetcher
+from .report import GaarfRow
 
 
 def get_customer_ids(ads_client: GoogleAdsApiClient,
@@ -47,7 +48,7 @@ def get_customer_ids(ads_client: GoogleAdsApiClient,
         query_specification = QuerySpecification(customer_ids_query).generate()
         customer_ids = report_fetcher.fetch(query_specification)
         customer_ids = [
-            row[0] if isinstance(row, MutableSequence) else row
+            row[0] if isinstance(row, GaarfRow) else row
             for row in customer_ids
         ]
 

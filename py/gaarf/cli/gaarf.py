@@ -13,6 +13,7 @@
 
 from typing import Any, Dict
 
+from collections.abc import MutableSequence
 from concurrent import futures
 import argparse
 from pathlib import Path
@@ -76,7 +77,8 @@ def main():
 
     if main_args.version:
         import pkg_resources
-        version = pkg_resources.require("google-ads-api-report-fetcher")[0].version
+        version = pkg_resources.require(
+            "google-ads-api-report-fetcher")[0].version
         print(f"gaarf version {version}")
         exit()
 
@@ -134,7 +136,8 @@ def main():
         logger.info(
             "Skipping account expansion because of disable_account_expansion flag"
         )
-        customer_ids = [config.account]
+        customer_ids = config.account if isinstance(
+            config.account, MutableSequence) else [config.account]
     else:
         customer_ids = utils.get_customer_ids(ads_client, config.account,
                                               customer_ids_query)
