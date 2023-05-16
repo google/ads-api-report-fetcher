@@ -251,12 +251,12 @@ faker==16.6.1 \
     --hash=sha256:2375d0bbaf405dc4f1cbc771485a78ad952c776798e5c228eef3e7b337f78868 \
     --hash=sha256:b76e5d2405470e3d38d37d1bfaa9d9bbf171bdf41c814f5bbd8117b121f6bccb
     # via google-ads-api-report-fetcher
-google-ads==19.0.0 \
-    --hash=sha256:7a58d9f0a6c42acdc8a1388f6e74fd4ecd1b51da758d8a4210bfe3e8a32421fa \
-    --hash=sha256:cf4ff08714d5466d1cb407448faf8ed63067b613d138b2294a31db798fd9a071
+google-ads==21.1.0 \
+    --hash=sha256:5c6bf7541d286cc33c1f6f0d7262d20789360c224edc3b754453488fbc5e9495 \
+    --hash=sha256:f48cfad609de2189403cf43c100bc2e0d8f5549f13b033982587830aee83eb84
     # via google-ads-api-report-fetcher
-google-ads-api-report-fetcher[full]==1.2.0 \
-    --hash=sha256:b63a58cddfeac96bcd3383daed4b32b6c4d0f69d16baa049c2f2179a6fc52d0c
+google-ads-api-report-fetcher[full]==1.4.0 \
+    --hash=sha256:da974b7f347713b3b572ac409ab25d50bfb8ed7ba3d3104c5c8ad1f4735063d1
     # via -r requirements.in
 google-api-core[grpc]==2.10.1 \
     --hash=sha256:92d17123cfe399b5ef7e026c63babf978d8475e1ac877919eb7933e25dea2273 \
@@ -872,6 +872,10 @@ sqlalchemy==2.0.1 \
     --hash=sha256:eff376cc201363634b5b60a828b3998b088a71e16f7a43da26fc0e2201e25a05 \
     --hash=sha256:f44c37e03cb941dd0db371a9f391cfb586c9966f436bf18b5492ee26f5ac6a5b \
     --hash=sha256:f707729cc35dbd1d672b11037f5464b8a42c1e89772d7fc60648da215fa72fc6
+    # via google-ads-api-report-fetcher
+tenacity==8.2.2 \
+    --hash=sha256:2f277afb21b851637e8f52e6a613ff08734c347dc19ade928e519d7d2d8569b0 \
+    --hash=sha256:43af037822bd0029025877f3b2d97cc4d7bb0c2991000a3d59d71517c5c969e0
     # via google-ads-api-report-fetcher
 typing-extensions==4.4.0 \
     --hash=sha256:1511434bb92bf8dd198c12b1cc812e800d4181cfcb867674e0f8279cc93087aa \
