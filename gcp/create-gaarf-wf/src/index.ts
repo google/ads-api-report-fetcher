@@ -639,12 +639,36 @@ refresh_token: ${refresh_token}
   return path_to_googleads_config;
 }
 
-async function init() {
+function get_answers(): Partial<any> {
   let answers: Partial<any> = {};
   if (argv.answers) {
-    answers = JSON.parse(fs.readFileSync(argv.answers, 'utf-8')) || {};
+    // users can mistakenly supply `--answers.json` (instead of `answers=answers.json`), in that case argv.answers
+    if (typeof argv.answers !== 'string') {
+      console.log(
+        chalk.red(
+          'Argument answers does not seem to have a correct value (a file name): ' +
+            JSON.stringify(argv.answers)
+        )
+      );
+      process.exit(-1);
+    }
+    let answersContent;
+    try {
+      answersContent = fs.readFileSync(argv.answers, 'utf-8');
+    } catch (e) {
+      console.log(
+        chalk.red(`Answers file ${argv.answers} could not be found or read.`)
+      );
+      process.exit(-1);
+    }
+    answers = JSON.parse(answersContent) || {};
     console.log(`Using answers from '${argv.answers}' file`);
   }
+  return answers;
+}
+
+async function init() {
+  const answers = get_answers();
   const status_log = `Running create-gaarf-wf in ${cwd}`;
   if (is_debug) {
     fs.writeFileSync(LOG_FILE, `[${new Date()}]${status_log}`);

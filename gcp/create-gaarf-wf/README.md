@@ -5,24 +5,27 @@ An interactive generator for [Gaarf Workflow](https://github.com/google/ads-api-
 It can be called via `npm init`:
 
 ```
-npm init gaarf-wf
+npm init gaarf-wf@latest
 ```
 
 Several additional options are supported:
-* debug - more detailed output, creates a log file `.create-gaarf-wf-out.log` with std output (stdout/stderr)
-* diag - even more details output, forces streaming from all executing commands to console
-* answers - use a supplied JSON file as answers for all questions, if the file contains all answers the generation will be non-interactive (usage: `--answers=file.json`)
-* save - save all answers into a file (usage: `--save` or `--save=file.json`)
+* `debug` - more detailed output, creates a log file `.create-gaarf-wf-out.log` with std output (stdout/stderr)
+* `diag` - even more detailed output, forces streaming from all executing commands to console
+* `answers` - use a supplied JSON file as answers for all questions, if the file contains all answers the generation will be non-interactive (usage: `--answers=file.json`)
+* `save` - save all answers into a file (usage: `--save` or `--save=file.json`)
 
 To pass the options use `--` before them while calling via npm init:
 ```
-npm init gaarf-wf -- --debug
+npm init gaarf-wf@latest -- --debug
 ```
 
-It's supposed that you will be running `npm init gaarf-wf` command in a folder where you placed google-ads.yaml and Ads and BigQuery queries.
+It's assumed that you will be running `npm init gaarf-wf` command in a folder where you placed google-ads.yaml and Ads and BigQuery queries.
 
 
-> Please note that if you're running the tool in Google Cloud Shell then you need to remove npm cache manually via `rm -rf ~/.npm/`.
+> Please note that if you're running the tool in Google Cloud Shell then you might need to remove npm cache manually via `rm -rf ~/.npm/`.
+
+It's always better to run `npm init gaarf-wf@latest` not just `npm init gaarf-wf` to make sure you're using the latest version.
+If you need some specific version you can specify it as well: `npm init gaarf-wf@1.5.0`. See npm docs on [npm init](https://docs.npmjs.com/cli/v9/commands/npm-init?v=true).
 
 ## Disclaimer
 This is not an officially supported Google product.
