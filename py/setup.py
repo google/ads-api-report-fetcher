@@ -42,7 +42,9 @@ setup(
     entry_points={
         "console_scripts": [
             "gaarf=gaarf.cli.gaarf:main",
+            "gaarf-py=gaarf.cli.gaarf:main",
             "gaarf-bq=gaarf.cli.bq:main",
+            "gaarf-py-bq=gaarf.cli.bq:main",
             "gaarf-simulator=gaarf.cli.simulator:main",
         ]
     })
