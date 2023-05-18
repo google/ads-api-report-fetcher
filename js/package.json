@@ -6,7 +6,9 @@
   "types": "./src/index.ts",
   "bin": {
     "gaarf": "gaarf",
-    "gaarf-bq": "gaarf-bq"
+    "gaarf-bq": "gaarf-bq",
+    "gaarf-node": "gaarf",
+    "gaarf-node-bq": "gaarf-bq"
   },
   "type": "commonjs",
   "engines": {

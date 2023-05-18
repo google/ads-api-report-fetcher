@@ -1,9 +1,13 @@
 # Changelog
+## 1.15 - 2023-05-18
+* added support for `date_iso` macro (compatible with the Python version)
+* added global executable aliases `gaarf-node` and `gaarf-node-bq`
+
 ## 1.14 - 2023-04-26
 * support Google Ads API v13 (updated google-ads-api to v13)
 
 ## 1.13 - 2023-04-17
-* bq-writer: added `array-handling`, `array-separator` options - array can be represented either as arrays (default) or string (as in Python version) 
+* bq-writer: added `array-handling`, `array-separator` options - array can be represented either as arrays (default) or string (as in Python version)
 * csv-writer: added `array-separator` option + similar object to bq-writer for array representation (previously JSON.stringify used)
 
 ## 1.12 - 2023-03-31
