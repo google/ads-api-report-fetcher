@@ -130,7 +130,7 @@ function convert_date(name, value) {
 function substituteMacros(text, macros) {
     let unknown_params = {};
     // Support for macro's values containing special syntax for dynamic dates:
-    // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/yaer respectedly
+    // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/year respectedly
     if (macros) {
         Object.entries(macros).map(pair => {
             let value = pair[1];
@@ -141,6 +141,10 @@ function substituteMacros(text, macros) {
         });
     }
     macros = macros || {};
+    // add a magic macro for Python version compatibility
+    if (!macros['date_iso']) {
+        macros['date_iso'] = formatDateISO(new Date());
+    }
     // notes on the regexp:
     //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
     //  not precended with '$'), with that we're capturing {smth} expressions

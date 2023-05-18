@@ -87,7 +87,6 @@ async function main_unsafe(req, res, projectId, logger) {
 }
 const main = async (req, res) => {
     const projectId = await (0, utils_1.getProject)();
-    console.log(`Project: ${projectId}`);
     const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf');
     await logger.info('request', { body: req.body, query: req.query });
     try {

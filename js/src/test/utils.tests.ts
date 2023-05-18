@@ -154,4 +154,22 @@ suite('substituteMacros', () => {
     let expected = formatDateISO(date_add(new Date(), {years: -1}), '-');
     assert.deepEqual(query.text, expected);
   });
+
+  test("support date_iso", () => {
+    let res = substituteMacros("abc={date_iso}", undefined);
+    let now = new Date();
+    let month = now.getMonth() + 1;
+    let day = now.getDate();
+    let iso =
+      now.getFullYear() +
+      (month < 10 ? "0" + month.toString() : month.toString()) +
+      (day < 10 ? "0" + day : day);
+    assert.deepStrictEqual(res.text, "abc=" + iso);
+    assert.deepEqual(res.unknown_params.length, 0);
+
+    // now the same but with override for date_iso
+    res = substituteMacros("abc={date_iso}", { date_iso: '20230501' });
+    assert.deepStrictEqual(res.text, "abc=20230501");
+    assert.deepEqual(res.unknown_params.length, 0);
+  });
 });

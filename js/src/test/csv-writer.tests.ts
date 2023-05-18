@@ -65,7 +65,7 @@ suite('CsvWriter', () => {
     let client = new MockGoogleAdsApiClient(customers);
     client.setupResult({'cust_with_data': mock_result});
     const OUTPUT_DIR = '.tmp'
-    let writer = new CsvWriter({destinationFolder: OUTPUT_DIR});
+    let writer = new CsvWriter({destinationFolder: OUTPUT_DIR, arraySeparator: '|'});
     let executor = new AdsQueryExecutor(client);
 
     // act
@@ -83,6 +83,6 @@ suite('CsvWriter', () => {
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
         row.final_urls,
-        JSON.stringify(mock_result[0].ad_group_ad.ad.final_urls));
+        mock_result[0].ad_group_ad.ad.final_urls.join('|'));
   });
 })

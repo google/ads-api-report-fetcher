@@ -212,12 +212,12 @@ ATTENTION: passing macros into sql queries is vulnerable to sql-injection so be 
 ## Expressions and Macros
 > *Note*: currently expressions are supported only in NodeJS version.
 
-As noted before both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
+As noted eariler both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
 parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
 On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
 They will be executed right after macros substitution. So macros can contain expressions inside.
 Both expressions and macros deal with query text before submitting it for execution.
-Inside expression block we can do anything that support MathJS library - see https://mathjs.org/docs/index.html
+Inside expression block we can do anything that the MathJS library supports - see https://mathjs.org/docs/index.html,
 plus work with date and time. It's all sort of arithmetic operations, strings and dates manipulations.
 
 One typical use-case - evaluate date/time expressions to get dynamic date conditions in queries. These are when you don't provide
@@ -253,7 +253,7 @@ For dates and datetimes the following operations are supported:
 * add or subtract DateTime and Duration, e.g. `now()-duration('PT12H')` - subtract 12 hours from the current datetime
 * for both Date and DateTime add or subtract a number meaning it's a number of days, e.g. `today()-1`
 * subtract two Dates to get a Period, e.g. `tomorrow()-today()` - subtract today from tomorrow and get 1 day, i.e. 'P1D'
-* subtract two DateTimes to get a Duration - similar to subtracting dates but get a duration, i.e. period with time (e.g. PT10H for 10 hours)
+* subtract two DateTimes to get a Duration - similar to subtracting dates but get a duration, i.e. a period with time (e.g. PT10H for 10 hours)
 
 By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601)
 (yyyy-mm-dd for dates and yyyy-mm-ddThh:mm:ss.SSS for datetimes).
@@ -327,6 +327,11 @@ end_date will be '2022-07-28' (minus one day).
 > with dynamic date macro more flexibility if you need to provide different values (sometimes dynamic, sometimes fixed).
 
 
+If you need to get the current date value in your query you can use a special macro `date_iso` that both versions support.
+In runtime you can assume that its value is always provided with the current date in the YYYYMMDD format.
+But you can override it via arguments if needed (e.g. `--macro.date_iso=:YYYYMMDD-1`).
+
+
 ## Docker
 You can run Gaarf as a Docker container. At the moment we don't publish container images so you'll need to build it on your own.
 The repository contains sample `Dockerfile`'s for both versions ([Node](js/Dockerfile)/[Python](py/Dockerfile))
@@ -387,7 +392,6 @@ Please see the [README](gcp/README.md) there for all information.
 There are differences in which features supported for queries.
 Python-only features:
 * pre-process query files as Jinja templates
-* {date_iso} magic macro (on NodeJS it can be replaced with expression `${format(today(),'yyyyMMdd')}`
 
 NodeJS-only features:
 * expressions (${...})
@@ -403,8 +407,10 @@ Python version creates one table per script. While NodeJS creates a table per sc
 For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll be a table.
 For NodeJS it'll be a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
 
-From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator. In NodeJS version the result will be a repeated field (array).
+From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator.
+In NodeJS version the result will be a repeated field (array).
 If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
+Though in NodeJS you can tune how to process arrays. The described behavior is by default. You can change it via `bq.array-handling` argument.
 
 ### API support
 Python version supports any API version (currently available).
