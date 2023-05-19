@@ -70,10 +70,11 @@ class GaarfReport:
                     results.append(rows)
                 return cls(results, key)
             else:
-                non_existing_keys = set(key).intersection(set(self.column_names))
+                non_existing_keys = set(key).intersection(
+                    set(self.column_names))
                 if len(non_existing_keys) > 1:
-                    message =  f"Columns '{', '.join(list(non_existing_keys))}' cannot be found in the report"
-                message =  f"Column '{non_existing_keys.pop()}' cannot be found in the report"
+                    message = f"Columns '{', '.join(list(non_existing_keys))}' cannot be found in the report"
+                message = f"Column '{non_existing_keys.pop()}' cannot be found in the report"
                 raise TypeError(message)
         else:
             if key in self.column_names:
@@ -103,6 +104,11 @@ class GaarfReport:
             raise ValueError("column_names should be the same in GaarfReport")
         return GaarfReport(results=self.results + other.results,
                            column_names=self.column_names)
+
+    @classmethod
+    def from_pandas(cls, df: pd.DataFrame):
+        return cls(results=df.values.tolist(),
+                   column_names=list(df.columns.values))
 
 
 class GaarfRow:
