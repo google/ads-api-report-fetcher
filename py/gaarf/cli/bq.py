@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import sys
 import argparse
 from concurrent import futures
 import logging
@@ -41,6 +41,7 @@ def main():
                         dest="save_config_dest",
                         default="config.yaml")
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
+    parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--dry-run",
                         dest="dry_run",
                         action="store_true")
@@ -49,10 +50,17 @@ def main():
     args = parser.parse_known_args()
     main_args = args[0]
 
-    logging.basicConfig(format="%(message)s",
-                        level=main_args.loglevel.upper(),
-                        datefmt="%Y-%m-%d %H:%M:%S",
-                        handlers=[RichHandler(rich_tracebacks=True)])
+    if main_args.logger == "rich":
+        logging.basicConfig(format="%(message)s",
+                            level=main_args.loglevel.upper(),
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            handlers=[RichHandler(rich_tracebacks=True)])
+    else:
+        logging.basicConfig(
+                    format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
+                    stream=sys.stdout,
+                    level=main_args.loglevel.upper(),
+                    datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)

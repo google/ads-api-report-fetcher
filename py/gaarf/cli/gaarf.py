@@ -11,8 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
-
+import sys
 from collections.abc import MutableSequence
 from concurrent import futures
 import argparse
@@ -39,6 +38,7 @@ def main():
                         default=str(Path.home() / "google-ads.yaml"))
     parser.add_argument("--api-version", dest="api_version", default=12)
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
+    parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
                         default=None)
@@ -82,10 +82,17 @@ def main():
         print(f"gaarf version {version}")
         exit()
 
-    logging.basicConfig(format="%(message)s",
-                        level=main_args.loglevel.upper(),
-                        datefmt="%Y-%m-%d %H:%M:%S",
-                        handlers=[RichHandler(rich_tracebacks=True)])
+    if main_args.logger == "rich":
+        logging.basicConfig(format="%(message)s",
+                            level=main_args.loglevel.upper(),
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            handlers=[RichHandler(rich_tracebacks=True)])
+    else:
+        logging.basicConfig(
+                    format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
+                    stream=sys.stdout,
+                    level=main_args.loglevel.upper(),
+                    datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)

@@ -1,3 +1,4 @@
+import sys
 import argparse
 import logging
 from rich.logging import RichHandler
@@ -5,7 +6,7 @@ import yaml
 
 from gaarf.io import writer, reader  # type: ignore
 from gaarf.simulation import simulate_data, SimulatorSpecification
-from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameters
+from .utils import GaarfConfigBuilder
 
 
 def main():
@@ -21,6 +22,7 @@ def main():
     parser.add_argument("--input", dest="input", default="file")
     parser.add_argument("--api-version", dest="api_version", default=12)
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
+    parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--customer-ids-query",
                         dest="customer_ids_query",
                         default=None)
@@ -40,10 +42,17 @@ def main():
     args = parser.parse_known_args()
     main_args = args[0]
 
-    logging.basicConfig(format="%(message)s",
-                        level=main_args.loglevel.upper(),
-                        datefmt="%Y-%m-%d %H:%M:%S",
-                        handlers=[RichHandler(rich_tracebacks=True)])
+    if main_args.logger == "rich":
+        logging.basicConfig(format="%(message)s",
+                            level=main_args.loglevel.upper(),
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            handlers=[RichHandler(rich_tracebacks=True)])
+    else:
+        logging.basicConfig(
+                    format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
+                    stream=sys.stdout,
+                    level=main_args.loglevel.upper(),
+                    datefmt="%Y-%m-%d %H:%M:%S")
     logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
     logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
