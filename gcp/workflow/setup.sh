@@ -20,6 +20,7 @@
 set -e
 
 enable_api() {
+  gcloud services enable compute.googleapis.com
   gcloud services enable workflows.googleapis.com
   gcloud services enable cloudscheduler.googleapis.com
 }
