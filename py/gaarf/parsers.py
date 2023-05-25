@@ -15,7 +15,6 @@
 from collections import abc
 from typing import Any, Dict, Tuple, Sequence, Union
 from operator import attrgetter
-import datetime
 import re
 import proto  # type: ignore
 from proto.marshal.collections.repeated import (  # type: ignore
@@ -90,13 +89,18 @@ class EmptyAttributeParser(BaseParser):
 class GoogleAdsRowParser:
 
     def __init__(self, query_specification, nested_fields=None):
-        self.nested_fields = nested_fields
-        self.parser = self._init_parsers()
-        self.row_getter = attrgetter(*query_specification.fields)
         self.fields = query_specification.fields
+        self.nested_fields = nested_fields
         self.customizers = query_specification.customizers
         self.virtual_columns = query_specification.virtual_columns
         self.column_names = query_specification.column_names
+        self.parser = self._init_parsers()
+        self.row_getter = attrgetter(*query_specification.fields)
+        # Some segments are automatically converted to 0 when not present
+        # For this case we specify attribute `respect_null` which converts
+        # such attributes to None rather than 0
+        self.respect_nulls = ("segments.sk_ad_network_conversion_value"
+                              in self.fields)
 
     def _init_parsers(self):
         parser_chain = BaseParser(None)
@@ -182,10 +186,24 @@ class GoogleAdsRowParser:
 
     def _get_attributes_from_row(self, row, getter) -> Tuple[Any, ...]:
         attributes = getter(row)
+        if self.respect_nulls:
+            # Validate whether field is actually present in a protobuf message
+            value = row.segments._pb.HasField("sk_ad_network_conversion_value")
+            # If not present
+            if not value:
+                # Convert to list to perform modification
+                attributes = list(attributes)
+                # Replace 0 attributes in the row with None
+                attributes[self.fields.index(
+                    "segments.sk_ad_network_conversion_value")] = None
+                # Convert back to tuple
+                attributes = tuple(attributes)
+        else:
+            attributes = getter(row)
         return attributes if isinstance(attributes, tuple) else (attributes, )
 
     def _convert_virtual_column(self, row,
-                                   virtual_column: VirtualColumn) -> str:
+                                virtual_column: VirtualColumn) -> str:
         if virtual_column.type == "built-in":
             return virtual_column.value
         elif virtual_column.type == "expression":
@@ -208,15 +226,13 @@ class GoogleAdsRowParser:
                 return 0
             except TypeError:
                 raise VirtualColumnError(
-                    f"cannot parse virtual_column {virtual_column.value}"
-                )
+                    f"cannot parse virtual_column {virtual_column.value}")
             except Exception as e:
                 return virtual_column.value
             return result
         else:
             raise ValueError(
-                f"Unsupported virtual column type: {virtual_column_type}"
-            )
+                f"Unsupported virtual column type: {virtual_column_type}")
 
 
 class ResourceFormatter:
