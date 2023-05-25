@@ -115,12 +115,8 @@ class GaarfRow:
 
     def __init__(self, data: Sequence[Union[int, float, str]],
                  column_names: Sequence[str]):
-        self.data = data
-        try:
-            self.n_elements = len(data)
-        except TypeError:
-            self.n_elements = 1
-        self.column_names = column_names
+        super().__setattr__("data", data)
+        super().__setattr__("column_names", column_names)
 
     def __getattr__(self, element: str) -> Any:
         if element in self.column_names:
@@ -128,11 +124,21 @@ class GaarfRow:
         raise AttributeError(f"cannot find {element} element!")
 
     def __getitem__(self, element: Union[str, int]) -> Any:
-        if isinstance(element, int) and element < self.n_elements:
+        if isinstance(element, int) and element < len(self.column_names):
             return self.data[element]
         if isinstance(element, str):
             return self.__getattr__(element)
         raise IndexError(f"cannot find {element} element!")
+
+    def __setattr__(self, name: str, value: Union[str, int]) -> None:
+        self.__setitem__(name, value)
+
+    def __setitem__(self, name: str, value: Union[str, int]) -> None:
+        if name in self.column_names:
+            self.data[self.column_names.index(name)] = value
+        else:
+            self.data.append(value)
+            self.column_names.append(name)
 
     def get(self, item: str) -> Any:
         return self.__getattr__(item)

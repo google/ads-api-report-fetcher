@@ -172,3 +172,34 @@ def test_slicing_multi_column_gaarf_report_returns_element(
         single_column_report):
     new_report = single_column_report[0]
     assert new_report == [1]
+
+
+def test_set_non_existing_item_gaarf_row_get_new_column(multi_column_report):
+    row = multi_column_report[0]
+    row["campaign_id_new"] = row["campaign_id"] * 100
+    assert row == GaarfRow(
+        data=[1, 2, 100],
+        column_names=["campaign_id", "ad_group_id", "campaign_id_new"])
+
+
+def test_set_existing_item_gaarf_row_updates_column(multi_column_report):
+    row = multi_column_report[0]
+    row["campaign_id"] = row["campaign_id"] * 100
+    assert row == GaarfRow(data=[100, 2],
+                           column_names=["campaign_id", "ad_group_id"])
+
+
+def test_set_non_existing_attribute_gaarf_row_get_new_column(
+        multi_column_report):
+    row = multi_column_report[0]
+    row.campaign_id_new = row.campaign_id * 100
+    assert row == GaarfRow(
+        data=[1, 2, 100],
+        column_names=["campaign_id", "ad_group_id", "campaign_id_new"])
+
+
+def test_set_existing_attribute_gaarf_row_updates_column(multi_column_report):
+    row = multi_column_report[0]
+    row.campaign_id = row.campaign_id * 100
+    assert row == GaarfRow(data=[100, 2],
+                           column_names=["campaign_id", "ad_group_id"])
