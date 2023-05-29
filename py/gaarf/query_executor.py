@@ -90,6 +90,7 @@ class AdsReportFetcher:
                 logger.error("Cannot execute query %s for %s",
                              query_specification.query_title, customer_id)
                 logger.error(str(e))
+                raise
         if not total_results:
             row = self.api_client.google_ads_row
             results = [parser.parse_ads_row(row)]
