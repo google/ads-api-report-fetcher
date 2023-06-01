@@ -151,25 +151,32 @@ For NodeJS version any of arguments can be specified via environment variable wh
 
 ### Postprocessing
 
-Once reports have been fetched you might use `gaarf-bq` (utility that installed alongside with `gaarf`) to run queries in BigQuery based on collected data in there.
-Essentially it's a simple tool for executing BigQuery queries from files, optionally creating tables for query results.
+Once reports have been fetched you might use `gaarf-bq` or `gaarf-sql` (utilities that installed alongside with `gaarf`) to run queries in BigQuery or any other DB supposed by SqlAlchemy based on collected data in there.
+Essentially it's a simple tool for executing queries from files, optionally creating tables for query results.
 
 
 ```shell
 gaarf-bq <files> [options]
+gaarf-sql <files> [options]
 ```
 
 Options:
-* `project` - GCP project id
-* `dataset-location` - BigQuery [locations](https://cloud.google.com/bigquery/docs/locations) for newly created dataset(s)
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
+* [Python only] `template.*` -  [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) supported by Jinja
 
 The tool assumes that scripts you provide are DDL, i.e. contains statements like create table or create view.
 
 In general it's recommended to separate tables with data from Ads API and final tables/views created by your post-processing queries.
+
+**BigQuery specific options:**
+
+* `project` - GCP project id
+* `dataset-location` - BigQuery [locations](https://cloud.google.com/bigquery/docs/locations) for newly created dataset(s)
+
 So it's likely that your final tables will be in a separate dataset (or datasets). To allow the tool to create those datasets for you, make sure that macro for your datasets contains the word "dataset".
 In that case gaarf-bq will check that a dataset exists and create it if not.
+
 
 For example:
 ```
@@ -178,8 +185,31 @@ SELECT * FROM {ads_ds}.{campaign}
 ```
 In this case gaarf-bq will check for existance of a dataset specified as 'dst_dataset' macro.
 
+**SqlAlchemy specific options [Python only]:**
+* `connection-string` - specific connection to the selected DB (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
 
-There are two type of parameters that you can pass to a script: macro and sql-parameter. First one is just a substitution in script text.
+Connection string can be:
+* raw text (i.e. `sqlite:///gaarf.db`)
+* parameterized string relying on environmental variables
+(i.e. `postgresql+psycopg2://{GAARF_USER}:{GAARF_PASSWORD}@{GAARF_DB_HOST}:{GAARF_DB_PORT}/{GAARF_DB_NAME}`).
+
+If the connection string relies on parameters, please export them:
+
+```
+export GAARF_USER=test
+export GAARF_PASSWORD=test
+export GAARF_DB_HOST=test
+export GAARF_DB_PORT=12345
+export GAARF_DB_NAME=test
+```
+
+**Common options**
+
+There are three type of parameters that you can pass to a script: `macro`, `sql`, and `template`.
+
+*Macro*
+
+Macro is just a substitution in script text.
 For example:
 ```
 SELECT *
@@ -189,6 +219,8 @@ Here `dst_dataset` and `table-src` are macros that can be supplied as:
 ```
 gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1
 ```
+
+*SQL*
 
 You can also use normal sql type parameters with `sql` argument:
 ```
@@ -206,13 +238,49 @@ FROM dataset1.table1
 WHERE name LIKE @name
 ```
 
+*Template*
+
+In Python version you can also pass `template` parameter:
+
+```
+SELECT
+  customer_id AS
+  {% if level == "0"  %}
+  root_account_id
+  {% else %}
+  leaf_account_id
+  {% endif %}
+FROM dataset1.table1
+WHERE name LIKE @name
+```
+and to execute:
+
+`gaarf-bq path/to/query.sql --template.level="0"`
+
+This will create a column named either `root_account_id` since the specified level is 0.
+
+Template are great when you need to create multiple column based on condition:
+
+```
+SELECT
+    {% for day in cohort_days %}
+        SUM(GetCohort(lag_data.installs, {{day}})) AS installs_{{day}}_day,
+    {% endfor %}
+FROM asset_performance
+```
+and to execute:
+
+`gaarf-bq path/to/query.sql --template.cohort_days=0,1,3,4,5,10,30`
+
+It will create 7 columns (named `installs_0_day`, `installs_1_day`, etc).
+
 ATTENTION: passing macros into sql queries is vulnerable to sql-injection so be very careful where you're taking values from.
 
 
 ## Expressions and Macros
 > *Note*: currently expressions are supported only in NodeJS version.
 
-As noted eariler both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
+As noted earlier both Ads queries and BigQuery queries support macros. They are named values than can be passed alongside
 parameters (e.g. command line, config files) and substituted into queries. Their syntax is `{name}`.
 On top of this queries can contain expressions. The syntax for expressions is `${expression}`.
 They will be executed right after macros substitution. So macros can contain expressions inside.

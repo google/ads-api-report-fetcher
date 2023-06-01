@@ -19,6 +19,9 @@ from jinja2 import Template
 import logging
 import pandas as pd
 
+from .query_post_processor import PostProcessorMixin
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +29,7 @@ class BigQueryExecutorException(Exception):
     pass
 
 
-class BigQueryExecutor:
+class BigQueryExecutor(PostProcessorMixin):
 
     def __init__(self, project_id: str, location: Optional[str] = None):
         self.project_id = project_id
@@ -38,21 +41,7 @@ class BigQueryExecutor:
             script_name: str,
             query_text: str,
             params: Optional[Dict[str, Any]] = None) -> Optional[pd.DataFrame]:
-        logger.debug("Original query text:\n%s", query_text)
-        if params:
-            if (templates := params.get("template")):
-                query_templates = {
-                    name: value
-                    for name, value in templates.items() if name in query_text
-                }
-                if query_templates:
-                    query_text = expand_jinja(query_text, **query_templates)
-                    logger.debug("Query text after jinja expansion:\n%s",
-                                 query_text)
-            if (macros := params.get("macro")):
-                query_text = query_text.format(**macros)
-                logger.debug("Query text after macro substitution:\n%s",
-                             query_text)
+        query_text = self.replace_params_template(query_text, params)
         job = self.client.query(query_text)
         try:
             result = job.result()
@@ -82,16 +71,3 @@ def extract_datasets(macros: Optional[Dict[str, Any]]) -> Optional[List[str]]:
     if not macros:
         return None
     return [value for macro, value in macros.items() if "dataset" in macro]
-
-
-def expand_jinja(query_text, **template_params):
-    for key, value in template_params.items():
-        if value:
-            if len(splitted_param := value.split(",")) > 1:
-                template_params[key] = splitted_param
-            else:
-                template_params[key] = [value]
-        else:
-            template_params = ""
-    template = Template(query_text)
-    return template.render(template_params)

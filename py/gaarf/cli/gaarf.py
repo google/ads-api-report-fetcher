@@ -23,7 +23,8 @@ import yaml
 
 from gaarf import api_clients, utils, query_executor
 from gaarf.io import writer, reader  # type: ignore
-from .utils import GaarfConfigBuilder, ConfigSaver, initialize_runtime_parameters, gaarf_runner
+from .utils import (GaarfConfigBuilder, ConfigSaver,
+                    initialize_runtime_parameters, gaarf_runner, init_logging)
 
 
 def main():
@@ -82,22 +83,8 @@ def main():
         print(f"gaarf version {version}")
         exit()
 
-    if main_args.logger == "rich":
-        logging.basicConfig(format="%(message)s",
-                            level=main_args.loglevel.upper(),
-                            datefmt="%Y-%m-%d %H:%M:%S",
-                            handlers=[RichHandler(rich_tracebacks=True)])
-    else:
-        logging.basicConfig(
-                    format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
-                    stream=sys.stdout,
-                    level=main_args.loglevel.upper(),
-                    datefmt="%Y-%m-%d %H:%M:%S")
-    logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
-    logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
-    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
-    logger = logging.getLogger(__name__)
-
+    logger = init_logging(loglevel=main_args.loglevel.upper(),
+                          logger_type=main_args.logger)
     if not main_args.query:
         logger.error("Please provide one or more queries to run")
         exit()
@@ -163,9 +150,8 @@ def main():
             with futures.ThreadPoolExecutor() as executor:
                 future_to_query = {
                     executor.submit(ads_query_executor.execute,
-                                    reader_client.read(query), query,
-                                    customer_ids, writer_client, config.params,
-                                    main_args.optimize_performance): query
+                                    reader_client.read(query), query, customer_ids, writer_client, config.params, main_args.optimize_performance):
+                    query
                     for query in main_args.query
                 }
                 for future in futures.as_completed(future_to_query):

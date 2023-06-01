@@ -69,9 +69,9 @@ def test_bq_get_correct_schema(bq_writer, sample_data):
     results, columns = sample_data.results, sample_data.column_names
     schema = bq_writer._define_schema(results, columns)
     assert schema == [
-        SchemaField('column_1', 'INT64', 'NULLABLE', None, (), None),
-        SchemaField('column_2', 'STRING', 'NULLABLE', None, (), None),
-        SchemaField('column_3', 'INT64', 'REPEATED', None, (), None)
+        SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
+        SchemaField('column_2', 'STRING', 'NULLABLE', None, None, (), None),
+        SchemaField('column_3', 'INT64', 'REPEATED', None, None, (), None)
     ]
 
 

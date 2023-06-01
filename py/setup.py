@@ -14,7 +14,7 @@ EXTRAS_REQUIRE['full'] = list(set(chain(*EXTRAS_REQUIRE.values())))
 
 setup(
     name="google-ads-api-report-fetcher",
-    version="1.5.0",
+    version="1.6.0",
     description=
     "Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
     long_description=README,
@@ -46,5 +46,6 @@ setup(
             "gaarf-bq=gaarf.cli.bq:main",
             "gaarf-py-bq=gaarf.cli.bq:main",
             "gaarf-simulator=gaarf.cli.simulator:main",
+            "gaarf-sql=gaarf.cli.sql:main",
         ]
     })

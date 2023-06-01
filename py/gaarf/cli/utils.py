@@ -15,7 +15,10 @@
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field, asdict
+import logging
+from rich.logging import RichHandler
 import os
+import sys
 import datetime
 from smart_open import open
 from dateutil.relativedelta import relativedelta
@@ -37,11 +40,29 @@ class GaarfConfig:
     customer_ids_query_file: Optional[str] = None
 
 
+class GaarfConfigException(Exception):
+    ...
+
+
 @dataclass
 class GaarfBqConfig:
     project: str
     dataset_location: Optional[str]
     params: Dict[str, Any] = field(default_factory=dict)
+
+
+class GaarfBqConfigException(Exception):
+    ...
+
+
+@dataclass
+class GaarfSqlConfig:
+    connection_string: str
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+class GaarfSqlConfigException(Exception):
+    ...
 
 
 class BaseConfigBuilder:
@@ -77,7 +98,8 @@ class GaarfConfigBuilder(BaseConfigBuilder):
             config = yaml.safe_load(f)
         gaarf_section = config.get("gaarf")
         if not gaarf_section:
-            raise ValueError("Invalid config, must have `gaarf` section!")
+            raise GaarfConfigException(
+                "Invalid config, must have `gaarf` section!")
         if not (output := gaarf_section.get("output")):
             raise ValueError("Config does not contains `output` section!")
         return GaarfConfig(
@@ -113,16 +135,48 @@ class GaarfBqConfigBuilder(BaseConfigBuilder):
             config = yaml.safe_load(f)
         gaarf_section = config.get("gaarf-bq")
         if not gaarf_section:
-            raise ValueError("Invalid config, must have `gaarf-bq` section!")
+            raise GaarfBqConfigException(
+                "Invalid config, must have `gaarf-bq` section!")
         params = gaarf_section.get("params")
-        return GaarfBqConfig(project=gaarf_section.get("project"),
-                             dataset_location=gaarf_section.get("dataset_location"),
-                             params=params)
+        return GaarfBqConfig(
+            project=gaarf_section.get("project"),
+            dataset_location=gaarf_section.get("dataset_location"),
+            params=params)
 
     def _build_gaarf_config(self) -> GaarfBqConfig:
         main_args, query_args = self.args[0], self.args[1]
         params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
-        return GaarfBqConfig(project=main_args.project, dataset_location=main_args.dataset_location, params=params)
+        return GaarfBqConfig(project=main_args.project,
+                             dataset_location=main_args.dataset_location,
+                             params=params)
+
+
+class GaarfSqlConfigBuilder(BaseConfigBuilder):
+
+    def __init__(self, args):
+        import sqlalchemy
+        super().__init__(args)
+
+    def _load_gaarf_config(self) -> GaarfBqConfig:
+        with open(self.gaarf_config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        gaarf_section = config.get("gaarf-sql")
+        if not gaarf_section:
+            raise GaarfSqlConfigException(
+                "Invalid config, must have `gaarf-sql` section!")
+        params = gaarf_section.get("params")
+        return GaarfSqlConfig(
+            connection_string=gaarf_section.get("connection-string").format(
+                **dict(os.environ.items())),
+            params=params)
+
+    def _build_gaarf_config(self) -> GaarfSqlConfig:
+        main_args, query_args = self.args[0], self.args[1]
+        params = ParamsParser(["macro", "sql", "template"]).parse(query_args)
+        return GaarfSqlConfig(
+            connection_string=main_args.connection_string.format(
+                **dict(os.environ.items())),
+            params=params)
 
 
 class ParamsParser:
@@ -159,8 +213,7 @@ class ParamsParser:
         if provided_identifier.replace("--", "") not in self.identifiers:
             raise GaarfParamsException(
                 f"CLI argument {provided_identifier} is not supported"
-                f", supported arguments {', '.join(self.identifiers)}"
-            )
+                f", supported arguments {', '.join(self.identifiers)}")
         key = key.replace("-", "_")
         if len(param) == 2:
             return {key: param[1]}
@@ -170,7 +223,7 @@ class ParamsParser:
 
 
 class GaarfParamsException(Exception):
-    pass
+    ...
 
 
 def convert_date(date_string: str) -> str:
@@ -221,8 +274,10 @@ class ConfigSaver:
                       sort_keys=False,
                       encoding="utf-8")
 
-    def prepare_config(self, config: Dict[Any, Any],
-                       gaarf_config: Union[GaarfConfig, GaarfBqConfig]):
+    def prepare_config(
+        self, config: Dict[Any, Any],
+        gaarf_config: Union[GaarfConfig, GaarfBqConfig, GaarfSqlConfig]
+    ) -> Dict[str, Any]:
         gaarf = asdict(gaarf_config)
         if isinstance(gaarf_config, GaarfConfig):
             gaarf[gaarf_config.output] = gaarf_config.writer_params
@@ -236,6 +291,9 @@ class ConfigSaver:
         if isinstance(gaarf_config, GaarfBqConfig):
             gaarf = _remove_empty_values(gaarf)
             config.update({"gaarf-bq": gaarf})
+        if isinstance(gaarf_config, GaarfSqlConfig):
+            gaarf = _remove_empty_values(gaarf)
+            config.update({"gaarf-sql": gaarf})
         return config
 
 
@@ -279,3 +337,32 @@ def gaarf_runner(query: str, callback: Callable, logger) -> None:
     except Exception as e:
         traceback.print_tb(e.__traceback__)
         logger.error("%s generated an exception: %s", query, str(e))
+
+
+def postprocessor_runner(query: str, callback: Callable, logger) -> None:
+    try:
+        logger.debug("starting query %s", query)
+        callback()
+        logger.info("%s executed successfully", query)
+    except Exception as e:
+        logger.error("%s generated an exception: %s", query, str(e))
+
+
+def init_logging(loglevel: str = "INFO",
+                 logger_type: str = "local",
+                 name: str = __name__) -> logging.Logger:
+    if logger_type == "rich":
+        logging.basicConfig(format="%(message)s",
+                            level=loglevel,
+                            datefmt="%Y-%m-%d %H:%M:%S",
+                            handlers=[RichHandler(rich_tracebacks=True)])
+    else:
+        logging.basicConfig(
+            format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
+            stream=sys.stdout,
+            level=loglevel,
+            datefmt="%Y-%m-%d %H:%M:%S")
+    logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
+    logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+    return logging.getLogger(name)

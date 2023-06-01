@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
 
 import argparse
 from concurrent import futures
+import sqlalchemy
 
 from gaarf.io import reader  # type: ignore
-from gaarf.bq_executor import BigQueryExecutor
-from .utils import (GaarfBqConfigBuilder, ConfigSaver,
+from gaarf.sql_executor import SqlAlchemyQueryExecutor
+from .utils import (GaarfSqlConfigBuilder, ConfigSaver,
                     initialize_runtime_parameters, postprocessor_runner,
                     init_logging)
 
@@ -26,10 +27,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", nargs="+")
     parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
-    parser.add_argument("--project", dest="project")
-    parser.add_argument("--dataset-location",
-                        dest="dataset_location",
-                        default=None)
+    parser.add_argument("--conn",
+                        "--connection-string",
+                        dest="connection_string")
     parser.add_argument("--save-config",
                         dest="save_config",
                         action="store_true")
@@ -49,7 +49,8 @@ def main():
 
     logger = init_logging(loglevel=main_args.loglevel.upper(),
                           logger_type=main_args.logger)
-    config = GaarfBqConfigBuilder(args).build()
+
+    config = GaarfSqlConfigBuilder(args).build()
     logger.debug("config: %s", config)
     if main_args.save_config and not main_args.gaarf_config:
         ConfigSaver(main_args.save_config_dest).save(config)
@@ -59,16 +60,16 @@ def main():
     config = initialize_runtime_parameters(config)
     logger.debug("initialized config: %s", config)
 
-    bq_executor = BigQueryExecutor(project_id=config.project,
-                                   location=config.dataset_location)
-    bq_executor.create_datasets(config.params.get("macro"))
+    engine = sqlalchemy.create_engine(config.connection_string)
+    sql_executor = SqlAlchemyQueryExecutor(engine)
 
     reader_client = reader.FileReader()
 
     with futures.ThreadPoolExecutor() as executor:
         future_to_query = {
-            executor.submit(bq_executor.execute, query,
-                            reader_client.read(query), config.params): query
+            executor.submit(sql_executor.execute, query,
+                            reader_client.read(query), config.params):
+            query
             for query in main_args.query
         }
         for future in futures.as_completed(future_to_query):
