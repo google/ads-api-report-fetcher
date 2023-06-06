@@ -229,7 +229,7 @@ class GaarfParamsException(Exception):
 def convert_date(date_string: str) -> str:
     """Converts specific dates parameters to actual dates."""
 
-    if date_string.find(":YYYY") == -1:
+    if isinstance(date_string, list) or date_string.find(":YYYY") == -1:
         return date_string
     current_date = datetime.date.today()
     date_object = date_string.split("-")
