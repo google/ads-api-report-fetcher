@@ -41,7 +41,9 @@ class AdsReportFetcher:
 
     Attributes:
         api_client: a client used for connecting to Ads API.
-        customer_ids: account_id(s) from which data will be fetches.
+        customer_ids: account_id(s) from which data will be fetched.
+          Expects list of non-MCC accounts, which can be expanded from MCC
+          by calling `utils.get_customer_ids(ads_api_client, mcc_id)` function.
     """
 
     def __init__(self, api_client: api_clients.BaseClient,
