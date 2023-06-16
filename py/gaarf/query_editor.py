@@ -82,6 +82,8 @@ class QuerySpecification:
         if self.args:
             if (macros := self.args.get("macro")):
                 query_text = query_text.format(**macros)
+        else:
+            macros = None
         fields = []
         column_names = []
         customizers = {}
@@ -92,7 +94,7 @@ class QuerySpecification:
             field_name = None
             customizer_type = None
             field_elements, alias, virtual_column = self.extract_fields_and_aliases(
-                line)
+                line, macros)
             if field_elements:
                 for field_element in field_elements:
                     field_name, customizer_type, customizer_value = \
@@ -115,6 +117,8 @@ class QuerySpecification:
                 }
         query_text = self.create_query_text(fields, virtual_columns,
                                             query_text)
+        for name, column in virtual_columns.items():
+            virtual_columns[name].value.format(**macros)
         return QueryElements(query_title=self.title,
                              query_text=query_text,
                              fields=fields,
@@ -163,7 +167,7 @@ class QuerySpecification:
         return re.search(" FROM .+", query_text, re.IGNORECASE).group(0)
 
     def extract_fields_and_aliases(
-        self, query_line: str
+        self, query_line: str, macros
     ) -> Tuple[Optional[List[str]], Optional[str], Optional[VirtualColumn]]:
         fields = []
         virtual_column = None
@@ -190,12 +194,16 @@ class QuerySpecification:
                         pass
                 virtual_column = VirtualColumn(
                     type="expression",
-                    value=virtual_field,
+                    value=virtual_field.format(
+                        **macros) if macros else virtual_field,
                     fields=virtual_column_fields,
-                    substitute_expression=substitute_expression.replace(".", "_"))
+                    substitute_expression=substitute_expression.replace(
+                        ".", "_"))
             else:
-                virtual_column = VirtualColumn(type="built-in",
-                                                     value=virtual_field)
+                virtual_column = VirtualColumn(
+                    type="built-in",
+                    value=virtual_field.format(
+                        **macros) if macros else virtual_field)
         if not virtual_column and field_raw:
             fields = [field_raw]
         else:
