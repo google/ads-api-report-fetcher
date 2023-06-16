@@ -10,9 +10,9 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.import csv
+# limitations under the License.
 
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 import logging
 import abc
 import os
@@ -106,14 +106,16 @@ class BigQueryWriter(AbsWriter):
                  dataset: str,
                  location: str = "US",
                  **kwargs):
-        self.client = bigquery.Client(project)
+        self.project = project
         self.dataset_id = f"{project}.{dataset}"
         self.location = location
+        self.client = None
 
     def __str__(self):
         return f"[BigQuery] - {self.dataset_id} at {self.location} location."
 
     def create_or_get_dataset(self):
+        self._init_client()
         try:
             bq_dataset = self.client.get_dataset(self.dataset_id)
         except NotFound:
@@ -123,6 +125,7 @@ class BigQueryWriter(AbsWriter):
         return bq_dataset
 
     def write(self, results, destination) -> str:
+        self._init_client()
         fake_report = results.is_fake
         column_names, results = self.get_columns_results(results)
         schema = self._define_schema(results, column_names)
@@ -146,12 +149,14 @@ class BigQueryWriter(AbsWriter):
             raise ValueError(f"Unable to save data to BigQuery! {str(e)}")
         return f"[BigQuery] - at {self.dataset_id}.{destination}"
 
-    def _define_schema(self, results, header):
-        result_types = self._get_result_types(results, header)
-        return self._get_bq_schema(result_types)
+    @staticmethod
+    def _define_schema(results, header) -> List[bigquery.SchemaField]:
+        result_types = BigQueryWriter._get_result_types(results, header)
+        return BigQueryWriter._get_bq_schema(result_types)
 
+    @staticmethod
     def _get_result_types(
-            self, elements: Sequence[Any],
+            elements: Sequence[Any],
             column_names: Sequence[str]) -> Dict[str, Dict[str, Any]]:
         result_types = {}
         for i, element in enumerate(elements[0]):
@@ -174,7 +179,8 @@ class BigQueryWriter(AbsWriter):
             }
         return result_types
 
-    def _get_bq_schema(self, types):
+    @staticmethod
+    def _get_bq_schema(types) -> List[bigquery.SchemaField]:
         TYPE_MAPPING = {
             list: "REPEATED",
             str: "STRING",
@@ -185,7 +191,7 @@ class BigQueryWriter(AbsWriter):
             proto.marshal.collections.repeated.Repeated: "REPEATED"
         }
 
-        schema = []
+        schema: List[bigquery.SchemaField] = []
         for key, value in types.items():
             element_type = TYPE_MAPPING.get(value.get("element_type"))
             schema.append(
@@ -195,7 +201,12 @@ class BigQueryWriter(AbsWriter):
                     mode="REPEATED" if value.get("repeated") else "NULLABLE"))
         return schema
 
-    def _create_or_get_table(self, table_name, schema):
+    def _init_client(self) -> None:
+        if not self.client:
+            self.client = bigquery.Client(self.project)
+
+    def _create_or_get_table(self, table_name: str, schema) -> bigquery.Table:
+        self._init_client()
         try:
             table = self.client.get_table(table_name)
         except NotFound:

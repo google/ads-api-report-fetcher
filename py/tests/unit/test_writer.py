@@ -10,11 +10,6 @@ def csv_writer():
 
 
 @pytest.fixture
-def bq_writer():
-    return writer.BigQueryWriter("fake_project", "fake_dataset")
-
-
-@pytest.fixture
 def single_column_data():
     results = [1, 2, 3]
     columns = ["column_1"]
@@ -46,9 +41,9 @@ def test_csv_writer_multi_column(csv_writer, sample_data):
     assert [row.strip() for row in file] == expected
 
 
-def test_bq_get_results_types(bq_writer, sample_data):
+def test_bq_get_results_types(sample_data):
     results, columns = sample_data.results, sample_data.column_names
-    result_types = bq_writer._get_result_types(results, columns)
+    result_types = writer.BigQueryWriter._get_result_types(results, columns)
     assert result_types == {
         'column_1': {
             'element_type': int,
@@ -65,9 +60,9 @@ def test_bq_get_results_types(bq_writer, sample_data):
     }
 
 
-def test_bq_get_correct_schema(bq_writer, sample_data):
+def test_bq_get_correct_schema(sample_data):
     results, columns = sample_data.results, sample_data.column_names
-    schema = bq_writer._define_schema(results, columns)
+    schema = writer.BigQueryWriter._define_schema(results, columns)
     assert schema == [
         SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
         SchemaField('column_2', 'STRING', 'NULLABLE', None, None, (), None),
