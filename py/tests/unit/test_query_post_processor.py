@@ -94,3 +94,21 @@ def test_replace_params_template(macro_template_query_with_for_loop):
             }
         })
     assert rendered_query.replace("  ", " ") == expected_query
+
+def test_replace_params_empty_template_is_ignored(macro_template_query_with_for_loop):
+    expected_query = "SELECT field_one, field_two AS field_two, FROM some_table"
+    rendered_query = PostProcessorMixin().replace_params_template(
+        macro_template_query_with_for_loop,
+        params={
+            "macro": {
+                "field_2": "field_two"
+            }
+        })
+    assert rendered_query.replace("  ", " ") == expected_query
+
+def test_replace_empty_params(macro_template_query_with_for_loop):
+    expected_query = "SELECT field_one, {field_2} AS field_two, FROM some_table"
+    rendered_query = PostProcessorMixin().replace_params_template(
+        macro_template_query_with_for_loop,
+        params={})
+    assert rendered_query.replace("  ", " ") == expected_query
