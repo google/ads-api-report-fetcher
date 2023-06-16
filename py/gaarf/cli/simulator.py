@@ -6,7 +6,7 @@ import yaml
 
 from gaarf.io import writer, reader  # type: ignore
 from gaarf.simulation import simulate_data, SimulatorSpecification
-from .utils import GaarfConfigBuilder
+from .utils import GaarfConfigBuilder, init_logging
 
 
 def main():
@@ -42,21 +42,8 @@ def main():
     args = parser.parse_known_args()
     main_args = args[0]
 
-    if main_args.logger == "rich":
-        logging.basicConfig(format="%(message)s",
-                            level=main_args.loglevel.upper(),
-                            datefmt="%Y-%m-%d %H:%M:%S",
-                            handlers=[RichHandler(rich_tracebacks=True)])
-    else:
-        logging.basicConfig(
-                    format="[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
-                    stream=sys.stdout,
-                    level=main_args.loglevel.upper(),
-                    datefmt="%Y-%m-%d %H:%M:%S")
-    logging.getLogger("google.ads.googleads.client").setLevel(logging.WARNING)
-    logging.getLogger("smart_open.smart_open_lib").setLevel(logging.WARNING)
-    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
-    logger = logging.getLogger(__name__)
+    logger = init_logging(loglevel=main_args.loglevel.upper(),
+                          logger_type=main_args.logger)
 
     config = GaarfConfigBuilder(args).build()
     logger.debug("config: %s", config)
@@ -76,6 +63,7 @@ def main():
                 **simulator_config)
         else:
             simulator_specification = SimulatorSpecification()
+        logger.info("Simulating data for query %s", query)
         report = simulate_data(reader_client.read(query),
                                simulator_specification)
         writer_client.write(report, query)
