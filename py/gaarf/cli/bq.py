@@ -14,6 +14,7 @@
 
 import argparse
 from concurrent import futures
+import functools
 
 from gaarf.io import reader  # type: ignore
 from gaarf.bq_executor import BigQueryExecutor
@@ -42,8 +43,15 @@ def main():
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--dry-run", dest="dry_run", action="store_true")
+    parser.add_argument("--parallel-queries",
+                        dest="parallel_queries",
+                        action="store_true")
+    parser.add_argument("--no-parallel-queries",
+                        dest="parallel_queries",
+                        action="store_false")
     parser.set_defaults(save_config=False)
     parser.set_defaults(dry_run=False)
+    parser.set_defaults(parallel_queries=True)
     args = parser.parse_known_args()
     main_args = args[0]
 
@@ -65,15 +73,23 @@ def main():
 
     reader_client = reader.FileReader()
 
-    with futures.ThreadPoolExecutor() as executor:
-        future_to_query = {
-            executor.submit(bq_executor.execute, query,
-                            reader_client.read(query), config.params): query
-            for query in main_args.query
-        }
-        for future in futures.as_completed(future_to_query):
-            query = future_to_query[future]
-            postprocessor_runner(query, future.result, logger)
+    if main_args.parallel_queries:
+        logger.info("Running queries in parallel")
+        with futures.ThreadPoolExecutor() as executor:
+            future_to_query = {
+                executor.submit(bq_executor.execute, query,
+                                reader_client.read(query), config.params): query
+                for query in sorted(main_args.query)
+            }
+            for future in futures.as_completed(future_to_query):
+                query = future_to_query[future]
+                postprocessor_runner(query, future.result, logger)
+    else:
+        logger.info("Running queries sequentially")
+        for query in sorted(main_args.query):
+            callback = functools.partial(bq_executor.execute, query,
+                reader_client.read(query), config.params)
+            postprocessor_runner(query, callback, logger)
 
 
 if __name__ == "__main__":

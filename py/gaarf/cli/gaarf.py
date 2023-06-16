@@ -11,12 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import argparse
 from collections.abc import MutableSequence
 from concurrent import futures
-import argparse
-from pathlib import Path
+import functools
 import logging
+from pathlib import Path
+import sys
 from rich.logging import RichHandler
 from smart_open import open
 import yaml
@@ -160,10 +161,11 @@ def main():
         else:
             logger.info("Running queries sequentially")
             for query in main_args.query:
-                callback = ads_query_executor.execute(
-                    reader_client.read(query), query, customer_ids,
-                    writer_client, config.params,
-                    main_args._optimize_performance)
+                callback = functools.partial(ads_query_executor.execute,
+                                             reader_client.read(query), query,
+                                             customer_ids, writer_client,
+                                             config.params,
+                                             main_args._optimize_performance)
                 gaarf_runner(query, callback, logger)
     else:
         logger.warning(
