@@ -1,4 +1,5 @@
 import pytest
+import datetime
 import gaarf.query_editor as query_editor
 
 
@@ -11,6 +12,7 @@ def query_specification():
 
 SELECT
     '20230101' AS date,
+    {current_date} AS current_date,
     metrics.clicks / metrics.impressions AS ctr,
     customer.id, --customer_id
     campaign.bidding_strategy_type AS campaign_type, campaign.id:nested AS campaign,
@@ -56,8 +58,8 @@ def test_extract_correct_fields(sample_query):
 
 def test_extract_correct_aliases(sample_query):
     assert sample_query.column_names == [
-        "date", "ctr", "customer_id", "campaign_type", "campaign", "ad_group",
-        "ad", "cost", "selective_optimization"
+        "date", "current_date", "ctr", "customer_id", "campaign_type",
+        "campaign", "ad_group", "ad", "cost", "selective_optimization"
     ]
 
 
@@ -105,6 +107,9 @@ def test_has_virtual_columns(sample_query):
     assert sample_query.virtual_columns == {
         "date":
         query_editor.VirtualColumn(type="built-in", value="'20230101'"),
+        "current_date":
+        query_editor.VirtualColumn(
+            type="built-in", value=datetime.date.today().strftime("%Y-%m-%d")),
         "ctr":
         query_editor.VirtualColumn(
             type="expression",
@@ -120,7 +125,7 @@ def test_has_virtual_columns(sample_query):
     }
 
 
-def test_incorrect_specification_raises_value_error(
+def test_incorrect_specification_raises_virtual_column_error(
         incorrect_query_specification):
-    with pytest.raises(ValueError):
+    with pytest.raises(query_editor.VirtualColumnError):
         incorrect_query_specification.generate()

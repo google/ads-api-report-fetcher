@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from typing import Any, Dict, List, Optional, Tuple
+import datetime
 import dataclasses
 import re
 from .api_clients import BaseClient
@@ -52,17 +53,35 @@ class QueryElements:
     is_constant_resource: bool
 
 
-class QuerySpecification:
+class CommonParametersMixin:
+    common_params = {
+        "date_iso": datetime.date.today().strftime("%Y%m%d"),
+        "current_date": datetime.date.today().strftime("%Y-%m-%d"),
+        "current_datetime":
+        datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+
+class QuerySpecification(CommonParametersMixin):
 
     def __init__(self,
                  text: str,
-                 title: str = None,
-                 args: Dict[Any, Any] = None,
-                 api_version: str = "v12"):
+                 title: Optional[str] = None,
+                 args: Optional[Dict[Any, Any]] = None,
+                 api_version: str = "v12") -> None:
         self.text = text
         self.title = title
         self.args = args
+        self.macros =  self._init_macros(args)
         self.base_client = BaseClient(api_version)
+
+    def _init_macros(self, args) -> Dict[str, str]:
+        if not args:
+            return self.common_params
+        if macros := args.get("macros"):
+            return macros.update(self.common_params)
+        return self.common_params
+
 
     def generate(self) -> QueryElements:
         """Reads query from a file and returns different elements of a query.
@@ -79,11 +98,10 @@ class QuerySpecification:
         resource_name = self.extract_resource_from_query(self.text)
         is_constant_resource = bool(resource_name.endswith("_constant"))
         query_text = " ".join(query_lines)
-        if self.args:
-            if (macros := self.args.get("macro")):
-                query_text = query_text.format(**macros)
-        else:
-            macros = None
+        try:
+            query_text = query_text.format(**self.macros)
+        except KeyError as e:
+            raise VirtualColumnError(f"Virtual column {str(e)} has missing macro.")
         fields = []
         column_names = []
         customizers = {}
@@ -94,7 +112,7 @@ class QuerySpecification:
             field_name = None
             customizer_type = None
             field_elements, alias, virtual_column = self.extract_fields_and_aliases(
-                line, macros)
+                line, self.macros)
             if field_elements:
                 for field_element in field_elements:
                     field_name, customizer_type, customizer_value = \
@@ -102,7 +120,7 @@ class QuerySpecification:
                     field_name = field_name.strip().replace(",", "")
                     fields.append(self.format_type_field_name(field_name))
             if not alias and not field_name:
-                raise ValueError("Virtual attributes should be aliased")
+                raise VirtualColumnError("Virtual attributes should be aliased")
             else:
                 column_name = alias.strip().replace(
                     ",", "") if alias else field_name
@@ -118,7 +136,7 @@ class QuerySpecification:
         query_text = self.create_query_text(fields, virtual_columns,
                                             query_text)
         for name, column in virtual_columns.items():
-            virtual_columns[name].value.format(**macros)
+            virtual_columns[name].value.format(**self.macros)
         return QueryElements(query_title=self.title,
                              query_text=query_text,
                              fields=fields,
@@ -140,7 +158,7 @@ class QuerySpecification:
         query_text = f"SELECT {', '.join(fields)} {self.extract_from_statement(query_text)}"
         query_text = self._remove_traling_comma(query_text)
         query_text = self._unformat_type_field_name(query_text)
-        query_text = re.sub("\s+", " ", query_text).strip()
+        query_text = re.sub(r"\s+", " ", query_text).strip()
         return query_text
 
     def cleanup_query_text(self, query: str) -> List[str]:
@@ -172,12 +190,12 @@ class QuerySpecification:
         fields = []
         virtual_column = None
         field_raw, *alias = re.split(" [Aa][Ss] ", query_line)
-        field_raw = field_raw.replace("\s+", "").strip()
+        field_raw = field_raw.replace(r"\s+", "").strip()
         virtual_field, _, _ = self.extract_fields_and_customizers(field_raw)
         try:
             _ = attrgetter(virtual_field)(self.base_client.google_ads_row)
         except AttributeError:
-            operators = ("/", "\*", "\+", "-")
+            operators = ("/", r"\*", r"\+", "-")
             if len(expressions := re.split("|".join(operators),
                                            field_raw)) > 1:
                 virtual_column_fields = []

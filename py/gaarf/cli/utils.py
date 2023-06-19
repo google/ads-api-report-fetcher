@@ -27,6 +27,7 @@ from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 import traceback
 
 from gaarf.io.writer import ZeroRowException
+from gaarf.query_editor import CommonParametersMixin
 
 
 @dataclass
@@ -179,9 +180,7 @@ class GaarfSqlConfigBuilder(BaseConfigBuilder):
             params=params)
 
 
-class ParamsParser:
-
-    common_params = {"date_iso": datetime.date.today().strftime("%Y%m%d")}
+class ParamsParser(CommonParametersMixin):
 
     def __init__(self, identifiers: Sequence[str]):
         self.identifiers = identifiers
