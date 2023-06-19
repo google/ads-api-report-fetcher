@@ -36,6 +36,8 @@ class PostProcessorMixin:
                     query_text = self.expand_jinja(query_text, query_templates)
                     logger.debug("Query text after jinja expansion:\n%s",
                                  query_text)
+                else:
+                    query_text = self.expand_jinja(query_text, {})
             else:
                 query_text = self.expand_jinja(query_text, {})
             if (macros := params.get("macro")):
