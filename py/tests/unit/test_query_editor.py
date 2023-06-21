@@ -11,8 +11,9 @@ def query_specification():
 // Comment
 
 SELECT
-    '20230101' AS date,
-    {current_date} AS current_date,
+    1 AS constant,
+    '2023-01-01' AS date,
+    '{current_date}' AS current_date,
     metrics.clicks / metrics.impressions AS ctr,
     customer.id, --customer_id
     campaign.bidding_strategy_type AS campaign_type, campaign.id:nested AS campaign,
@@ -44,6 +45,18 @@ FROM ad_group_id
                                            text=query,
                                            args=None)
 
+@pytest.fixture
+def query_with_incorrect_field():
+    query = """
+SELECT
+    metric.impressions AS impressions,
+    ad_group.id AS ad_group_id
+FROM ad_group_id
+"""
+    return query_editor.QuerySpecification(title="sample_query",
+                                           text=query,
+                                           args=None)
+
 
 def test_correct_title(sample_query):
     assert sample_query.query_title == "sample_query"
@@ -58,7 +71,7 @@ def test_extract_correct_fields(sample_query):
 
 def test_extract_correct_aliases(sample_query):
     assert sample_query.column_names == [
-        "date", "current_date", "ctr", "customer_id", "campaign_type",
+        "constant", "date", "current_date", "ctr", "customer_id", "campaign_type",
         "campaign", "ad_group", "ad", "cost", "selective_optimization"
     ]
 
@@ -105,8 +118,10 @@ def test_is_constant_resource(sample_query):
 
 def test_has_virtual_columns(sample_query):
     assert sample_query.virtual_columns == {
+        "constant":
+        query_editor.VirtualColumn(type="built-in", value=1),
         "date":
-        query_editor.VirtualColumn(type="built-in", value="'20230101'"),
+        query_editor.VirtualColumn(type="built-in", value="2023-01-01"),
         "current_date":
         query_editor.VirtualColumn(
             type="built-in", value=datetime.date.today().strftime("%Y-%m-%d")),
@@ -129,3 +144,9 @@ def test_incorrect_specification_raises_virtual_column_error(
         incorrect_query_specification):
     with pytest.raises(query_editor.VirtualColumnError):
         incorrect_query_specification.generate()
+
+
+def test_incorrect_field_raises_value_error(
+        query_with_incorrect_field):
+    with pytest.raises(query_editor.FieldError):
+        query_with_incorrect_field.generate()

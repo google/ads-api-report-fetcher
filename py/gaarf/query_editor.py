@@ -29,7 +29,11 @@ class VirtualColumn:
 
 
 class VirtualColumnError(Exception):
-    pass
+    ...
+
+
+class FieldError(Exception):
+    ...
 
 
 @dataclasses.dataclass
@@ -72,7 +76,7 @@ class QuerySpecification(CommonParametersMixin):
         self.text = text
         self.title = title
         self.args = args
-        self.macros =  self._init_macros(args)
+        self.macros = self._init_macros(args)
         self.base_client = BaseClient(api_version)
 
     def _init_macros(self, args) -> Dict[str, str]:
@@ -81,7 +85,6 @@ class QuerySpecification(CommonParametersMixin):
         if macros := args.get("macros"):
             return macros.update(self.common_params)
         return self.common_params
-
 
     def generate(self) -> QueryElements:
         """Reads query from a file and returns different elements of a query.
@@ -101,7 +104,8 @@ class QuerySpecification(CommonParametersMixin):
         try:
             query_text = query_text.format(**self.macros)
         except KeyError as e:
-            raise VirtualColumnError(f"Virtual column {str(e)} has missing macro.")
+            raise VirtualColumnError(
+                f"Virtual column {str(e)} has missing macro.")
         fields = []
         column_names = []
         customizers = {}
@@ -120,7 +124,8 @@ class QuerySpecification(CommonParametersMixin):
                     field_name = field_name.strip().replace(",", "")
                     fields.append(self.format_type_field_name(field_name))
             if not alias and not field_name:
-                raise VirtualColumnError("Virtual attributes should be aliased")
+                raise VirtualColumnError(
+                    "Virtual attributes should be aliased")
             else:
                 column_name = alias.strip().replace(
                     ",", "") if alias else field_name
@@ -136,7 +141,8 @@ class QuerySpecification(CommonParametersMixin):
         query_text = self.create_query_text(fields, virtual_columns,
                                             query_text)
         for name, column in virtual_columns.items():
-            virtual_columns[name].value.format(**self.macros)
+            if not isinstance(virtual_columns[name].value, (int, float)):
+                virtual_columns[name].value.format(**self.macros)
         return QueryElements(query_title=self.title,
                              query_text=query_text,
                              fields=fields,
@@ -195,7 +201,15 @@ class QuerySpecification(CommonParametersMixin):
         try:
             _ = attrgetter(virtual_field)(self.base_client.google_ads_row)
         except AttributeError:
-            operators = ("/", r"\*", r"\+", "-")
+            if virtual_field.isdigit():
+                virtual_field = int(virtual_field)
+            else:
+                try:
+                    virtual_field = float(virtual_field)
+                except ValueError:
+                    pass
+
+            operators = ("/", r"\*", r"\+", " - ")
             if len(expressions := re.split("|".join(operators),
                                            field_raw)) > 1:
                 virtual_column_fields = []
@@ -218,10 +232,17 @@ class QuerySpecification(CommonParametersMixin):
                     substitute_expression=substitute_expression.replace(
                         ".", "_"))
             else:
-                virtual_column = VirtualColumn(
-                    type="built-in",
-                    value=virtual_field.format(
-                        **macros) if macros else virtual_field)
+                if not isinstance(virtual_field, (int, float)):
+                    if not self._not_a_quoted_string(virtual_field):
+                        raise FieldError(
+                            f"Incorrect field '{virtual_field}' in the query '{self.title}'."
+                        )
+                    virtual_field = virtual_field.replace("'",
+                                                          "").replace('"', '')
+                    virtual_field = virtual_field.format(
+                        **macros) if macros else virtual_field
+                virtual_column = VirtualColumn(type="built-in",
+                                               value=virtual_field)
         if not virtual_column and field_raw:
             fields = [field_raw]
         else:
@@ -263,3 +284,9 @@ class QuerySpecification(CommonParametersMixin):
 
     def _unformat_type_field_name(self, query: str) -> str:
         return re.sub(r"\.type_", ".type", query)
+
+    def _not_a_quoted_string(self, field_name: str) -> bool:
+        if ((field_name.startswith("'") and field_name.endswith("'"))
+                or (field_name.startswith('"') and field_name.endswith('"'))):
+            return True
+        return False
