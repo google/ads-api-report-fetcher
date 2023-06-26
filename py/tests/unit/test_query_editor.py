@@ -33,31 +33,6 @@ def sample_query(query_specification):
     return query_specification.generate()
 
 
-@pytest.fixture
-def incorrect_query_specification():
-    query = """
-SELECT
-    "${custom_field}",
-    ad_group.id AS ad_group_id
-FROM ad_group_id
-"""
-    return query_editor.QuerySpecification(title="sample_query",
-                                           text=query,
-                                           args=None)
-
-@pytest.fixture
-def query_with_incorrect_field():
-    query = """
-SELECT
-    metric.impressions AS impressions,
-    ad_group.id AS ad_group_id
-FROM ad_group_id
-"""
-    return query_editor.QuerySpecification(title="sample_query",
-                                           text=query,
-                                           args=None)
-
-
 def test_correct_title(sample_query):
     assert sample_query.query_title == "sample_query"
 
@@ -140,13 +115,27 @@ def test_has_virtual_columns(sample_query):
     }
 
 
-def test_incorrect_specification_raises_virtual_column_error(
-        incorrect_query_specification):
+def test_incorrect_specification_raises_macro_error():
+    query = "SELECT '${custom_field}', ad_group.id FROM ad_group_id"
+    spec = query_editor.QuerySpecification(title="sample_query",
+                                           text=query,
+                                           args=None)
+    with pytest.raises(query_editor.MacroError):
+        spec.generate()
+
+
+def test_incorrect_specification_raises_virtual_column_error():
+    query = "SELECT 1, ad_group.id AS ad_group_id FROM ad_group_id"
+    spec = query_editor.QuerySpecification(title="sample_query",
+                                           text=query,
+                                           args=None)
     with pytest.raises(query_editor.VirtualColumnError):
-        incorrect_query_specification.generate()
+        spec.generate()
 
-
-def test_incorrect_field_raises_value_error(
-        query_with_incorrect_field):
+def test_incorrect_field_raises_value_error():
+    query = "SELECT metric.impressions, ad_group.id FROM ad_group_id"
+    spec = query_editor.QuerySpecification(title="sample_query",
+                                           text=query,
+                                           args=None)
     with pytest.raises(query_editor.FieldError):
-        query_with_incorrect_field.generate()
+        spec.generate()

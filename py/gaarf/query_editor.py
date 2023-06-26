@@ -36,6 +36,10 @@ class FieldError(Exception):
     ...
 
 
+class MacroError(Exception):
+    ...
+
+
 @dataclasses.dataclass
 class QueryElements:
     """Contains raw query and parsed elements.
@@ -76,14 +80,15 @@ class QuerySpecification(CommonParametersMixin):
         self.text = text
         self.title = title
         self.args = args
-        self.macros = self._init_macros(args)
+        self.macros = self._init_macros()
         self.base_client = BaseClient(api_version)
 
-    def _init_macros(self, args) -> Dict[str, str]:
-        if not args:
+    def _init_macros(self) -> Dict[str, str]:
+        if not self.args:
             return self.common_params
-        if macros := args.get("macros"):
-            return macros.update(self.common_params)
+        if macros := self.args.get("macro"):
+            macros.update(self.common_params)
+            return macros
         return self.common_params
 
     def generate(self) -> QueryElements:
@@ -104,8 +109,8 @@ class QuerySpecification(CommonParametersMixin):
         try:
             query_text = query_text.format(**self.macros)
         except KeyError as e:
-            raise VirtualColumnError(
-                f"Virtual column {str(e)} has missing macro.")
+            raise MacroError(
+                f"No value provided for macro {str(e)}.")
         fields = []
         column_names = []
         customizers = {}
