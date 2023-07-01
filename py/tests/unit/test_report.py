@@ -198,8 +198,26 @@ def test_set_non_existing_attribute_gaarf_row_get_new_column(
         column_names=["campaign_id", "ad_group_id", "campaign_id_new"])
 
 
+def test_set_non_existing_attribute_gaarf_rows_get_new_columns(
+        multi_column_report):
+    for row in multi_column_report:
+        row.campaign_id_new = row.campaign_id * 100
+    assert multi_column_report == GaarfReport(
+        results=[[1, 2, 100], [2, 3, 200], [3, 4, 300]],
+        column_names=["campaign_id", "ad_group_id", "campaign_id_new"])
+
+
 def test_set_existing_attribute_gaarf_row_updates_column(multi_column_report):
     row = multi_column_report[0]
     row.campaign_id = row.campaign_id * 100
     assert row == GaarfRow(data=[100, 2],
                            column_names=["campaign_id", "ad_group_id"])
+
+
+def test_set_existing_attribute_gaarf_multiple_rows_updates_columns(
+        multi_column_report):
+    for row in multi_column_report:
+        row.campaign_id = row.campaign_id * 100
+    assert multi_column_report == GaarfReport(
+        results=[[100, 2], [200, 3], [300, 4]],
+        column_names=["campaign_id", "ad_group_id"])

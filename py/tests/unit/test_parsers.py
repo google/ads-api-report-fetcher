@@ -1,7 +1,7 @@
 import pytest
 from typing import Any, Dict, List
 from dataclasses import dataclass
-from proto import Message
+import proto
 import gaarf.parsers as parsers
 from gaarf.query_editor import VirtualColumn, VirtualColumnError
 
@@ -81,6 +81,9 @@ def google_ads_row_parser(fake_query_specification):
     return parsers.GoogleAdsRowParser(fake_query_specification)
 
 
+class TestMessage(proto.Message):
+    message = proto.Field(proto.STRING, number=1)
+
 def test_google_ads_row_parser_return_last_parser_in_chain(
         google_ads_row_parser):
     assert type(google_ads_row_parser.parser) == parsers.RepeatedParser
@@ -145,11 +148,10 @@ def test_attribute_parser(base_parser, text_attribute, name_attribute,
     assert attribute_parser.parse(value_attribute) == 1
 
 
-@pytest.mark.skip("WIP")
 def test_empty_attribute_parser(base_parser):
     empty_attribute_parser = parsers.EmptyAttributeParser(base_parser)
     assert empty_attribute_parser.parse("") == None
-    message = Message()
+    message = TestMessage(message="test")
     assert empty_attribute_parser.parse(message) == "Not set"
 
 

@@ -135,7 +135,10 @@ class GaarfRow:
 
     def __setitem__(self, name: str, value: Union[str, int]) -> None:
         if name in self.column_names:
-            self.data[self.column_names.index(name)] = value
+            if len(self.column_names) == len(self.data):
+                self.data[self.column_names.index(name)] = value
+            else:
+                self.data.append(value)
         else:
             self.data.append(value)
             self.column_names.append(name)
