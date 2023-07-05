@@ -11,6 +11,9 @@
  - [Macros](#macros)
    - [Macros in virtual columns](#macros-in-virtual-columns)
    - [Common macros](#common-macros)
+ - [Templates](#templates)
+ - [SQL parameters](#sql-parameters)
+ - [Expressions and Macros](#expressions-and-macros)
 
 
 ## Intro
@@ -151,7 +154,8 @@ Expressions in `${}` blocks are parsed in the very beginning of query parsing, b
 
 ## Macros
 
-You queries can contain macros, i.e.
+You queries can contain macros.
+Macro is just a substitution in script text, i.e.
 
 ```
 SELECT
@@ -186,4 +190,147 @@ This will return all campaign budgets and attach current date (i.e. 2023-06-01) 
 * `date_iso` - current date in YYYYMMDD format (i.e. *19700101*)
 * `current_date` - current_date in YYYY-MM-DD format (i.e. *1970-01-01*)
 * `current_datetime` - current datetime in YYYY-MM-DD HH:mm-ss format (i.e. *1970-01-01 00:00:00*)
+
+## Templates
+
+Your SQL scripts can be templates using a template engine: [Jinja](https://jinja.palletsprojects.com) for Python and [Nunjucks](https://mozilla.github.io/nunjucks/) for NodeJS.
+Inside templates you can use appropriate syntax and control structures of a template engine (Jinja/Nunjucks).
+They are mostly compatible but please consult the documentations if you migrate between platforms (Python <-> NodeJS).
+
+```
+SELECT
+  customer_id AS
+  {% if level == "0"  %}
+  root_account_id
+  {% else %}
+  leaf_account_id
+  {% endif %}
+FROM dataset1.table1
+WHERE name LIKE @name
+```
+
+When this query is executed it's expected to have template `--template.level=...` is supplied to `gaarf`.
+
+This will create a column named either `root_account_id` since the specified level is 0.
+
+Template are great when you need to create multiple column based on condition:
+
+```
+SELECT
+    {% for day in cohort_days %}
+        SUM(GetCohort(lag_data.installs, {{day}})) AS installs_{{day}}_day,
+    {% endfor %}
+FROM asset_performance
+```
+
+When this query is executed it's expected to have template `--template.cohort_days=0,1,3,7` is supplied to `gaarf`.
+
+Please note that all values passed through CLI arguments are strings. But there's a special case - a value containing ","
+It will create 4 columns (named `installs_0_day`, `installs_1_day`, etc).
+
+## SQL Parameters
+
+You can use normal sql type parameters with `sql` argument (NodeJS only):
+```
+SELECT *
+FROM {dst_dataset}.{table-src}
+WHERE name LIKE @name
+```
+and to execute:
+`gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1 --sql.name='myname%'`
+
+it will create a parameterized query to run in BQ:
+```
+SELECT *
+FROM dataset1.table1
+WHERE name LIKE @name
+```
+
+## Expressions and Macros
+> *Note*: currently expressions are supported only in NodeJS version.
+
+Your queries can contain expressions. The syntax for expressions is `${expression}`.
+They will be executed right after macros substitution. So macros can contain expressions inside.
+Both expressions and macros deal with query text before submitting it for execution.
+Inside expression block we can do anything that the MathJS library supports - see https://mathjs.org/docs/index.html,
+plus work with date and time. It's all sort of arithmetic operations, strings and dates manipulations.
+
+One typical use-case - evaluate date/time expressions to get dynamic date conditions in queries. These are when you don't provide
+a specific date but evaluate it right in the query. For example, applying a condition for date range for last month,
+which can be expressed as a range from today minus 1 month to today (or yesterday):
+```
+WHERE start_date >= '${today()-period('P1M')}' AND end_date <= '${today()}'
+```
+will be evaluated to:
+`WHERE start_date >= '2022-06-20 AND end_date <= '2022-07-20'`
+if today is 2022 July 20th.
+
+Also you can use expressions for making table names dynamic (in BQ scripts), e.g.
+```
+CREATE OR REPLACE TABLE `{bq_dataset}_bq.assetssnapshots_${format(yesterday(),'yyyyMMdd')}` AS
+```
+
+Supported functions:
+* `datetime` - factory function to create a DateTime object, by default in ISO format (`datetime('2022-12-31T23:59:59')`) or in a specified format in the second argument (`datetime('12/31/2022 23:59','M/d/yyyy hh:mm')`)
+* `date` - factory function to create a Date object, supported formats: `date(2022,12,31)`, `date('2022-12-31')`, `date('12/31/2022','M/d/yyyy')`
+* `duration` - returns a Duration object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnDTnHnMnS)
+* `period` - returns a Period object for a string in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601#Durations) format (PnYnMnD)
+* `today` - returns a Date object for today date
+* `yesterday` - returns a Date object for yesterday date
+* `tomorrow` - returns a Date object for tomorrow date
+* `now` - returns a DateTime object for current timestamp (date and time)
+* `format` - formats Date or DateTime using a provided format, e.g. `${format(date('2022-07-01'), 'yyyyMMdd')}` returns '20220701'
+
+Please note functions without arguments still should called with brackets (e.g. `today()`)
+
+For dates and datetimes the following operations are supported:
+* add or subtract Date and Period, e.g. `today()-period('P1D')` - subtract 1 day from today (i.e. yesterday)
+* add or subtract DateTime and Duration, e.g. `now()-duration('PT12H')` - subtract 12 hours from the current datetime
+* for both Date and DateTime add or subtract a number meaning it's a number of days, e.g. `today()-1`
+* subtract two Dates to get a Period, e.g. `tomorrow()-today()` - subtract today from tomorrow and get 1 day, i.e. 'P1D'
+* subtract two DateTimes to get a Duration - similar to subtracting dates but get a duration, i.e. a period with time (e.g. PT10H for 10 hours)
+
+By default all dates will be parsed and converted from/to strings in [ISO format]((https://en.wikipedia.org/wiki/ISO_8601)
+(yyyy-mm-dd for dates and yyyy-mm-ddThh:mm:ss.SSS for datetimes).
+But additionally you can specify a format explicitly (for parsing with `datetime` and `date` function and formatting with `format` function)
+using standard [Java Date and Time Patterns](https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html):
+
+* G   Era designator
+* y   Year
+* Y   Week year
+* M   Month in year (1-based)
+* w   Week in year
+* W   Week in month
+* D   Day in year
+* d   Day in month
+* F   Day of week in month
+* E   Day name in week (e.g. Tuesday)
+* u   Day number of week (1 = Monday, ..., 7 = Sunday)
+* a   Am/pm marker
+* H   Hour in day (0-23)
+* k   Hour in day (1-24)
+* K   Hour in am/pm (0-11)
+* h   Hour in am/pm (1-12)
+* m   Minute in hour
+* s   Second in minute
+* S   Millisecond
+* z   Time zone - General time zone (e.g. Pacific Standard Time; PST; GMT-08:00)
+* Z   Time zone - RFC 822 time zone (e.g. -0800)
+* X   Time zone - ISO 8601 time zone (e.g. -08; -0800; -08:00)
+
+Examples:
+```
+${today() - period('P2D')}
+```
+output: today minus 2 days, e.g. '2022-07-19' if today is 2022-07-21
+
+```
+${today()+1}
+```
+output: today plus 1 days, e.g. '2022-07-22' if today is 2022-07-21
+
+```
+${date(2022,7,20).plusMonths(1)}
+```
+output: "2022-08-20"
 
