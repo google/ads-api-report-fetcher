@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from typing import Any, Dict, Optional
-from jinja2 import Template
+from jinja2 import Template, Environment, FileSystemLoader
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,10 +48,18 @@ class PostProcessorMixin:
             query_text = self.expand_jinja(query_text, {})
         return query_text
 
-    def expand_jinja(self, query_text: str, template_params: Optional[Dict[str,
-                                                                  Any]] = None) -> str:
+    def expand_jinja(self,
+                     query_text: str,
+                     template_params: Optional[Dict[str, Any]] = None) -> str:
+        file_inclusions = ("% include", "% import", "% extend")
+        if any(file_inclusion in query_text
+               for file_inclusion in file_inclusions):
+            template = Environment(loader=FileSystemLoader("."))
+            query = template.from_string(query_text)
+        else:
+            query = Template(query_text)
         if not template_params:
-            return Template(query_text).render()
+            return query.render()
         for key, value in template_params.items():
             if value:
                 if isinstance(value, list):
@@ -62,5 +70,4 @@ class PostProcessorMixin:
                     template_params[key] = value
             else:
                 template_params = ""
-        template = Template(query_text)
-        return template.render(template_params)
+        return query.render(template_params)
