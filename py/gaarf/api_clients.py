@@ -15,9 +15,15 @@
 from typing import Any, Dict, List, Optional, Set, Sequence
 from dataclasses import dataclass
 
+import os
+import yaml
+
 from google.ads.googleads.client import GoogleAdsClient  # type: ignore
+from google.api_core.exceptions import NotFound
 from importlib import import_module
+import logging
 from pathlib import Path
+from smart_open import open
 import re
 from proto.primitives import ProtoType
 
@@ -147,9 +153,9 @@ class GoogleAdsApiClient(BaseClient):
 
     def __init__(self,
                  path_to_config: str = default_google_ads_yaml,
-                 config_dict: Dict[str, Any] = None,
-                 yaml_str: str = None,
-                 version: str = "v12"):
+                 config_dict: Optional[Dict[str, str]] = None,
+                 yaml_str: Optional[str] = None,
+                 version: str = "v13"):
         super().__init__(version)
         self.client = self._init_client(path=path_to_config,
                                         config_dict=config_dict,
@@ -160,6 +166,7 @@ class GoogleAdsApiClient(BaseClient):
         else:
             raise ValueError("Specify 'use_proto_plus: True' in your google-ads.yaml file")
         self.ads_service = self.client.get_service("GoogleAdsService")
+        self.version = version
 
     def get_response(self, entity_id, query_text):
         response = self.ads_service.search_stream(customer_id=entity_id,
@@ -173,7 +180,15 @@ class GoogleAdsApiClient(BaseClient):
         if yaml_str:
             return GoogleAdsClient.load_from_string(yaml_str, version)
         if path:
-            return GoogleAdsClient.load_from_storage(path, version)
+            if os.path.isfile(path):
+                return GoogleAdsClient.load_from_storage(path, version)
+            else:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        google_ads_config_dict = yaml.safe_load(f)
+                    return GoogleAdsClient.load_from_dict(google_ads_config_dict, version)
+                except NotFound as e:
+                    raise ValueError(f"File {path} not found")
         try:
             return GoogleAdsClient.load_from_env(version)
         except Exception as e:
