@@ -25,6 +25,7 @@ import rich
 from rich.console import Console
 from rich.table import Table
 import pandas as pd  # type: ignore
+import numpy as np
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
@@ -40,9 +41,9 @@ class AbsWriter(abc.ABC):
     def get_columns_results(
             self, results: GaarfReport) -> Tuple[Sequence[str], Sequence[Any]]:
         column_names = results.column_names
-        results = ArrayFormatter.format(
+        formatted_results = ArrayFormatter.format(
             ResultsFormatter.format(results.to_list()), "|")
-        return column_names, results
+        return column_names, formatted_results
 
 
 class StdoutWriter(AbsWriter):
@@ -128,7 +129,7 @@ class BigQueryWriter(AbsWriter):
         self._init_client()
         fake_report = results.is_fake
         column_names, results = self.get_columns_results(results)
-        schema = self._define_schema(results, column_names)
+        schema = self._define_schema(iter(results), column_names)
         destination = DestinationFormatter.format_extension(destination)
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
                                           schema)
@@ -137,6 +138,7 @@ class BigQueryWriter(AbsWriter):
             schema=schema)
 
         df = pd.DataFrame(results, columns=column_names)
+        df = df.replace({np.nan: None})
         if fake_report:
             df = df.head(0)
         logger.debug("Writing %d rows of data to %s", len(df), destination)
@@ -159,24 +161,29 @@ class BigQueryWriter(AbsWriter):
             elements: Sequence[Any],
             column_names: Sequence[str]) -> Dict[str, Dict[str, Any]]:
         result_types = {}
-        for i, element in enumerate(elements[0]):
-            element_type = type(element)
-            if element_type in [
-                    list, proto.marshal.collections.repeated.RepeatedComposite,
-                    proto.marshal.collections.repeated.Repeated
-            ]:
-                repeated = True
-                if len(element) == 0:
-                    element_type = str
+        for row in elements:
+            if set(column_names) == set(result_types.keys()):
+                break
+            for i, field in enumerate(row):
+                if field is None or column_names[i] in result_types:
+                    continue
+                field_type = type(field)
+                if field_type in [
+                        list, proto.marshal.collections.repeated.RepeatedComposite,
+                        proto.marshal.collections.repeated.Repeated
+                ]:
+                    repeated = True
+                    if len(field) == 0:
+                        field_type = str
+                    else:
+                        field_type = type(field[0])
                 else:
-                    element_type = type(element[0])
-            else:
-                element_type = type(element)
-                repeated = False
-            result_types[column_names[i]] = {
-                "element_type": element_type,
-                "repeated": repeated
-            }
+                    field_type = type(field)
+                    repeated = False
+                result_types[column_names[i]] = {
+                    "field_type": field_type,
+                    "repeated": repeated
+                }
         return result_types
 
     @staticmethod
@@ -193,11 +200,11 @@ class BigQueryWriter(AbsWriter):
 
         schema: List[bigquery.SchemaField] = []
         for key, value in types.items():
-            element_type = TYPE_MAPPING.get(value.get("element_type"))
+            field_type = TYPE_MAPPING.get(value.get("field_type"))
             schema.append(
                 bigquery.SchemaField(
                     name=key,
-                    field_type="STRING" if not element_type else element_type,
+                    field_type="STRING" if not field_type else field_type,
                     mode="REPEATED" if value.get("repeated") else "NULLABLE"))
         return schema
 
