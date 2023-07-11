@@ -18,6 +18,8 @@ import date_add from 'date-fns/add'
 import _ from 'lodash';
 
 import {math_parse} from './math-engine';
+import nunjucks from 'nunjucks';
+import { typeOf } from 'mathjs';
 
 export function traverseObject(
     object: any,
@@ -146,6 +148,9 @@ export function substituteMacros(
   if (!macros['date_iso']) {
     macros['date_iso'] = formatDateISO(new Date());
   }
+  //TODO: support
+  //"current_date": datetime.date.today().strftime("%Y-%m-%d"),
+  //"current_datetime": datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
 
   // notes on the regexp:
   //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
@@ -165,6 +170,18 @@ export function substituteMacros(
     return math_parse(expr).evaluate(macros);
   });
   return {text: text, unknown_params: Object.keys(unknown_params)};
+}
+
+export function renderTemplate(template: string, params: any) {
+  //nunjucks.configure("views", { autoescape: true });
+  if (params) {
+    for (let [key, value] of Object.entries(params)) {
+      if (value && typeof value === 'string') {
+        params[key] = value.split(",");
+      }
+    }
+  }
+  return nunjucks.renderString(template, params);
 }
 
 function prepend(value: number, num?: number): string {

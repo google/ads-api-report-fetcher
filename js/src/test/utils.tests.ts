@@ -17,7 +17,8 @@
 import assert from 'assert';
 import date_add from 'date-fns/add';
 
-import {formatDateISO, getElapsed, substituteMacros} from './../lib/utils';
+import {formatDateISO, getElapsed, substituteMacros, renderTemplate} from './../lib/utils';
+import { render } from 'nunjucks';
 
 suite('substituteMacros', () => {
   test('support empty params', async function() {
@@ -173,3 +174,47 @@ suite('substituteMacros', () => {
     assert.deepEqual(res.unknown_params.length, 0);
   });
 });
+
+suite('renderTemplate', () => {
+  test("support empty params", async function () {
+    let res = renderTemplate("abc={xyz}", undefined);
+    assert.deepStrictEqual(res, "abc={xyz}");
+  });
+
+  test("template with if-else", () => {
+    const template =
+      "SELECT field_one, {% if key == 'field_2' %}field_two{% else %}field_three{% endif %} FROM some_table";
+
+    assert.equal(
+      renderTemplate(template, {}),
+      "SELECT field_one, field_three FROM some_table"
+    );
+    assert.equal(
+      renderTemplate(template, { key: "field_2" }),
+      "SELECT field_one, field_two FROM some_table"
+    );
+    assert.equal(
+      renderTemplate(template, { key: "field_3" }),
+      "SELECT field_one, field_three FROM some_table"
+    );
+  })
+
+  test("template with for loop", () => {
+    const template =
+      "SELECT field_one, {% for day in cohort_days %}{{day}} AS day_{{day}}, {% endfor %}FROM some_table";
+
+    assert.equal(
+      renderTemplate(template, { "cohort_days": "1,2" }),
+      "SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table"
+    );
+    assert.equal(
+      renderTemplate(template, { cohort_days: [1,2] }),
+      "SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table"
+    );
+    assert.equal(
+      renderTemplate(template, {  }),
+      "SELECT field_one, FROM some_table"
+    );
+  });
+});
+

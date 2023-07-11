@@ -99,7 +99,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
     alias: "o",
-    description: "output writer to use",
+    description: "Output writer to use",
 })
     .option("loglevel", {
     alias: ["log-level", "ll", "log_level"],
@@ -114,22 +114,22 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     // })
     .option("parallel-accounts", {
     type: "boolean",
-    description: "How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)",
+    description: "How one query is being processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel",
     default: true,
 })
     .option("csv.destination-folder", {
     type: "string",
     alias: "csv.destination",
-    description: "output folder for generated CSV files",
+    description: "Output folder for generated CSV files",
 })
     .option("csv.array-separator", {
     type: "string",
-    description: "arrays separator symbol",
+    description: "Arrays separator symbol",
 })
     .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
-    description: "transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
+    description: "Transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
 })
     .option("console.page_size", {
     type: "number",
@@ -152,19 +152,19 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("bq.table-template", {
     type: "string",
-    description: "template for tables names, you can use {script} macro inside",
+    description: "Template for tables names, you can use {script} macro inside",
 })
     .option("bq.dump-schema", {
     type: "boolean",
-    description: "flag that enables dumping json files with schemas for tables",
+    description: "Flag that enables dumping json files with schemas for tables",
 })
     .option("bq.dump-data", {
     type: "boolean",
-    description: "flag that enables dumping json files with tables data",
+    description: "Flag that enables dumping json files with tables data",
 })
     .option("bq.no-union-view", {
     type: "boolean",
-    description: "disable creation of union views (combining data from customer's tables)",
+    description: "Disable creation of union views (combining data from customer's tables)",
 })
     .option("bq.insert-method", {
     type: "string",
@@ -174,17 +174,20 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option("bq.array-handling", {
     type: "string",
     choices: ["arrays", "strings"],
-    description: "arrays handling (as arrays or as strings)",
+    description: "Arrays handling (as arrays or as strings)",
 })
     .option("bq.array-separator", {
     type: "string",
-    description: "arrays separator symbol (for array-handling=strings)",
+    description: "Arrays separator symbol (for array-handling=strings)",
 })
     .option("skip-constants", {
     type: "boolean",
-    description: "do not execute scripts for constant resources",
+    description: "Do not execute scripts for constant resources",
 })
-    .option("dump-query", { type: "boolean" })
+    .option("dump-query", {
+    type: "boolean",
+    description: "Output GAQL quesries to console before execution",
+})
     .group([
     "bq.project",
     "bq.dataset",

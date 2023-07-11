@@ -24,47 +24,60 @@ import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor';
 import {getFileContent} from './lib/file-utils';
 import {getLogger} from './lib/logger';
 
-const argv =
-    yargs(hideBin(process.argv))
-        .scriptName('gaarf-bq')
-        .command('$0 <files..>', 'Execute BigQuery queries', {})
-        .positional('files', {
-          array: true,
-          type: 'string',
-          description:
-              'List of files with BigQuery queries (can be gcs:// resources)'
-        })
-        .option(
-            'project',
-            {type: 'string', description: 'GCP project id for BigQuery'})
-        .option(
-            'dataset-location',
-            {type: 'string', description: 'BigQuery dataset location'})
-        .option('loglevel', {
-          alias: ['log-level', 'll', 'log_level'],
-          choises: ['debug', 'verbose', 'info', 'warn', 'error'],
-          description:
-              'Logging level. By default - \'info\', for output=console - \'warn\''
-        })
-        .env('GAARF_BQ')
-        .config(
-            'config', 'Path to JSON or YAML config file',
-            function(configPath) {
-              let content = fs.readFileSync(configPath, 'utf-8');
-              if (configPath.endsWith('.yaml')) {
-                return yaml.load(content)
-              }
-              return JSON.parse(content);
-            })
-        .help()
-        .example(
-            '$0 bq-queries/**/*.sql --project=myproject --macro.dataset=mydata',
-            'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)')
-        .example(
-            '$0 bq-queries/**/*.sql --config=gaarf_bq.json',
-            'Execute BigQuery queries with passing arguments via config file (can be json or yaml)')
-        .epilog('(c) Google 2022. Not officially supported product.')
-        .parseSync();
+const argv = yargs(hideBin(process.argv))
+  .scriptName("gaarf-bq")
+  .wrap(yargs.terminalWidth())
+  .version()
+  .alias("v", "version")
+  .command("$0 <files..>", "Execute BigQuery queries", {})
+  .positional("files", {
+    array: true,
+    type: "string",
+    description:
+      "List of files with BigQuery queries (can be gcs:// resources)",
+  })
+  .option("project", {
+    type: "string",
+    description: "GCP project id for BigQuery",
+  })
+  .option("dataset-location", {
+    type: "string",
+    description: "BigQuery dataset location",
+  })
+  .option("dump-query", {
+    type: "boolean",
+    description: "Output quesries to console before execution",
+  })
+  .option("loglevel", {
+    alias: ["log-level", "ll", "log_level"],
+    choises: ["debug", "verbose", "info", "warn", "error"],
+    description:
+      "Logging level. By default - 'info', for output=console - 'warn'",
+  })
+  .env("GAARF_BQ")
+  .config("config", "Path to JSON or YAML config file", function (configPath) {
+    let content = fs.readFileSync(configPath, "utf-8");
+    if (configPath.endsWith(".yaml")) {
+      return yaml.load(content);
+    }
+    return JSON.parse(content);
+  })
+  .help()
+  .usage(
+    `gaarf-bq - a tool for executing BigQuery queries, a companion tool for Google Ads API Report Fetcher (gaarf).`
+  )
+  .example(
+    "$0 bq-queries/**/*.sql --project=myproject --macro.dataset=mydata",
+    "Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)"
+  )
+  .example(
+    "$0 bq-queries/**/*.sql --config=gaarf_bq.json",
+    "Execute BigQuery queries with passing arguments via config file"
+  )
+  .epilog(
+    `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`
+  )
+  .parseSync();
 
 const logger = getLogger();
 
@@ -75,12 +88,14 @@ async function main() {
         `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
     process.exit(-1);
   }
-  let scriptPaths = argv.files;
-  let projectId = argv.project || '';
-  let sqlParams = <Record<string, any>>argv['sql'] || {};
-  let macroParams = <Record<string, any>>argv['macro'] || {};
+  const scriptPaths = argv.files;
+  const projectId = argv.project || "";
+  const sqlParams = <Record<string, any>>argv["sql"];
+  const macroParams = <Record<string, any>>argv["macro"];
+  const templateParams = <Record<string, any>>argv['template'];
   let options: BigQueryExecutorOptions = {
-    datasetLocation: argv['dataset-location']
+    datasetLocation: argv['dataset-location'],
+    dumpQuery: argv['dump-query'],
   };
   let executor = new BigQueryExecutor(projectId, options);
   for (let scriptPath of scriptPaths) {
@@ -88,8 +103,11 @@ async function main() {
     logger.info(`Processing query from ${scriptPath}`);
 
     let scriptName = path.basename(scriptPath).split('.sql')[0];
-    await executor.execute(
-        scriptName, queryText, {sqlParams, macroParams});
+    await executor.execute(scriptName, queryText, {
+      sqlParams,
+      macroParams,
+      templateParams,
+    });
   }
 }
 

@@ -1,4 +1,4 @@
-# Google Ads API Report Fetcher (gaarf)
+Google Ads API Report Fetcher (gaarf)
 
 [![npm](https://img.shields.io/npm/v/google-ads-api-report-fetcher)](https://www.npmjs.com/package/google-ads-api-report-fetcher)
 [![Downloads npm](https://img.shields.io/npm/dw/google-ads-api-report-fetcher?logo=npm)](https://www.npmjs.com/package/google-ads-api-report-fetcher)
@@ -99,6 +99,7 @@ Options:
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
 * `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
+* `csv.file-per-customer` - create a CSV file per customer (default: false) (*NodeJS version only*)
 
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
@@ -163,8 +164,9 @@ gaarf-sql <files> [options]
 Options:
 * `sql.*` - named SQL parameters to be used in queries as `@param`. E.g. a parameter 'date' supplied via cli as `--sql.date=2022-06-01` can be used in query as `@date` in query.
 * `macro.*` - macro parameters to substitute into queries as `{param}`. E.g. a parameter 'dataset' supplied via cli as `--macro.dataset=myds` can be used as `{dataset}` in query's text.
-* [Python only] `template.*` -  [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) supported by Jinja
+* `template.*` -  parameters for templates, strings with "," will be converted to lists/arrays
 
+ 
 The tool assumes that scripts you provide are DDL, i.e. contains statements like create table or create view.
 
 In general it's recommended to separate tables with data from Ads API and final tables/views created by your post-processing queries.
@@ -240,8 +242,15 @@ WHERE name LIKE @name
 
 *Template*
 
-In Python version you can also pass `template` parameter:
+Your SQL scripts can be templates using a template engine: [Jinja](https://jinja.palletsprojects.com) for Python and [Nunjucks](https://mozilla.github.io/nunjucks/) for NodeJS.
+A script will be processed as a template if and only if you supplied `template` argument.
 
+Inside templates you can use appropriate syntax and control structues of a template engine (Jinja/Nunjucks).
+They are mostly compatible but please consult the documentations if you migrate between platforms (Python <-> NodeJS).
+
+Usually inside template blocks you use some variable (in if-else/for-loop). To pass their values you use `--template` arguments.
+
+Example:
 ```
 SELECT
   customer_id AS
@@ -255,9 +264,12 @@ WHERE name LIKE @name
 ```
 and to execute:
 
-`gaarf-bq path/to/query.sql --template.level="0"`
+`gaarf-bq path/to/query.sql --template.level=0`
 
 This will create a column named either `root_account_id` since the specified level is 0.
+
+Please note that all values passed through CLI arguments are strings. But there's a special case - it a value contains ","
+then it's treated as an array - see the following example.
 
 Template are great when you need to create multiple column based on condition:
 

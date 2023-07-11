@@ -30,6 +30,7 @@ class BigQueryExecutor {
             location: datasetLocation,
         });
         this.datasetLocation = datasetLocation;
+        this.dumpQuery = options === null || options === void 0 ? void 0 : options.dumpQuery;
         this.logger = (0, logger_1.getLogger)();
     }
     async execute(scriptName, queryText, params) {
@@ -43,6 +44,9 @@ class BigQueryExecutor {
                     }
                 }
             }
+        }
+        if (params === null || params === void 0 ? void 0 : params.templateParams) {
+            queryText = (0, utils_1.renderTemplate)(queryText, params.templateParams);
         }
         let res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
         if (res.unknown_params.length) {
@@ -58,6 +62,9 @@ class BigQueryExecutor {
         // query.createDisposition = 'CREATE_IF_NEEDED';
         // query.writeDisposition = params?.writeDisposition || 'WRITE_TRUNCATE';
         //}
+        if (this.dumpQuery) {
+            this.logger.info(`Query text to execute:\n` + query.query);
+        }
         try {
             let [values] = await this.bigquery.query(query);
             this.logger.info(`Query '${scriptName}' executed successfully`);
@@ -69,7 +76,7 @@ class BigQueryExecutor {
         }
     }
     async createUnifiedView(dataset, tableId, customers) {
-        if (typeof dataset == 'string') {
+        if (typeof dataset == "string") {
             dataset = await (0, bq_common_1.getDataset)(this.bigquery, dataset, this.datasetLocation);
         }
         const datasetId = dataset.id;

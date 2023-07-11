@@ -18,10 +18,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dumpMemory = exports.getElapsed = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+exports.dumpMemory = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const add_1 = __importDefault(require("date-fns/add"));
 const lodash_1 = __importDefault(require("lodash"));
 const math_engine_1 = require("./math-engine");
+const nunjucks_1 = __importDefault(require("nunjucks"));
 function traverseObject(object, visitor, path) {
     path = path || [];
     return lodash_1.default.forIn(object, function (value, name) {
@@ -145,6 +146,9 @@ function substituteMacros(text, macros) {
     if (!macros['date_iso']) {
         macros['date_iso'] = formatDateISO(new Date());
     }
+    //TODO: support
+    //"current_date": datetime.date.today().strftime("%Y-%m-%d"),
+    //"current_datetime": datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
     // notes on the regexp:
     //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
     //  not precended with '$'), with that we're capturing {smth} expressions
@@ -165,6 +169,18 @@ function substituteMacros(text, macros) {
     return { text: text, unknown_params: Object.keys(unknown_params) };
 }
 exports.substituteMacros = substituteMacros;
+function renderTemplate(template, params) {
+    //nunjucks.configure("views", { autoescape: true });
+    if (params) {
+        for (let [key, value] of Object.entries(params)) {
+            if (value && typeof value === 'string') {
+                params[key] = value.split(",");
+            }
+        }
+    }
+    return nunjucks_1.default.renderString(template, params);
+}
+exports.renderTemplate = renderTemplate;
 function prepend(value, num) {
     let value_str = value.toString();
     num = num || 2;

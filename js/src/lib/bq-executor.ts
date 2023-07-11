@@ -17,21 +17,25 @@ import {BigQuery, Dataset, Query} from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 
 import {getLogger} from './logger';
-import {substituteMacros} from './utils';
+import {renderTemplate, substituteMacros} from './utils';
 import {getDataset, OAUTH_SCOPES} from "./bq-common";
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
   keyFilePath?: string;
+  dumpQuery?: boolean;
 }
 export interface BigQueryExecutorParams {
   sqlParams?: Record<string, any>;
   macroParams?: Record<string, any>;
+  templateParams?: Record<string, any>;
   writeDisposition?: string;
 }
+
 export class BigQueryExecutor {
   bigquery: BigQuery;
   datasetLocation?: string;
+  dumpQuery?: boolean;
   logger;
 
   constructor(
@@ -46,6 +50,7 @@ export class BigQueryExecutor {
       location: datasetLocation,
     });
     this.datasetLocation = datasetLocation;
+    this.dumpQuery = options?.dumpQuery;
     this.logger = getLogger();
   }
 
@@ -65,6 +70,10 @@ export class BigQueryExecutor {
         }
       }
     }
+    if (params?.templateParams) {
+      queryText = renderTemplate(queryText, params.templateParams);
+    }
+
     let res = substituteMacros(queryText, params?.macroParams);
     if (res.unknown_params.length) {
       throw new Error(
@@ -81,6 +90,9 @@ export class BigQueryExecutor {
     // query.createDisposition = 'CREATE_IF_NEEDED';
     // query.writeDisposition = params?.writeDisposition || 'WRITE_TRUNCATE';
     //}
+    if (this.dumpQuery) {
+      this.logger.info(`Query text to execute:\n` + query.query);
+    }
     try {
       let [values] = await this.bigquery.query(query);
       this.logger.info(`Query '${scriptName}' executed successfully`);
@@ -92,16 +104,12 @@ export class BigQueryExecutor {
   }
 
   async createUnifiedView(
-    dataset: Dataset|string,
+    dataset: Dataset | string,
     tableId: string,
     customers: string[]
   ) {
-    if (typeof dataset == 'string') {
-      dataset = await getDataset(
-        this.bigquery,
-        dataset,
-        this.datasetLocation
-      );
+    if (typeof dataset == "string") {
+      dataset = await getDataset(this.bigquery, dataset, this.datasetLocation);
     }
     const datasetId = dataset.id!;
     await dataset!.table(tableId).delete({
