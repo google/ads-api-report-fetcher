@@ -43,7 +43,7 @@ async function main_unsafe(req, res, projectId, logger) {
     const customerId = req.query.customer_id || adsConfig.customer_id;
     if (!customerId)
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
-    const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
+    const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig);
     // TODO: support CsvWriter and output path to GCS
     // (csv.destination_folder=gs://bucket/path)
     const singleCustomer = req.query.single_customer;
@@ -66,7 +66,7 @@ async function main_unsafe(req, res, projectId, logger) {
             customerId,
             scriptName,
         });
-        customers = await ads_client.getCustomerIds();
+        customers = await ads_client.getCustomerIds(customerId);
         await logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
             customerId,
             scriptName,

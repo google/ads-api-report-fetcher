@@ -61,7 +61,7 @@ async function main_unsafe(
       "Customer id is not specified in either 'customer_id' query argument or google-ads.yaml"
     );
 
-  const ads_client = new GoogleAdsApiClient(adsConfig, <string>customerId);
+  const ads_client = new GoogleAdsApiClient(adsConfig);
   // TODO: support CsvWriter and output path to GCS
   // (csv.destination_folder=gs://bucket/path)
 
@@ -88,7 +88,7 @@ async function main_unsafe(
       customerId,
       scriptName,
     });
-    customers = await ads_client.getCustomerIds();
+    customers = await ads_client.getCustomerIds(<string>customerId);
     await logger.info(
       `[${scriptName}] Customers to process (${customers.length})`,
       {

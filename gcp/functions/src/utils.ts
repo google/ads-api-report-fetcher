@@ -41,10 +41,7 @@ export async function getAdsConfig(
   const adsConfigFile =
     <string>req.query.ads_config_path || process.env.ADS_CONFIG;
   if (adsConfigFile) {
-    adsConfig = await loadAdsConfigYaml(
-      adsConfigFile,
-      <string>req.query.customer_id
-    );
+    adsConfig = await loadAdsConfigYaml(adsConfigFile);
   } else if (req.body && req.body.ads_config) {
     // get from request body
     adsConfig = <GoogleAdsApiConfig>{
@@ -70,10 +67,7 @@ export async function getAdsConfig(
     };
   } else if (fs.existsSync('google-ads.yaml')) {
     // get from a local file
-    adsConfig = await loadAdsConfigYaml(
-      'google-ads.yaml',
-      <string>req.query.customer_id
-    );
+    adsConfig = await loadAdsConfigYaml('google-ads.yaml');
   }
   if (
     !adsConfig ||

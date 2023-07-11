@@ -34,7 +34,7 @@ async function getAdsConfig(req) {
     let adsConfig;
     const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
     if (adsConfigFile) {
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile, req.query.customer_id);
+        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile);
     }
     else if (req.body && req.body.ads_config) {
         // get from request body
@@ -61,7 +61,7 @@ async function getAdsConfig(req) {
     }
     else if (node_fs_1.default.existsSync('google-ads.yaml')) {
         // get from a local file
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)('google-ads.yaml', req.query.customer_id);
+        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)('google-ads.yaml');
     }
     if (!adsConfig ||
         !adsConfig.developer_token ||

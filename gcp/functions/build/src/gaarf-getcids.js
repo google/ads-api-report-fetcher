@@ -24,11 +24,12 @@ async function main_getcids_unsafe(req, res, logger) {
     const adsConfig = await (0, utils_1.getAdsConfig)(req);
     const { refresh_token, ...ads_config_wo_token } = adsConfig;
     await logger.info('Ads API config', ads_config_wo_token);
-    const customerId = req.query.customer_id || adsConfig.customer_id;
-    if (!customerId)
+    let customerIds = (0, google_ads_api_report_fetcher_1.parseCustomerIds)(req.query.customer_id, adsConfig);
+    if (!customerIds || customerIds.length === 0) {
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
-    const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig, customerId);
-    let accounts = await ads_client.getCustomerIds();
+    }
+    const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig);
+    customerIds = await ads_client.getCustomerIds(customerIds);
     let customer_ids_query = '';
     if (req.body && req.body.customer_ids_query) {
         customer_ids_query = req.body.customer_ids_query;
@@ -39,9 +40,9 @@ async function main_getcids_unsafe(req, res, logger) {
     if (customer_ids_query) {
         await logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
         const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(ads_client);
-        accounts = await executor.getCustomerIds(accounts, customer_ids_query);
+        customerIds = await executor.getCustomerIds(customerIds, customer_ids_query);
     }
-    res.json(accounts);
+    res.json(customerIds);
     res.end();
 }
 const main_getcids = async (req, res) => {
