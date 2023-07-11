@@ -117,6 +117,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     description: "How one query is being processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel",
     default: true,
 })
+    .option("parallel-threshold", {
+    type: "number",
+    description: "The maximum number of parallel queries"
+})
     .option("csv.destination-folder", {
     type: "string",
     alias: "csv.destination",
@@ -368,6 +372,7 @@ async function main() {
     let options = {
         skipConstants: argv.skipConstants,
         parallelAccounts: argv.parallelAccounts,
+        parallelThreshold: argv.parallelThreshold,
         dumpQuery: argv.dumpQuery,
     };
     logger.info(`Found ${scriptPaths.length} script to process`);

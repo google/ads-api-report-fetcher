@@ -1,4 +1,9 @@
 # Changelog
+## 1.16 - 2023-07-11
+* Templates support (via https://mozilla.github.io/nunjucks/)
+* AdsQueryExecutor: limit level of parallelism (be default there's a threshold to issue simultaneous parallel queries)
+* CsvWriter: support `file-per-customer` argument - split output file by customer
+
 ## 1.15 - 2023-05-18
 * added support for `date_iso` macro (compatible with the Python version)
 * added global executable aliases `gaarf-node` and `gaarf-node-bq`

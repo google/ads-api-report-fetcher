@@ -96,6 +96,11 @@ Options:
 * `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level).
   By default Gaarf does account expansion (even with `customer-ids-query`).
 
+* `parallel-account` - how one query is being processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel (*NodeJS version only*, for Python - always sequentially)
+* `parallel-queries` - how to process queries file: all in parallel (true) or sequentially (false). By default - in parallel (*Python version only*, for NodeJS - always sequentially)
+* `parallel-threshold` - a number, maximum number of parallel queries (*NodeJS version only*)
+
+
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
 * `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)

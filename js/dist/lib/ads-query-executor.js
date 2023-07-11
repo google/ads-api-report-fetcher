@@ -21,6 +21,7 @@ Object.defineProperty(exports, "AdsApiVersion", { enumerable: true, get: functio
 const ads_row_parser_1 = require("./ads-row-parser");
 const logger_1 = require("./logger");
 const utils_1 = require("./utils");
+const async_1 = require("async");
 class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
@@ -46,6 +47,7 @@ class AdsQueryExecutor {
     async execute(scriptName, queryText, customers, macros, writer, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
+        let threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
         if (sync)
             this.logger.verbose(`Running in synchronous mode`, { scriptName });
         let query = this.parseQuery(queryText, macros);
@@ -61,7 +63,6 @@ class AdsQueryExecutor {
         }
         if (writer)
             await writer.beginScript(scriptName, query);
-        let tasks = [];
         let result_map = {}; // customer-id to row count mapping for return
         if (isConstResource) {
             // if resource has '_constant' in its name it doesn't depend on customers,
@@ -76,10 +77,13 @@ class AdsQueryExecutor {
             // non-constant
             if (!sync) {
                 // parallel mode - we're limiting the level of concurrency with limit
-                tasks = customers.map((customerId) => {
+                this.logger.debug(`Concurrently processing (${customers}) customers (throttle: ${threshold})`);
+                let results = await (0, async_1.mapLimit)(customers, 10, async (customerId) => {
                     return this.executeOne(query, customerId, writer, scriptName);
-                    // TODO: return limit(() => this.executeOne(query, customerId, writer, scriptName));
                 });
+                for (let result of results) {
+                    result_map[result.customerId] = result.rowCount;
+                }
             }
             else {
                 for (let customerId of customers) {
@@ -88,23 +92,11 @@ class AdsQueryExecutor {
                 }
             }
         }
-        if (!sync) {
-            this.logger.debug(`Waiting for all tasks (${tasks.length}) to complete`);
-            let results = await Promise.allSettled(tasks);
-            for (let result of results) {
-                if (result.status == "rejected") {
-                    // NOTE: we logged the error in executeOne
-                    throw result.reason;
-                }
-                else {
-                    let customerId = result.value.customerId;
-                    result_map[customerId] = result.value.rowCount;
-                }
-            }
-        }
         if (writer)
             await writer.endScript();
-        this.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
+        }
         return result_map;
     }
     /**
@@ -241,4 +233,5 @@ class AdsQueryExecutor {
     }
 }
 exports.AdsQueryExecutor = AdsQueryExecutor;
+AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD = 30;
 //# sourceMappingURL=ads-query-executor.js.map

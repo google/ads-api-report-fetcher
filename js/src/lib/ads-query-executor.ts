@@ -21,7 +21,8 @@ import {AdsQueryEditor,AdsApiVersion} from "./ads-query-editor";
 import {AdsRowParser} from './ads-row-parser';
 import {getLogger} from './logger';
 import {IResultWriter, QueryElements, QueryResult} from './types';
-import {dumpMemory, getElapsed} from './utils';
+import { dumpMemory, getElapsed } from './utils';
+import { mapLimit } from "async";
 export {AdsApiVersion};
 
 export interface AdsQueryExecutorOptions {
@@ -33,10 +34,16 @@ export interface AdsQueryExecutorOptions {
    * otherwise (by default) - in parallel
    */
   parallelAccounts?: boolean;
+  /**
+   * A level of parallelism (if parallelAccounts:true) - maximum number of requests execuring in parallel
+   */
+  parallelThreshold?: number;
   dumpQuery?: boolean;
 }
 
 export class AdsQueryExecutor {
+  static DEFAULT_PARALLEL_THRESHOLD = 30;
+
   client: IGoogleAdsApiClient;
   editor: AdsQueryEditor;
   parser: AdsRowParser;
@@ -75,6 +82,7 @@ export class AdsQueryExecutor {
   ): Promise<Record<string, number>> {
     let skipConstants = !!options?.skipConstants;
     let sync = options?.parallelAccounts === false || customers.length === 1;
+    let threshold = options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
     if (sync)
       this.logger.verbose(`Running in synchronous mode`, { scriptName });
     let query = this.parseQuery(queryText, macros);
@@ -89,7 +97,6 @@ export class AdsQueryExecutor {
       this.logger.info(`Script text to execute:\n` + query.queryText);
     }
     if (writer) await writer.beginScript(scriptName, query);
-    let tasks: Array<Promise<QueryResult>> = [];
     let result_map: Record<string, number> = {}; // customer-id to row count mapping for return
 
     if (isConstResource) {
@@ -107,10 +114,15 @@ export class AdsQueryExecutor {
       // non-constant
       if (!sync) {
         // parallel mode - we're limiting the level of concurrency with limit
-        tasks = customers.map((customerId) => {
+        this.logger.debug(
+          `Concurrently processing (${customers}) customers (throttle: ${threshold})`
+        );
+        let results = await mapLimit(customers, 10, async (customerId: string) => {
           return this.executeOne(query, customerId, writer, scriptName);
-          // TODO: return limit(() => this.executeOne(query, customerId, writer, scriptName));
         });
+        for (let result of results) {
+          result_map[result.customerId] = result.rowCount;
+        }
       } else {
         for (let customerId of customers) {
           let res = await this.executeOne(
@@ -124,22 +136,10 @@ export class AdsQueryExecutor {
       }
     }
 
-    if (!sync) {
-      this.logger.debug(`Waiting for all tasks (${tasks.length}) to complete`);
-      let results = await Promise.allSettled(tasks);
-      for (let result of results) {
-        if (result.status == "rejected") {
-          // NOTE: we logged the error in executeOne
-          throw result.reason;
-        } else {
-          let customerId = result.value.customerId;
-          result_map[customerId] = result.value.rowCount;
-        }
-      }
-    }
-
     if (writer) await writer.endScript();
-    this.logger.debug(`[${scriptName}] Memory (script completed):\n` + dumpMemory());
+    if (this.logger.isDebugEnabled()) {
+      this.logger.debug(`[${scriptName}] Memory (script completed):\n` + dumpMemory());
+    }
 
     return result_map;
   }
