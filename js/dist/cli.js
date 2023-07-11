@@ -126,6 +126,9 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: "string",
     description: "Arrays separator symbol",
 })
+    .option("csv.file-per-customer", {
+    type: "boolean"
+})
     .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
@@ -214,22 +217,22 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${ads_query_executor_1.AdsApiVersion}.`)
     .example("$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds", "Execute ads queries and upload results to BigQuery, table per script")
     .example("$0 queries/**/*.sql --output=csv --csv.destination-folder=output", "Execute ads queries and output results to csv files, one per script")
-    .example("$0 queries/**/*.sql --config=gaarf.json", "Execute ads queries with passing arguments via config file (can be json or yaml)")
+    .example("$0 queries/**/*.sql --config=gaarf.json", "Execute ads queries with passing arguments via config file")
     .epilog(`(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`)
     // TODO: .completion()
     .parseSync();
 function getWriter() {
-    let output = (argv.output || '').toString();
-    if (output === '') {
+    let output = (argv.output || "").toString();
+    if (output === "") {
         return new csv_writer_1.NullWriter();
     }
-    if (output === 'console') {
+    if (output === "console") {
         return new console_writer_1.ConsoleWriter(argv.console);
     }
-    if (output === 'csv') {
+    if (output === "csv") {
         return new csv_writer_1.CsvWriter(argv.csv);
     }
-    if (output === 'bq' || output === 'bigquery') {
+    if (output === "bq" || output === "bigquery") {
         // TODO: move all options to BigQueryWriterOptions
         if (!argv.bq) {
             throw new Error(`For BigQuery writer (---output=bq) we should specify at least a dataset id`);
@@ -246,18 +249,21 @@ function getWriter() {
         let opts = {};
         let bq_opts = argv.bq;
         opts.datasetLocation = bq_opts.location;
-        opts.tableTemplate = bq_opts['table-template'];
-        opts.dumpSchema = bq_opts['dump-schema'];
-        opts.dumpData = bq_opts['dump-data'];
-        opts.noUnionView = bq_opts['no-union-view'];
-        opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
-            ? bq_writer_1.BigQueryInsertMethod.insertAll : bq_writer_1.BigQueryInsertMethod.loadTable;
-        opts.arrayHandling = bq_opts['array-handling'];
-        opts.arraySeparator = bq_opts['array-separator'];
-        logger.debug('BigQueryWriterOptions:');
+        opts.tableTemplate = bq_opts["table-template"];
+        opts.dumpSchema = bq_opts["dump-schema"];
+        opts.dumpData = bq_opts["dump-data"];
+        opts.noUnionView = bq_opts["no-union-view"];
+        opts.insertMethod =
+            (bq_opts["insert-method"] || "").toLowerCase() === "insert-all"
+                ? bq_writer_1.BigQueryInsertMethod.insertAll
+                : bq_writer_1.BigQueryInsertMethod.loadTable;
+        opts.arrayHandling = bq_opts["array-handling"];
+        opts.arraySeparator = bq_opts["array-separator"];
+        logger.debug("BigQueryWriterOptions:");
         logger.debug(opts);
         return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
     }
+    // TODO: if (output === 'sqldb')
     throw new Error(`Unknown output format: '${output}'`);
 }
 async function main() {

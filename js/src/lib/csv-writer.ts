@@ -25,11 +25,14 @@ import {IResultWriter, QueryElements, QueryResult} from './types';
 export interface CsvWriterOptions {
   destinationFolder?: string | undefined;
   arraySeparator?: string | undefined;
+  filePerCustomer?: boolean | undefined;
 }
 export class CsvWriter implements IResultWriter {
   destination: string | undefined;
   arraySeparator: string;
-  filename: string|undefined;
+  filePerCustomer: boolean;
+  filename: string | undefined;
+  scriptName: string | undefined;;
   appending = false;
   customerRows = 0;
   rowsByCustomer: Record<string, any[][]> = {};
@@ -39,28 +42,31 @@ export class CsvWriter implements IResultWriter {
   constructor(options?: CsvWriterOptions) {
     this.destination = options?.destinationFolder;
     this.arraySeparator = options?.arraySeparator || "|";
+    this.filePerCustomer = !!options?.filePerCustomer;
     this.logger = getLogger();
   }
 
   beginScript(scriptName: string, query: QueryElements) {
     this.appending = false;
     this.query = query;
+    this.scriptName = scriptName;
 
-    let filename = scriptName + '.csv';
+    //let filename = scriptName + ".csv";
     if (this.destination) {
       if (!fs.existsSync(this.destination)) {
-        fs.mkdirSync(this.destination, {recursive: true});
+        fs.mkdirSync(this.destination, { recursive: true });
       }
-      filename = path.join(this.destination, filename);
+      //filename = path.join(this.destination, filename);
     }
-    this.filename = filename;
-    if (fs.existsSync(this.filename)) {
-      fs.rmSync(this.filename);
-    }
+    // this.filename = filename;
+    // if (fs.existsSync(this.filename)) {
+    //   fs.rmSync(this.filename);
+    // }
   }
 
   endScript() {
-    this.filename = undefined;
+    //this.filename = undefined;
+    this.scriptName = undefined;
   }
 
   beginCustomer(customerId: string) {
@@ -72,32 +78,52 @@ export class CsvWriter implements IResultWriter {
     this.rowsByCustomer[customerId].push(parsedRow);
   }
 
+  _getFileName(customerId: string) {
+    let filename = '';
+    if (this.filePerCustomer) {
+      filename = `${this.scriptName}_${customerId}.csv`;
+    } else {
+      filename = `${this.scriptName}.csv`;
+    }
+    if (this.destination) {
+      filename = path.join(this.destination, filename);
+    }
+    return filename;
+  }
+
   endCustomer(customerId: string) {
     let rows = this.rowsByCustomer[customerId];
     if (!rows.length) {
       return;
     }
+    let appending = this.appending && !this.filePerCustomer;
+    let filename = this._getFileName(customerId);
     let csvOptions: csvStringify.Options = {
-      header: !this.appending,
+      header: !appending,
       quoted: false,
-      columns: this.query!.columns.map(col => col.name),
+      columns: this.query!.columns.map((col) => col.name),
       cast: {
         boolean: (value: boolean, context: csvStringify.CastingContext) =>
           value ? "true" : "false",
         object: (value: object, context: csvStringify.CastingContext) =>
-          Array.isArray(value) ? value.join(this.arraySeparator) : JSON.stringify(value)
+          Array.isArray(value)
+            ? value.join(this.arraySeparator)
+            : JSON.stringify(value),
       },
     };
     let csv = stringify(rows, csvOptions);
-    fs.writeFileSync(
-        this.filename!, csv,
-        {encoding: 'utf-8', flag: this.appending ? 'a' : 'w'});
+    fs.writeFileSync(filename!, csv, {
+      encoding: "utf-8",
+      flag: appending ? "a" : "w",
+    });
 
     if (rows.length > 0) {
       this.logger.info(
-          (this.appending ? 'Updated ' : 'Created ') + this.filename +
-              ` with ${rows.length} rows`,
-          {customerId: customerId, scriptName: this.filename});
+        (appending ? "Updated " : "Created ") +
+          filename +
+          ` with ${rows.length} rows`,
+        { customerId: customerId, scriptName: filename }
+      );
     }
 
     this.appending = true;

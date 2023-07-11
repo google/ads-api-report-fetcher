@@ -103,7 +103,7 @@ const argv = yargs(hideBin(process.argv))
   .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
     alias: "o",
-    description: "output writer to use",
+    description: "Output writer to use",
   })
   .option("loglevel", {
     alias: ["log-level", "ll", "log_level"],
@@ -120,23 +120,26 @@ const argv = yargs(hideBin(process.argv))
   .option("parallel-accounts", {
     type: "boolean",
     description:
-      "How one query is being processed for multiple accounts: in parallel (true, default) or sequentially (false)",
+      "How one query is being processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel",
     default: true,
   })
   .option("csv.destination-folder", {
     type: "string",
     alias: "csv.destination",
-    description: "output folder for generated CSV files",
+    description: "Output folder for generated CSV files",
   })
   .option("csv.array-separator", {
     type: "string",
-    description: "arrays separator symbol",
+    description: "Arrays separator symbol",
+  })
+  .option("csv.file-per-customer", {
+    type: "boolean"
   })
   .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
     description:
-      "transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
+      "Transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
   })
   .option("console.page_size", {
     type: "number",
@@ -159,20 +162,20 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("bq.table-template", {
     type: "string",
-    description: "template for tables names, you can use {script} macro inside",
+    description: "Template for tables names, you can use {script} macro inside",
   })
   .option("bq.dump-schema", {
     type: "boolean",
-    description: "flag that enables dumping json files with schemas for tables",
+    description: "Flag that enables dumping json files with schemas for tables",
   })
   .option("bq.dump-data", {
     type: "boolean",
-    description: "flag that enables dumping json files with tables data",
+    description: "Flag that enables dumping json files with tables data",
   })
   .option("bq.no-union-view", {
     type: "boolean",
     description:
-      "disable creation of union views (combining data from customer's tables)",
+      "Disable creation of union views (combining data from customer's tables)",
   })
   .option("bq.insert-method", {
     type: "string",
@@ -182,17 +185,20 @@ const argv = yargs(hideBin(process.argv))
   .option("bq.array-handling", {
     type: "string",
     choices: ["arrays", "strings"],
-    description: "arrays handling (as arrays or as strings)",
+    description: "Arrays handling (as arrays or as strings)",
   })
   .option("bq.array-separator", {
     type: "string",
-    description: "arrays separator symbol (for array-handling=strings)",
+    description: "Arrays separator symbol (for array-handling=strings)",
   })
   .option("skip-constants", {
     type: "boolean",
-    description: "do not execute scripts for constant resources",
+    description: "Do not execute scripts for constant resources",
   })
-  .option("dump-query", { type: "boolean" })
+  .option("dump-query", {
+    type: "boolean",
+    description: "Output GAQL quesries to console before execution",
+  })
   .group(
     [
       "bq.project",
@@ -208,7 +214,10 @@ const argv = yargs(hideBin(process.argv))
     ],
     "BigQuery writer options:"
   )
-  .group(["csv.destination-folder", "csv.array-separator"], "CSV writer options:")
+  .group(
+    ["csv.destination-folder", "csv.array-separator"],
+    "CSV writer options:"
+  )
   .group(["console.transpose", "console.page_size"], "Console writer options:")
   .env("GAARF")
   .config(configObj)
@@ -236,7 +245,7 @@ const argv = yargs(hideBin(process.argv))
   )
   .example(
     "$0 queries/**/*.sql --config=gaarf.json",
-    "Execute ads queries with passing arguments via config file (can be json or yaml)"
+    "Execute ads queries with passing arguments via config file"
   )
   .epilog(
     `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`
@@ -246,47 +255,55 @@ const argv = yargs(hideBin(process.argv))
 
 
 function getWriter(): IResultWriter {
-  let output = (argv.output || '').toString();
-  if (output === '') {
+  let output = (argv.output || "").toString();
+  if (output === "") {
     return new NullWriter();
   }
-  if (output === 'console') {
+  if (output === "console") {
     return new ConsoleWriter(<ConsoleWriterOptions>argv.console);
   }
-  if (output === 'csv') {
+  if (output === "csv") {
     return new CsvWriter(<CsvWriterOptions>argv.csv);
   }
-  if (output === 'bq' || output === 'bigquery') {
+  if (output === "bq" || output === "bigquery") {
     // TODO: move all options to BigQueryWriterOptions
     if (!argv.bq) {
       throw new Error(
-          `For BigQuery writer (---output=bq) we should specify at least a dataset id`);
+        `For BigQuery writer (---output=bq) we should specify at least a dataset id`
+      );
     }
     const dataset = (<any>argv.bq).dataset;
     if (!dataset) {
       console.warn(
-          `bq.dataset option should be specified (BigQuery dataset id)`);
+        `bq.dataset option should be specified (BigQuery dataset id)`
+      );
       process.exit(-1);
     }
     const projectId = (<any>argv.bq).project;
     if (!projectId) {
-      console.warn(`GCP project id was not specified explicitly (bq.project option), so we're using the current default project`);
+      console.warn(
+        `GCP project id was not specified explicitly (bq.project option), so we're using the current default project`
+      );
     }
     let opts: BigQueryWriterOptions = {};
     let bq_opts = <any>argv.bq;
     opts.datasetLocation = bq_opts.location;
-    opts.tableTemplate = bq_opts['table-template'];
-    opts.dumpSchema = bq_opts['dump-schema'];
-    opts.dumpData = bq_opts['dump-data'];
-    opts.noUnionView = bq_opts['no-union-view'];
-    opts.insertMethod = (bq_opts['insert-method'] || '').toLowerCase() === 'insert-all'
-      ? BigQueryInsertMethod.insertAll : BigQueryInsertMethod.loadTable;
-    opts.arrayHandling = bq_opts['array-handling'];
-    opts.arraySeparator = bq_opts['array-separator'];
-    logger.debug('BigQueryWriterOptions:');
+    opts.tableTemplate = bq_opts["table-template"];
+    opts.dumpSchema = bq_opts["dump-schema"];
+    opts.dumpData = bq_opts["dump-data"];
+    opts.noUnionView = bq_opts["no-union-view"];
+    opts.insertMethod =
+      (bq_opts["insert-method"] || "").toLowerCase() === "insert-all"
+        ? BigQueryInsertMethod.insertAll
+        : BigQueryInsertMethod.loadTable;
+    opts.arrayHandling = bq_opts["array-handling"];
+    opts.arraySeparator = bq_opts["array-separator"];
+    logger.debug("BigQueryWriterOptions:");
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
   }
+  // TODO: if (output === 'sqldb')
+
   throw new Error(`Unknown output format: '${output}'`);
 }
 
