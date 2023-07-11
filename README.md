@@ -72,7 +72,7 @@ A file path can be not only a local path but also a GCS file.
 Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
-* `account` - Ads account id, aka customer id, also can be specified in google-ads.yaml as 'customer-id'
+* `account` - Ads account id, aka customer id, it can contain multiple ids separated with comma, also can be specified in google-ads.yaml as 'customer-id' (as string or list)
 * `input` - input type - where queries are coming from (Python only). Supports the following values:
   * `file` - (default) local or remote (GCS, S3, Azure, etc.) files
   * `console` - data are read from standard output
@@ -85,7 +85,7 @@ Options:
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
 * `customer-ids-query` - GAQL query that specifies for which accounts you need to run `gaarf`. Must contains **customer.id** as the first column in SELECT statement with all the filtering logic going to WHERE statement.
-  `account` argument must be a MCC account id in this case.
+  `account` argument must be a MCC account id (or accounts) in this case.
 
   >Example usage: `gaarf <queries> --account=123456 --customer-ids-query='SELECT customer.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"'`
 
@@ -93,7 +93,7 @@ Options:
 
   >Example usage: `gaarf <queries> --account=123456 --customer-ids-query-file=/path/to/query.sql
 
-* `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level).
+* `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level or for speeding up if you provided leaf accounts).
   By default Gaarf does account expansion (even with `customer-ids-query`).
 
 * `parallel-account` - how one query is being processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel (*NodeJS version only*, for Python - always sequentially)
@@ -273,7 +273,7 @@ and to execute:
 
 This will create a column named either `root_account_id` since the specified level is 0.
 
-Please note that all values passed through CLI arguments are strings. But there's a special case - it a value contains ","
+Please note that all values passed through CLI arguments are strings. But there's a special case - a value containing ","
 then it's treated as an array - see the following example.
 
 Template are great when you need to create multiple column based on condition:
@@ -289,7 +289,7 @@ and to execute:
 
 `gaarf-bq path/to/query.sql --template.cohort_days=0,1,3,4,5,10,30`
 
-It will create 7 columns (named `installs_0_day`, `installs_1_day`, etc).
+It will create 7 columns (named `installs_0_day`, `installs_1_day`, etc) because the cohort_days argument was processed as a list.
 
 ATTENTION: passing macros into sql queries is vulnerable to sql-injection so be very careful where you're taking values from.
 

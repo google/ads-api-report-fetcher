@@ -18,21 +18,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadAdsConfigFromFile = exports.GoogleAdsApiClient = void 0;
+exports.loadAdsConfigFromFile = exports.parseCustomerIds = exports.GoogleAdsApiClient = void 0;
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
+const lodash_1 = __importDefault(require("lodash"));
 const file_utils_1 = require("./file-utils");
 const logger_1 = require("./logger");
 class GoogleAdsApiClient {
-    constructor(adsConfig, customerId) {
+    constructor(adsConfig) {
         if (!adsConfig) {
             throw new Error("GoogleAdsApiConfig instance was not passed");
         }
-        customerId = customerId || adsConfig.customer_id;
-        if (!customerId) {
-            throw new Error(`No customer id was specified`);
-        }
-        customerId = customerId === null || customerId === void 0 ? void 0 : customerId.toString();
         this.ads_cfg = adsConfig;
         this.client = new google_ads_api_1.GoogleAdsApi({
             client_id: adsConfig.client_id,
@@ -40,31 +36,21 @@ class GoogleAdsApiClient {
             developer_token: adsConfig.developer_token,
         });
         this.customers = {};
-        this.customers[customerId] = this.client.Customer({
-            customer_id: customerId,
-            login_customer_id: adsConfig.login_customer_id,
-            refresh_token: adsConfig.refresh_token,
-        });
-        // also put the customer as the default one
-        this.customers[""] = this.customers[customerId];
-        this.root_cid = customerId;
         this.logger = (0, logger_1.getLogger)();
     }
     getCustomer(customerId) {
         let customer;
         if (!customerId) {
-            customer = this.customers[""];
+            throw new Error("Customer id should be specified ");
         }
-        else {
-            customer = this.customers[customerId];
-            if (!customer) {
-                customer = this.client.Customer({
-                    customer_id: customerId,
-                    login_customer_id: this.ads_cfg.login_customer_id,
-                    refresh_token: this.ads_cfg.refresh_token,
-                });
-                this.customers[customerId] = customer;
-            }
+        customer = this.customers[customerId];
+        if (!customer) {
+            customer = this.client.Customer({
+                customer_id: customerId,
+                login_customer_id: this.ads_cfg.login_customer_id,
+                refresh_token: this.ads_cfg.refresh_token,
+            });
+            this.customers[customerId] = customer;
         }
         return customer;
     }
@@ -93,20 +79,61 @@ class GoogleAdsApiClient {
             throw e;
         }
     }
-    async getCustomerIds() {
+    async getCustomerIds(customerId) {
         const query = `SELECT
           customer_client.id
         FROM customer_client
         WHERE
           customer_client.status = "ENABLED" AND
           customer_client.manager = False`;
-        let rows = await this.executeQuery(query);
-        let ids = rows.map((row) => row.customer_client.id);
-        return ids;
+        if (typeof customerId === "string") {
+            customerId = [customerId];
+        }
+        let all_ids = [];
+        for (const cid of customerId) {
+            let rows = await this.executeQuery(query, cid);
+            let ids = rows.map((row) => row.customer_client.id);
+            all_ids.push(...ids);
+        }
+        return all_ids;
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;
-async function loadAdsConfigFromFile(configFilepath, customerId) {
+function parseCustomerIds(customerId, adsConfig) {
+    let customerIds;
+    if (!customerId) {
+        // CID/account wasn't provided explicitly, we'll use customer_id field from ads-config (it can be absent)
+        if (adsConfig.customer_id) {
+            if (lodash_1.default.isArray(adsConfig.customer_id)) {
+                customerIds = adsConfig.customer_id;
+            }
+            else {
+                customerIds = [adsConfig.customer_id];
+            }
+        }
+    }
+    else {
+        // NOTE: argv.account is CLI arg, it can only be a string
+        if (customerId.includes(",")) {
+            customerIds = customerId.split(",");
+        }
+        else {
+            customerIds = [customerId];
+        }
+    }
+    if (!customerIds && adsConfig.login_customer_id) {
+        // last chance if no CID was provided is to use login_customer_id
+        customerIds = [adsConfig.login_customer_id];
+    }
+    if (customerIds && customerIds.length) {
+        for (let i = 0; i < customerIds.length; i++) {
+            customerIds[i] = customerIds[i].toString().replaceAll('-', '');
+        }
+    }
+    return customerIds;
+}
+exports.parseCustomerIds = parseCustomerIds;
+async function loadAdsConfigFromFile(configFilepath) {
     var _a, _b;
     try {
         const content = await (0, file_utils_1.getFileContent)(configFilepath);
@@ -118,10 +145,8 @@ async function loadAdsConfigFromFile(configFilepath, customerId) {
             client_id: doc["client_id"],
             client_secret: doc["client_secret"],
             refresh_token: doc["refresh_token"],
-            login_customer_id: (_a = (doc["login_customer_id"] || customerId)) === null || _a === void 0 ? void 0 : _a.toString(),
-            customer_id: (_b = (customerId ||
-                doc["customer_id"] ||
-                doc["login_customer_id"])) === null || _b === void 0 ? void 0 : _b.toString(),
+            login_customer_id: (_a = (doc["login_customer_id"])) === null || _a === void 0 ? void 0 : _a.toString(),
+            customer_id: (_b = doc["customer_id"]) === null || _b === void 0 ? void 0 : _b.toString(),
         };
     }
     catch (e) {

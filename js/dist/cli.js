@@ -78,7 +78,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option("account", {
     alias: ["customer", "customer-id", "customer_id"],
     type: "string",
-    description: "Google Ads account id (w/o dashes), a.k.a customer id",
+    description: "Google Ads account id (w/o dashes), a.k.a customer id or multiple accounts separeted with comma",
 })
     .option("customer-ids-query", {
     alias: ["customer_ids_query"],
@@ -271,16 +271,12 @@ function getWriter() {
     throw new Error(`Unknown output format: '${output}'`);
 }
 async function main() {
-    var _a, _b;
-    if (argv.account) {
-        argv.account = argv.account.toString();
-    }
     logger.verbose(JSON.stringify(argv, null, 2));
     let adsConfig = undefined;
     let adConfigFilePath = argv.adsConfig;
     if (adConfigFilePath) {
         // try to use ads config from extenral file (ads-config arg)
-        adsConfig = await loadAdsConfig(adConfigFilePath, argv.account);
+        adsConfig = await loadAdsConfig(adConfigFilePath);
     }
     // try to use ads config from explicit cli arguments
     if (argv.ads) {
@@ -290,22 +286,34 @@ async function main() {
             client_secret: ads_cfg.client_secret || '',
             developer_token: ads_cfg.developer_token || '',
             refresh_token: ads_cfg.refresh_token || '',
-            login_customer_id: (_a = (ads_cfg.login_customer_id || argv.account || '')) === null || _a === void 0 ? void 0 : _a.toString(),
-            customer_id: (_b = (argv.account || ads_cfg.login_customer_id || '')) === null || _b === void 0 ? void 0 : _b.toString(),
+            login_customer_id: ads_cfg.login_customer_id || '',
         });
     }
     else if (!adConfigFilePath && fs_1.default.existsSync('google-ads.yaml')) {
         // load a default google-ads if it wasn't explicitly specified
         // TODO: support searching google-ads.yaml in user home folder (?)
-        adsConfig = await loadAdsConfig('google-ads.yaml', argv.account);
+        adsConfig = await loadAdsConfig('google-ads.yaml');
     }
     if (!adsConfig) {
         console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
         process.exit(-1);
     }
     logger.verbose('Using ads config:');
-    logger.verbose(JSON.stringify(adsConfig, null, 2));
-    let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig, argv.account);
+    logger.verbose(JSON.stringify(Object.assign({}, adsConfig, {
+        refresh_token: "<hidden>",
+        developer_token: "<hidden>",
+    }), null, 2));
+    let customerIds = (0, ads_api_client_1.parseCustomerIds)(argv.account, adsConfig);
+    if (!customerIds || customerIds.length === 0) {
+        console.log(chalk_1.default.red(`No customer id/ids were provided. Exiting`));
+        process.exit(-1);
+    }
+    if (!adsConfig.login_customer_id &&
+        customerIds &&
+        customerIds.length === 1) {
+        adsConfig.login_customer_id = customerIds[0];
+    }
+    let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig);
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
@@ -342,15 +350,16 @@ async function main() {
     let customers;
     if (argv.disable_account_expansion) {
         logger.info("Skipping account expansion because of disable_account_expansion flag");
-        customers = [client.root_cid];
+        customers = customerIds;
     }
     else {
-        logger.info(`Fetching customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
-        customers = await client.getCustomerIds();
-        logger.verbose(`Customer ids from the root account ${client.root_cid} (${customers.length}):`);
+        // expand the provided accounts to leaf ones as they could be MMC accounts
+        logger.info(`Expanding customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
+        customers = await client.getCustomerIds(customerIds);
+        logger.verbose(`Customer ids from the root account(s) ${customerIds.join(',')} (${customers.length}):`);
         logger.verbose(customers);
         if (customer_ids_query) {
-            logger.verbose(`Fetching customer ids with custom query`);
+            logger.verbose(`Filtering customer ids with custom query`);
             logger.debug(customer_ids_query);
             try {
                 customers = await executor.getCustomerIds(customers, customer_ids_query);
@@ -390,9 +399,9 @@ async function main() {
     let elapsed = (0, utils_1.getElapsed)(started);
     logger.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
-async function loadAdsConfig(configFilepath, customerId) {
+async function loadAdsConfig(configFilepath) {
     try {
-        return (0, ads_api_client_1.loadAdsConfigFromFile)(configFilepath, customerId);
+        return (0, ads_api_client_1.loadAdsConfigFromFile)(configFilepath);
     }
     catch (e) {
         console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));

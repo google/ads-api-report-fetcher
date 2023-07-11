@@ -1,5 +1,8 @@
 # Changelog
-## 1.16 - 2023-07-11
+## 2.0 - 2023-07-11
+* breaking: gaarf CLI tool supports multiple CIDs in `account` argument. 
+`GoogleAdsApiClient` constructor and `loadAdsConfigFromFile` don't take customer_id anymore, 
+but `GoogleAdsApiClient`'s methods `getCustomerIds`, `executeQuery` and `executeQueryStream` on the contrary now require a customer_id.
 * Templates support (via https://mozilla.github.io/nunjucks/)
 * AdsQueryExecutor: limit level of parallelism (be default there's a threshold to issue simultaneous parallel queries)
 * CsvWriter: support `file-per-customer` argument - split output file by customer
