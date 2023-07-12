@@ -46,15 +46,15 @@ def test_bq_get_results_types(sample_data):
     result_types = writer.BigQueryWriter._get_result_types(results, columns)
     assert result_types == {
         'column_1': {
-            'element_type': int,
+            'field_type': int,
             'repeated': False
         },
         'column_2': {
-            'element_type': str,
+            'field_type': str,
             'repeated': False
         },
         'column_3': {
-            'element_type': int,
+            'field_type': int,
             'repeated': True
         }
     }

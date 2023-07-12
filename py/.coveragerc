@@ -1,0 +1,8 @@
+[paths]
+source =
+    gaarf
+    .tox/*/site-packages
+[report]
+skip_empty = true
+omit =
+    gaarf/cli/*
