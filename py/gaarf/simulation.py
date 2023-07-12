@@ -34,7 +34,7 @@ def simulate_data(
 ) -> GaarfReport:
     query_specification = QuerySpecification(query).generate()
     client = BaseClient(simulator_specification.api_version)
-    report_fetcher = AdsReportFetcher(client, [])
+    report_fetcher = AdsReportFetcher(client)
     other_types = client.infer_types(query_specification.fields)
     v = report_fetcher.fetch(query_specification)
     try:

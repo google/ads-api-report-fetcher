@@ -7,7 +7,7 @@ Please see the full documentation in the root [README](https://github.com/google
 
 ### Prerequisites
 
-* Python 3.8+
+* Python 3.9+
 * pip installed
 * Google Ads API enabled
 * `google-ads.yaml` file. Learn how to create one [here](../docs/how-to-authenticate-ads-api.md).
@@ -44,34 +44,199 @@ Documentation on available options see in the root [README.md](../README.md).
 Once `google-ads-api-report-fetcher` is installed you can use it as a library.
 
 
+### Initialize `GoogleAdsApiClient` to connect to Google Ads API
+
+`GoogleAdsApiClient` is responsible for connecting to Google Ads API and provides several method for authentication.
+
 ```python
 from gaarf.api_clients import GoogleAdsApiClient
-from gaarf.query_executor import AdsReportFetcher, AdsQueryExecutor
-from gaarf.io import reader, writer
 
-# initialize Google Ads API client
+
+# initialize from local file
 client = GoogleAdsApiClient(path_to_config="google-ads.yaml", version="v12")
 
-customer_ids = ['1', '2']
+# initialize from remote file
+client = GoogleAdsApiClient(path_to_config="gs://<PROJECT-ID>/google-ads.yaml", version="v12")
 
-# Fetch report and store results in a variable
-# initialize report fetcher to get reports
-report_fetcher = AdsReportFetcher(client, customer_ids)
+# initialize from dictionary
+google_ads_config_dict = {
+    "developer_token": "",
+    "client_id": "",
+    "client_secret": "",
+    "refresh_token": "",
+    "client_customer_id": "",
+    "use_proto_plus": True
+}
+client = GoogleAdsApiClient(config_dict=google_ads_config_dict, version="v12")
+```
+
+### initialize `AdsReportFetcher` to get reports
+
+```python
+from gaarf.query_executor import AdsReportFetcher, AdsQueryExecutor
+
+
+report_fetcher = AdsReportFetcher(client)
 
 # create query text
 query_text = "SELECT campaign.id AS campaign_id FROM campaign"
 
-# Execute query and store campaigns variable
-campaigns = report_fetcher.fetch(query_text)
+# Execute query and store `campaigns` variable
+# specify customer_ids explicitly
+customer_ids = ['1', '2']
+# or perform mcc expansion for mcc 1234567890
+customer_ids = report_fetcher.expand_mcc('1234567890')
+campaigns = report_fetcher.fetch(query_text, customer_ids)
 
-# iterate over report
-unique_campaigns = set([row.campaign_id for row in campaigns])
+# perform mcc expansion when calling `fetch` method
+campaigns = report_fetcher.fetch(query_text, '1234567890', auto_expand=True)
+```
 
-# convert `campaigns` to common data structures
+#### Use macros in your queries
+
+```python
+parametrized_query_text = """
+    SELECT
+        campaign.id AS campaign_id
+    FROM campaign
+    WHERE campaign.status = '{status}'
+    """
+active_campaigns = report_fetcher.fetch(parametrized_query_text, customer_ids,
+                                        {"status": "ENABLED"})
+```
+
+#### Define queries
+
+There are three ways how you can define a query:
+* in a variable
+* in a file
+* in a class (useful when you have complex parametrization and validation)
+
+```python
+from gaarf.base_query import BaseQuery
+from gaarf.io import reader
+
+
+# 1. define query as a string an save in a variable
+query_string = "SELECT campaign.id FROM campaign"
+
+# 2. define path to a query file and read from it
+# path can be local
+query_path = "path/to/query.sql"
+# or remote
+query_path = "gs://PROJECT_ID/path/to/query.sql"
+
+# Instantiate reader
+reader_client = reader.FileReader()
+# And read from the path
+query = reader_client.read(query_path)
+
+# 3. define query as a class
+class Campaigns(BaseQuery):
+    def __init__(self, status: str = "ENABLED"):
+        self.query_text = f"""
+        SELECT
+            campaign.id
+        FROM campaign
+        WHERE campaign.status = {status}
+        """
+
+active_campaigns = report_fetcher.fetch(Campaigns())
+inactive_campaigns = report_fetcher.fetch(Campaigns("INACTIVE"))
+```
+
+#### Iteration and slicing
+
+`AdsReportFetcher.fetch` method returns an instance of `GaarfReport` object which you can use to perform simple iteration.
+
+```python
+query_text = """
+    SELECT
+        campaign.id AS campaign_id,
+        campaign.name AS campaign_name,
+        metrics.clicks AS clicks
+    FROM campaign
+    WHERE segments.date DURING LAST_7_DAYS
+    """
+campaigns = report_fetcher.fetch(query_text, '1234567890', auto_expand=True)
+
+# iterate over each row of `campaigns` report
+for row in campaigns:
+    # Get element as an attribute
+    print(row.campaign_id)
+
+    # Get element as a slice
+    print(row["campaign_name"])
+
+    # Get element as an index (will print number of clicks)
+    print(row[2])
+
+    # Create new column
+    row["new_campaign_id"] = row["campaign_id"] + 1
+```
+
+
+You can easily slice the report
+
+```python
+# Create new reports by selecting one or more columns
+campaign_only_report = campaigns["campaign_name"]
+campaign_name_clicks_report = campaigns[["campaign_name", "clicks"]]
+
+# Get subset of the report
+# Get first row only
+first_campaign_row = campaigns[0]
+# Get first ten rows from the report
+first_10_rows_from_campaigns = campaigns[0:10]
+```
+
+#### Convert report
+
+`GaarfReport` can be easily converted to common data structures:
+
+```python
+# convert `campaigns` to list
 campaigns_list = campaigns.to_list()
-campaigns_df = campaigns.to_pandas()
 
-# Execute query from file and save results to CSV
+# convert `campaigns` to pandas DataFrame
+campaigns_df = campaigns.to_pandas()
+```
+
+#### Save report
+
+`GaarfReport` can be easily saved to local or remote storage:
+
+```python
+from gaarf.io import writer
+
+# initialize CSV writer
+csv_writer = writer.CsvWriter(destination_folder="/tmp")
+
+# initialize BigQuery writer
+bq_writer = writer.BigQueryWriter(project="", dataset="", location="")
+
+# initialize SQLAlchemy writer
+sqlalchemy_writer = writer.SqlAlchemyWriter(connection_string="")
+
+# initialize Console writer
+console_writer = writer.Console(page_size=10)
+
+
+# save report using one of the writers
+csv_writer.write(campaigns, destination="my_file_name")
+bq_writer.write(campaigns, destination="my_table_name")
+sqlalchemy_writer.write(campaigns, destination="my_table_name")
+```
+
+### Combine fetching and saving with `AdsQueryExecutor`
+
+If your job is to execute query and write it to local/remote storage you can use `AdsQueryExecutor` to do it easily.
+> When reading query from file `AdsQueryExecutor` will use query file name as a name for output file/table.
+```python
+from gaarf.io import reader, writer
+from gaarf.query_executor import AdsQueryExecutor
+
+
 # initialize query_executor to fetch report and store them in local/remote storage
 query_executor = AdsQueryExecutor(client)
 
@@ -79,14 +244,23 @@ query_executor = AdsQueryExecutor(client)
 csv_writer = writer.CsvWriter(destination_folder="/tmp")
 reader_client = reader.FileReader()
 
-# execute query and save to csv
+query_text = """
+    SELECT
+        campaign.id AS campaign_id,
+        campaign.name AS campaign_name,
+        metrics.clicks AS clicks
+    FROM campaign
+    WHERE segments.date DURING LAST_7_DAYS
+    """
+
+# execute query and save results to `/tmp/campaign.csv`
 query_executor.execute(
     query_text=query_text,
     query_name="campaign",
     customer_ids=customer_ids,
     write_client=csv_writer)
 
-# execute query from file and save to csv
+# execute query from file and save to results to `/tmp/query.csv`
 query_path="path/to/query.sql"
 query_executor.execute(
     query_text=reader_client.read(query_path),

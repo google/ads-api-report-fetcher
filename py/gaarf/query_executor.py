@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import MutableSequence
 from concurrent import futures
 from enum import Enum, auto
 import itertools
@@ -19,12 +20,14 @@ from google.ads.googleads.errors import GoogleAdsException  # type: ignore
 import logging
 from google.api_core import exceptions
 from tenacity import Retrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
+import warnings
 
 from . import parsers
 from . import api_clients
 from .query_editor import QuerySpecification, QueryElements
-from .report import GaarfReport
+from .report import GaarfReport, GaarfRow
 from .io import writer, reader  # type: ignore
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,27 +44,44 @@ class AdsReportFetcher:
 
     Attributes:
         api_client: a client used for connecting to Ads API.
-        customer_ids: account_id(s) from which data will be fetched.
-          Expects list of non-MCC accounts, which can be expanded from MCC
-          by calling `utils.get_customer_ids(ads_api_client, mcc_id)` function.
     """
 
-    def __init__(self, api_client: api_clients.BaseClient,
-                 customer_ids: Union[Sequence[str], str]) -> None:
-
+    def __init__(self,
+                 api_client: api_clients.BaseClient,
+                 customer_ids: Optional[Any] = None) -> None:
         self.api_client = api_client
-        self.customer_ids = [
-            customer_ids
-        ] if not isinstance(customer_ids, list) else customer_ids
+        if customer_ids:
+            warnings.warn(
+                "`AdsReportFetcher` will deprecate passing `customer_ids` to `__init__` method. "
+                "Consider passing list of customer_ids to `AdsReportFetcher.fetch` method",
+                category=DeprecationWarning,
+                stacklevel=3)
+            self.customer_ids = [
+                customer_ids
+            ] if not isinstance(customer_ids, list) else customer_ids
+
+    def expand_mcc(self,
+                   customer_ids: Union[str, MutableSequence[str]],
+                   customer_ids_query: Optional[str] = None) -> List[str]:
+        return self._get_customer_ids(customer_ids, customer_ids_query)
 
     def fetch(self,
               query_specification: Union[str, QueryElements],
+              customer_ids: Optional[Union[List[str], str]] = None,
+              customer_ids_query: Optional[str] = None,
+              expand_mcc: bool = False,
+              args: Optional[Dict[str, Any]] = None,
               optimize_strategy: str = "NONE") -> GaarfReport:
         """Fetches data from Ads API based on query_specification.
 
         Args:
-            query_specification: query text that will be passed to Ads API
+            query_specification: Query text that will be passed to Ads API
                 alongside column_names, customizers and virtual columns.
+            customer_ids: Account(s) for from which data should be fetched.
+            custom_query: GAQL query used to reduce the number of customer_ids.
+            expand_mcc: Whether to perform expansion of root customer_ids
+                into leaf accounts.
+            args: Arguments that need to be passed to the query
             optimize_strategy: strategy for speeding up query execution
                 ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
 
@@ -69,15 +89,36 @@ class AdsReportFetcher:
             GaarfReport with results of query execution.
         """
 
+        if isinstance(self.api_client, api_clients.GoogleAdsApiClient):
+            if not customer_ids:
+                warnings.warn(
+                    "`AdsReportFetcher` will require passing `customer_ids` to `fetch` method.",
+                    category=DeprecationWarning,
+                    stacklevel=3)
+                if hasattr(self, "customer_ids"):
+                    if not self.customer_ids:
+                        raise ValueError(
+                            "Please specify add `customer_ids` to `fetch` method")
+                    customer_ids = self.customer_ids
+            else:
+                if expand_mcc:
+                    customer_ids = self.expand_mcc(customer_ids,
+                                                   customer_ids_query)
+                customer_ids = [
+                    customer_ids
+                ] if not isinstance(customer_ids, list) else customer_ids
+        else:
+            customer_ids = []
         total_results: List[List[Tuple[Any]]] = []
         is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
                 text=str(query_specification),
+                args=args,
                 api_version=self.api_client.api_version).generate()
 
         parser = parsers.GoogleAdsRowParser(query_specification)
-        for customer_id in self.customer_ids:
+        for customer_id in customer_ids:
             logger.debug("Running query %s for customer_id %s",
                          query_specification.query_title, customer_id)
             try:
@@ -218,6 +259,44 @@ class AdsReportFetcher:
 
         return [parser.parse_ads_row(row) for row in batch]
 
+    def _get_customer_ids(
+            self,
+            seed_customer_ids: Union[str, MutableSequence[str]],
+            customer_ids_query: Optional[str] = None) -> List[str]:
+        """Gets list of customer_ids from an MCC account.
+
+        Args:
+            customer_ids: MCC account_id(s).
+            custom_query: GAQL query used to reduce the number of customer_ids.
+        Returns:
+            All customer_ids from MCC satisfying the condition.
+        """
+
+        query = """
+        SELECT customer_client.id FROM customer_client
+        WHERE customer_client.manager = FALSE AND customer_client.status = "ENABLED"
+        """
+        query_specification = QuerySpecification(query).generate()
+        if not isinstance(seed_customer_ids, MutableSequence):
+            seed_customer_ids = seed_customer_ids.split(",")
+        child_customer_ids = self.fetch(query_specification, seed_customer_ids).to_list()
+        if customer_ids_query:
+            query_specification = QuerySpecification(
+                customer_ids_query).generate()
+            child_customer_ids = self.fetch(query_specification,
+                                                child_customer_ids)
+            child_customer_ids = [
+                row[0] if isinstance(row, GaarfRow) else row
+                for row in child_customer_ids
+            ]
+
+        child_customer_ids = list(
+            set([
+                customer_id for customer_id in child_customer_ids if customer_id != 0
+            ]))
+
+        return child_customer_ids
+
 
 class AdsQueryExecutor:
     """Class responsible for getting data from Ads API and writing it to
@@ -228,7 +307,7 @@ class AdsQueryExecutor:
     """
 
     def __init__(self, api_client: api_clients.BaseClient):
-        self.api_client = api_client
+        self.report_fetcher = AdsReportFetcher(api_client)
 
     def execute(self,
                 query_text: str,
@@ -251,12 +330,17 @@ class AdsQueryExecutor:
 
         query_specification = QuerySpecification(
             query_text, query_name, args,
-            self.api_client.api_version).generate()
-        report_fetcher = AdsReportFetcher(self.api_client, customer_ids)
-        results = report_fetcher.fetch(query_specification,
-                                       optimize_performance)
+            self.report_fetcher.api_client.api_version).generate()
+        results = self.report_fetcher.fetch(query_specification=query_specification,
+                                       customer_ids=customer_ids,
+                                       optimize_strategy=optimize_performance)
         logger.debug("Start writing data for query %s via %s writer",
                      query_specification.query_title, type(writer_client))
         writer_client.write(results, query_specification.query_title)
         logger.debug("Finish writing data for query %s via %s writer",
                      query_specification.query_title, type(writer_client))
+
+    def expand_mcc(self,
+                   customer_ids: Union[str, MutableSequence[str]],
+                   customer_ids_query: Optional[str] = None) -> List[str]:
+        return self.report_fetcher._get_customer_ids(customer_ids, customer_ids_query)

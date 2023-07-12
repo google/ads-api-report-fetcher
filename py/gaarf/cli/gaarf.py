@@ -116,6 +116,7 @@ def main():
 
     ads_client = api_clients.GoogleAdsApiClient(
         config_dict=google_ads_config_dict, version=f"v{config.api_version}")
+    ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
 
@@ -134,14 +135,13 @@ def main():
         customer_ids = config.account if isinstance(
             config.account, MutableSequence) else [config.account]
     else:
-        customer_ids = utils.get_customer_ids(ads_client, config.account,
+        customer_ids = ads_query_executor.expand_mcc(config.account,
                                               customer_ids_query)
     if customer_ids:
         writer_client = writer.WriterFactory().create_writer(
             config.output, **config.writer_params)
         if config.output == "bq":
             _ = writer_client.create_or_get_dataset()
-        ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
 
         logger.info("Total number of customer_ids is %d, accounts=[%s]",
                     len(customer_ids), ",".join(map(str, customer_ids)))

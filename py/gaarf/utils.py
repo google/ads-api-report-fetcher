@@ -14,6 +14,7 @@
 
 from typing import Sequence, Union
 from collections.abc import MutableSequence
+import warnings
 
 from .api_clients import GoogleAdsApiClient
 from .query_editor import QuerySpecification
@@ -28,25 +29,26 @@ def get_customer_ids(ads_client: GoogleAdsApiClient,
 
     Args:
         ads_client: GoogleAdsApiClient used for connection.
-        customer_id: MCC account_id.
+        customer_id: MCC account_id(s).
         custom_query: GAQL query used to reduce the number of customer_ids.
     Returns:
-        All customer_ids from MCC safisfying the condition.
+        All customer_ids from MCC satisfying the condition.
     """
 
     query = """
     SELECT customer_client.id FROM customer_client
     WHERE customer_client.manager = FALSE AND customer_client.status = "ENABLED"
     """
+    warnings.warn("`get_customer_ids` will be deprecated, use `AdsReportFetcher.expand_mcc` or `AdsQueryExecutor.expand_mcc` methods instead",
+                 category=DeprecationWarning, stacklevel=3)
     query_specification = QuerySpecification(query).generate()
     if not isinstance(customer_id, MutableSequence):
         customer_id = customer_id.split(",")
-    report_fetcher = AdsReportFetcher(ads_client, customer_id)
-    customer_ids = report_fetcher.fetch(query_specification).to_list()
+    report_fetcher = AdsReportFetcher(ads_client)
+    customer_ids = report_fetcher.fetch(query_specification, customer_id).to_list()
     if customer_ids_query:
-        report_fetcher = AdsReportFetcher(ads_client, customer_ids)
         query_specification = QuerySpecification(customer_ids_query).generate()
-        customer_ids = report_fetcher.fetch(query_specification)
+        customer_ids = report_fetcher.fetch(query_specification, customer_ids)
         customer_ids = [
             row[0] if isinstance(row, GaarfRow) else row
             for row in customer_ids
