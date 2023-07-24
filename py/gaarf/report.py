@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Sequence, Union
+from typing import Any, Sequence, Optional, Union
 from collections import abc
 import operator
 import pandas as pd
+
+from .query_editor import QuerySpecification
 
 
 class GaarfReport:
@@ -23,11 +25,13 @@ class GaarfReport:
     def __init__(self,
                  results: Sequence[Any],
                  column_names: Sequence[str],
-                 is_fake: bool = False):
+                 is_fake: bool = False,
+                 query_specification: Optional[QuerySpecification] = None) -> None:
         self.results = results
         self.column_names = column_names
         self.multi_column_report = len(column_names) > 1
         self.is_fake = is_fake
+        self.query_specification = query_specification
 
     def to_list(self) -> Sequence[Any]:
         return self.results

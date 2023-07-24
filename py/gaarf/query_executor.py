@@ -104,7 +104,8 @@ class AdsReportFetcher:
                     query_specification.query_title)
         return GaarfReport(results=total_results,
                            column_names=query_specification.column_names,
-                           is_fake=is_fake_report)
+                           is_fake=is_fake_report,
+                           query_specification=query_specification)
 
     def _parse_ads_response(
         self,
