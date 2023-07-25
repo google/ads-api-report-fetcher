@@ -17,6 +17,11 @@ import logging
 import abc
 import os
 import proto  # type: ignore
+import gspread
+import datetime
+
+from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from pathlib import Path
@@ -55,8 +60,7 @@ class StdoutWriter(AbsWriter):
         console = Console()
         table = Table(
             title=f"showing results for query <{destination.split('/')[-1]}>",
-            caption=
-            f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
+            caption=f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
             box=rich.box.MARKDOWN)
         column_names, results = self.get_columns_results(results)
         for header in column_names:
@@ -98,6 +102,78 @@ class CsvWriter(AbsWriter):
             writer.writerow(column_names)
             writer.writerows(results)
         return f"[CSV] - at {destination}"
+
+
+class SheetWriter(AbsWriter):
+    def __init__(self, share_with, credentials_file, spreadsheet_url=None, is_append=False, **kwargs):
+        """
+        Initialize the GoogleSheetsExporter object.
+
+        Parameters:
+            credentials_file (str): Path to the service account credentials file.
+            spreadsheet_url (str): URL of the Google Sheets spreadsheet.
+            sheet_name (str): Name of the sheet where the DataFrame will be exported (default is 'Report').
+            **kwargs: Additional keyword arguments.
+
+        Note:
+            'credentials_file' can obtain from the Google Cloud Console. Make sure to enable Google Sheets API for your
+            project and create service account credentials.
+        """
+        self.share_with = share_with
+        self.credentials_file = credentials_file
+        self.spreadsheet_url = spreadsheet_url
+        self.is_append = is_append
+
+    def init_client(self):
+        scope = ['https://spreadsheets.google.com/feeds',
+                 'https://www.googleapis.com/auth/drive']
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            self.credentials_file, scope)
+        self.gspread_client = gspread.authorize(credentials=credentials)
+
+    def __str__(self):
+        return f"[Sheet] - data are saved to {self.sheet_url}."
+
+    def _open_sheet(self):
+        if self.spreadsheet_url:
+            self.spreadsheet = self.gspread_client.open_by_url(
+                self.spreadsheet_url)
+        else:
+            self.spreadsheet = self.gspread_client.create(
+                f'Gaarf CSV {datetime.datetime.utcnow()}')
+        self.spreadsheet.share(self.share_with,
+                               perm_type='user',
+                               role='writer')
+
+    def write(self, results, destination=f'Report {datetime.datetime.utcnow()}') -> str:
+        self.init_client()
+        self._open_sheet()
+        column_names, results = self.get_columns_results(results)
+        num_data_rows = len(results) + 1
+        try:
+            sheet = self.spreadsheet.worksheet(destination)
+        except gspread.exceptions.WorksheetNotFound:
+            sheet = self.spreadsheet.add_worksheet(destination,
+                                                   rows=num_data_rows,
+                                                   cols=len(column_names))
+        if not self.is_append:
+            sheet.clear()
+            self.add_rows_if_needed(num_data_rows, sheet)
+            sheet.append_rows([column_names] + results,
+                              value_input_option='RAW')
+        else:
+            self.add_rows_if_needed(num_data_rows, sheet)
+            sheet.append_rows(results, value_input_option='RAW')
+
+        success_msg = "Report is saved to %s/#gid=%s", self.spreadsheet_url, sheet.url
+        logger.info(success_msg)
+        return success_msg
+
+    def add_rows_if_needed(self, num_data_rows, sheet):
+        num_sheet_rows = len(sheet.get_all_values())
+        if num_data_rows > num_sheet_rows:
+            num_rows_to_add = num_data_rows - num_sheet_rows
+            sheet.add_rows(num_rows_to_add)
 
 
 class BigQueryWriter(AbsWriter):
@@ -268,6 +344,7 @@ class WriterFactory:
     def load_writer_options(self):
         self.write_options["bq"] = BigQueryWriter
         self.write_options["csv"] = CsvWriter
+        self.write_options["sheet"] = SheetWriter
         self.write_options["console"] = StdoutWriter
         self.write_options["sqldb"] = SqlAlchemyWriter
 

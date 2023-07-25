@@ -92,7 +92,8 @@ def test_writer_factory_load(writer_factory):
         "bq": writer.BigQueryWriter,
         "csv": writer.CsvWriter,
         "console": writer.StdoutWriter,
-        "sqldb": writer.SqlAlchemyWriter
+        "sqldb": writer.SqlAlchemyWriter,
+        "sheet": writer.SheetWriter
     }
 
 
@@ -102,12 +103,16 @@ def test_writer_factory_inits(writer_factory):
                                              dataset="fake_dataset")
     csv_writer = writer_factory.create_writer(
         "csv", destination_folder="/fake_folder")
+    sheet_writer = writer_factory.create_writer(
+        "sheet", share_with="1@google.com", credentials_file="home/me/client_secret.json")
     sqlalchemy_writer = writer_factory.create_writer(
         "sqldb",
         connection_string="protocol://user:password@host:port/db")
     assert bq_writer.dataset_id == "fake_project.fake_dataset"
     assert csv_writer.destination_folder == "/fake_folder"
     assert sqlalchemy_writer.connection_string == "protocol://user:password@host:port/db"
+    assert sheet_writer.share_with == "1@google.com"
+    assert sheet_writer.credentials_file == "home/me/client_secret.json"
 
 
 def test_null_writer_raises_unknown_writer_error(writer_factory):
