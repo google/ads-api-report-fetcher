@@ -1,4 +1,6 @@
 # Changelog
+## 2.1 - 2023-07-26
+* 
 ## 2.0 - 2023-07-11
 * breaking: gaarf CLI tool supports multiple CIDs in `account` argument. 
 `GoogleAdsApiClient` constructor and `loadAdsConfigFromFile` don't take customer_id anymore, 

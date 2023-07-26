@@ -313,12 +313,27 @@ class BigQueryWriter {
             (customer) table, so we have to drop it first.
             */
             await this.dataset.table(this.tableId).delete({ ignoreNotFound: true });
-            await this.dataset.query({
-                query: `CREATE OR REPLACE VIEW \`${this.datasetId}.${this.tableId}\` AS SELECT * FROM \`${this.datasetId}.${this.tableId}_*\` WHERE _TABLE_SUFFIX in (${this.customers
+            const table_fq = `${this.datasetId}.${this.tableId}`;
+            try {
+                // here there's a potential problem. If wildcard expression (resource_*)
+                // catches another view the DML-query will fail with error:
+                // 'Views cannot be queried through prefix. First view projectid:datasetid.viewname.'
+                const query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\` WHERE _TABLE_SUFFIX in (${this.customers
                     .map((s) => "'" + s + "'")
-                    .join(",")})`,
-            });
-            this.logger.info(`Created a union view '${this.datasetId}.${this.tableId}'`, {
+                    .join(",")})`;
+                this.logger.debug(query);
+                await this.dataset.query({
+                    query: query,
+                });
+            }
+            catch (e) {
+                this.logger.error(`An error occured during creating the unified view (${table_fq}): ${e.message}`);
+                if (e.message.includes("Views cannot be queried through prefix")) {
+                    this.logger.warn(`You have to rename the script ${this.tableId} to a name so the wildcard expression ${this.tableId}_* would catch other views `);
+                }
+                throw e;
+            }
+            this.logger.info(`Created a union view '${table_fq}'`, {
                 scriptName: this.tableId,
             });
         }
@@ -351,7 +366,7 @@ class BigQueryWriter {
         return schema;
     }
     getBigQueryFieldType(colType) {
-        if (this.arrayHandling === BigQueryArrayHandling.strings)
+        if (this.arrayHandling === BigQueryArrayHandling.strings && colType.repeated)
             return "STRING";
         if (lodash_1.default.isString(colType.type)) {
             switch (colType.type.toLowerCase()) {
