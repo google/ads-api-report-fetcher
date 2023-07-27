@@ -482,6 +482,11 @@ async function initialize_googleads_config(answers) {
                 message: 'Google Ads API developer token:',
             },
             {
+                type: 'input',
+                name: 'googleads_config_mcc',
+                message: 'Google Ads MCC:',
+            },
+            {
                 type: 'confirm',
                 name: 'googleads_config_generate_refreshtoken',
                 message: 'Do you want to generate a refresh token (Y) or you will enter it manually (N)?:',
@@ -511,6 +516,7 @@ async function initialize_googleads_config(answers) {
 developer_token: ${answers_new.googleads_config_devtoken}
 client_id: ${answers_new.googleads_config_clientid}
 client_secret: ${answers_new.googleads_config_clientsecret}
+login_customer_id: ${answers_new.googleads_config_mcc}
 refresh_token: ${refresh_token}
     `;
         fs.writeFileSync(path_to_googleads_config, yaml_content, {
@@ -760,7 +766,7 @@ cd ../workflow
         {
             type: 'input',
             name: 'customer_id',
-            message: 'Ads account id (customer id, without dashes):',
+            message: 'Ads account id (customer id, or a list of ids via ","):',
             default: ads_customer_id,
         },
     ], answers);
@@ -769,7 +775,7 @@ cd ../workflow
     const macro_bq = await get_macro_values(path.join(cwd, path_to_bq_queries), answers, 'bq_macro');
     const bq_location = gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
     const output_dataset = answers2.output_dataset;
-    const customer_id = answers2.customer_id;
+    const customer_id = answers2.customer_id.toString().replaceAll("-", "");
     const wf_data = {
         cloud_function: name,
         gcs_bucket: gcs_bucket,
