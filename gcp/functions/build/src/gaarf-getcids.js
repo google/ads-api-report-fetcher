@@ -28,6 +28,9 @@ async function main_getcids_unsafe(req, res, logger) {
     if (!customerIds || customerIds.length === 0) {
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
     }
+    if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
+        adsConfig.login_customer_id = customerIds[0];
+    }
     const ads_client = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig);
     customerIds = await ads_client.getCustomerIds(customerIds);
     let customer_ids_query = '';
@@ -53,7 +56,8 @@ const main_getcids = async (req, res) => {
         await main_getcids_unsafe(req, res, logger);
     }
     catch (e) {
-        await logger.error(e.message, e);
+        console.log(e);
+        await logger.error(e.message, { error: e });
         res.status(500).send(e.message).end();
     }
 };

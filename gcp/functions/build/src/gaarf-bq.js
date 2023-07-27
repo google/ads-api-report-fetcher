@@ -47,7 +47,8 @@ const main_bq = async (req, res) => {
         await main_bq_unsafe(req, res, projectId, logger);
     }
     catch (e) {
-        await logger.error(e.message, e);
+        console.log(e);
+        await logger.error(e.message, { error: e });
         res.status(500).send(e.message).end();
     }
 };

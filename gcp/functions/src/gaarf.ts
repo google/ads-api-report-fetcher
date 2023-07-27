@@ -60,6 +60,9 @@ async function main_unsafe(
     throw new Error(
       "Customer id is not specified in either 'customer_id' query argument or google-ads.yaml"
     );
+  if (!adsConfig.login_customer_id) {
+    adsConfig.login_customer_id = <string>customerId;
+  }
 
   const ads_client = new GoogleAdsApiClient(adsConfig);
   // TODO: support CsvWriter and output path to GCS
@@ -135,7 +138,8 @@ export const main: HttpFunction = async (
   try {
     await main_unsafe(req, res, projectId, logger);
   } catch (e) {
-    await logger.error(e.message, e);
+    console.log(e);
+    await logger.error(e.message, {error: e});
     res.status(500).send(e.message).end();
   }
 };
