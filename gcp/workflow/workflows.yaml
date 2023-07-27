@@ -320,7 +320,7 @@ custom_retry_predicate:
         switch:
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # We'll repeat if it's a ConnectionError, TimeoutError, Internal Server Error (500) or Too Many Requests (429)
-          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or map.get(e, "code") == 500 or map.get(e, "code") == 429}
+          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or map.get(e, "code") >= 500 or map.get(e, "code") == 429}
             return: true
     - otherwise:
         return: false
