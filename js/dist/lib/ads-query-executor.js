@@ -95,6 +95,7 @@ class AdsQueryExecutor {
         if (writer)
             await writer.endScript();
         if (this.logger.isDebugEnabled()) {
+            // TODO: introduce a special option for memory dumping (e.g. --logger.dump-memory)
             this.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
         }
         return result_map;

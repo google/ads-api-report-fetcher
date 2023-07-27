@@ -156,7 +156,7 @@ suite('substituteMacros', () => {
     assert.deepEqual(query.text, expected);
   });
 
-  test("support date_iso", () => {
+  test("support magic date macros: date_iso", () => {
     let res = substituteMacros("abc={date_iso}", undefined);
     let now = new Date();
     let month = now.getMonth() + 1;
@@ -169,9 +169,43 @@ suite('substituteMacros', () => {
     assert.deepEqual(res.unknown_params.length, 0);
 
     // now the same but with override for date_iso
-    res = substituteMacros("abc={date_iso}", { date_iso: '20230501' });
+    res = substituteMacros("abc={date_iso}", { date_iso: "20230501" });
     assert.deepStrictEqual(res.text, "abc=20230501");
     assert.deepEqual(res.unknown_params.length, 0);
+  });
+
+  test("support magic date macros: current_date", () => {
+    const res = substituteMacros("abc={current_date}");
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const iso =
+      now.getFullYear() +
+      "-" +
+      (month < 10 ? "0" + month.toString() : month.toString()) +
+      "-" +
+      (day < 10 ? "0" + day : day);
+    assert.deepStrictEqual(res.text, "abc=" + iso);
+  });
+
+  test("support magic date macros: current_datetime", () => {
+    const res = substituteMacros("abc={current_datetime}");
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    const iso =
+      now.getFullYear() +
+      "-" +
+      (month < 10 ? "0" + month.toString() : month.toString()) +
+      "-" +
+      (day < 10 ? "0" + day : day) + " " +
+      (hours < 10 ? "0" + hours.toString() : hours.toString()) + ":" +
+      (minutes < 10 ? "0" + minutes.toString() : minutes.toString()) + ":" +
+      (seconds < 10 ? "0" + seconds.toString() : seconds.toString());
+    assert.deepStrictEqual(res.text, "abc=" + iso);
   });
 });
 

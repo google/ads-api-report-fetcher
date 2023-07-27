@@ -14,26 +14,33 @@
  * limitations under the License.
  */
 
-import date_add from 'date-fns/add'
-import _ from 'lodash';
+//import { DateTimeFormatter, LocalDate, LocalDateTime } from "@js-joda/core";
 
-import {math_parse} from './math-engine';
-import nunjucks from 'nunjucks';
-import { typeOf } from 'mathjs';
+import date_add from "date-fns/add";
+import format from "date-fns/format";
+import _ from "lodash";
+
+import { math_parse } from "./math-engine";
+import nunjucks from "nunjucks";
 
 export function traverseObject(
-    object: any,
-    visitor: (name: string, value: any, path: string[], object: Object) => void,
-    path: string[]): boolean {
+  object: any,
+  visitor: (name: string, value: any, path: string[], object: Object) => void,
+  path: string[]
+): boolean {
   path = path || [];
-  return _.forIn(object, function(value: any, name: string) {
+  return _.forIn(object, function (value: any, name: string) {
     path.push(name);
     if (_.isPlainObject(value)) {
       visitor(name, value, path, object);
       traverseObject(value, visitor, path);
     } else if (
-        value === null || value === undefined || _.isString(value) ||
-        _.isNumber(value) || _.isBoolean(value)) {
+      value === null ||
+      value === undefined ||
+      _.isString(value) ||
+      _.isNumber(value) ||
+      _.isBoolean(value)
+    ) {
       visitor(name, value, path, object);
     } else if (_.isArray(value)) {
       // TODO: empty arrays, arrays of primities
@@ -60,7 +67,7 @@ export function traverseObject(
  */
 export function navigateObject(object: any, path: string) {
   let ctx = object;
-  for (let name of path.split('.')) {
+  for (let name of path.split(".")) {
     ctx = ctx[name];
     if (!ctx) return ctx;
   }
@@ -72,7 +79,7 @@ export function navigateObject(object: any, path: string) {
  * @param str a string containing a number
  * @returns a finite number (never returns NaN) or undefined
  */
-export function tryParseNumber(str: any): number|undefined {
+export function tryParseNumber(str: any): number | undefined {
   if (_.isFinite(str)) return <number>str;
   if (_.isString(str) && str.length > 0) {
     let num = Number(str);
@@ -82,43 +89,47 @@ export function tryParseNumber(str: any): number|undefined {
 
 /**
  * Format a date in ISO format - YYYYMMDD or YYYY-MM-DD if delimiter is "-"
+ * @deprecated use `format` from `date-fns` package instead
  */
-export function formatDateISO(dt: Date, delimiter: string = ''): string {
+export function formatDateISO(dt: Date, delimiter: string = ""): string {
   let month = dt.getMonth() + 1;
   let day = dt.getDate();
-  let iso = dt.getFullYear() + delimiter +
-      (month < 10 ? '0' + month.toString() : month.toString()) + delimiter +
-      (day < 10 ? '0' + day : day);
+  let iso =
+    dt.getFullYear() +
+    delimiter +
+    (month < 10 ? "0" + month.toString() : month.toString()) +
+    delimiter +
+    (day < 10 ? "0" + day : day);
   return iso;
 }
 
 function convert_date(name: string, value: string): string {
-  let [pattern, delta, ...other] = value.split('-');
+  let [pattern, delta, ...other] = value.split("-");
   if (!pattern || other.length) {
-    throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+    throw new Error(
+      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
+    );
   }
   if (!delta) {
     // simple case ":YYYYMMDD"
-    return formatDateISO(new Date(), '-');
+    return format(new Date(), "yyyy-MM-dd");
   }
   let ago = +delta;
   pattern = pattern.trim().toUpperCase();
   let duration: Duration;
-  if (pattern === ':YYYYMMDD') {
+  if (pattern === ":YYYYMMDD") {
     duration = { days: -ago };
-  }
-  else if (pattern === ':YYYYMM') {
-    duration = {months: -ago};
-  }
-  else if (pattern === ':YYYY') {
-    duration = {years: -ago};
-  }
-  else {
-    throw new Error(`Macro ${
-        name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
+  } else if (pattern === ":YYYYMM") {
+    duration = { months: -ago };
+  } else if (pattern === ":YYYY") {
+    duration = { years: -ago };
+  } else {
+    throw new Error(
+      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
+    );
   }
   let dt = date_add(new Date(), duration);
-  return formatDateISO(dt, '-');
+  return format(dt, "yyyy-MM-dd");
 }
 
 /**
@@ -128,15 +139,16 @@ function convert_date(name: string, value: string): string {
  * @returns same text with substituted macros and executed expressions
  */
 export function substituteMacros(
-    text: string, macros?: Record<string, any>):
-    {text: string, unknown_params: string[]} {
+  text: string,
+  macros?: Record<string, any>
+): { text: string; unknown_params: string[] } {
   let unknown_params: Record<string, boolean> = {};
   // Support for macro's values containing special syntax for dynamic dates:
   // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/year respectedly
   if (macros) {
-    Object.entries(macros).map(pair => {
+    Object.entries(macros).map((pair) => {
       let value = <string>pair[1];
-      if (value && _.isString(value) && value.startsWith(':YYYY')) {
+      if (value && _.isString(value) && value.startsWith(":YYYY")) {
         let key = pair[0];
         macros![key] = convert_date(key, value);
       }
@@ -144,13 +156,16 @@ export function substituteMacros(
   }
 
   macros = macros || {};
-  // add a magic macro for Python version compatibility
-  if (!macros['date_iso']) {
-    macros['date_iso'] = formatDateISO(new Date());
+  // add "magic" macros for Python version compatibility
+  if (!macros["date_iso"]) {
+    macros["date_iso"] = format(new Date(), "yyyyMMdd");
   }
-  //TODO: support
-  //"current_date": datetime.date.today().strftime("%Y-%m-%d"),
-  //"current_datetime": datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+  if (!macros["current_date"]) {
+    macros["current_date"] = format(new Date(), "yyyy-MM-dd");
+  }
+  if (!macros["current_datetime"]) {
+    macros["current_datetime"] = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+  }
 
   // notes on the regexp:
   //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
@@ -166,17 +181,17 @@ export function substituteMacros(
   });
   // now process expressions with built-in functions in ${..} blocks
   text = text.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
-    if (!expr.trim()) return '';
+    if (!expr.trim()) return "";
     return math_parse(expr).evaluate(macros);
   });
-  return {text: text, unknown_params: Object.keys(unknown_params)};
+  return { text: text, unknown_params: Object.keys(unknown_params) };
 }
 
 export function renderTemplate(template: string, params: any) {
   //nunjucks.configure("views", { autoescape: true });
   if (params) {
     for (let [key, value] of Object.entries(params)) {
-      if (value && typeof value === 'string') {
+      if (value && typeof value === "string") {
         params[key] = value.split(",");
       }
     }
@@ -189,7 +204,7 @@ function prepend(value: number, num?: number): string {
   num = num || 2;
   if (value_str.length < num) {
     while (value_str.length < num) {
-      value_str = '0' + value_str;
+      value_str = "0" + value_str;
     }
   }
   return value_str;
@@ -202,7 +217,7 @@ export function getElapsed(started: Date, now?: Date): string {
   //let to = LocalDateTime.from(nativeJs(now || new Date()));
   //Duration.between(from, to).toString() - return 'PT..' string
 
-  let ms = ((now ? now.valueOf() : Date.now()) - started.valueOf());
+  let ms = (now ? now.valueOf() : Date.now()) - started.valueOf();
   let seconds = ms / 1000;
   ms = Math.floor(ms % 1000);
   let minutes = seconds / 60;
@@ -211,15 +226,24 @@ export function getElapsed(started: Date, now?: Date): string {
   minutes = Math.floor(minutes % 60);
   hours = Math.floor(hours % 24);
 
-  return prepend(hours) + ':' + prepend(minutes) + ':' + prepend(seconds) +
-    '.' + prepend(ms, 3);
+  return (
+    prepend(hours) +
+    ":" +
+    prepend(minutes) +
+    ":" +
+    prepend(seconds) +
+    "." +
+    prepend(ms, 3)
+  );
 }
 
 export function dumpMemory() {
   const used: any = process.memoryUsage();
-  let output = '';
+  let output = "";
   for (let key in used) {
-    output += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
+    output += `${key} ${
+      Math.round((used[key] / 1024 / 1024) * 100) / 100
+    } MB\n`;
   }
   return output;
 }
