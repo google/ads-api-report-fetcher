@@ -23,7 +23,7 @@
     "@google-cloud/functions-framework": "^3.1.2",
     "@google-cloud/logging": "^10.4.0",
     "@google-cloud/logging-winston": "^5.3.0",
-    "google-ads-api-report-fetcher": "^2.0.0",
+    "google-ads-api-report-fetcher": "^2.1.0",
     "google-auth-library": "^8.7.0",
     "js-yaml": "^4.1.0"
   },

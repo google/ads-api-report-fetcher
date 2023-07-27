@@ -1,6 +1,7 @@
 # Changelog
 ## 2.1 - 2023-07-26
-* 
+* Fix: integer fields got string type if bq.array-handling=strings was specified
+
 ## 2.0 - 2023-07-11
 * breaking: gaarf CLI tool supports multiple CIDs in `account` argument. 
 `GoogleAdsApiClient` constructor and `loadAdsConfigFromFile` don't take customer_id anymore, 
@@ -10,7 +11,7 @@ but `GoogleAdsApiClient`'s methods `getCustomerIds`, `executeQuery` and `execute
 * CsvWriter: support `file-per-customer` argument - split output file by customer
 
 ## 1.15 - 2023-05-18
-* added support for `date_iso` macro (compatible with the Python version)
+* added support for `date_iso` macro (to be compatible with the Python version)
 * added global executable aliases `gaarf-node` and `gaarf-node-bq`
 
 ## 1.14 - 2023-04-26
@@ -43,8 +44,8 @@ but `GoogleAdsApiClient`'s methods `getCustomerIds`, `executeQuery` and `execute
 * AdsQueryExecutor: introduced `getCustomerIds` method to fetch customer ids with a custom query to additionally filter cids extracted from a root MCC
   (previous implementation inside AdsApiClient was not correct)
 * BigQueryExecutor: introduced `createUnifiedView` method for creating views for combining per-account tables (used by a new CF)
-* fix: BigQueryExecutor and BigQueryWriter: pass `datasetLocation` to BigQuery ctor
-* fix: winston logger format string didn't output fractional seconds
+* Fix: BigQueryExecutor and BigQueryWriter: pass `datasetLocation` to BigQuery ctor
+* Fix: winston logger format string didn't output fractional seconds
 
 ## 1.8.0 - 2022-11-10
 * Massive rewrite of transfering data from Google Ads API to BigQuery using streaming
