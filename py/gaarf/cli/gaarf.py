@@ -22,7 +22,7 @@ from rich.logging import RichHandler
 from smart_open import open
 import yaml
 
-from gaarf import api_clients, utils, query_executor
+from gaarf import api_clients, query_executor
 from gaarf.io import writer, reader  # type: ignore
 from .utils import (GaarfConfigBuilder, ConfigSaver,
                     initialize_runtime_parameters, gaarf_runner, init_logging)
@@ -142,6 +142,8 @@ def main():
             config.output, **config.writer_params)
         if config.output == "bq":
             _ = writer_client.create_or_get_dataset()
+        if config.output == "sheet":
+            writer_client.init_client()
 
         logger.info("Total number of customer_ids is %d, accounts=[%s]",
                     len(customer_ids), ",".join(map(str, customer_ids)))

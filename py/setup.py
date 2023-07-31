@@ -8,7 +8,8 @@ README = (HERE / "README.md").read_text()
 
 EXTRAS_REQUIRE = {
     "sqlalchemy": ["sqlalchemy"],
-    "simulator": ["Faker"]
+    "simulator": ["Faker"],
+    "sheets": ["gspread"]
 }
 EXTRAS_REQUIRE['full'] = list(set(chain(*EXTRAS_REQUIRE.values())))
 

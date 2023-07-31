@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import logging
 import abc
 import os
 import proto  # type: ignore
-import gspread
 import datetime
 
-from oauth2client.service_account import ServiceAccountCredentials
-from google.oauth2.service_account import Credentials
 from google.cloud import bigquery  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 from pathlib import Path
@@ -31,6 +28,7 @@ from rich.console import Console
 from rich.table import Table
 import pandas as pd  # type: ignore
 import numpy as np
+
 from ..report import GaarfReport
 from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
 
@@ -60,7 +58,8 @@ class StdoutWriter(AbsWriter):
         console = Console()
         table = Table(
             title=f"showing results for query <{destination.split('/')[-1]}>",
-            caption=f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
+            caption=
+            f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
             box=rich.box.MARKDOWN)
         column_names, results = self.get_columns_results(results)
         for header in column_names:
@@ -105,49 +104,68 @@ class CsvWriter(AbsWriter):
 
 
 class SheetWriter(AbsWriter):
-    def __init__(self, share_with, credentials_file, spreadsheet_url=None, is_append=False, **kwargs):
-        """
-        Initialize the GoogleSheetsExporter object.
 
-        Parameters:
-            credentials_file (str): Path to the service account credentials file.
-            spreadsheet_url (str): URL of the Google Sheets spreadsheet.
-            sheet_name (str): Name of the sheet where the DataFrame will be exported (default is 'Report').
-            **kwargs: Additional keyword arguments.
+    def __init__(self,
+                 share_with: str,
+                 credentials_file: str,
+                 spreadsheet_url: Optional[str] = None,
+                 is_append: bool = False,
+                 **kwargs: str) -> None:
+        """Initialize the SheetWriter to write reports to Google Sheets.
 
-        Note:
-            'credentials_file' can obtain from the Google Cloud Console. Make sure to enable Google Sheets API for your
-            project and create service account credentials.
+        Args:
+            share_with: Email address to share the spreadsheet.
+            credentials_file: Path to the service account credentials file.
+            spreadsheet_url: URL of the Google Sheets spreadsheet.
+            is_append: Whether you want to append data to the spreadsheet.
         """
         self.share_with = share_with
         self.credentials_file = credentials_file
         self.spreadsheet_url = spreadsheet_url
         self.is_append = is_append
-
-    def init_client(self):
-        scope = ['https://spreadsheets.google.com/feeds',
-                 'https://www.googleapis.com/auth/drive']
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            self.credentials_file, scope)
-        self.gspread_client = gspread.authorize(credentials=credentials)
+        self.client = None
+        self.spreadsheet = None
 
     def __str__(self):
         return f"[Sheet] - data are saved to {self.sheet_url}."
 
-    def _open_sheet(self):
-        if self.spreadsheet_url:
-            self.spreadsheet = self.gspread_client.open_by_url(
-                self.spreadsheet_url)
-        else:
-            self.spreadsheet = self.gspread_client.create(
-                f'Gaarf CSV {datetime.datetime.utcnow()}')
-        self.spreadsheet.share(self.share_with,
-                               perm_type='user',
-                               role='writer')
+    def init_client(self) -> None:
+        import gspread
 
-    def write(self, results, destination=f'Report {datetime.datetime.utcnow()}') -> str:
+        if not self.client:
+            scope = [
+                'https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive'
+            ]
+            if not self.credentials_file:
+                raise ValueError(
+                    "Provide path to service account via `credentials_file` option"
+                )
+            self.gspread_client = gspread.service_account(
+                filename=self.credentials_file)
+            self._open_sheet()
+
+    def _open_sheet(self) -> None:
+        if not self.spreadsheet:
+            if not self.spreadsheet_url:
+                self.spreadsheet = self.gspread_client.create(
+                    f'Gaarf CSV {datetime.datetime.utcnow()}')
+            else:
+                self.spreadsheet = self.gspread_client.open_by_url(
+                    self.spreadsheet_url)
+            if self.share_with:
+                self.spreadsheet.share(self.share_with,
+                                       perm_type='user',
+                                       role='writer')
+
+    def write(self,
+              results,
+              destination=f'Report {datetime.datetime.utcnow()}') -> str:
+        import gspread
         self.init_client()
-        self._open_sheet()
+        if not destination:
+            destination = f'Report {datetime.datetime.utcnow()}'
+        destination = DestinationFormatter.format_extension(destination)
         column_names, results = self.get_columns_results(results)
         num_data_rows = len(results) + 1
         try:
@@ -165,11 +183,12 @@ class SheetWriter(AbsWriter):
             self.add_rows_if_needed(num_data_rows, sheet)
             sheet.append_rows(results, value_input_option='RAW')
 
-        success_msg = "Report is saved to %s/#gid=%s", self.spreadsheet_url, sheet.url
+        success_msg = f"Report is saved to {sheet.url}"
         logger.info(success_msg)
         return success_msg
 
-    def add_rows_if_needed(self, num_data_rows, sheet):
+    def add_rows_if_needed(self, num_data_rows: int,
+                           sheet: "gspread.worksheet.Worksheet") -> None:
         num_sheet_rows = len(sheet.get_all_values())
         if num_data_rows > num_sheet_rows:
             num_rows_to_add = num_data_rows - num_sheet_rows
@@ -245,7 +264,8 @@ class BigQueryWriter(AbsWriter):
                     continue
                 field_type = type(field)
                 if field_type in [
-                        list, proto.marshal.collections.repeated.RepeatedComposite,
+                        list,
+                        proto.marshal.collections.repeated.RepeatedComposite,
                         proto.marshal.collections.repeated.Repeated
                 ]:
                     repeated = True

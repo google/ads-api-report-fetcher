@@ -82,6 +82,7 @@ Options:
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
   * `sqldb` - writes data to a database supported by SQL Alchemy (Python only).
+  * `sheet` - writes data to a Google Sheets (Python only).
 * `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
@@ -124,6 +125,12 @@ Options specific for Console writer (*NodeJS version only*):
 Options specific for SqlAlchemy writer (*Python version only*):
 * `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
 * `sqldb.if-exists` - specify how to behave if the table already exists (see [more](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html))
+
+Options specific for Sheet writer (*Python version only*):
+* `sheet.spreadsheet-url` - optional URL of spreadsheet where data should be saved; if not provided a new spreadsheet will be created.
+* `sheet.share-with` - with whom the newly created spreadsheet should be shared.
+* `sheet.credentials-file` - path to service account used to write data. More at [gspread authentication](https://docs.gspread.org/en/v5.10.0/oauth2.html)
+* `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended.
 
 ####  Query specific options
 
