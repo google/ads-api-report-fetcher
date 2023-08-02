@@ -13,11 +13,13 @@
 # limitations under the License.
 
 from typing import Any, Dict, List, Optional, Tuple
-import datetime
 import dataclasses
-import re
-from .api_clients import BaseClient
+import datetime
 from operator import attrgetter
+import re
+
+from .api_clients import BaseClient
+from .query_post_processor import PostProcessorMixin
 
 
 @dataclasses.dataclass(frozen=True)
@@ -70,7 +72,7 @@ class CommonParametersMixin:
     }
 
 
-class QuerySpecification(CommonParametersMixin):
+class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
 
     def __init__(self,
                  text: str,
@@ -79,7 +81,7 @@ class QuerySpecification(CommonParametersMixin):
                  api_version: str = "v12") -> None:
         self.text = text
         self.title = title
-        self.args = args
+        self.args = args or {}
         self.macros = self._init_macros()
         self.base_client = BaseClient(api_version)
 
@@ -102,8 +104,9 @@ class QuerySpecification(CommonParametersMixin):
             column_names, etc).
         """
 
-        query_lines = self.cleanup_query_text(self.text)
-        resource_name = self.extract_resource_from_query(self.text)
+        query_text = self.expand_jinja(self.text, self.args.get("template"))
+        query_lines = self.cleanup_query_text(query_text)
+        resource_name = self.extract_resource_from_query(query_text)
         is_constant_resource = bool(resource_name.endswith("_constant"))
         query_text = " ".join(query_lines)
         try:
@@ -118,6 +121,8 @@ class QuerySpecification(CommonParametersMixin):
 
         query_lines = self.extract_query_lines(" ".join(query_lines))
         for line in query_lines:
+            if not line:
+                continue
             field_name = None
             customizer_type = None
             field_elements, alias, virtual_column = self.extract_fields_and_aliases(
