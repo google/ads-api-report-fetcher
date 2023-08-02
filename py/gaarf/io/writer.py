@@ -288,6 +288,7 @@ class BigQueryWriter(AbsWriter):
             list: "REPEATED",
             str: "STRING",
             int: "INT64",
+            datetime.date: "DATE",
             float: "FLOAT64",
             bool: "BOOL",
             proto.marshal.collections.repeated.RepeatedComposite: "REPEATED",
