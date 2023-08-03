@@ -136,7 +136,7 @@ def main():
             config.account, MutableSequence) else [config.account]
     else:
         customer_ids = ads_query_executor.expand_mcc(config.account,
-                                              customer_ids_query)
+                                                     customer_ids_query)
     if customer_ids:
         writer_client = writer.WriterFactory().create_writer(
             config.output, **config.writer_params)
@@ -167,7 +167,7 @@ def main():
                                              reader_client.read(query), query,
                                              customer_ids, writer_client,
                                              config.params,
-                                             main_args._optimize_performance)
+                                             main_args.optimize_performance)
                 gaarf_runner(query, callback, logger)
     else:
         logger.warning(
