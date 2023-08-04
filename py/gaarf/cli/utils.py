@@ -115,7 +115,8 @@ class GaarfConfigBuilder(BaseConfigBuilder):
 
     def _build_gaarf_config(self) -> GaarfConfig:
         main_args, query_args = self.args[0], self.args[1]
-        params = ParamsParser(["macro", main_args.save]).parse(query_args)
+        params = ParamsParser(["macro", "template",
+                               main_args.save]).parse(query_args)
         return GaarfConfig(
             output=main_args.save,
             api_version=main_args.api_version,
