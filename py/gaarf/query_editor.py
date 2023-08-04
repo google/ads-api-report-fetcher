@@ -15,6 +15,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 import dataclasses
 import datetime
+from dateutil.relativedelta import relativedelta
 from operator import attrgetter
 import re
 
@@ -65,8 +66,12 @@ class QueryElements:
 
 class CommonParametersMixin:
     common_params = {
-        "date_iso": datetime.date.today().strftime("%Y%m%d"),
-        "current_date": datetime.date.today().strftime("%Y-%m-%d"),
+        "date_iso":
+        datetime.date.today().strftime("%Y%m%d"),
+        "yesterday_iso":
+        (datetime.date.today() - relativedelta(days=1)).strftime("%Y%m%d"),
+        "current_date":
+        datetime.date.today().strftime("%Y-%m-%d"),
         "current_datetime":
         datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
     }
@@ -112,8 +117,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         try:
             query_text = query_text.format(**self.macros)
         except KeyError as e:
-            raise MacroError(
-                f"No value provided for macro {str(e)}.")
+            raise MacroError(f"No value provided for macro {str(e)}.")
         fields = []
         column_names = []
         customizers = {}
