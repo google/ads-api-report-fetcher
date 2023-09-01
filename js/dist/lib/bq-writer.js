@@ -329,7 +329,7 @@ class BigQueryWriter {
             catch (e) {
                 this.logger.error(`An error occured during creating the unified view (${table_fq}): ${e.message}`);
                 if (e.message.includes("Views cannot be queried through prefix")) {
-                    this.logger.warn(`You have to rename the script ${this.tableId} to a name so the wildcard expression ${this.tableId}_* would catch other views `);
+                    this.logger.warn(`You have to rename the script ${this.tableId} to a name so the wildcard expression ${this.tableId}_* would not catch other views`);
                 }
                 throw e;
             }

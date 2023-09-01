@@ -989,11 +989,11 @@ cd ../workflow
     answers,
     'bq_macro'
   );
-
+  const bq_writer_options = answers.bq_writer_options;
   const bq_location =
     gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
   const output_dataset = answers2.output_dataset;
-  const customer_id = answers2.customer_id.toString().replaceAll("-", "");
+  const customer_id = answers2.customer_id.toString().replaceAll('-', '');
   const wf_data = {
     cloud_function: name,
     gcs_bucket: gcs_bucket,
@@ -1005,6 +1005,7 @@ cd ../workflow
     ads_config_path: `${gcs_base_path}/google-ads.yaml`,
     customer_ids_query: custom_query_gcs_path,
     bq_dataset_location: bq_location,
+    bq_writer_options: bq_writer_options,
     ads_macro: macro_ads,
     bq_macro: macro_bq,
     bq_sql: {},
