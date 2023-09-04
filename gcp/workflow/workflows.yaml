@@ -321,7 +321,7 @@ custom_retry_predicate:
           # NOTE: sometime errors happen inside Workflow and there's no any code 
           # (i.e. "code" is null, so DO NOT user operand <,>,>=,<=, or otherwise that check will fail with error TypeError: unsupported operand types for >=: 'null' and 'int' (expecting numbers))
           # We'll repeat if it's a ConnectionError, TimeoutError, Internal Server Error (500) or Too Many Requests (429)
-          - condition: ${"ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) >= 500 or map.get(e, "code") == 429}
+          - condition: ${"ConnectionFailedError" in default(map.get(e, "tags"), []) or "ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) >= 500 or map.get(e, "code") == 429}
             return: true
     - otherwise:
         return: false
