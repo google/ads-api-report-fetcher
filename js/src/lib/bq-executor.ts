@@ -22,6 +22,7 @@ import {getDataset, OAUTH_SCOPES} from "./bq-common";
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
+  bigqueryClient?: BigQuery;
   keyFilePath?: string;
   dumpQuery?: boolean;
 }
@@ -43,7 +44,7 @@ export class BigQueryExecutor {
     options?: BigQueryExecutorOptions
   ) {
     const datasetLocation = options?.datasetLocation || "us";
-    this.bigquery = new BigQuery({
+    this.bigquery = options?.bigqueryClient || new BigQuery({
       projectId: projectId,
       scopes: OAUTH_SCOPES,
       keyFilename: options?.keyFilePath,
@@ -107,19 +108,37 @@ export class BigQueryExecutor {
     dataset: Dataset | string,
     tableId: string,
     customers: string[]
-  ) {
+  ): Promise<string> {
     if (typeof dataset == "string") {
       dataset = await getDataset(this.bigquery, dataset, this.datasetLocation);
     }
     const datasetId = dataset.id!;
-    await dataset!.table(tableId).delete({
-      ignoreNotFound: true,
-    });
-    await dataset!.query({
-      query: `CREATE OR REPLACE VIEW \`${datasetId}.${tableId}\` AS SELECT * FROM \`${datasetId}.${tableId}_*\` WHERE _TABLE_SUFFIX in (${customers
+    await dataset!.table(tableId).delete({ ignoreNotFound: true });
+    const table_fq = `${datasetId}.${tableId}`;
+    try {
+      // here there's a potential problem. If wildcard expression (resource_*)
+      // catches another view the DML-query will fail with error:
+      // 'Views cannot be queried through prefix. First view projectid:datasetid.viewname.'
+
+      const query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\` WHERE _TABLE_SUFFIX in (${customers
         .map((s) => "'" + s + "'")
-        .join(",")})`,
-    });
+        .join(",")})`;
+      this.logger.debug(query);
+      await dataset!.query({
+        query: query,
+      });
+      return table_fq;
+    } catch (e) {
+      this.logger.error(
+        `An error occured during creating the unified view (${table_fq}): ${e.message}`
+      );
+      if (e.message.includes("Views cannot be queried through prefix")) {
+        this.logger.warn(
+          `You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`
+        );
+      }
+      throw e;
+    }
   }
 
   private async getDataset(datasetId: string): Promise<Dataset> {

@@ -174,6 +174,27 @@ suite('substituteMacros', () => {
     assert.deepEqual(res.unknown_params.length, 0);
   });
 
+  test("support magic date macros: yesterday_iso", () => {
+    let res = substituteMacros("abc={yesterday_iso}", undefined);
+    let date = new Date();
+    date.setDate(date.getDate() - 1);
+    let month = date.getMonth() + 1;
+    let day = date.getDate();
+    let iso =
+      date.getFullYear() +
+      (month < 10 ? "0" + month.toString() : month.toString()) +
+      (day < 10 ? "0" + day : day);
+    assert.deepStrictEqual(res.text, "abc=" + iso);
+    assert.deepEqual(res.unknown_params.length, 0);
+
+    // now the same but with override for yesterday_iso
+    res = substituteMacros("abc={yesterday_iso}", {
+      yesterday_iso: "20230501",
+    });
+    assert.deepStrictEqual(res.text, "abc=20230501");
+    assert.deepEqual(res.unknown_params.length, 0);
+  });
+
   test("support magic date macros: current_date", () => {
     const res = substituteMacros("abc={current_date}");
     const now = new Date();

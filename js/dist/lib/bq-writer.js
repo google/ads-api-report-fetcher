@@ -28,6 +28,7 @@ const logger_1 = require("./logger");
 const types_1 = require("./types");
 const utils_1 = require("./utils");
 const bq_common_1 = require("./bq-common");
+const bq_executor_1 = require("./bq-executor");
 const MAX_ROWS = 50000;
 var BigQueryInsertMethod;
 (function (BigQueryInsertMethod) {
@@ -57,12 +58,17 @@ class BigQueryWriter {
         this.noUnionView = (options === null || options === void 0 ? void 0 : options.noUnionView) || false;
         this.insertMethod = (options === null || options === void 0 ? void 0 : options.insertMethod) || BigQueryInsertMethod.loadTable;
         this.arrayHandling = (options === null || options === void 0 ? void 0 : options.arrayHandling) || BigQueryArrayHandling.arrays;
-        this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || '|';
+        this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || "|";
         this.customers = [];
         this.rowsByCustomer = {};
         this.rowCountsByCustomer = {};
         this.streamsByCustomer = {};
         this.logger = (0, logger_1.getLogger)();
+        let bqExecutorOptions = {
+            datasetLocation: datasetLocation,
+            bigqueryClient: this.bigquery,
+        };
+        this.bqExecutor = new bq_executor_1.BigQueryExecutor(projectId, bqExecutorOptions);
     }
     async beginScript(scriptName, query) {
         if (!scriptName)
@@ -309,30 +315,11 @@ class BigQueryWriter {
             Create a view to union all customer tables (if not disabled excplicitly):
             CREATE OR REPLACE VIEW `dataset.resource` AS
               SELECT * FROM `dataset.resource_*`;
+      
             Unfortunately BQ always creates a based empty table for templated
             (customer) table, so we have to drop it first.
             */
-            await this.dataset.table(this.tableId).delete({ ignoreNotFound: true });
-            const table_fq = `${this.datasetId}.${this.tableId}`;
-            try {
-                // here there's a potential problem. If wildcard expression (resource_*)
-                // catches another view the DML-query will fail with error:
-                // 'Views cannot be queried through prefix. First view projectid:datasetid.viewname.'
-                const query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\` WHERE _TABLE_SUFFIX in (${this.customers
-                    .map((s) => "'" + s + "'")
-                    .join(",")})`;
-                this.logger.debug(query);
-                await this.dataset.query({
-                    query: query,
-                });
-            }
-            catch (e) {
-                this.logger.error(`An error occured during creating the unified view (${table_fq}): ${e.message}`);
-                if (e.message.includes("Views cannot be queried through prefix")) {
-                    this.logger.warn(`You have to rename the script ${this.tableId} to a name so the wildcard expression ${this.tableId}_* would not catch other views`);
-                }
-                throw e;
-            }
+            const table_fq = this.bqExecutor.createUnifiedView(this.datasetId, this.tableId, this.customers);
             this.logger.info(`Created a union view '${table_fq}'`, {
                 scriptName: this.tableId,
             });
@@ -366,7 +353,8 @@ class BigQueryWriter {
         return schema;
     }
     getBigQueryFieldType(colType) {
-        if (this.arrayHandling === BigQueryArrayHandling.strings && colType.repeated)
+        if (this.arrayHandling === BigQueryArrayHandling.strings &&
+            colType.repeated)
             return "STRING";
         if (lodash_1.default.isString(colType.type)) {
             switch (colType.type.toLowerCase()) {

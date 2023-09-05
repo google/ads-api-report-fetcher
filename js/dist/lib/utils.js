@@ -154,6 +154,11 @@ function substituteMacros(text, macros) {
     if (!macros["date_iso"]) {
         macros["date_iso"] = (0, format_1.default)(new Date(), "yyyyMMdd");
     }
+    if (!macros["yesterday_iso"]) {
+        let date = new Date();
+        date.setDate(date.getDate() - 1);
+        macros["yesterday_iso"] = (0, format_1.default)(date, "yyyyMMdd");
+    }
     if (!macros["current_date"]) {
         macros["current_date"] = (0, format_1.default)(new Date(), "yyyy-MM-dd");
     }

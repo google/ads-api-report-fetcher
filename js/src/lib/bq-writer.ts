@@ -32,6 +32,7 @@ import {
 } from "./types";
 import { substituteMacros } from "./utils";
 import { getDataset, OAUTH_SCOPES } from "./bq-common";
+import { BigQueryExecutor, BigQueryExecutorOptions } from "./bq-executor";
 
 
 const MAX_ROWS = 50000;
@@ -59,6 +60,7 @@ export enum BigQueryArrayHandling {
 
 export class BigQueryWriter implements IResultWriter {
   bigquery: BigQuery;
+  bqExecutor: BigQueryExecutor;
   datasetId: string;
   datasetLocation?: string;
   customers: string[];
@@ -100,12 +102,18 @@ export class BigQueryWriter implements IResultWriter {
     this.noUnionView = options?.noUnionView || false;
     this.insertMethod = options?.insertMethod || BigQueryInsertMethod.loadTable;
     this.arrayHandling = options?.arrayHandling || BigQueryArrayHandling.arrays;
-    this.arraySeparator = options?.arraySeparator || '|';
+    this.arraySeparator = options?.arraySeparator || "|";
     this.customers = [];
     this.rowsByCustomer = {};
     this.rowCountsByCustomer = {};
     this.streamsByCustomer = {};
     this.logger = getLogger();
+
+    let bqExecutorOptions: BigQueryExecutorOptions = {
+      datasetLocation: datasetLocation,
+      bigqueryClient: this.bigquery,
+    };
+    this.bqExecutor = new BigQueryExecutor(projectId, bqExecutorOptions);
   }
 
   async beginScript(scriptName: string, query: QueryElements): Promise<void> {
@@ -379,33 +387,16 @@ export class BigQueryWriter implements IResultWriter {
       Create a view to union all customer tables (if not disabled excplicitly):
       CREATE OR REPLACE VIEW `dataset.resource` AS
         SELECT * FROM `dataset.resource_*`;
+
       Unfortunately BQ always creates a based empty table for templated
       (customer) table, so we have to drop it first.
       */
-      await this.dataset!.table(this.tableId).delete({ ignoreNotFound: true });
-      const table_fq = `${this.datasetId}.${this.tableId}`;
-      try {
-        // here there's a potential problem. If wildcard expression (resource_*)
-        // catches another view the DML-query will fail with error:
-        // 'Views cannot be queried through prefix. First view projectid:datasetid.viewname.'
+      const table_fq = this.bqExecutor.createUnifiedView(
+        this.datasetId,
+        this.tableId,
+        this.customers
+      );
 
-        const query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\` WHERE _TABLE_SUFFIX in (${this.customers
-          .map((s) => "'" + s + "'")
-          .join(",")})`;
-        this.logger.debug(query);
-        await this.dataset!.query({
-          query: query,
-        });
-      }
-      catch (e) {
-        this.logger.error(
-          `An error occured during creating the unified view (${table_fq}): ${e.message}`
-        );
-        if (e.message.includes("Views cannot be queried through prefix")) {
-          this.logger.warn(`You have to rename the script ${this.tableId} to a name so the wildcard expression ${this.tableId}_* would not catch other views`);
-        }
-        throw e;
-      }
       this.logger.info(`Created a union view '${table_fq}'`, {
         scriptName: this.tableId,
       });
@@ -442,7 +433,11 @@ export class BigQueryWriter implements IResultWriter {
   }
 
   private getBigQueryFieldType(colType: FieldType): string | undefined {
-    if (this.arrayHandling === BigQueryArrayHandling.strings && colType.repeated) return "STRING";
+    if (
+      this.arrayHandling === BigQueryArrayHandling.strings &&
+      colType.repeated
+    )
+      return "STRING";
     if (_.isString(colType.type)) {
       switch (colType.type.toLowerCase()) {
         case "int32":

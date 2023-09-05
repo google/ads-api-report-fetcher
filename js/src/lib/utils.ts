@@ -160,6 +160,11 @@ export function substituteMacros(
   if (!macros["date_iso"]) {
     macros["date_iso"] = format(new Date(), "yyyyMMdd");
   }
+  if (!macros["yesterday_iso"]) {
+    let date = new Date();
+    date.setDate(date.getDate() - 1);
+    macros["yesterday_iso"] = format(date, "yyyyMMdd");
+  }
   if (!macros["current_date"]) {
     macros["current_date"] = format(new Date(), "yyyy-MM-dd");
   }
