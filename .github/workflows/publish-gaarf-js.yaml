@@ -8,7 +8,10 @@ on:
 jobs:
     autopublish:
         name: Publish release if package.json version was bumped
-        runs-on: ubuntu-20.04
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./js
         steps:
             - name: Check out repository
               uses: actions/checkout@v2
@@ -24,15 +27,15 @@ jobs:
                   echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
                   echo "Published version: ${{ steps.cpv.outputs.published-version }}"
 
+            - uses: actions/setup-node@v3
+              with:
+                node-version: '19'
+                registry-url: 'https://wombat-dressing-room.appspot.com/'
+                
             - name: Install dependencies
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm ci      
             
-            - uses: actions/setup-node@v3
-              with:
-                node-version: '16.x'
-                registry-url: 'https://wombat-dressing-room.appspot.com/'
-                
             - name: Publish new version
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm publish
