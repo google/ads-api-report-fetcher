@@ -27,15 +27,16 @@ jobs:
                   echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
                   echo "Published version: ${{ steps.cpv.outputs.published-version }}"
 
+            - name: Install dependencies
+              if: steps.cpv.outputs.is-new-version == 'true'
+              run: npm ci      
+
+            # NOTE: setting our registry url should be done after installing deps
             - uses: actions/setup-node@v3
               with:
                 node-version: '19'
                 registry-url: 'https://wombat-dressing-room.appspot.com/'
                 
-            - name: Install dependencies
-              if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm ci      
-            
             - name: Publish new version
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm publish
