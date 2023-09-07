@@ -1,6 +1,12 @@
 # Changelog
+## 2.3 - 2023-09-07
+* Improved error handling and logging of errors, added retrying on internal errors from the API (for sync and async methods both)
+
+## 2.2 - 2023-07-27
+* added `current_date`, `current_datetime` macros additionally to `date_iso` for Python-version compatibility
+
 ## 2.1 - 2023-07-26
-* Fix: integer fields got string type if bq.array-handling=strings was specified
+* Fix: [bq-writer] integer fields got string type if bq.array-handling=strings was specified
 
 ## 2.0 - 2023-07-11
 * breaking: gaarf CLI tool supports multiple CIDs in `account` argument. 

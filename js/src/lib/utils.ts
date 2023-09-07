@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-//import { DateTimeFormatter, LocalDate, LocalDateTime } from "@js-joda/core";
-
 import date_add from "date-fns/add";
 import format from "date-fns/format";
 import _ from "lodash";
@@ -214,6 +212,7 @@ function prepend(value: number, num?: number): string {
   }
   return value_str;
 }
+
 export function getElapsed(started: Date, now?: Date): string {
   // NOTE: as we've already imported @js-joda it seems logic to use it for
   // calculating duration and formating. Unfortunetely it doesn't seem to
@@ -251,4 +250,59 @@ export function dumpMemory() {
     } MB\n`;
   }
   return output;
+}
+
+export interface RetryOptions {
+  baseDelayMs?: number;
+  delayStrategy?: null | undefined | false | "constant" | "linear" | "exponential";
+}
+/**
+ *
+ * @param fn Any operation to execute
+ * @param checkToRetry A callback to determine if the operation should be retried
+ * @param baseDelayMs Initial delay in milliseconds to wait before retrying the operation
+ * @returns A result of the operation
+ */
+export function executeWithRetry<T>(
+  fn: () => T,
+  checkToRetry: (error: any, attempt: number) => boolean,
+  options?: RetryOptions
+): Promise<T> {
+  let attempt = 1;
+
+  const execute: () => Promise<T> = async () => {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!checkToRetry(error, attempt)) {
+        throw error;
+      }
+      // retrying
+      options = options || {};
+      if (options.delayStrategy) {
+        let delayMs = 0;
+        let baseDelayMs = options.baseDelayMs || 1000;
+        switch (options.delayStrategy) {
+          case "constant":
+            delayMs = baseDelayMs;
+            break;
+          case "linear":
+            delayMs = baseDelayMs * attempt;
+            break;
+          case "exponential":
+             delayMs = baseDelayMs * 2 ** attempt;
+            break;
+          default:
+            throw new Error("Unknown delayStrategy ")
+        }
+        console.log(`Retry attempt ${attempt} after ${delayMs}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      attempt++;
+      return execute();
+    }
+  };
+
+  return execute();
 }

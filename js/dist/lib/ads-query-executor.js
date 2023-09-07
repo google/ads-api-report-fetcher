@@ -185,8 +185,8 @@ class AdsQueryExecutor {
             this.logger.error(`An error occured during executing script '${scriptName}':`, {
                 scriptName,
                 customerId,
+                error: e,
             });
-            this.logger.error(e);
             e.customerId = customerId;
             // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
             // but swalling the exception here will possible cause other issue in writer,
@@ -197,23 +197,31 @@ class AdsQueryExecutor {
         }
     }
     async executeQueryAndParse(query, customerId, writer) {
-        let stream = this.client.executeQueryStream(query.queryText, customerId);
-        let rowCount = 0;
-        let rawRows = [];
-        let parsedRows = [];
-        for await (const row of stream) {
-            let parsedRow = this.parser.parseRow(row, query);
-            rowCount++;
-            // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
-            if (writer) {
-                await writer.addRow(customerId, parsedRow, row);
+        return (0, utils_1.executeWithRetry)(async () => {
+            let stream = this.client.executeQueryStream(query.queryText, customerId);
+            let rowCount = 0;
+            let rawRows = [];
+            let parsedRows = [];
+            // NOTE: as we're iterating over an AsyncGenerator any error if happens
+            // will be thrown on iterating not on creating of the generator
+            for await (const row of stream) {
+                let parsedRow = this.parser.parseRow(row, query);
+                rowCount++;
+                // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+                if (writer) {
+                    await writer.addRow(customerId, parsedRow, row);
+                }
+                else {
+                    rawRows.push(row);
+                    parsedRows.push(parsedRow);
+                }
             }
-            else {
-                rawRows.push(row);
-                parsedRows.push(parsedRow);
-            }
-        }
-        return { rawRows, rows: parsedRows, query, customerId, rowCount };
+            return { rawRows, rows: parsedRows, query, customerId, rowCount };
+        }, (error, attempt) => {
+            return attempt <= 3 && error.retryable;
+        }, {
+            baseDelayMs: 100, delayStrategy: "linear"
+        });
     }
     async getCustomerIds(ids, customer_ids_query) {
         let query = this.parseQuery(customer_ids_query);

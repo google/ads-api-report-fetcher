@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import _ from 'lodash';
+import _ from "lodash";
 
-import {IGoogleAdsApiClient} from './ads-api-client';
-import {AdsQueryEditor,AdsApiVersion} from "./ads-query-editor";
-import {AdsRowParser} from './ads-row-parser';
-import {getLogger} from './logger';
-import {IResultWriter, QueryElements, QueryResult} from './types';
-import { dumpMemory, getElapsed } from './utils';
+import { IGoogleAdsApiClient } from "./ads-api-client";
+import { AdsQueryEditor, AdsApiVersion } from "./ads-query-editor";
+import { AdsRowParser } from "./ads-row-parser";
+import { getLogger } from "./logger";
+import { IResultWriter, QueryElements, QueryResult } from "./types";
+import { executeWithRetry, dumpMemory, getElapsed } from "./utils";
 import { mapLimit } from "async";
-export {AdsApiVersion};
+export { AdsApiVersion };
 
 export interface AdsQueryExecutorOptions {
   /** Do not execute script for constant resources */
@@ -82,15 +82,19 @@ export class AdsQueryExecutor {
   ): Promise<Record<string, number>> {
     let skipConstants = !!options?.skipConstants;
     let sync = options?.parallelAccounts === false || customers.length === 1;
-    let threshold = options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
+    let threshold =
+      options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
     if (sync)
       this.logger.verbose(`Running in synchronous mode`, { scriptName });
     let query = this.parseQuery(queryText, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
-      this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
-        scriptName,
-      });
+      this.logger.verbose(
+        `Skipping constant resource '${query.resource.name}'`,
+        {
+          scriptName,
+        }
+      );
       return {};
     }
     if (options?.dumpQuery) {
@@ -117,9 +121,13 @@ export class AdsQueryExecutor {
         this.logger.debug(
           `Concurrently processing (${customers}) customers (throttle: ${threshold})`
         );
-        let results = await mapLimit(customers, 10, async (customerId: string) => {
-          return this.executeOne(query, customerId, writer, scriptName);
-        });
+        let results = await mapLimit(
+          customers,
+          10,
+          async (customerId: string) => {
+            return this.executeOne(query, customerId, writer, scriptName);
+          }
+        );
         for (let result of results) {
           result_map[result.customerId] = result.rowCount;
         }
@@ -139,7 +147,9 @@ export class AdsQueryExecutor {
     if (writer) await writer.endScript();
     if (this.logger.isDebugEnabled()) {
       // TODO: introduce a special option for memory dumping (e.g. --logger.dump-memory)
-      this.logger.debug(`[${scriptName}] Memory (script completed):\n` + dumpMemory());
+      this.logger.debug(
+        `[${scriptName}] Memory (script completed):\n` + dumpMemory()
+      );
     }
 
     return result_map;
@@ -170,16 +180,24 @@ export class AdsQueryExecutor {
     let query = this.parseQuery(queryText, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
-      this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
-        scriptName: scriptName,
-      });
+      this.logger.verbose(
+        `Skipping constant resource '${query.resource.name}'`,
+        {
+          scriptName: scriptName,
+        }
+      );
       return;
     }
     for (let customerId of customers) {
       this.logger.info(`Processing customer ${customerId}`, {
         scriptName: scriptName,
       });
-      let result = await this.executeOne(query, customerId, undefined, scriptName);
+      let result = await this.executeOne(
+        query,
+        customerId,
+        undefined,
+        scriptName
+      );
       yield result;
       // if resource has '_constant' in its name, break the loop over customers
       // (it doesn't depend on them)
@@ -255,9 +273,9 @@ export class AdsQueryExecutor {
         {
           scriptName,
           customerId,
+          error: e,
         }
       );
-      this.logger.error(e);
       e.customerId = customerId;
       // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
       // but swalling the exception here will possible cause other issue in writer,
@@ -273,22 +291,30 @@ export class AdsQueryExecutor {
     customerId: string,
     writer?: IResultWriter | undefined
   ) {
-    let stream = this.client.executeQueryStream(query.queryText, customerId);
-    let rowCount = 0;
-    let rawRows: any[] = [];
-    let parsedRows: any[] = [];
-    for await (const row of stream) {
-      let parsedRow = this.parser.parseRow(row, query);
-      rowCount++;
-      // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
-      if (writer) {
-        await writer.addRow(customerId, parsedRow, row);
-      } else {
-        rawRows.push(row);
-        parsedRows.push(parsedRow);
+    return executeWithRetry(async () => {
+      let stream = this.client.executeQueryStream(query.queryText, customerId);
+      let rowCount = 0;
+      let rawRows: any[] = [];
+      let parsedRows: any[] = [];
+      // NOTE: as we're iterating over an AsyncGenerator any error if happens
+      // will be thrown on iterating not on creating of the generator
+      for await (const row of stream) {
+        let parsedRow = this.parser.parseRow(row, query);
+        rowCount++;
+        // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+        if (writer) {
+          await writer.addRow(customerId, parsedRow, <any[]>row);
+        } else {
+          rawRows.push(row);
+          parsedRows.push(parsedRow);
+        }
       }
-    }
-    return { rawRows, rows: parsedRows, query, customerId, rowCount };
+      return { rawRows, rows: parsedRows, query, customerId, rowCount };
+    }, (error, attempt) => {
+      return attempt <= 3 && error.retryable;
+    }, {
+      baseDelayMs: 100, delayStrategy: "linear"
+    });
   }
 
   async getCustomerIds(

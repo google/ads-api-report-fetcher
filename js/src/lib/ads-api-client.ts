@@ -20,21 +20,23 @@ import {
   CustomerOptions,
   errors,
   GoogleAdsApi,
+  services,
 } from "google-ads-api";
 import yaml from "js-yaml";
 import _ from "lodash";
-import {getFileContent} from "./file-utils";
+import { getFileContent } from "./file-utils";
+import { executeWithRetry } from './utils';
 import { getLogger } from "./logger";
 
 export interface IGoogleAdsApiClient {
   executeQueryStream(
     query: string,
     customerId: string
-  ): AsyncGenerator<any[]>;
+  ): AsyncGenerator<services.IGoogleAdsRow>;
   executeQuery(
     query: string,
     customerId: string
-  ): Promise<any[]>;
+  ): Promise<services.IGoogleAdsRow[]>;
   getCustomerIds(customerId: string): Promise<string[]>;
 }
 
@@ -50,6 +52,24 @@ export type GoogleAdsApiConfig = {
   linked_customer_id?: string;
   customer_id?: string[]|string;
 };
+
+export class GoogleAdsError extends Error {
+  failure: errors.GoogleAdsFailure;
+  query?: string;
+  retryable: boolean;
+
+  constructor(
+    message: string | null | undefined,
+    failure: errors.GoogleAdsFailure
+  ) {
+    super(message || "Unknow error on calling Google Ads API occurred");
+    this.failure = failure;
+    this.retryable = false;
+    if (failure.errors[0].error_code?.internal_error) {
+      this.retryable = true;
+    }
+  }
+}
 
 export class GoogleAdsApiClient implements IGoogleAdsApiClient {
   client: GoogleAdsApi;
@@ -88,38 +108,59 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     return customer;
   }
 
-  protected handleGoogleAdsError(
-    error: errors.GoogleAdsFailure,
-    query: string
-  ) {
-    if (error.errors)
+  public handleGoogleAdsError(error: errors.GoogleAdsFailure, query: string) {
+    if (error.errors) {
       this.logger.error(
         `An error occured on executing query: ${query}\nError: ` +
           JSON.stringify(error.errors[0], null, 2)
       );
-  }
+      let ex = new GoogleAdsError(error.errors[0].message, error);
+      ex.query = query;
 
-  async executeQuery(query: string, customerId: string): Promise<any[]> {
-    const customer = this.getCustomer(customerId);
-    try {
-      return await customer.query(query);
-    } catch (e) {
-      this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query);
-      throw e;
+      return ex;
     }
   }
 
-  executeQueryStream(query: string, customerId: string): AsyncGenerator<any[]> {
+  async executeQuery(
+    query: string,
+    customerId: string
+  ): Promise<services.IGoogleAdsRow[]> {
+    const customer = this.getCustomer(customerId);
+    return executeWithRetry(
+      async () => {
+        try {
+          return await customer.query(query);
+        } catch (e) {
+          throw (
+            this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query) || e
+          );
+        }
+      },
+      (error, attempt) => {
+        return attempt <= 3 && error.retryable;
+      },
+      {
+        baseDelayMs: 100,
+        delayStrategy: "linear",
+      }
+    );
+  }
+
+  async *executeQueryStream(query: string, customerId: string) {
     const customer = this.getCustomer(customerId);
     try {
-      return customer.queryStream(query);
+      // As we return an AsyncGenerator here we can't use executeWithRetry,
+      // instead usages of the method should be wrapped with executeWithRetry
+      const stream = customer.queryStream(query);
+      for await (const row of stream) {
+        yield row;
+      }
     } catch (e) {
-      this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query);
-      throw e;
+      throw this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query) || e;
     }
   }
 
-  async getCustomerIds(customerId: string|string[]): Promise<string[]> {
+  async getCustomerIds(customerId: string | string[]): Promise<string[]> {
     const query = `SELECT
           customer_client.id
         FROM customer_client
@@ -129,10 +170,10 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     if (typeof customerId === "string") {
       customerId = [customerId];
     }
-    let all_ids = []
+    let all_ids = [];
     for (const cid of customerId) {
       let rows = await this.executeQuery(query, cid);
-      let ids = rows.map((row) => row.customer_client.id!);
+      let ids = rows.map((row) => row.customer_client!.id!.toString());
       all_ids.push(...ids);
     }
     return all_ids;
@@ -162,7 +203,7 @@ export function parseCustomerIds(customerId: string|undefined, adsConfig: Google
     // last chance if no CID was provided is to use login_customer_id
     customerIds = [adsConfig.login_customer_id];
   }
-  
+
   if (customerIds && customerIds.length) {
     for (let i = 0; i < customerIds.length; i++) {
       customerIds[i] = customerIds[i].toString().replaceAll('-', '');

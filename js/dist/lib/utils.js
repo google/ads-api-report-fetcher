@@ -18,8 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dumpMemory = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
-//import { DateTimeFormatter, LocalDate, LocalDateTime } from "@js-joda/core";
+exports.executeWithRetry = exports.dumpMemory = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 const add_1 = __importDefault(require("date-fns/add"));
 const format_1 = __importDefault(require("date-fns/format"));
 const lodash_1 = __importDefault(require("lodash"));
@@ -240,4 +239,49 @@ function dumpMemory() {
     return output;
 }
 exports.dumpMemory = dumpMemory;
+/**
+ *
+ * @param fn Any operation to execute
+ * @param checkToRetry A callback to determine if the operation should be retried
+ * @param baseDelayMs Initial delay in milliseconds to wait before retrying the operation
+ * @returns A result of the operation
+ */
+function executeWithRetry(fn, checkToRetry, options) {
+    let attempt = 1;
+    const execute = async () => {
+        try {
+            return await fn();
+        }
+        catch (error) {
+            if (!checkToRetry(error, attempt)) {
+                throw error;
+            }
+            // retrying
+            options = options || {};
+            if (options.delayStrategy) {
+                let delayMs = 0;
+                let baseDelayMs = options.baseDelayMs || 1000;
+                switch (options.delayStrategy) {
+                    case "constant":
+                        delayMs = baseDelayMs;
+                        break;
+                    case "linear":
+                        delayMs = baseDelayMs * attempt;
+                        break;
+                    case "exponential":
+                        delayMs = baseDelayMs * 2 ** attempt;
+                        break;
+                    default:
+                        throw new Error("Unknown delayStrategy ");
+                }
+                console.log(`Retry attempt ${attempt} after ${delayMs}ms`);
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+            attempt++;
+            return execute();
+        }
+    };
+    return execute();
+}
+exports.executeWithRetry = executeWithRetry;
 //# sourceMappingURL=utils.js.map

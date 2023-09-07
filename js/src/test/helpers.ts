@@ -50,7 +50,7 @@ export class MockGoogleAdsApiClient implements IGoogleAdsApiClient {
   async *executeQueryStream(
     query: string,
     customerId: string
-  ): AsyncGenerator<any[], any, unknown> {
+  ) {
     let result = this.results[customerId] || this.results[""] || [];
     for (const row of result) {
       yield row;

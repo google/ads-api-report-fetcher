@@ -18,12 +18,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadAdsConfigFromFile = exports.parseCustomerIds = exports.GoogleAdsApiClient = void 0;
+exports.loadAdsConfigFromFile = exports.parseCustomerIds = exports.GoogleAdsApiClient = exports.GoogleAdsError = void 0;
 const google_ads_api_1 = require("google-ads-api");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const lodash_1 = __importDefault(require("lodash"));
 const file_utils_1 = require("./file-utils");
+const utils_1 = require("./utils");
 const logger_1 = require("./logger");
+class GoogleAdsError extends Error {
+    constructor(message, failure) {
+        var _a;
+        super(message || "Unknow error on calling Google Ads API occurred");
+        this.failure = failure;
+        this.retryable = false;
+        if ((_a = failure.errors[0].error_code) === null || _a === void 0 ? void 0 : _a.internal_error) {
+            this.retryable = true;
+        }
+    }
+}
+exports.GoogleAdsError = GoogleAdsError;
 class GoogleAdsApiClient {
     constructor(adsConfig) {
         if (!adsConfig) {
@@ -55,28 +68,42 @@ class GoogleAdsApiClient {
         return customer;
     }
     handleGoogleAdsError(error, query) {
-        if (error.errors)
+        if (error.errors) {
             this.logger.error(`An error occured on executing query: ${query}\nError: ` +
                 JSON.stringify(error.errors[0], null, 2));
+            let ex = new GoogleAdsError(error.errors[0].message, error);
+            ex.query = query;
+            return ex;
+        }
     }
     async executeQuery(query, customerId) {
         const customer = this.getCustomer(customerId);
-        try {
-            return await customer.query(query);
-        }
-        catch (e) {
-            this.handleGoogleAdsError(e, query);
-            throw e;
-        }
+        return (0, utils_1.executeWithRetry)(async () => {
+            try {
+                return await customer.query(query);
+            }
+            catch (e) {
+                throw (this.handleGoogleAdsError(e, query) || e);
+            }
+        }, (error, attempt) => {
+            return attempt <= 3 && error.retryable;
+        }, {
+            baseDelayMs: 100,
+            delayStrategy: "linear",
+        });
     }
-    executeQueryStream(query, customerId) {
+    async *executeQueryStream(query, customerId) {
         const customer = this.getCustomer(customerId);
         try {
-            return customer.queryStream(query);
+            // As we return an AsyncGenerator here we can't use executeWithRetry,
+            // instead usages of the method should be wrapped with executeWithRetry
+            const stream = customer.queryStream(query);
+            for await (const row of stream) {
+                yield row;
+            }
         }
         catch (e) {
-            this.handleGoogleAdsError(e, query);
-            throw e;
+            throw this.handleGoogleAdsError(e, query) || e;
         }
     }
     async getCustomerIds(customerId) {
@@ -92,7 +119,7 @@ class GoogleAdsApiClient {
         let all_ids = [];
         for (const cid of customerId) {
             let rows = await this.executeQuery(query, cid);
-            let ids = rows.map((row) => row.customer_client.id);
+            let ids = rows.map((row) => row.customer_client.id.toString());
             all_ids.push(...ids);
         }
         return all_ids;
