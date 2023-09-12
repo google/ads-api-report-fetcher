@@ -6,8 +6,49 @@ on:
             - main
 
 jobs:
-    autopublish:
-        name: Publish release if package.json version was bumped
+    autopublish-create-gaarf-wf:
+        name: Autopublish create-gaarf-wf npm package if package.json version was bumped
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./gcp/create-gaarf-wf
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v2
+
+            - name: Check package version
+              id: cpv
+              uses: PostHog/check-package-version@v2
+              with:
+                path: "gcp/create-gaarf-wf"
+
+            - name: Echo versions
+              run: |
+                  echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
+                  echo "Published version: ${{ steps.cpv.outputs.published-version }}"
+
+            - name: Install dependencies
+              if: steps.cpv.outputs.is-new-version == 'true'
+              run: npm ci      
+
+            - name: Compile TS
+              if: steps.cpv.outputs.is-new-version == 'true'
+              run: npm run tsc
+                  
+            # NOTE: setting our registry url should be done after installing deps
+            - uses: actions/setup-node@v3
+              with:
+                node-version: '19'
+                registry-url: 'https://wombat-dressing-room.appspot.com/'
+                
+            - name: Publish new version
+              if: steps.cpv.outputs.is-new-version == 'true'
+              run: npm publish
+              env:
+                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+    autopublish-gaarf:
+        name: Autopublish gaarf npm package if package.json version was bumped
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -30,6 +71,12 @@ jobs:
             - name: Install dependencies
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm ci      
+
+            - name: Compile and run tests
+              if: steps.cpv.outputs.is-new-version == 'true'
+              run: | 
+                  npm run tsc
+                  npm run test
 
             # NOTE: setting our registry url should be done after installing deps
             - uses: actions/setup-node@v3
