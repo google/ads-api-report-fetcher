@@ -75,6 +75,8 @@ function exec_cmd(cmd, spinner, options) {
     }
     if (is_diag) {
         options.keep_output = true;
+        options.realtime = true;
+        spinner = null;
     }
     if (spinner)
         spinner.start();
@@ -238,7 +240,7 @@ async function initialize_gcp_project(answers) {
         choices: options,
     });
     gcp_project_id = response.project_id;
-    if (response.project_id === MANUAL_ITEM) {
+    if (gcp_project_id === MANUAL_ITEM || !gcp_project_id) {
         response = await prompts({
             type: 'text',
             name: 'project_id',
@@ -489,6 +491,7 @@ async function initialize_googleads_config(answers) {
             {
                 type: 'confirm',
                 name: 'googleads_config_generate_refreshtoken',
+                // TODO: add a note that it won't work in Cloud Shell
                 message: 'Do you want to generate a refresh token (Y) or you will enter it manually (N)?:',
             },
         ], answers);
@@ -723,11 +726,11 @@ gcloud run services update ${function_name} --region ${gcp_region} --cpu 1 --mem
 set -e
 cd ./${gaarf_folder}
 git pull --ff
-cd ./gcp/functions
+cd ./gcp/workflow
+./setup.sh --name ${workflow_name} --region ${gcp_region}
+cd ./../functions
 ./setup.sh --name ${function_name} --memory ${cf_memory} --region ${gcp_region}
 ${deploy_cf_add}
-cd ../workflow
-./setup.sh --name ${workflow_name} --region ${gcp_region}
 `);
     const has_ads_queries = !!fs.readdirSync(path_to_ads_queries).length;
     const has_bq_queries = !!fs.readdirSync(path_to_bq_queries).length;
