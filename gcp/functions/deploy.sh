@@ -20,10 +20,14 @@
 # where a google-ads.yaml located (with your auth info for accessing Ads API)
 # NOTE: it's an example, adjust it to your needs
 #------------------------------------------------------------------------------
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
 
 FUNCTION_NAME=gaarf
 REGION=us-central1
 MEMORY=1024MB
+RETRIES=5
 
 while :; do
     case $1 in
@@ -39,21 +43,25 @@ while :; do
       shift
       MEMORY=$1
       ;;
+  --no-retry)
+      NO_RETRY=true
+      ;;
+  --retries)
+      shift
+      RETRIES=$1
+      ;;
   *)
       break
     esac
   shift
 done
 
-function redeploy_cf() {
+statusfile=$(mktemp)  # a file for saving exitcode from gcloud commands
+
+function execute_deploy() {
   local deployable_function=$1
   local entry_point=$2
   local memory=$3
-  if [ ! $memory ]; then
-    memory='512MB' # default memory for CF Gen2 usually not enough to build them, with 512 it works fine
-  fi
-  # it's ok if it fails:
-  gcloud functions delete $deployable_function --gen2 --region=$REGION --quiet
 
   gcloud functions deploy $deployable_function \
       --trigger-http \
@@ -65,11 +73,50 @@ function redeploy_cf() {
       --quiet \
       --gen2 \
       --source=.
+  echo $? > $statusfile
+}
 
-  exitcode=$?
-  if [ $exitcode -ne 0 ]; then
-    echo 'Breaking script as gcloud command failed'
-    exit $exitcode
+function redeploy_cf() {
+  local deployable_function=$1
+  local entry_point=$2
+  local memory=$3
+  if [ ! $memory ]; then
+    memory='512MB' # default memory for CF Gen2 usually not enough to build them, with 512 it works fine
+  fi
+  # it's ok if it fails:
+  gcloud functions delete $deployable_function --gen2 --region=$REGION --quiet 2> /dev/null
+
+  echo -e "${CYAN}Deploying $deployable_function Cloud Function${NC}"
+  if [[ $NO_RETRY ]]; then
+    execute_deploy $deployable_function $entry_point $memory
+    exitcode=$?
+    if [ $exitcode -ne 0 ]; then
+      echo 'Breaking script as gcloud command failed'
+      exit $exitcode
+    fi
+  else
+    # deploy with retrying on error
+    for ((i=1; i<=RETRIES; i++)); do
+      #output=$(execute_deploy $deployable_function $entry_point $memory |& tee /dev/fd/2) # not working on Mac
+      output=$(execute_deploy $deployable_function $entry_point $memory 2>&1 | tee /dev/fd/2)
+      exitcode=$(cat $statusfile)
+      rm $statusfile
+      #exitcode=${PIPESTATUS[0]}
+      #exitcode=$?
+      if [[ $exitcode -eq 0 ]]; then
+        echo -e "${CYAN}Deployment is successful${NC}"
+        break
+      else
+        if [[ $output == *"OperationError: code=7, message=Unable to retrieve the repository metadata"* ]]; then
+          echo -e "${CAYN}Retrying the deployment ($i)...${NC}"
+          continue
+        else
+          echo -e "${RED}Breaking script as gcloud command failed${NC}"
+          exit $exitcode
+        fi
+      fi
+      sleep 10s
+    done
   fi
 }
 
@@ -87,8 +134,3 @@ redeploy_cf $FUNCTION_NAME-getcids main_getcids
 redeploy_cf $FUNCTION_NAME-bq main_bq
 
 redeploy_cf $FUNCTION_NAME-bq-view main_bq_view
-
-
-#  --env-vars-file .env.yaml
-#  --allow-unauthenticated \
-#  --timeout=540s
