@@ -57,7 +57,7 @@ while :; do
 done
 
 statusfile=$(mktemp)  # a file for saving exitcode from gcloud commands
-
+logfile=$(mktemp)     # a file for saving output from gcloud commands
 function execute_deploy() {
   local deployable_function=$1
   local entry_point=$2
@@ -97,12 +97,11 @@ function redeploy_cf() {
   else
     # deploy with retrying on error
     for ((i=1; i<=RETRIES; i++)); do
-      #output=$(execute_deploy $deployable_function $entry_point $memory |& tee /dev/fd/2) # not working on Mac
-      output=$(execute_deploy $deployable_function $entry_point $memory 2>&1 | tee /dev/fd/2)
+      execute_deploy $deployable_function $entry_point $memory 2>&1 | tee $logfile
+      output=$(cat $logfile)
+      rm $logfile
       exitcode=$(cat $statusfile)
       rm $statusfile
-      #exitcode=${PIPESTATUS[0]}
-      #exitcode=$?
       if [[ $exitcode -eq 0 ]]; then
         echo -e "${CYAN}Deployment is successful${NC}"
         break
