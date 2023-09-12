@@ -243,20 +243,28 @@ runBigQueryQueries:
           in: ${bq_scripts.items}
           steps:
             - call_gaarf_bq_cf:
-                call: http.post
-                args:
-                  url: ${function_bq.body.serviceConfig.uri}
-                  timeout: 1800
-                  query:
-                    script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
-                    project_id: ${project}
-                    dataset_location: ${dataset_location}
-                  body:
-                    macro: ${macros}
-                    sql: ${sqlParams}
-                  auth:
-                    type: OIDC
-                result: script_results
+                try:
+                  call: http.post
+                  args:
+                    url: ${function_bq.body.serviceConfig.uri}
+                    timeout: 1800
+                    query:
+                      script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
+                      project_id: ${project}
+                      dataset_location: ${dataset_location}
+                    body:
+                      macro: ${macros}
+                      sql: ${sqlParams}
+                    auth:
+                      type: OIDC
+                  result: script_results
+                retry:
+                  predicate: ${custom_retry_predicate}
+                  max_retries: 3
+                  backoff:
+                    initial_delay: 2
+                    max_delay: 60
+                    multiplier: 2
             - log_script_bq_result:
                 call: sys.log
                 args:
@@ -318,10 +326,10 @@ custom_retry_predicate:
           severity: "WARNING"
     - what_to_repeat:
         switch:
-          # NOTE: sometime errors happen inside Workflow and there's no any code 
+          # We'll repeat if it's a ConnectionError, TimeoutError or Too Many Requests (429)
+          # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" is null, so DO NOT user operand <,>,>=,<=, or otherwise that check will fail with error TypeError: unsupported operand types for >=: 'null' and 'int' (expecting numbers))
-          # We'll repeat if it's a ConnectionError, TimeoutError, Internal Server Error (500) or Too Many Requests (429)
-          - condition: ${"ConnectionFailedError" in default(map.get(e, "tags"), []) or "ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"), 0) >= 500 or map.get(e, "code") == 429}
+          - condition: ${"ConnectionFailedError" in default(map.get(e, "tags"), []) or "ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"),0) == 429}
             return: true
     - otherwise:
         return: false
