@@ -28,6 +28,9 @@ import re
 from proto.primitives import ProtoType
 
 
+GOOGLE_ADS_API_VERSION="v14"
+
+
 @dataclass
 class Field:
     name: str
@@ -37,7 +40,7 @@ class Field:
 
 class BaseClient:
 
-    def __init__(self, version: str = "v12"):
+    def __init__(self, version: str = GOOGLE_ADS_API_VERSION):
         self.api_version = version
         self.google_ads_row = self._get_google_ads_row(version)
 
@@ -155,7 +158,7 @@ class GoogleAdsApiClient(BaseClient):
                  path_to_config: str = default_google_ads_yaml,
                  config_dict: Optional[Dict[str, str]] = None,
                  yaml_str: Optional[str] = None,
-                 version: str = "v13"):
+                 version: str = GOOGLE_ADS_API_VERSION):
         super().__init__(version)
         self.client = self._init_client(path=path_to_config,
                                         config_dict=config_dict,

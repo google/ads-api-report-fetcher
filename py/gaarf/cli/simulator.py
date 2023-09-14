@@ -4,6 +4,7 @@ import logging
 from rich.logging import RichHandler
 import yaml
 
+from gaarf.api_clients import GOOGLE_ADS_API_VERSION
 from gaarf.io import writer, reader  # type: ignore
 from gaarf.simulation import simulate_data, SimulatorSpecification
 from .utils import GaarfConfigBuilder, init_logging
@@ -20,7 +21,7 @@ def main():
     parser.add_argument("--account", dest="customer_id", default="None")
     parser.add_argument("--output", dest="save", default="console")
     parser.add_argument("--input", dest="input", default="file")
-    parser.add_argument("--api-version", dest="api_version", default=13)
+    parser.add_argument("--api-version", dest="api_version", default=GOOGLE_ADS_API_VERSION)
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--customer-ids-query",

@@ -6,7 +6,7 @@ from faker import Faker
 
 from gaarf.report import GaarfReport
 from gaarf.query_executor import AdsReportFetcher
-from gaarf.api_clients import BaseClient
+from gaarf.api_clients import BaseClient, GOOGLE_ADS_API_VERSION
 from gaarf.query_editor import QuerySpecification
 
 
@@ -18,7 +18,7 @@ class FakeField:
 
 @dataclass
 class SimulatorSpecification:
-    api_version: str = "v12"
+    api_version: str = GOOGLE_ADS_API_VERSION
     n_rows: int = 1000
     days_ago: str = "-7d"
     string_length: int = 3

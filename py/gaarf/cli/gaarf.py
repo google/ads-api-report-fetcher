@@ -38,7 +38,9 @@ def main():
     parser.add_argument("--ads-config",
                         dest="config",
                         default=str(Path.home() / "google-ads.yaml"))
-    parser.add_argument("--api-version", dest="api_version", default=13)
+    parser.add_argument("--api-version",
+                        dest="api_version",
+                        default=api_clients.GOOGLE_ADS_API_VERSION)
     parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
     parser.add_argument("--logger", dest="logger", default="local")
     parser.add_argument("--customer-ids-query",
@@ -115,7 +117,7 @@ def main():
     logger.debug("initialized config: %s", config)
 
     ads_client = api_clients.GoogleAdsApiClient(
-        config_dict=google_ads_config_dict, version=f"v{config.api_version}")
+        config_dict=google_ads_config_dict, version=config.api_version)
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)

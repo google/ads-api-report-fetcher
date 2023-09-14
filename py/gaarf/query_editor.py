@@ -19,7 +19,7 @@ from dateutil.relativedelta import relativedelta
 from operator import attrgetter
 import re
 
-from .api_clients import BaseClient
+from .api_clients import BaseClient, GOOGLE_ADS_API_VERSION
 from .query_post_processor import PostProcessorMixin
 
 
@@ -83,7 +83,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                  text: str,
                  title: Optional[str] = None,
                  args: Optional[Dict[Any, Any]] = None,
-                 api_version: str = "v12") -> None:
+                 api_version: str = GOOGLE_ADS_API_VERSION) -> None:
         self.text = text
         self.title = title
         self.args = args or {}
