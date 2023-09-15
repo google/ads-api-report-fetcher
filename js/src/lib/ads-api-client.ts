@@ -56,7 +56,9 @@ export type GoogleAdsApiConfig = {
 export class GoogleAdsError extends Error {
   failure: errors.GoogleAdsFailure;
   query?: string;
+  account?: string;
   retryable: boolean;
+  logged: boolean = false;
 
   constructor(
     message: string | null | undefined,
@@ -108,16 +110,39 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     return customer;
   }
 
-  public handleGoogleAdsError(error: errors.GoogleAdsFailure, query: string) {
-    if (error.errors) {
+  public handleGoogleAdsError(
+    error: errors.GoogleAdsFailure | Error,
+    customerId: string,
+    query?: string
+  ) {
+    try {
       this.logger.error(
-        `An error occured on executing query: ${query}\nError: ` +
-          JSON.stringify(error.errors[0], null, 2)
+        `An error occured on executing query: ${query}\nRaw error: ` +
+        JSON.stringify(error, null, 2)
       );
+    } catch (e) {
+      // a very unfortunate situation
+      console.log(e);
+      this.logger.error(
+        `An error occured on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`
+      );
+    }
+    if (error instanceof errors.GoogleAdsFailure && error.errors) {
       let ex = new GoogleAdsError(error.errors[0].message, error);
+      ex.account = customerId;
       ex.query = query;
+      ex.logged = true;
 
       return ex;
+    } else {
+      // it could be an error from gRPC
+      // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
+      if (
+        (<any>error).code === 14 ||
+        (<any>error).details === "The service is currently unavailable"
+      ) {
+        (<any>error).retryable = true;
+      }
     }
   }
 
@@ -132,7 +157,11 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
           return await customer.query(query);
         } catch (e) {
           throw (
-            this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query) || e
+            this.handleGoogleAdsError(
+              <errors.GoogleAdsFailure>e,
+              customerId,
+              query
+            ) || e
           );
         }
       },
@@ -151,12 +180,20 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     try {
       // As we return an AsyncGenerator here we can't use executeWithRetry,
       // instead usages of the method should be wrapped with executeWithRetry
+      // NOTE: we're iterating over the stream instead of returning it
+      // for the sake of error handling
       const stream = customer.queryStream(query);
       for await (const row of stream) {
         yield row;
       }
     } catch (e) {
-      throw this.handleGoogleAdsError(<errors.GoogleAdsFailure>e, query) || e;
+      throw (
+        this.handleGoogleAdsError(
+          <errors.GoogleAdsFailure>e,
+          customerId,
+          query
+        ) || e
+      );
     }
   }
 

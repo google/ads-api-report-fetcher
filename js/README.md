@@ -4,6 +4,18 @@ Please see the full documentation in the root [README](https://github.com/google
 
 Support [Ads API v13](https://developers.google.com/google-ads/api/docs/release-notes#v13).
 
+<p align="center">
+  <a href="https://developers.google.com/google-ads/api/docs/release-notes">
+    <img src="https://img.shields.io/badge/google%20ads-v13.0.0-009688.svg?style=flat-square"/>
+  </a>
+  <a href="https://www.npmjs.com/package/google-ads-api-report-fetcher">
+    <img src="https://img.shields.io/npm/v/google-ads-api-report-fetcher.svg?style=flat-square" />
+  </a>
+  <a>
+    <img src="https://img.shields.io/npm/dm/google-ads-api-report-fetcher.svg?style=flat-square" />
+  </a>
+</p>
+
 ## Table of content
 
  - [Overview](#overview)

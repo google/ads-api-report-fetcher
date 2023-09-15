@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
