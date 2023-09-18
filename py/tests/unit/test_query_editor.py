@@ -27,17 +27,37 @@ from ad_group_ad
 """
     return query
 
+
+@pytest.fixture
+def builtin_query():
+    return "SELECT * FROM builtin.ocid_mapping"
+
+
+def test_builtin_query_returns_valid_specification(builtin_query):
+    spec = query_editor.QuerySpecification(title="/tmp/ocid_mapping.sql",
+                                           text=builtin_query,
+                                           args=None).generate()
+    assert spec.is_builtin_query
+    assert spec.query_title == "ocid_mapping"
+    assert spec.resource_name == "builtin.ocid_mapping"
+    assert not spec.column_names
+
+
 @pytest.fixture
 def query_specification(query):
     return query_editor.QuerySpecification(title="sample_query",
                                            text=query,
                                            args=None)
 
+
 @pytest.fixture
 def query_specification_template(query):
-    return query_editor.QuerySpecification(title="templated_query",
-                                           text=query,
-                                           args={"template": {"selective": "true"}})
+    return query_editor.QuerySpecification(
+        title="templated_query",
+        text=query,
+        args={"template": {
+            "selective": "true"
+        }})
 
 
 @pytest.fixture
@@ -63,8 +83,8 @@ class TestRegularQuery:
 
     def test_extract_correct_aliases(self, sample_query):
         assert sample_query.column_names == [
-            "constant", "date", "current_date", "ctr", "customer_id", "campaign_type",
-            "campaign", "ad_group", "ad", "cost"
+            "constant", "date", "current_date", "ctr", "customer_id",
+            "campaign_type", "campaign", "ad_group", "ad", "cost"
         ]
 
     def test_extract_correct_text(self, sample_query):
@@ -92,8 +112,8 @@ class TestRegularQuery:
             sample_query.query_text)
         assert extracted_lines == [
             "customer.id", "campaign.bidding_strategy_type", "campaign.id",
-            "ad_group.id", "ad_group_ad.ad.id",
-            "metrics.clicks", "metrics.impressions", "metrics.cost_micros"
+            "ad_group.id", "ad_group_ad.ad.id", "metrics.clicks",
+            "metrics.impressions", "metrics.cost_micros"
         ]
 
     def test_extract_correct_resource(self, sample_query):
@@ -110,13 +130,15 @@ class TestRegularQuery:
             query_editor.VirtualColumn(type="built-in", value="2023-01-01"),
             "current_date":
             query_editor.VirtualColumn(
-                type="built-in", value=datetime.date.today().strftime("%Y-%m-%d")),
+                type="built-in",
+                value=datetime.date.today().strftime("%Y-%m-%d")),
             "ctr":
             query_editor.VirtualColumn(
                 type="expression",
                 value="metrics.clicks / metrics.impressions",
                 fields=["metrics.clicks", "metrics.impressions"],
-                substitute_expression="{metrics_clicks} / {metrics_impressions}"),
+                substitute_expression="{metrics_clicks} / {metrics_impressions}"
+            ),
             "cost":
             query_editor.VirtualColumn(
                 type="expression",
@@ -125,8 +147,16 @@ class TestRegularQuery:
                 substitute_expression="{metrics_cost_micros} * 1e6")
         }
 
+    def test_incorrect_resource_raises_value_error(self):
+        query = "SELECT metrics.clicks FROM ad_groups"
+        spec = query_editor.QuerySpecification(title="sample_query",
+                                               text=query,
+                                               args=None)
+        with pytest.raises(ValueError):
+            spec.generate()
+
     def test_incorrect_specification_raises_macro_error(self):
-        query = "SELECT '${custom_field}', ad_group.id FROM ad_group_id"
+        query = "SELECT '${custom_field}', ad_group.id FROM ad_group"
         spec = query_editor.QuerySpecification(title="sample_query",
                                                text=query,
                                                args=None)
@@ -134,7 +164,7 @@ class TestRegularQuery:
             spec.generate()
 
     def test_incorrect_specification_raises_virtual_column_error(self):
-        query = "SELECT 1, ad_group.id AS ad_group_id FROM ad_group_id"
+        query = "SELECT 1, ad_group.id AS ad_group_id FROM ad_group"
         spec = query_editor.QuerySpecification(title="sample_query",
                                                text=query,
                                                args=None)
@@ -142,7 +172,7 @@ class TestRegularQuery:
             spec.generate()
 
     def test_incorrect_field_raises_value_error(self):
-        query = "SELECT metric.impressions, ad_group.id FROM ad_group_id"
+        query = "SELECT metric.impressions, ad_group.id FROM ad_group"
         spec = query_editor.QuerySpecification(title="sample_query",
                                                text=query,
                                                args=None)
@@ -155,13 +185,15 @@ class TestTemplatedQuery:
     def test_extract_correct_fields(self, templated_query):
         assert templated_query.fields == [
             "customer.id", "campaign.bidding_strategy_type", "campaign.id",
-            "ad_group.id", "ad_group_ad.ad.id", "campaign.selective_optimization"
+            "ad_group.id", "ad_group_ad.ad.id",
+            "campaign.selective_optimization"
         ]
 
     def test_extract_correct_aliases(self, templated_query):
         assert templated_query.column_names == [
-            "constant", "date", "current_date", "ctr", "customer_id", "campaign_type",
-            "campaign", "ad_group", "ad", "cost", "selective_optimization"
+            "constant", "date", "current_date", "ctr", "customer_id",
+            "campaign_type", "campaign", "ad_group", "ad", "cost",
+            "selective_optimization"
         ]
 
     def test_extract_correct_text(self, templated_query):
@@ -173,6 +205,7 @@ class TestTemplatedQuery:
             templated_query.query_text)
         assert extracted_lines == [
             "customer.id", "campaign.bidding_strategy_type", "campaign.id",
-            "ad_group.id", "ad_group_ad.ad.id", "campaign.selective_optimization",
-            "metrics.clicks", "metrics.impressions", "metrics.cost_micros"
+            "ad_group.id", "ad_group_ad.ad.id",
+            "campaign.selective_optimization", "metrics.clicks",
+            "metrics.impressions", "metrics.cost_micros"
         ]

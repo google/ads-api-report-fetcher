@@ -24,10 +24,10 @@ import warnings
 
 from . import parsers
 from . import api_clients
+from . import builtin_queries
 from .query_editor import QuerySpecification, QueryElements
 from .report import GaarfReport, GaarfRow
 from .io import writer, reader  # type: ignore
-
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,8 @@ class AdsReportFetcher:
                 if hasattr(self, "customer_ids"):
                     if not self.customer_ids:
                         raise ValueError(
-                            "Please specify add `customer_ids` to `fetch` method")
+                            "Please specify add `customer_ids` to `fetch` method"
+                        )
                     customer_ids = self.customer_ids
             else:
                 if expand_mcc:
@@ -117,6 +118,13 @@ class AdsReportFetcher:
                 args=args,
                 api_version=self.api_client.api_version).generate()
 
+        if query_specification.is_builtin_query:
+            if not (report := builtin_queries.BUILTIN_QUERIES.get(
+                    query_specification.query_title)):
+                raise ValueError(
+                    f"Cannot find the built-in query '{query_specification.title}'"
+                )
+            return report(self, accounts=customer_ids)
         parser = parsers.GoogleAdsRowParser(query_specification)
         for customer_id in customer_ids:
             logger.debug("Running query %s for customer_id %s",
@@ -279,12 +287,13 @@ class AdsReportFetcher:
         query_specification = QuerySpecification(query).generate()
         if not isinstance(seed_customer_ids, MutableSequence):
             seed_customer_ids = seed_customer_ids.split(",")
-        child_customer_ids = self.fetch(query_specification, seed_customer_ids).to_list()
+        child_customer_ids = self.fetch(query_specification,
+                                        seed_customer_ids).to_list()
         if customer_ids_query:
             query_specification = QuerySpecification(
                 customer_ids_query).generate()
             child_customer_ids = self.fetch(query_specification,
-                                                child_customer_ids)
+                                            child_customer_ids)
             child_customer_ids = [
                 row[0] if isinstance(row, GaarfRow) else row
                 for row in child_customer_ids
@@ -292,7 +301,8 @@ class AdsReportFetcher:
 
         child_customer_ids = list(
             set([
-                customer_id for customer_id in child_customer_ids if customer_id != 0
+                customer_id for customer_id in child_customer_ids
+                if customer_id != 0
             ]))
 
         return child_customer_ids
@@ -331,9 +341,10 @@ class AdsQueryExecutor:
         query_specification = QuerySpecification(
             query_text, query_name, args,
             self.report_fetcher.api_client.api_version).generate()
-        results = self.report_fetcher.fetch(query_specification=query_specification,
-                                       customer_ids=customer_ids,
-                                       optimize_strategy=optimize_performance)
+        results = self.report_fetcher.fetch(
+            query_specification=query_specification,
+            customer_ids=customer_ids,
+            optimize_strategy=optimize_performance)
         logger.debug("Start writing data for query %s via %s writer",
                      query_specification.query_title, type(writer_client))
         writer_client.write(results, query_specification.query_title)
@@ -343,4 +354,5 @@ class AdsQueryExecutor:
     def expand_mcc(self,
                    customer_ids: Union[str, MutableSequence[str]],
                    customer_ids_query: Optional[str] = None) -> List[str]:
-        return self.report_fetcher._get_customer_ids(customer_ids, customer_ids_query)
+        return self.report_fetcher._get_customer_ids(customer_ids,
+                                                     customer_ids_query)

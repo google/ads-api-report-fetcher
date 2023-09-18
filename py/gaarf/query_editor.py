@@ -62,6 +62,7 @@ class QueryElements:
     virtual_columns: Optional[Dict[str, VirtualColumn]]
     resource_name: str
     is_constant_resource: bool
+    is_builtin_query: bool = False
 
 
 class CommonParametersMixin:
@@ -112,6 +113,12 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         query_text = self.expand_jinja(self.text, self.args.get("template"))
         query_lines = self.cleanup_query_text(query_text)
         resource_name = self.extract_resource_from_query(query_text)
+        if is_builtin_query := bool(resource_name.startswith("builtin")):
+            builtin_query_title = resource_name.replace("builtin.", "")
+        if not is_builtin_query and resource_name not in dir(
+                self.base_client.google_ads_row):
+            raise ValueError(
+                f"Invalid resource specified in the query: {resource_name}")
         is_constant_resource = bool(resource_name.endswith("_constant"))
         query_text = " ".join(query_lines)
         try:
@@ -137,13 +144,15 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                         self.extract_fields_and_customizers(field_element)
                     field_name = field_name.strip().replace(",", "")
                     fields.append(self.format_type_field_name(field_name))
-            if not alias and not field_name:
+            if not alias and not field_name and not is_builtin_query:
                 raise VirtualColumnError(
                     "Virtual attributes should be aliased")
             else:
                 column_name = alias.strip().replace(
                     ",", "") if alias else field_name
-                column_names.append(self.normalize_column_name(column_name))
+                if column_name:
+                    column_names.append(
+                        self.normalize_column_name(column_name))
 
             if virtual_column:
                 virtual_columns[column_name] = virtual_column
@@ -157,14 +166,16 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         for name, column in virtual_columns.items():
             if not isinstance(virtual_columns[name].value, (int, float)):
                 virtual_columns[name].value.format(**self.macros)
-        return QueryElements(query_title=self.title,
+        return QueryElements(query_title=builtin_query_title
+                             if is_builtin_query else self.title,
                              query_text=query_text,
                              fields=fields,
                              column_names=column_names,
                              customizers=customizers,
                              virtual_columns=virtual_columns,
                              resource_name=resource_name,
-                             is_constant_resource=is_constant_resource)
+                             is_constant_resource=is_constant_resource,
+                             is_builtin_query=is_builtin_query)
 
     def create_query_text(self, fields: List[str],
                           virtual_columns: Dict[str, VirtualColumn],
@@ -191,8 +202,9 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         return result
 
     def extract_resource_from_query(self, query: str) -> str:
-        return str(re.findall(r"FROM\s+(\w+)", query,
-                              flags=re.IGNORECASE)[0]).strip()
+        return str(
+            re.findall(r"FROM\s+([\w.]+)", query,
+                       flags=re.IGNORECASE)[0]).strip()
 
     def extract_query_lines(self, query_text: str) -> List[str]:
         selected_fields = re.sub(r"\bSELECT\b|FROM .*",

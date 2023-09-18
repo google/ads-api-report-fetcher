@@ -14,12 +14,13 @@
 
 from typing import Sequence, Union
 from collections.abc import MutableSequence
+import re
 import warnings
 
 from .api_clients import GoogleAdsApiClient
 from .query_editor import QuerySpecification
 from .query_executor import AdsReportFetcher
-from .report import GaarfRow
+from .report import GaarfRow, GaarfReport
 
 
 def get_customer_ids(ads_client: GoogleAdsApiClient,
