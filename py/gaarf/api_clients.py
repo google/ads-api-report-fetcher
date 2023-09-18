@@ -27,8 +27,7 @@ from smart_open import open
 import re
 from proto.primitives import ProtoType
 
-
-GOOGLE_ADS_API_VERSION="v14"
+GOOGLE_ADS_API_VERSION = "v14"
 
 
 @dataclass
@@ -41,8 +40,9 @@ class Field:
 class BaseClient:
 
     def __init__(self, version: str = GOOGLE_ADS_API_VERSION):
-        self.api_version = version
-        self.google_ads_row = self._get_google_ads_row(version)
+        self.api_version = version if version.startswith(
+            "v") else f"v{version}"
+        self.google_ads_row = self._get_google_ads_row(self.api_version)
 
     def get_response(self, entity_id: str, query_text: str):
         pass
@@ -76,8 +76,8 @@ class BaseClient:
                         target_resource = getattr(
                             segments, f"{clean_resource(sub_resource[-1])}")
                     else:
-                        target_resource = getattr(segments,
-                                                  f"{clean_resource(resource)}")
+                        target_resource = getattr(
+                            segments, f"{clean_resource(resource)}")
                 else:
                     resource_module = import_module(
                         f"{base_module}.resources.types.{resource}")
@@ -120,8 +120,8 @@ class BaseClient:
                     enum_resource = import_module(
                         f"{base_module}.enums.types.{file_name}")
                     values = set([
-                        p.name
-                        for p in getattr(getattr(enum_resource, enum_class), enum)
+                        p.name for p in getattr(
+                            getattr(enum_resource, enum_class), enum)
                     ])
 
                 field_type = mapping.get(ProtoType(result).name, str)
@@ -162,38 +162,38 @@ class GoogleAdsApiClient(BaseClient):
         super().__init__(version)
         self.client = self._init_client(path=path_to_config,
                                         config_dict=config_dict,
-                                        yaml_str=yaml_str,
-                                        version=version)
+                                        yaml_str=yaml_str)
         if hasattr(self.client, "use_proto_plus"):
             self.client.use_proto_plus = True
         else:
-            raise ValueError("Specify 'use_proto_plus: True' in your google-ads.yaml file")
+            raise ValueError(
+                "Specify 'use_proto_plus: True' in your google-ads.yaml file")
         self.ads_service = self.client.get_service("GoogleAdsService")
-        self.version = version
 
     def get_response(self, entity_id, query_text):
         response = self.ads_service.search_stream(customer_id=entity_id,
                                                   query=query_text)
         return response
 
-    def _init_client(self, path, config_dict, yaml_str,
-                     version) -> Optional[GoogleAdsClient]:
+    def _init_client(self, path, config_dict,
+                     yaml_str) -> Optional[GoogleAdsClient]:
         if config_dict:
-            return GoogleAdsClient.load_from_dict(config_dict, version)
+            return GoogleAdsClient.load_from_dict(config_dict, self.api_version)
         if yaml_str:
-            return GoogleAdsClient.load_from_string(yaml_str, version)
+            return GoogleAdsClient.load_from_string(yaml_str, self.api_version)
         if path:
             if os.path.isfile(path):
-                return GoogleAdsClient.load_from_storage(path, version)
+                return GoogleAdsClient.load_from_storage(path, self.api_version)
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         google_ads_config_dict = yaml.safe_load(f)
-                    return GoogleAdsClient.load_from_dict(google_ads_config_dict, version)
+                    return GoogleAdsClient.load_from_dict(
+                        google_ads_config_dict, self.api_version)
                 except NotFound as e:
                     raise ValueError(f"File {path} not found")
         try:
-            return GoogleAdsClient.load_from_env(version)
+            return GoogleAdsClient.load_from_env(self.api_version)
         except Exception as e:
             raise ValueError("Cannot instantiate GoogleAdsClient")
 
