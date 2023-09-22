@@ -124,13 +124,29 @@ runAdsQueries:
         args:
           bucket: ${gcs_bucket}
           prefix: ${queries_path}
-        result: scripts
+        result: scripts_raw
+
+    - initialize_filtered_list:
+        assign:
+          - scripts: []
+
+    - filter_sql_files:
+        for:
+          value: script_item
+          in: ${scripts_raw.items}
+          steps:
+            - check_sql_extension:
+                switch:
+                  - condition: ${text.match_regex(script_item.name, "[.]sql$")}
+                    assign:
+                      - scripts: ${list.concat(scripts, script_item.name)}
+
     - log_ads_scripts:
         call: sys.log
         args:
           json:
-            count: ${len(scripts.items)}
-            scripts: ${scripts.items}
+            count: ${len(scripts)}
+            scripts: ${scripts}
           severity: "INFO"
     # parallel loop over queries on GCS
     - runAdsQueries:
@@ -138,11 +154,11 @@ runAdsQueries:
           shared: [scripts, accounts]
           for:
             value: script_item
-            in: ${scripts.items}
+            in: ${scripts}
             steps:
               - check_for_constant:
                   switch:
-                    - condition: ${text.match_regex(script_item.name, "_constant")}
+                    - condition: ${text.match_regex(script_item, "_constant")}
                       next: execute_constant_script
                   next: parallel_loop_over_accounts
               # execute constant query for a single (first) account
@@ -150,7 +166,7 @@ runAdsQueries:
                   call: executeAdsQuery
                   args:
                     cf_uri: ${function.body.serviceConfig.uri}
-                    script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                    script_path: ${"gs://" + gcs_bucket + "/" + script_item}
                     account: ${accounts[0]}
                     macros: ${macros}
                     project: ${project}
@@ -172,7 +188,7 @@ runAdsQueries:
                             call: executeAdsQuery
                             args:
                               cf_uri: ${function.body.serviceConfig.uri}
-                              script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                              script_path: ${"gs://" + gcs_bucket + "/" + script_item}
                               account: ${account}
                               macros: ${macros}
                               project: ${project}
@@ -190,7 +206,7 @@ runAdsQueries:
                       project_id: ${project}
                       dataset: ${bq_dataset}
                       dataset_location: ${bq_dataset_location}
-                      script_path: ${"gs://" + gcs_bucket + "/" + script_item.name}
+                      script_path: ${"gs://" + gcs_bucket + "/" + script_item}
                     body:
                       accounts: ${accounts}
                     auth:
@@ -212,17 +228,34 @@ runBigQueryQueries:
         args:
           bucket: ${gcs_bucket}
           prefix: ${queries_path}
-        result: bq_scripts
+        result: bq_scripts_raw
+
     # check if there are any bq scripts on GCS
     - check_scripts:
         switch:
-          - condition: ${map.get(bq_scripts, "items") != null and len(map.get(bq_scripts, "items")) > 0}
-            next: log_bq_scripts
+          - condition: ${map.get(bq_scripts_raw, "items") != null and len(map.get(bq_scripts_raw, "items")) > 0}
+            next: initialize_filtered_list
         next: end
+
+    - initialize_filtered_list:
+        assign:
+          - bq_scripts: []
+
+    - filter_sql_files:
+        for:
+          value: bq_script_item
+          in: ${bq_scripts_raw.items}
+          steps:
+            - check_sql_extension:
+                switch:
+                  - condition: ${text.match_regex(bq_script_item.name, "[.]sql$")}
+                    assign:
+                      - bq_scripts: ${list.concat(bq_scripts, bq_script_item.name)}
+
     - log_bq_scripts:
         call: sys.log
         args:
-          data: ${bq_scripts.items}
+          data: ${bq_scripts}
           severity: "INFO"
     # get clound function's uri
     - get_function_bq:
@@ -240,7 +273,7 @@ runBigQueryQueries:
     - runBqQueries:
         for:
           value: bq_script_item
-          in: ${bq_scripts.items}
+          in: ${bq_scripts}
           steps:
             - call_gaarf_bq_cf:
                 try:
@@ -249,7 +282,7 @@ runBigQueryQueries:
                     url: ${function_bq.body.serviceConfig.uri}
                     timeout: 1800
                     query:
-                      script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item.name}
+                      script_path: ${"gs://" + gcs_bucket + "/" + bq_script_item}
                       project_id: ${project}
                       dataset_location: ${dataset_location}
                     body:
