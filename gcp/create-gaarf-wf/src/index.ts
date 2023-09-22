@@ -36,6 +36,7 @@ const DASHBOARD_LINK_FILE = 'dashboard_url.txt';
 const argv = minimist(process.argv.slice(2));
 const is_diag = argv.diag;
 const is_debug = argv.debug || argv.diag;
+const ignore_errors = argv.ignore_errors;
 
 const cwd = get_cwd(argv);
 
@@ -1017,8 +1018,16 @@ ${deploy_cf_add}
   // Create run-wf.sh
   deploy_shell_script(
     'run-wf.sh',
-    `gcloud workflows run ${workflow_name} --location=${gcp_region} \
---data='${JSON.stringify(wf_data, null, 2)}'
+    `set -e
+state=$(gcloud workflows run ${workflow_name} --location=${gcp_region} \
+--data='${JSON.stringify(wf_data, null, 2)}' --format="get(state)")
+if [[ $state == 'FAILED' ]]; then
+  echo 'Execution failed'
+  exit -1
+else
+  echo 'Execution succeeded'
+  exit 0
+fi
 `
   );
 
@@ -1037,9 +1046,17 @@ ${deploy_cf_add}
       )
     ).deploy_scripts
   ) {
-    await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+    const res = await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
       realtime: true,
     });
+    if (res.code !== 0 && !ignore_errors) {
+      console.log(
+        chalk.red(
+          'Scripts deployment (deploy-scripts.sh) failed, breaking'
+        )          
+      );
+      process.exit(res.code);      
+    }
     progress.scripts_deployed = true;
   } else {
     console.log(
@@ -1063,10 +1080,18 @@ ${deploy_cf_add}
     ).deploy_wf
   ) {
     // deploying GCP components
-    await exec_cmd(
+    const res = await exec_cmd(
       path.join(cwd, './deploy-wf.sh'),
       new clui.Spinner('Deploying Cloud components, please wait...')
     );
+    if (res.code !== 0 && !ignore_errors) {
+      console.log(
+        chalk.red(
+          'Cloud components deployment (deploy-wf.sh) failed, breaking'
+        )          
+      );
+      process.exit(res.code);      
+    }
     progress.wf_created = true;
   } else {
     console.log(
@@ -1163,11 +1188,20 @@ gcloud scheduler jobs create http $JOB_NAME \\
 
     if (answers3.run_job) {
       // running the job
-      await exec_cmd(
+      const res = await exec_cmd(
         `gcloud scheduler jobs run ${workflow_name} --location=${gcp_region}`,
         null,
         {realtime: true}
       );
+      if (res.code !== 0 && !ignore_errors) {
+        console.log(
+          chalk.red(
+            'Starting the Scheduler Job has failed, breaking'
+          )          
+        );
+        process.exit(res.code);      
+      }
+
     }
   }
   if (!answers3.run_job) {
@@ -1184,7 +1218,15 @@ gcloud scheduler jobs create http $JOB_NAME \\
       answers
     );
     if (answers_wf.run_wf) {
-      await exec_cmd(path.join(cwd, './run-wf.sh'), null, {realtime: true});
+      const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, {realtime: true});
+      if (res.code !== 0 && !ignore_errors) {
+        console.log(
+          chalk.red(
+            'Running workflow (run-wf.sh) has failed, breaking'
+          )          
+        );
+        process.exit(res.code);      
+      }
     }
   }
 
