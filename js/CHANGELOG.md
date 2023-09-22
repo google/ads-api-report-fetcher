@@ -1,4 +1,7 @@
 # Changelog
+## 2.4 - 2023-09-22
+* support Google Ads API v14.1 (updated google-ads-api to v14.1)
+ 
 ## 2.3 - 2023-09-07
 * Improved error handling and logging of errors, added retrying on internal errors from the API (for sync and async methods both)
 
