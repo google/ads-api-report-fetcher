@@ -28,6 +28,7 @@ class AdsQueryExecutor {
         this.editor = new ads_query_editor_1.AdsQueryEditor();
         this.parser = new ads_row_parser_1.AdsRowParser();
         this.logger = (0, logger_1.getLogger)();
+        this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
     parseQuery(queryText, macros) {
         return this.editor.parseQuery(queryText, macros);
@@ -78,7 +79,7 @@ class AdsQueryExecutor {
             if (!sync) {
                 // parallel mode - we're limiting the level of concurrency with limit
                 this.logger.debug(`Concurrently processing (${customers}) customers (throttle: ${threshold})`);
-                let results = await (0, async_1.mapLimit)(customers, 10, async (customerId) => {
+                let results = await (0, async_1.mapLimit)(customers, threshold, async (customerId) => {
                     return this.executeOne(query, customerId, writer, scriptName);
                 });
                 for (let result of results) {
@@ -196,9 +197,18 @@ class AdsQueryExecutor {
             throw e;
         }
     }
+    executeAdsQuery(query, customerId) {
+        if (query.executor) {
+            return query.executor.execute(this.client, query, customerId);
+        }
+        else {
+            let stream = this.client.executeQueryStream(query.queryText, customerId);
+            return stream;
+        }
+    }
     async executeQueryAndParse(query, customerId, writer) {
         return (0, utils_1.executeWithRetry)(async () => {
-            let stream = this.client.executeQueryStream(query.queryText, customerId);
+            let stream = this.executeAdsQuery(query, customerId);
             let rowCount = 0;
             let rawRows = [];
             let parsedRows = [];
@@ -218,9 +228,10 @@ class AdsQueryExecutor {
             }
             return { rawRows, rows: parsedRows, query, customerId, rowCount };
         }, (error, attempt) => {
-            return attempt <= 3 && error.retryable;
+            return attempt <= this.maxRetryCount && error.retryable;
         }, {
-            baseDelayMs: 100, delayStrategy: "linear"
+            baseDelayMs: 100,
+            delayStrategy: "linear",
         });
     }
     async getCustomerIds(ids, customer_ids_query) {
@@ -242,5 +253,6 @@ class AdsQueryExecutor {
     }
 }
 exports.AdsQueryExecutor = AdsQueryExecutor;
-AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD = 30;
+AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD = 16;
+AdsQueryExecutor.DEFAULT_RETRY_COUNT = 3;
 //# sourceMappingURL=ads-query-executor.js.map

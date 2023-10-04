@@ -391,7 +391,7 @@ export class BigQueryWriter implements IResultWriter {
       Unfortunately BQ always creates a based empty table for templated
       (customer) table, so we have to drop it first.
       */
-      const table_fq = this.bqExecutor.createUnifiedView(
+      const table_fq = await this.bqExecutor.createUnifiedView(
         this.datasetId,
         this.tableId,
         this.customers

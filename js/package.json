@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -40,10 +40,10 @@
     "chalk": "DO NOT updade chlkd from ^4.* (it's ESM only)"
   },
   "dependencies": {
-    "@google-cloud/bigquery": "^6.2.0",
-    "@google-cloud/logging": "^10.5.0",
-    "@google-cloud/logging-winston": "^5.3.0",
-    "@google-cloud/storage": "^6.11.0",
+    "@google-cloud/bigquery": "^7.3.0",
+    "@google-cloud/logging": "^11.0.0",
+    "@google-cloud/logging-winston": "^6.0.0",
+    "@google-cloud/storage": "^7.1.0",
     "@js-joda/core": "^5.4.2",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.5",
@@ -55,7 +55,7 @@
     "csv-stringify": "^6.4.0",
     "date-fns": "^2.29.3",
     "find-up": "^5.0.0",
-    "google-ads-api": "^14.1.0",
+    "google-ads-api": "14.1",
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
     "mathjs": "^11.8.2",

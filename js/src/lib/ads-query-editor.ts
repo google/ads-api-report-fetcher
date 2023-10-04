@@ -20,6 +20,7 @@ import {getLogger} from './logger';
 import {Customizer, CustomizerType, Column, FieldType, FieldTypeKind, isEnumType, ProtoTypeMeta, QueryElements, ResourceInfo} from './types';
 import {substituteMacros} from './utils';
 import {math_parse} from "./math-engine";
+import { BuiltinQueryProcessor } from './builtins';
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0];  // e.g. "v9"
@@ -29,8 +30,15 @@ const protoResources = protoRoot[protoVer].nested.resources.nested;
 const protoEnums = protoRoot[protoVer].nested.enums.nested;
 const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
 
+class InvalidQuerySyntax extends Error { }
+
 export class AdsQueryEditor {
   logger = getLogger();
+  builtinQueryProcessor: BuiltinQueryProcessor;
+
+  constructor() {
+    this.builtinQueryProcessor = new BuiltinQueryProcessor(this);
+  }
 
   /**
    * Remove comments and empty lines, normilize newlines,
@@ -96,7 +104,7 @@ export class AdsQueryEditor {
     let functions = this.parseFunctions(query);
     query = this.removeFunctions(query);
 
-    // substibute parameters and detected unspecified ones
+    // substibute parameters and detect unspecified ones
     let res = substituteMacros(query, macros);
     if (res.unknown_params.length) {
       throw new Error(
@@ -114,16 +122,20 @@ export class AdsQueryEditor {
     if (!match || !match.length)
       throw new Error(`Could not parse resource from the query`);
     let resourceName = match[1];
-    let resourceTypeFrom = this.getResource(resourceName);
-    if (!resourceTypeFrom)
-      throw new Error(
-        `Could not find resource ${resourceName} specified in FROM in protobuf schema`
-      );
-    let resourceInfo: ResourceInfo = {
+    let resourceInfo: ResourceInfo;
+    let resourceTypeFrom;
+    if (resourceName.startsWith("builtin.")) {
+      // it's a builtin query, but it still can query an Ads resource
+      resourceName = resourceName.substring("builtin.".length);
+      return this.builtinQueryProcessor.parse(resourceName, query);
+    } else {
+      resourceTypeFrom = this.getResource(resourceName);
+    }
+    resourceInfo = {
       name: resourceName,
       typeName: resourceTypeFrom.name,
       typeMeta: resourceTypeFrom,
-      isConstant: resourceName.endsWith("_constant"),
+      isConstant: resourceName.endsWith("_constant")
     };
 
     let selectFields = query
@@ -136,15 +148,14 @@ export class AdsQueryEditor {
     let field_index = 0;
     let fields: Column[] = [];
     let column_names: string[] = [];
+    let expandWildcardAt = -1;
     for (let item of selectFields) {
       let pair = item.trim().toLowerCase().split(/ as /);
       const select_expr = pair[0];
       let alias = pair[1]; // can be undefined
       let parsedExpr = this.parseExpression(select_expr);
       if (!parsedExpr.field || !parsedExpr.field.trim()) {
-        throw new Error(
-          `IncorrectQuerySyntax: empty select field at index ${field_index}`
-        );
+        throw new InvalidQuerySyntax(`empty select field at index ${field_index}`);
       }
 
       // initialize column alias
@@ -156,8 +167,8 @@ export class AdsQueryEditor {
       column_name = column_name.replaceAll(/[ ]/g, "");
       // check for uniquniess
       if (column_names.includes(column_name)) {
-        throw new Error(
-          `InvalidQuerySyntax: duplicating column name ${column_name} at index ${field_index}`
+        throw new InvalidQuerySyntax(
+          `duplicating column name ${column_name} at index ${field_index}`
         );
       }
       column_names.push(column_name);
@@ -165,7 +176,14 @@ export class AdsQueryEditor {
       // now decide on how the current column should be mapped to native query
       const select_expr_parsed = parsedExpr.field.trim();
       let fieldType: FieldType;
-      if (parsedExpr.customizer) {
+      if (select_expr_parsed === '*') {
+        if (expandWildcardAt > -1) {
+          throw new InvalidQuerySyntax(`duplicating wildcard '*' expression encountered at index ${field_index}`);
+        }
+        expandWildcardAt = field_index;
+        continue;
+      }
+      else if (parsedExpr.customizer) {
         raw_select_fields.push(select_expr_parsed);
         let nameParts = select_expr_parsed.split(".");
         let curType = this.getResource(nameParts[0]);
@@ -229,7 +247,11 @@ export class AdsQueryEditor {
           if ((<any>parsed_expression).isConstantNode) {
             // constant expression
             const value = parsed_expression.evaluate();
-            const value_type = _.isInteger(value) ? "int64" : _.isNumber(value) ? "double" : "string";
+            const value_type = _.isInteger(value)
+              ? "int64"
+              : _.isNumber(value)
+                ? "double"
+                : "string";
             field = {
               name: column_name,
               customizer: {
@@ -285,7 +307,41 @@ export class AdsQueryEditor {
 
       field_index++;
     }
-
+    if (expandWildcardAt > -1) {
+      // expand wildcard expression '*' to fields that weren't specified easier
+      // TODO: currently expanding only to scalar primitive fields (no nested types or enum)
+      let new_fields = [];
+      for (let fieldName of Object.keys(resourceInfo.typeMeta.fields)) {
+        let field = resourceInfo.typeMeta.fields[fieldName];
+        if (
+          field.rule !== "repeated" &&
+          !column_names.includes(fieldName) &&
+          (
+            this.primitiveTypes.includes(field.type) ||
+            field.type.match("google\\.ads.googleads.\\w+.enums")
+          )
+        ) {
+          //"google.ads.googleads.v14.enums.CustomerStatusEnum.CustomerStatus"
+          raw_select_fields.push(resourceInfo.name + "." + fieldName);
+          const column: Column = {
+            name: fieldName,
+            expression: resourceInfo.name + "." + fieldName,
+            type: this.getColumnType(
+              fieldName,
+              resourceInfo.name + "." + fieldName
+            ),
+            // {
+            //   type: field.type,
+            //   typeName: field.type,
+            //   kind: field.type.startsWith("google.ads.googleads.")
+            //     ? FieldTypeKind.enum : FieldTypeKind.primitive,
+            // },
+          };
+          new_fields.push(column);
+        }
+      }
+      fields.splice(expandWildcardAt, 0, ...new_fields);
+    }
     queryNative = queryNative.replace(
       "$COLUMNS$",
       raw_select_fields.join(", ")
@@ -479,7 +535,7 @@ export class AdsQueryEditor {
     throw new Error("InternalError");
   }
 
-  protected getResource(fieldName: string): ProtoTypeMeta & { name: string } {
+  getResource(fieldName: string): ProtoTypeMeta & { name: string } {
     let resourceType = this.resourcesMap[fieldName];
     if (resourceType) return resourceType;
     let resource = protoRowType.fields[fieldName];

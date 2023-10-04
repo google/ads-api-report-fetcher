@@ -12,9 +12,10 @@
    - [Macros in virtual columns](#macros-in-virtual-columns)
    - [Common macros](#common-macros)
  - [Templates](#templates)
- - [SQL parameters](#sql-parameters)
  - [Expressions and Macros](#expressions-and-macros)
+ - [Functions](#functions)
  - [Built-in queries](#built-in-queries)
+ - [SQL parameters](#sql-parameters)
 
 
 ## Intro
@@ -53,7 +54,6 @@ FROM resource
 * Aliases (`AS column_name`)
 * Nested resources (`:nested.resource.name`)
 * Resource indices (`~position`)
-* Functions (`:$func`) - only in Node.js
 * Virtual columns (`metric.name / metric.name_2 AS alias`)
 
 ### Aliases
@@ -171,7 +171,7 @@ When this query is executed it's expected that two macros `--macros.start_date=.
 
 ### Macros in virtual columns
 
-Macros can be excluded not only in WHERE statements as in the example above but also in the SELECT statement.
+Macros can be used not only in WHERE statements as in the example above but also in the SELECT statement.
 In that case this macros will be expanded and then treated as a virtual column.
 
 ```
@@ -226,26 +226,9 @@ FROM asset_performance
 
 When this query is executed it's expected to have template `--template.cohort_days=0,1,3,7` is supplied to `gaarf`.
 
-Please note that all values passed through CLI arguments are strings. But there's a special case - a value containing ","
+Please note that all values passed through CLI arguments are strings. But there's a special case - a value containing "," - it's converted to an array.
 It will create 4 columns (named `installs_0_day`, `installs_1_day`, etc).
 
-## SQL Parameters
-
-You can use normal sql type parameters with `sql` argument (NodeJS only):
-```
-SELECT *
-FROM {dst_dataset}.{table-src}
-WHERE name LIKE @name
-```
-and to execute:
-`gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1 --sql.name='myname%'`
-
-it will create a parameterized query to run in BQ:
-```
-SELECT *
-FROM dataset1.table1
-WHERE name LIKE @name
-```
 
 ## Expressions and Macros
 > *Note*: currently expressions are supported only in NodeJS version.
@@ -336,6 +319,31 @@ ${date(2022,7,20).plusMonths(1)}
 output: "2022-08-20"
 
 
+## Functions
+
+NodeJS version support in-place functions in JavaScript.
+The functions support consists of two parts:
+* function execution - it's suffix `:$func` at any select field (where func is a funciton name)
+* function definition - a block below the main query starting with `FUNCTIONS` after which a normal JS code with a function definition follows
+
+Example:
+```
+SELECT
+  campaign.id AS campaign_id,
+  campaign_criterion.ad_schedule.day_of_week:$format AS ad_schedule_day_of_week
+FROM campaign_criterion
+FUNCTIONS
+function format(val) {
+  let days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  if (!val) return '';
+  return val === 8 ? days[6] : days[val-2];
+}
+```
+
+Here we defined a function `format` (converts a numeric week day into a localized day name) and then called it for `campaign_criterion.ad_schedule.day_of_week` column.
+So functions always accept only one parameter - a field value.
+
+
 ## Built-in queries
 
 Google Ads API Report Fetcher can also works with built-in queries, which use the following syntax:
@@ -348,3 +356,22 @@ It expacts to provide a built-in query name when selecting from special `builtin
 
 Currently the following queries are  available:
 * `ocid_mapping` - return  `account_id` and `ocid` from each child account under MCC; `ocid` can be used to build links to Google Ads UI.
+
+
+## SQL Parameters
+
+You can use normal sql type parameters with `sql` argument (NodeJS only):
+```
+SELECT *
+FROM {dst_dataset}.{table-src}
+WHERE name LIKE @name
+```
+and to execute:
+`gaarf-bq --macro.table-src=table1 --macro.dst_dataset=dataset1 --sql.name='myname%'`
+
+it will create a parameterized query to run in BQ:
+```
+SELECT *
+FROM dataset1.table1
+WHERE name LIKE @name
+```

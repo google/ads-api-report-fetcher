@@ -1,4 +1,10 @@
 # Changelog
+## 2.5 - 2023-10-04
+* support for builtin resources
+* support for the `*` selector in Ads queries - it expands to all scalar primitive and enum fields of a resource
+* bq-writer: Fixed: writer failed with 'dataset not found' error if dataset exists in a different location than specified
+* console-writer: Fixed: writer went to the infinite recursion if the only one column didn't fit into console width after transposing
+
 ## 2.4 - 2023-09-22
 * support Google Ads API v14.1 (updated google-ads-api to v14.1)
  

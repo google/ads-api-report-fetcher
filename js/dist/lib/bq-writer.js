@@ -319,7 +319,7 @@ class BigQueryWriter {
             Unfortunately BQ always creates a based empty table for templated
             (customer) table, so we have to drop it first.
             */
-            const table_fq = this.bqExecutor.createUnifiedView(this.datasetId, this.tableId, this.customers);
+            const table_fq = await this.bqExecutor.createUnifiedView(this.datasetId, this.tableId, this.customers);
             this.logger.info(`Created a union view '${table_fq}'`, {
                 scriptName: this.tableId,
             });

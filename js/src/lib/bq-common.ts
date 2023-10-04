@@ -26,21 +26,26 @@ export var OAUTH_SCOPES = [
 ];
 
 export async function getDataset(
-    bigquery: BigQuery,
-    datasetId: string,
-    datasetLocation?: string
-  ): Promise<Dataset> {
-    let dataset: Dataset;
-    const options: bigquery.IDataset = {
-      location: datasetLocation,
-    };
-    try {
-      dataset = bigquery.dataset(datasetId, options);
-      await dataset.get({ autoCreate: true });
-    } catch (e) {
-      const logger = getLogger();
-      logger.error(`Failed to get or create the dataset ${datasetId}`);
-      throw e;
+  bigquery: BigQuery,
+  datasetId: string,
+  datasetLocation?: string
+): Promise<Dataset> {
+  let dataset: Dataset;
+  const options: bigquery.IDataset = {
+    location: datasetLocation,
+  };
+  try {
+    dataset = bigquery.dataset(datasetId, options);
+    dataset = (await dataset.get({ autoCreate: true }))[0];
+    if (dataset.location != dataset.metadata.location) {
+      dataset = bigquery.dataset(datasetId, {
+        location: dataset.metadata.location,
+      });
     }
-    return dataset;
+  } catch (e) {
+    const logger = getLogger();
+    logger.error(`Failed to get or create the dataset ${datasetId}`);
+    throw e;
   }
+  return dataset;
+}

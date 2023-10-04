@@ -309,9 +309,7 @@ Please see the [README](gcp/README.md) there for all information.
 ## Differences in Python and NodeJS versions
 
 ### Query syntax and features
-There are differences in which features supported for queries.
-Python-only features:
-* pre-process query files as Jinja templates
+There are differences in supported features for queries.
 
 NodeJS-only features:
 * expressions (${...})
@@ -325,12 +323,11 @@ NodeJS on the contrary parses queries and initializes BigQuery schema before exe
 There are differences in BigQuery table structures as well.
 Python version creates one table per script. While NodeJS creates a table per script per customer and then creates a view to combine all customer tables.
 For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll be a table.
-For NodeJS it'll be a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer id you supplied.
+For NodeJS it'll be a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer ids you supplied.
 
 From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator.
-In NodeJS version the result will be a repeated field (array).
+In NodeJS version the result by default will be a repeated field (array) but can be degrated to string with separator via the `bq.array-handling` option.
 If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
-Though in NodeJS you can tune how to process arrays. The described behavior is by default. You can change it via `bq.array-handling` argument.
 
 ### API support
 Python version supports any API version (currently available).

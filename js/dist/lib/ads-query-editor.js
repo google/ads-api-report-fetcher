@@ -25,6 +25,7 @@ const logger_1 = require("./logger");
 const types_1 = require("./types");
 const utils_1 = require("./utils");
 const math_engine_1 = require("./math-engine");
+const builtins_1 = require("./builtins");
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
 exports.AdsApiVersion = protoVer;
@@ -32,11 +33,14 @@ const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
 const protoResources = protoRoot[protoVer].nested.resources.nested;
 const protoEnums = protoRoot[protoVer].nested.enums.nested;
 const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
+class InvalidQuerySyntax extends Error {
+}
 class AdsQueryEditor {
     constructor() {
         this.logger = (0, logger_1.getLogger)();
         this.resourcesMap = {};
         this.primitiveTypes = ["string", "int64", "int32", "float", "double", "bool"];
+        this.builtinQueryProcessor = new builtins_1.BuiltinQueryProcessor(this);
     }
     /**
      * Remove comments and empty lines, normilize newlines,
@@ -100,7 +104,7 @@ class AdsQueryEditor {
         // parse and remove functions
         let functions = this.parseFunctions(query);
         query = this.removeFunctions(query);
-        // substibute parameters and detected unspecified ones
+        // substibute parameters and detect unspecified ones
         let res = (0, utils_1.substituteMacros)(query, macros);
         if (res.unknown_params.length) {
             throw new Error(`The following parameters used in query and were not specified: ` +
@@ -115,14 +119,21 @@ class AdsQueryEditor {
         if (!match || !match.length)
             throw new Error(`Could not parse resource from the query`);
         let resourceName = match[1];
-        let resourceTypeFrom = this.getResource(resourceName);
-        if (!resourceTypeFrom)
-            throw new Error(`Could not find resource ${resourceName} specified in FROM in protobuf schema`);
-        let resourceInfo = {
+        let resourceInfo;
+        let resourceTypeFrom;
+        if (resourceName.startsWith("builtin.")) {
+            // it's a builtin query, but it still can query an Ads resource
+            resourceName = resourceName.substring("builtin.".length);
+            return this.builtinQueryProcessor.parse(resourceName, query);
+        }
+        else {
+            resourceTypeFrom = this.getResource(resourceName);
+        }
+        resourceInfo = {
             name: resourceName,
             typeName: resourceTypeFrom.name,
             typeMeta: resourceTypeFrom,
-            isConstant: resourceName.endsWith("_constant"),
+            isConstant: resourceName.endsWith("_constant")
         };
         let selectFields = query
             .replace(/(^\s*SELECT)|(\s*FROM .*)/gi, "")
@@ -133,13 +144,14 @@ class AdsQueryEditor {
         let field_index = 0;
         let fields = [];
         let column_names = [];
+        let expandWildcardAt = -1;
         for (let item of selectFields) {
             let pair = item.trim().toLowerCase().split(/ as /);
             const select_expr = pair[0];
             let alias = pair[1]; // can be undefined
             let parsedExpr = this.parseExpression(select_expr);
             if (!parsedExpr.field || !parsedExpr.field.trim()) {
-                throw new Error(`IncorrectQuerySyntax: empty select field at index ${field_index}`);
+                throw new InvalidQuerySyntax(`empty select field at index ${field_index}`);
             }
             // initialize column alias
             let column_name = alias || parsedExpr.field.replaceAll(/\./g, "_");
@@ -150,13 +162,20 @@ class AdsQueryEditor {
             column_name = column_name.replaceAll(/[ ]/g, "");
             // check for uniquniess
             if (column_names.includes(column_name)) {
-                throw new Error(`InvalidQuerySyntax: duplicating column name ${column_name} at index ${field_index}`);
+                throw new InvalidQuerySyntax(`duplicating column name ${column_name} at index ${field_index}`);
             }
             column_names.push(column_name);
             // now decide on how the current column should be mapped to native query
             const select_expr_parsed = parsedExpr.field.trim();
             let fieldType;
-            if (parsedExpr.customizer) {
+            if (select_expr_parsed === '*') {
+                if (expandWildcardAt > -1) {
+                    throw new InvalidQuerySyntax(`duplicating wildcard '*' expression encountered at index ${field_index}`);
+                }
+                expandWildcardAt = field_index;
+                continue;
+            }
+            else if (parsedExpr.customizer) {
                 raw_select_fields.push(select_expr_parsed);
                 let nameParts = select_expr_parsed.split(".");
                 let curType = this.getResource(nameParts[0]);
@@ -213,7 +232,11 @@ class AdsQueryEditor {
                     if (parsed_expression.isConstantNode) {
                         // constant expression
                         const value = parsed_expression.evaluate();
-                        const value_type = lodash_1.default.isInteger(value) ? "int64" : lodash_1.default.isNumber(value) ? "double" : "string";
+                        const value_type = lodash_1.default.isInteger(value)
+                            ? "int64"
+                            : lodash_1.default.isNumber(value)
+                                ? "double"
+                                : "string";
                         field = {
                             name: column_name,
                             customizer: {
@@ -263,6 +286,34 @@ class AdsQueryEditor {
             };
             fields.push(field);
             field_index++;
+        }
+        if (expandWildcardAt > -1) {
+            // expand wildcard expression '*' to fields that weren't specified easier
+            // TODO: currently expanding only to scalar primitive fields (no nested types or enum)
+            let new_fields = [];
+            for (let fieldName of Object.keys(resourceInfo.typeMeta.fields)) {
+                let field = resourceInfo.typeMeta.fields[fieldName];
+                if (field.rule !== "repeated" &&
+                    !column_names.includes(fieldName) &&
+                    (this.primitiveTypes.includes(field.type) ||
+                        field.type.match("google\\.ads.googleads.\\w+.enums"))) {
+                    //"google.ads.googleads.v14.enums.CustomerStatusEnum.CustomerStatus"
+                    raw_select_fields.push(resourceInfo.name + "." + fieldName);
+                    const column = {
+                        name: fieldName,
+                        expression: resourceInfo.name + "." + fieldName,
+                        type: this.getColumnType(fieldName, resourceInfo.name + "." + fieldName),
+                        // {
+                        //   type: field.type,
+                        //   typeName: field.type,
+                        //   kind: field.type.startsWith("google.ads.googleads.")
+                        //     ? FieldTypeKind.enum : FieldTypeKind.primitive,
+                        // },
+                    };
+                    new_fields.push(column);
+                }
+            }
+            fields.splice(expandWildcardAt, 0, ...new_fields);
         }
         queryNative = queryNative.replace("$COLUMNS$", raw_select_fields.join(", "));
         return new types_1.QueryElements(queryNative, fields, resourceInfo, functions);

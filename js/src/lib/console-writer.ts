@@ -73,7 +73,7 @@ export class ConsoleWriter implements IResultWriter {
     };
     let rows = this.rowsByCustomer[customerId];
 
-    console.log(this.scriptName);
+    console.log(`${this.scriptName} (${customerId})`);
 
     rows = rows.map((row) => {
       return row.map((col) => {
@@ -159,7 +159,7 @@ export class ConsoleWriter implements IResultWriter {
       columns: this.query!.columnNames.map((c) => {
         return {
           wrapWord: true,
-          alignment: "right",
+          alignment: "left",
           truncate: 200,
         };
       }),
@@ -184,7 +184,11 @@ export class ConsoleWriter implements IResultWriter {
           0,
           submatrix_formatted.indexOf("\n")
         );
-        if (first_line.length > process.stdout.columns) {
+        if (i === column_count - 1) {
+          // it's the last column, and the matrix being dumped fitted into the window
+          done = true;
+        }
+        else if (first_line.length > process.stdout.columns) {
           // we have to break at this column - dump sub-matrix from 0 to (i-1)th column
           submatrix = data_trans
             .slice(0, row_count + 1)
@@ -203,9 +207,6 @@ export class ConsoleWriter implements IResultWriter {
             data_trans[j + 1].splice(0, 0, headers[j]);
           }
           break;
-        } else if (i === column_count - 1) {
-          // it's the last column, and the matrix being dumped fitted into the window
-          done = true;
         }
       }
 

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { EvalFunction } from "mathjs";
+import { IGoogleAdsApiClient } from "./ads-api-client";
 
 export interface CustomizerResourceIndex {
   type: CustomizerType.ResourceIndex;
@@ -68,13 +68,13 @@ export interface ProtoFieldMeta {
    */
   type: string;
   // position in protobuf, unimportant
-  id: number;
+  id?: number;
   // additional options
-  options: Record<string, string>;
+  options?: Record<string, string>;
 }
 export interface ProtoTypeMeta {
   name?: string;  // extension
-  options: any;
+  options?: any;
   /**
    * Type fields
    */
@@ -82,7 +82,7 @@ export interface ProtoTypeMeta {
   /**
    * Nested types
    */
-  nested: Record<string, ProtoTypeMeta>;
+  nested?: Record<string, ProtoTypeMeta>;
 }
 export interface ProtoEnumMeta {
   values: Record<string, number>;
@@ -92,8 +92,8 @@ export function isEnumType(type: any): type is ProtoEnumMeta {
   return !!type.values;
 }
 export interface ResourceInfo {
-  name: string;      // "campaign_criterion"
-  typeName: string;  // "CampaignCriterion"
+  name: string; // "campaign_criterion"
+  typeName: string; // "CampaignCriterion"
   //fullName: string;  // "google.ads.googleads.v9.resources.CampaignCriterion"
   typeMeta: ProtoTypeMeta;  // resource type description
   isConstant: boolean;
@@ -109,13 +109,19 @@ export interface Column {
   name: string;
   expression: string;
   type: FieldType;
-  customizer: Customizer | null | undefined;
+  customizer?: Customizer | null | undefined;
 }
+export interface IQueryExecutor {
+  execute(client: IGoogleAdsApiClient, query: QueryElements, customerId: string)
+    : AsyncGenerator<any>
+}
+
 export class QueryElements {
   queryText: string = "";
   columns: Column[];
   resource: ResourceInfo;
   functions: Record<string, Function>;
+  executor?: IQueryExecutor;
 
   constructor(
     query: string,
@@ -130,11 +136,11 @@ export class QueryElements {
   }
 
   public get columnNames(): string[] {
-    return this.columns.map(col => col.name);
+    return this.columns.map((col) => col.name);
   }
 
   public get columnTypes(): FieldType[] {
-    return this.columns.map(col => col.type);
+    return this.columns.map((col) => col.type);
   }
 }
 

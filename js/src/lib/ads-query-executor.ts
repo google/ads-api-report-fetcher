@@ -42,18 +42,21 @@ export interface AdsQueryExecutorOptions {
 }
 
 export class AdsQueryExecutor {
-  static DEFAULT_PARALLEL_THRESHOLD = 30;
+  static DEFAULT_PARALLEL_THRESHOLD = 16;
+  static DEFAULT_RETRY_COUNT = 3;
 
   client: IGoogleAdsApiClient;
   editor: AdsQueryEditor;
   parser: AdsRowParser;
   logger;
+  maxRetryCount;
 
   constructor(client: IGoogleAdsApiClient) {
     this.client = client;
     this.editor = new AdsQueryEditor();
     this.parser = new AdsRowParser();
     this.logger = getLogger();
+    this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
   }
 
   parseQuery(queryText: string, macros?: Record<string, any>) {
@@ -123,7 +126,7 @@ export class AdsQueryExecutor {
         );
         let results = await mapLimit(
           customers,
-          10,
+          threshold,
           async (customerId: string) => {
             return this.executeOne(query, customerId, writer, scriptName);
           }
@@ -286,35 +289,49 @@ export class AdsQueryExecutor {
     }
   }
 
+  protected executeAdsQuery(query: QueryElements, customerId: string) {
+    if (query.executor) {
+      return query.executor.execute(this.client, query, customerId);
+    } else {
+      let stream = this.client.executeQueryStream(query.queryText, customerId);
+      return stream;
+    }
+  }
+
   protected async executeQueryAndParse(
     query: QueryElements,
     customerId: string,
     writer?: IResultWriter | undefined
   ) {
-    return executeWithRetry(async () => {
-      let stream = this.client.executeQueryStream(query.queryText, customerId);
-      let rowCount = 0;
-      let rawRows: any[] = [];
-      let parsedRows: any[] = [];
-      // NOTE: as we're iterating over an AsyncGenerator any error if happens
-      // will be thrown on iterating not on creating of the generator
-      for await (const row of stream) {
-        let parsedRow = this.parser.parseRow(row, query);
-        rowCount++;
-        // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
-        if (writer) {
-          await writer.addRow(customerId, parsedRow, <any[]>row);
-        } else {
-          rawRows.push(row);
-          parsedRows.push(parsedRow);
+    return executeWithRetry(
+      async () => {
+        let stream = this.executeAdsQuery(query, customerId);
+        let rowCount = 0;
+        let rawRows: any[] = [];
+        let parsedRows: any[] = [];
+        // NOTE: as we're iterating over an AsyncGenerator any error if happens
+        // will be thrown on iterating not on creating of the generator
+        for await (const row of stream) {
+          let parsedRow = this.parser.parseRow(row, query);
+          rowCount++;
+          // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+          if (writer) {
+            await writer.addRow(customerId, parsedRow, <any[]>row);
+          } else {
+            rawRows.push(row);
+            parsedRows.push(parsedRow);
+          }
         }
+        return { rawRows, rows: parsedRows, query, customerId, rowCount };
+      },
+      (error, attempt) => {
+        return attempt <= this.maxRetryCount && error.retryable;
+      },
+      {
+        baseDelayMs: 100,
+        delayStrategy: "linear",
       }
-      return { rawRows, rows: parsedRows, query, customerId, rowCount };
-    }, (error, attempt) => {
-      return attempt <= 3 && error.retryable;
-    }, {
-      baseDelayMs: 100, delayStrategy: "linear"
-    });
+    );
   }
 
   async getCustomerIds(

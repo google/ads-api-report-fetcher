@@ -202,4 +202,99 @@ suite('AdsQueryExecutor', () => {
       "OPTIMIZE_INSTALLS_TARGET_INSTALL_COST",
     ]);
   });
+
+  test('builtin query', async function () {
+    const queryText = `SELECT * FROM builtin.ocid_mapping`;
+    const ocid = "567";
+    const url = `https://adwords.google.com/aw_prime/recommendations/deeplink?ocid=${ocid}&campaignId=3&utm_source=astore&src=%SRC%&%ADDITIONAL_PARAMS%`;
+    const customerId = "1";
+    let mockResult = [
+      {
+        customer: {
+          id: customerId,
+        },
+        metrics: {
+          optimization_score_url: url,
+        },
+      },
+    ];
+    let client = new MockGoogleAdsApiClient([customerId]);
+    client.setupResult(mockResult);
+    let executor = new AdsQueryExecutor(client);
+    let query = executor.parseQuery(queryText);
+    let res = await executor.executeOne(query, customerId);
+    assert.ok(res.rows);
+    assert.deepStrictEqual(res.rows[0], [customerId, ocid]);
+  });
+
+  test('wildcard in query', async function () {
+    // arrange
+    let customerId = "1";
+    let mockResult = [
+      {
+        customer_client: {
+          applied_labels: ["customers/1/labels/1"],
+          client_customer: "customerClients/2",
+          currency_code: "USD",
+          descriptive_name: "test customer",
+          hidden: false,
+          id: 1,
+          level: 0,
+          manager: false,
+          resource_name: "customers/1/customerClients/2",
+          status: 3, // CustomerStatus
+          test_account: false,
+          time_zone: "UTC",
+        },
+      },
+    ];
+    let queryText = `
+      SELECT
+        customer_client.id,
+        *,
+        customer_client.manager as is_manager
+      FROM customer_client
+    `;
+
+    let client = new MockGoogleAdsApiClient([customerId]);
+    client.setupResult(mockResult);
+    let executor = new AdsQueryExecutor(client);
+
+    // act
+    let query = executor.parseQuery(queryText);
+    assert.deepStrictEqual(query.columnNames, [
+      "id",
+      "resource_name",
+      "client_customer",
+      "hidden",
+      "level",
+      "time_zone",
+      "test_account",
+      "manager",
+      "descriptive_name",
+      "currency_code",
+      "status",
+      "is_manager",
+    ]);
+
+    let result = await executor.executeOne(query, customerId);
+    assert.ok(result.rows);
+    let status = result.rows[0][result.query.columnNames.indexOf("status")];
+    assert.strictEqual(status, "CANCELED");
+
+    // // assert
+    // assert.ok(result.rows);
+    // assert.deepStrictEqual(result.rows[0], [
+    //   1,
+    //   "customerClients/2",
+    //   "USD",
+    //   "test customer",
+    //   false,
+    //   0,
+    //   false,
+    //   "customers/1/customerClients/2",
+    //   3,
+    //  false, "UTC"
+    // ]);
+  });
 });

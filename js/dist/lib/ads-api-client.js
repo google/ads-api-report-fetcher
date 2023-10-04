@@ -76,7 +76,7 @@ class GoogleAdsApiClient {
         catch (e) {
             // a very unfortunate situation
             console.log(e);
-            this.logger.error(`An error occured on executing query and on logging it aterward: ${query}\n.Raw error: ${e}, logging error:${e}`);
+            this.logger.error(`An error occured on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`);
         }
         if (error instanceof google_ads_api_1.errors.GoogleAdsFailure && error.errors) {
             let ex = new GoogleAdsError(error.errors[0].message, error);

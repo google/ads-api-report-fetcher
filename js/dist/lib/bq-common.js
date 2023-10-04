@@ -30,7 +30,12 @@ async function getDataset(bigquery, datasetId, datasetLocation) {
     };
     try {
         dataset = bigquery.dataset(datasetId, options);
-        await dataset.get({ autoCreate: true });
+        dataset = (await dataset.get({ autoCreate: true }))[0];
+        if (dataset.location != dataset.metadata.location) {
+            dataset = bigquery.dataset(datasetId, {
+                location: dataset.metadata.location,
+            });
+        }
     }
     catch (e) {
         const logger = (0, logger_1.getLogger)();
