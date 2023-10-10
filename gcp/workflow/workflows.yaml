@@ -10,6 +10,7 @@ main:
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
         - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
         - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
+        - concurrency_limit: ${default(map.get(args, "concurrency_limit"), null)}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -30,6 +31,7 @@ main:
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
           bq_writer_options: ${map.get(args, "bq_writer_options")}
+          concurrency_limit: ${concurrency_limit}
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -55,7 +57,7 @@ main:
         result: publishResult
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros, bq_writer_options]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf' function's URL
@@ -152,6 +154,7 @@ runAdsQueries:
     - runAdsQueries:
         parallel:
           shared: [scripts, accounts]
+          concurrency_limit: ${concurrency_limit}
           for:
             value: script_item
             in: ${scripts}
@@ -180,6 +183,7 @@ runAdsQueries:
               - parallel_loop_over_accounts:
                   parallel:
                     shared: [accounts]
+                    concurrency_limit: ${concurrency_limit}
                     for:
                       value: account
                       in: ${accounts}
