@@ -10,7 +10,8 @@ main:
         - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
         - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
         - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
-        - concurrency_limit: ${default(map.get(args, "concurrency_limit"), null)}
+        # 20 is the default for "Concurrent branches and iterations" - https://cloud.google.com/workflows/quotas#parallel_steps
+        - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}

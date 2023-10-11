@@ -359,7 +359,7 @@ function get_macro_values(
       console.log(
         chalk.yellow('Tip: ') +
           chalk.gray(
-            'besides constants you can use :YYYYMMDD-N values and expressions (${..})'
+            'you can use constants, :YYYYMMDD-N values (where N is a number) and expressions (${..})'
           ) +
           '\n' +
           chalk.yellow('Tip: ') +
@@ -558,7 +558,7 @@ async function initialize_googleads_config(answers: Partial<any>) {
           chalk.yellow(
             " does not exist, please note that you need to upload it before you can actually deploy and run, after that you'll need to run "
           ) +
-          chalk.cyan('deploy-scripts.sh')
+          chalk.cyan('deploy-queries.sh')
       );
     } else if (!fs.statSync(path_to_googleads_config).isFile()) {
       console.log(
@@ -852,8 +852,8 @@ async function init() {
   }
   // Note that we deploy queries to hard-coded paths
   deploy_shell_script(
-    'deploy-scripts.sh',
-    `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
+    'deploy-queries.sh',
+    `# Deploy Ads and BQ queries from local folders to Google Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
@@ -1039,20 +1039,20 @@ fi
         {
           type: 'confirm',
           name: 'deploy_scripts',
-          message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+          message: 'Do you want to deploy queries (Ads/BQ) to GCS:',
           default: true,
         },
         answers
       )
     ).deploy_scripts
   ) {
-    const res = await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+    const res = await exec_cmd(path.join(cwd, './deploy-queries.sh'), null, {
       realtime: true,
     });
     if (res.code !== 0 && !ignore_errors) {
       console.log(
         chalk.red(
-          'Scripts deployment (deploy-scripts.sh) failed, breaking'
+          'Queries deployment (deploy-queries.sh) failed, breaking'
         )          
       );
       process.exit(res.code);      
@@ -1061,7 +1061,7 @@ fi
   } else {
     console.log(
       chalk.yellow(
-        "Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"
+        "Please note that before you deploy queries to GCS (deploy-queries.sh) you can't run the workflow (it'll fail)"
       )
     );
   }
@@ -1126,6 +1126,7 @@ fi
         {
           type: 'confirm',
           name: 'run_job',
+          default: false,
           message: "Do you want to run the job right now (it's asynchronous):",
         },
       ],
@@ -1282,6 +1283,16 @@ gcloud scheduler jobs create http $JOB_NAME \\
     ),
     {silent: true}
   );
+  // create download-script.sh shell script to download scripts back from GCS
+  deploy_shell_script(
+    'download-scripts.sh',
+    `for file in *.sh; do
+  [ -e "$file" ] || continue
+  cp -- "$file" "$\{file\}.bak"
+done
+gsutil -m cp ${gcs_base_path}/scripts/*.sh .`
+  );
+
   console.log(
     `All generated shell scripts were uploaded to GCS ${chalk.cyan(
       gcs_base_path + '/scripts'
@@ -1293,7 +1304,7 @@ gcloud scheduler jobs create http $JOB_NAME \\
   console.log(chalk.yellow('Tips for using the generated scripts:'));
   console.log(
     ` 🔹 ${chalk.cyan(
-      'deploy-scripts.sh'
+      'deploy-queries.sh'
     )} - redeploy queries and google-ads.yaml to GCS`
   );
   console.log(

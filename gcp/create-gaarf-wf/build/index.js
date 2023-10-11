@@ -314,10 +314,10 @@ function get_macro_values(folder_path, answers, prefix) {
             options.filter(i => !(i.name in answers[prefix])).length) {
             console.log(`Please enter values for the following macros found in your scripts in '${folder_path}' folder`);
             console.log(chalk.yellow('Tip: ') +
-                chalk.gray('besides constants you can use :YYYYMMDD-N values and expressions (${..})') +
+                chalk.gray('you can use constants, :YYYYMMDD-N values (where N is a number) and expressions (${..})') +
                 '\n' +
                 chalk.yellow('Tip: ') +
-                chalk.gray('For macros with dataset names make sure that you meet BigQuery requirements - use letters, numbers and underscores'));
+                chalk.gray('For macros for dataset names make sure that you meet BigQuery requirements - use letters, numbers and underscores'));
         }
         answers[prefix] = answers[prefix] || {};
         return prompt(options, answers[prefix]);
@@ -458,7 +458,7 @@ async function initialize_googleads_config(answers) {
             console.log(chalk.yellow('Currently the file ') +
                 chalk.cyan(path_to_googleads_config) +
                 chalk.yellow(" does not exist, please note that you need to upload it before you can actually deploy and run, after that you'll need to run ") +
-                chalk.cyan('deploy-scripts.sh'));
+                chalk.cyan('deploy-queries.sh'));
         }
         else if (!fs.statSync(path_to_googleads_config).isFile()) {
             console.log(chalk.red('The path to google-ads.yaml you specified does not exist. You can specify a full or relative file path but it should include a file name'));
@@ -678,7 +678,7 @@ async function init() {
         deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
     }
     // Note that we deploy queries to hard-coded paths
-    deploy_shell_script('deploy-scripts.sh', `# Deploy Ads and BQ scripts from local folders to Goggle Cloud Storage.
+    deploy_shell_script('deploy-queries.sh', `# Deploy Ads and BQ queries from local folders to Goggle Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
@@ -814,20 +814,20 @@ fi
     if ((await prompt({
         type: 'confirm',
         name: 'deploy_scripts',
-        message: 'Do you want to deploy scripts (Ads/BQ) to GCS:',
+        message: 'Do you want to deploy queries (Ads/BQ) to GCS:',
         default: true,
     }, answers)).deploy_scripts) {
-        const res = await exec_cmd(path.join(cwd, './deploy-scripts.sh'), null, {
+        const res = await exec_cmd(path.join(cwd, './deploy-queries.sh'), null, {
             realtime: true,
         });
         if (res.code !== 0 && !ignore_errors) {
-            console.log(chalk.red('Scripts deployment (deploy-scripts.sh) failed, breaking'));
+            console.log(chalk.red('Queries deployment (deploy-queries.sh) failed, breaking'));
             process.exit(res.code);
         }
         progress.scripts_deployed = true;
     }
     else {
-        console.log(chalk.yellow("Please note that before you deploy queries to GCS (deploy-scripts.sh) there's no sense in running workflow (it'll fail)"));
+        console.log(chalk.yellow("Please note that before you deploy queries to GCS (deploy-queries.sh) you can't run the workflow (it'll fail)"));
     }
     if ((await prompt({
         type: 'confirm',
@@ -866,6 +866,7 @@ fi
             {
                 type: 'confirm',
                 name: 'run_job',
+                default: false,
                 message: "Do you want to run the job right now (it's asynchronous):",
             },
         ], answers);
@@ -960,10 +961,16 @@ gcloud scheduler jobs create http $JOB_NAME \\
     }
     // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
     await exec_cmd(`gsutil -m cp *.sh ${gcs_base_path}/scripts/`, new clui.Spinner(`Copying all shell scripts to GCS ${gcs_base_path}/scripts`), { silent: true });
+    // create download-script.sh shell script to download scripts back from GCS
+    deploy_shell_script('download-scripts.sh', `for file in *.sh; do
+  [ -e "$file" ] || continue
+  cp -- "$file" "$\{file\}.bak"
+done
+gsutil -m cp ${gcs_base_path}/scripts/*.sh .`);
     console.log(`All generated shell scripts were uploaded to GCS ${chalk.cyan(gcs_base_path + '/scripts')}`);
     console.log(chalk.green('All done'));
     console.log(chalk.yellow('Tips for using the generated scripts:'));
-    console.log(` 🔹 ${chalk.cyan('deploy-scripts.sh')} - redeploy queries and google-ads.yaml to GCS`);
+    console.log(` 🔹 ${chalk.cyan('deploy-queries.sh')} - redeploy queries and google-ads.yaml to GCS`);
     console.log(` 🔹 ${chalk.cyan('deploy-wf.sh')} - redeploy Cloud Functions and Workflow`);
     console.log(` 🔹 ${chalk.cyan('run-wf.sh')} - execute workflow directly, see arguments inside`);
     console.log(` 🔹 ${chalk.cyan('schedule-wf.sh')} - reschedule workflow execution, see arguments inside`);

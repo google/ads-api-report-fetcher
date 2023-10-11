@@ -28,6 +28,7 @@ FUNCTION_NAME=gaarf
 REGION=us-central1
 MEMORY=1024MB
 RETRIES=5
+MAX_INSTANCES=
 
 while :; do
     case $1 in
@@ -49,6 +50,10 @@ while :; do
   --retries)
       shift
       RETRIES=$1
+      ;;
+  --max-instances)
+      shift
+      MAX_INSTANCES=--max-instances=$1
       ;;
   *)
       break
@@ -72,6 +77,7 @@ function execute_deploy() {
       --region=$REGION \
       --quiet \
       --gen2 \
+      $MAX_INSTANCES \
       --source=.
   echo $? > $statusfile
 }
