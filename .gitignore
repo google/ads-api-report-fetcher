@@ -3,7 +3,10 @@ __pycache__
 *.swp
 *.log
 .venv
+venv/
 .DS_Store
 node_modules/
 p-*.sh
 tags
+# IDEs
+.idea/

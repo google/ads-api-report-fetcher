@@ -201,10 +201,13 @@ class BigQueryWriter(AbsWriter):
                  project: str,
                  dataset: str,
                  location: str = "US",
+                 write_disposition: bigquery.WriteDisposition = bigquery.
+                 WriteDisposition.WRITE_TRUNCATE,
                  **kwargs):
         self.project = project
         self.dataset_id = f"{project}.{dataset}"
         self.location = location
+        self.write_disposition = write_disposition
         self.client = None
 
     def __str__(self):
@@ -229,7 +232,7 @@ class BigQueryWriter(AbsWriter):
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
                                           schema)
         job_config = bigquery.LoadJobConfig(
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+            write_disposition=self.write_disposition,
             schema=schema)
 
         df = pd.DataFrame(results, columns=column_names)
