@@ -28,11 +28,14 @@ main:
           ads_config_path: ${args.ads_config_path}
           cid: ${args.cid}
           customer_ids_query: ${map.get(args, "customer_ids_query")}
+          customer_ids_offset: ${map.get(args, "customer_ids_offset")}
+          customer_ids_batchsize: ${map.get(args, "customer_ids_batchsize")}
           bq_dataset: ${args.dataset}
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
           bq_writer_options: ${map.get(args, "bq_writer_options")}
           concurrency_limit: ${concurrency_limit}
+        result: accounts
     - run_bq_workflow:
         call: runBigQueryQueries
         args:
@@ -46,7 +49,8 @@ main:
           sqlParams: ${map.get(args, "bq_sql")}
     - create_completion_message:
         assign:
-          - message: {"accounts": len(accounts)}
+          - message:
+              accounts: ${len(accounts)}
           - base64Msg: ${base64.encode(json.encode(message))}
     - publish_completion_message:
         call: googleapis.pubsub.v1.projects.topics.publish
@@ -58,7 +62,7 @@ main:
         result: publishResult
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf' function's URL
@@ -107,6 +111,8 @@ runAdsQueries:
             ads_config_path: ${ads_config_path}
             customer_id: ${cid}
             customer_ids_query: ${default(customer_ids_query, "")}
+            customer_ids_offset: ${default(customer_ids_offset, "")}
+            customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
           auth:
             type: OIDC
         result: accounts_response
@@ -224,7 +230,8 @@ runAdsQueries:
               #         query: ${script_item.name}
               #         message: "Unified view created"
               #       severity: "INFO"
-
+    - return_result:
+        return: ${accounts}
 runBigQueryQueries:
   params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
   steps:
@@ -366,9 +373,9 @@ custom_retry_predicate:
         switch:
           # We'll repeat if it's a ConnectionError, TimeoutError or http statuses:
           #   429 - Too Many Requests
-          #   502 - Bad Gateway 
+          #   502 - Bad Gateway
           #   503 - Service Unavailable
-          #   504 - Gateway Timeout 
+          #   504 - Gateway Timeout
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
           - condition: ${"ConnectionFailedError" in default(map.get(e, "tags"), []) or "ConnectionError" in default(map.get(e, "tags"), []) or "TimeoutError" in default(map.get(e, "tags"), []) or default(map.get(e, "code"),0) == 429 or default(map.get(e, "code"),0) == 502 or default(map.get(e, "code"),0) == 503 or default(map.get(e, "code"),0) == 504}
