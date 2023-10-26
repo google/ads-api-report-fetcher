@@ -40,7 +40,7 @@ class Field:
 class BaseClient:
 
     def __init__(self, version: str = GOOGLE_ADS_API_VERSION):
-        self.api_version = version if version.startswith(
+        self.api_version = str(version) if str(version).startswith(
             "v") else f"v{version}"
         self.google_ads_row = self._get_google_ads_row(self.api_version)
 
@@ -178,12 +178,14 @@ class GoogleAdsApiClient(BaseClient):
     def _init_client(self, path, config_dict,
                      yaml_str) -> Optional[GoogleAdsClient]:
         if config_dict:
-            return GoogleAdsClient.load_from_dict(config_dict, self.api_version)
+            return GoogleAdsClient.load_from_dict(config_dict,
+                                                  self.api_version)
         if yaml_str:
             return GoogleAdsClient.load_from_string(yaml_str, self.api_version)
         if path:
             if os.path.isfile(path):
-                return GoogleAdsClient.load_from_storage(path, self.api_version)
+                return GoogleAdsClient.load_from_storage(
+                    path, self.api_version)
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
