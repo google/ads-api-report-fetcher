@@ -48,6 +48,6 @@ class ArrayFormatter(AbsFormatter):
 class ResultsFormatter:
     @staticmethod
     def format(results: Sequence[Any]):
-        if type(results[0]) in (int, float, str, bool):
+        if len(results) > 0 and type(results[0]) in (int, float, str, bool):
             results = [[result] for result in results]
         return results

@@ -25,6 +25,8 @@ def get_ocid_mapping(report_fetcher, accounts) -> GaarfReport:
         report = report_fetcher.fetch(query, account)
         if report and (ocid := re.findall("ocid=(\w+)", report[0][1])):
             mapping.append((report[0][0], ocid[0]))
+        else:
+            mapping.append((int(account), "0"))
     return GaarfReport(results=mapping, column_names=("account_id", "ocid"))
 
 
