@@ -22,7 +22,6 @@ const chalk_1 = __importDefault(require("chalk"));
 const find_up_1 = __importDefault(require("find-up"));
 const fs_1 = __importDefault(require("fs"));
 const js_yaml_1 = __importDefault(require("js-yaml"));
-const path_1 = __importDefault(require("path"));
 const yargs_1 = __importDefault(require("yargs"));
 const helpers_1 = require("yargs/helpers");
 const ads_api_client_1 = require("./lib/ads-api-client");
@@ -33,6 +32,7 @@ const csv_writer_1 = require("./lib/csv-writer");
 const file_utils_1 = require("./lib/file-utils");
 const logger_1 = require("./lib/logger");
 const utils_1 = require("./lib/utils");
+const query_reader_1 = require("./lib/query-reader");
 const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
 const logger = (0, logger_1.getLogger)();
@@ -95,6 +95,10 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     alias: ["disable_account_expansion"],
     type: "boolean",
     descriptions: "Disable MCC account expansion",
+})
+    .option("input", {
+    choices: ["console", "file"],
+    description: "Different types of input besides the default file input"
 })
     .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
@@ -270,6 +274,13 @@ function getWriter() {
     // TODO: if (output === 'sqldb')
     throw new Error(`Unknown output format: '${output}'`);
 }
+function getReader() {
+    let input = (argv.input || "").toString();
+    if (input === 'console') {
+        return new query_reader_1.ConsoleQueryReader(argv.files);
+    }
+    return new query_reader_1.FileQueryReader(argv.files);
+}
 async function main() {
     logger.verbose(JSON.stringify(argv, null, 2));
     let adsConfig = undefined;
@@ -322,14 +333,13 @@ async function main() {
     // Generation,
     // https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html)
     // So, actually the tool accepts already expanding list of files, and
-    // if we want to support blog patterns as parameter (for example for calling
+    // if we want to support glob patterns as parameter (for example for calling
     // from outside zsh/bash) then we have to handle items in `files` argument and
     // expand them using glob rules
     if (!argv.files || !argv.files.length) {
         console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
         process.exit(-1);
     }
-    let scriptPaths = argv.files;
     if (argv.output === 'console') {
         // for console writer by default increase default log level to 'warn' (to
         // hide all auxillary info)
@@ -378,23 +388,19 @@ async function main() {
     logger.info(customers);
     let macros = argv["macro"] || {};
     let writer = getWriter(); // NOTE: create writer from argv
+    let reader = getReader(); // NOTE: create reader from argv
     let options = {
         skipConstants: argv.skipConstants,
         parallelAccounts: argv.parallelAccounts,
         parallelThreshold: argv.parallelThreshold,
         dumpQuery: argv.dumpQuery,
     };
-    logger.info(`Found ${scriptPaths.length} script to process`);
-    logger.debug(JSON.stringify(scriptPaths, null, 2));
     let started = new Date();
-    for (let scriptPath of scriptPaths) {
-        let queryText = await (0, file_utils_1.getFileContent)(scriptPath);
-        logger.info(`Processing query from ${chalk_1.default.gray(scriptPath)}`);
-        let scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
-        let started_script = new Date();
-        await executor.execute(scriptName, queryText, customers, macros, writer, options);
+    for await (const query of reader) {
+        const started_script = new Date();
+        await executor.execute(query.name, query.text, customers, macros, writer, options);
         let elapsed_script = (0, utils_1.getElapsed)(started_script);
-        logger.info(`Query from ${chalk_1.default.gray(scriptPath)} processing for all customers completed. Elapsed: ${elapsed_script}`);
+        logger.info(`Query from ${chalk_1.default.gray(query.name)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }
     let elapsed = (0, utils_1.getElapsed)(started);
     logger.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));

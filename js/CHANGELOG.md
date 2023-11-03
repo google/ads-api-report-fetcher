@@ -1,4 +1,7 @@
 # Changelog
+## 2.6 - 2023-11-03
+* support for `--input=console` cli argument allows to supply queries in command file, e.g. `gaarf "select campaign.id from campaign" --input=console`
+
 ## 2.5 - 2023-10-04
 * support for builtin resources
 * support for the `*` selector in Ads queries - it expands to all scalar primitive and enum fields of a resource

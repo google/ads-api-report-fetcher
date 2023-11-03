@@ -159,3 +159,12 @@ export interface IResultWriter {
   endCustomer(customerId: string): Promise<void>|void;
   endScript(): Promise<void>|void;
 }
+
+export interface InputQuery {
+  text: string;
+  name: string;
+}
+
+export interface IQueryReader extends AsyncIterable<InputQuery> {
+  //*[Symbol.iterator];
+}

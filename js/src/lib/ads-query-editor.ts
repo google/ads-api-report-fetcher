@@ -403,7 +403,7 @@ export class AdsQueryEditor {
 
   protected getFieldType(type: ProtoTypeMeta, nameParts: string[]): FieldType {
     if (!nameParts || !nameParts.length)
-      throw new Error("ArgumentException: namePart should be empty");
+      throw new Error("ArgumentException: namePart is empty");
     if (!type) throw new Error("ArgumentException: type was not specified");
     const rootType = type.name;
     for (let i = 0; i < nameParts.length; i++) {

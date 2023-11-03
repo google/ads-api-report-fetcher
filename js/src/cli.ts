@@ -19,7 +19,6 @@ import findUp from 'find-up';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import _ from 'lodash';
-import path from 'path';
 import yargs from 'yargs'
 import {hideBin} from 'yargs/helpers'
 
@@ -30,8 +29,9 @@ import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
 import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
 import {getFileContent} from './lib/file-utils';
 import {getLogger} from './lib/logger';
-import {IResultWriter, QueryElements} from './lib/types';
+import {IQueryReader, IResultWriter, InputQuery, QueryElements} from './lib/types';
 import {getElapsed} from './lib/utils';
+import { ConsoleQueryReader, FileQueryReader } from './lib/query-reader';
 
 const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
 const configObj =
@@ -99,6 +99,10 @@ const argv = yargs(hideBin(process.argv))
     alias: ["disable_account_expansion"],
     type: "boolean",
     descriptions: "Disable MCC account expansion",
+  })
+  .option("input", {
+    choices: ["console", "file"],
+    description: "Different types of input besides the default file input"
   })
   .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
@@ -311,6 +315,15 @@ function getWriter(): IResultWriter {
   throw new Error(`Unknown output format: '${output}'`);
 }
 
+function getReader(): IQueryReader {
+  let input = (argv.input || "").toString();
+  if (input === 'console') {
+    return new ConsoleQueryReader(argv.files);
+  }
+  return new FileQueryReader(argv.files);
+}
+
+
 async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));
 
@@ -377,7 +390,7 @@ async function main() {
   // Generation,
   // https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html)
   // So, actually the tool accepts already expanding list of files, and
-  // if we want to support blog patterns as parameter (for example for calling
+  // if we want to support glob patterns as parameter (for example for calling
   // from outside zsh/bash) then we have to handle items in `files` argument and
   // expand them using glob rules
   if (!argv.files || !argv.files.length) {
@@ -385,7 +398,6 @@ async function main() {
         `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
     process.exit(-1);
   }
-  let scriptPaths = argv.files;
 
   if (argv.output === 'console') {
     // for console writer by default increase default log level to 'warn' (to
@@ -440,28 +452,29 @@ async function main() {
 
   let macros = <Record<string, any>>argv["macro"] || {};
   let writer = getWriter();  // NOTE: create writer from argv
+  let reader = getReader();  // NOTE: create reader from argv
   let options: AdsQueryExecutorOptions = {
     skipConstants: argv.skipConstants,
     parallelAccounts: argv.parallelAccounts,
     parallelThreshold: argv.parallelThreshold,
     dumpQuery: argv.dumpQuery,
   };
-  logger.info(`Found ${scriptPaths.length} script to process`);
-  logger.debug(JSON.stringify(scriptPaths, null, 2));
 
   let started = new Date();
-  for (let scriptPath of scriptPaths) {
-    let queryText = await getFileContent(scriptPath);
-    logger.info(`Processing query from ${chalk.gray(scriptPath)}`);
-
-    let scriptName = path.basename(scriptPath).split('.sql')[0];
-    let started_script = new Date();
+  for await (const  query of reader) {
+    const started_script = new Date();
     await executor.execute(
-      scriptName, queryText, customers, macros, writer, options);
+      query.name,
+      query.text,
+      customers,
+      macros,
+      writer,
+      options
+    );
     let elapsed_script = getElapsed(started_script);
     logger.info(
       `Query from ${chalk.gray(
-        scriptPath
+        query.name
       )} processing for all customers completed. Elapsed: ${elapsed_script}`
     );
   }

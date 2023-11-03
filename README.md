@@ -74,7 +74,7 @@ Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
 * `account` - Ads account id, aka customer id, it can contain multiple ids separated with comma, also can be specified in google-ads.yaml as 'customer-id' (as string or list)
-* `input` - input type - where queries are coming from (Python only). Supports the following values:
+* `input` - input type - where queries are coming from. Supports the following values:
   * `file` - (default) local or remote (GCS, S3, Azure, etc.) files
   * `console` - data are read from standard input
 * `output` - output type, Supports the following values:
@@ -134,21 +134,25 @@ Options specific for Sheet writer (*Python version only*):
 
 ####  Query specific options
 
-If your query contains macros, templates, or sql  you need to pass `--macro.`, `--template.`, or `--sql.` CLI flags to to `gaarf`.
-Lear more about each of those in [How to write queries](docs/how-to-write-queries.md) document:
+If your query contains macros, templates, or sql  you need to pass `--macro.`, `--template.`, or `--sql.` CLI flags to `gaarf`.
+Learn more about each of those in [How to write queries](docs/how-to-write-queries.md) document:
 * [Macros](docs/how-to-write-queries.md#macros)
 * [Templates](docs/how-to-write-queries.md#templates)
 * [Sql](docs/how-to-write-queries.md#sql)
 
 
-If you run Python version of `gaarf` you can provide query directly from console:
+By default `gaarf` expect a list of files, but with `--input=console` option you can provide query(-ies) directly from console:
 
 ```
-gaarf 'SELECT campaign.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"' \
-  --account=1234567890 --input=console --output=console
+gaarf "select customer.id from customer" 'SELECT campaign.id FROM campaign WHERE campaign.advertising_channel_type="SEARCH"' \
+  --input=console --output=console
 ```
-`gaarf` will read text from console and returns results back to console.
 
+(*NodeJS version only*) You can use all types of outputs and might want to specify queries names (will be used for output files/tables),
+to do it prepend a query with "some_name:". E.g.:
+```
+gaarf "customer:select customer.id from customer" --input=console --output=bq
+```
 
 For NodeJS version any of arguments can be specified via environment variable which name starts with "GAARF_" (e.g. GAARF_ACCOUNT).
 

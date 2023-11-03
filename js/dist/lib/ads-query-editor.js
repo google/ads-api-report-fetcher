@@ -358,7 +358,7 @@ class AdsQueryEditor {
     }
     getFieldType(type, nameParts) {
         if (!nameParts || !nameParts.length)
-            throw new Error("ArgumentException: namePart should be empty");
+            throw new Error("ArgumentException: namePart is empty");
         if (!type)
             throw new Error("ArgumentException: type was not specified");
         const rootType = type.name;
