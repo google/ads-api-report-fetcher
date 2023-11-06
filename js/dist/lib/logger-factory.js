@@ -26,7 +26,7 @@ const { format } = winston_1.default;
 /** Default log level */
 exports.LOG_LEVEL = argv.loglevel ||
     process.env.LOG_LEVEL ||
-    (process.env.NODE_ENV === "production" ? "info" : "verbose");
+    (process.env.NODE_ENV === "dev" ? "verbose" : "info");
 const colors = {
     error: "red",
     warn: "yellow",
@@ -49,6 +49,7 @@ exports.defaultTransports.push(new winston_1.default.transports.Console({
 }));
 function createConsoleLogger() {
     const logger = winston_1.default.createLogger({
+        silent: exports.LOG_LEVEL === 'off',
         level: exports.LOG_LEVEL,
         format: format.combine(format.errors({ stack: true }), format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })),
         // format: format.combine(

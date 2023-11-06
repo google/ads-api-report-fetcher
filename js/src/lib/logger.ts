@@ -16,8 +16,6 @@
 import { createLogger } from "./logger-factory";
 import winston from "winston";
 
-//export let logger = createLogger();
-
 let logger: winston.Logger | undefined;
 
 export function getLogger() {

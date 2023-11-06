@@ -28,7 +28,7 @@ const { format } = winston;
 export const LOG_LEVEL =
   argv.loglevel ||
   process.env.LOG_LEVEL ||
-  (process.env.NODE_ENV === "production" ? "info" : "verbose");
+  (process.env.NODE_ENV === "dev" ? "verbose" : "info");
 
 const colors = {
   error: "red",
@@ -63,6 +63,7 @@ defaultTransports.push(
 
 export function createConsoleLogger() {
   const logger = winston.createLogger({
+    silent: LOG_LEVEL === 'off',
     level: LOG_LEVEL, // NOTE: we use same log level for all transports
     format: format.combine(
       format.errors({ stack: true }),

@@ -36,7 +36,6 @@ class ConsoleQueryReader {
             let scriptName = "query" + i;
             let match = script.match(/^([\d\w]+)\:/);
             if (match && match.length > 1) {
-                console.log(match);
                 scriptName = match[1];
                 script = script.substring(scriptName.length + 1);
             }

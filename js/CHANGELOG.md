@@ -1,4 +1,8 @@
 # Changelog
+## 2.7 - 2023-1106
+* added 'validate' cli command for validating ads credentials: `gaarf validate --ads-config=/path/to/google-ads.yaml`
+* added silent mode: `--loglevel=off`
+
 ## 2.6 - 2023-11-03
 * support for `--input=console` cli argument allows to supply queries in command file, e.g. `gaarf "select campaign.id from campaign" --input=console`
 

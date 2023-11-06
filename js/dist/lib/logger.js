@@ -17,7 +17,6 @@ exports.getLogger = void 0;
  * limitations under the License.
  */
 const logger_factory_1 = require("./logger-factory");
-//export let logger = createLogger();
 let logger;
 function getLogger() {
     if (!logger) {

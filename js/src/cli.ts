@@ -19,8 +19,8 @@ import findUp from 'find-up';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import _ from 'lodash';
-import yargs from 'yargs'
-import {hideBin} from 'yargs/helpers'
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
 import {GoogleAdsApiClient, GoogleAdsApiConfig, loadAdsConfigFromFile, parseCustomerIds} from './lib/ads-api-client';
 import {AdsQueryExecutor, AdsQueryExecutorOptions, AdsApiVersion} from './lib/ads-query-executor';
@@ -44,6 +44,7 @@ const argv = yargs(hideBin(process.argv))
   .wrap(yargs.terminalWidth())
   .version()
   .alias("v", "version")
+  .command("validate", "Validate Ads configuration")
   .command("$0 <files..>", "Execute ads queries (GAQL)", {})
   .positional("files", {
     array: true,
@@ -81,7 +82,8 @@ const argv = yargs(hideBin(process.argv))
   .option("account", {
     alias: ["customer", "customer-id", "customer_id"],
     type: "string",
-    description: "Google Ads account id (w/o dashes), a.k.a customer id or multiple accounts separeted with comma",
+    description:
+      "Google Ads account id (w/o dashes), a.k.a customer id or multiple accounts separeted with comma",
   })
   .option("customer-ids-query", {
     alias: ["customer_ids_query"],
@@ -102,7 +104,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("input", {
     choices: ["console", "file"],
-    description: "Different types of input besides the default file input"
+    description: "Different types of input besides the default file input",
   })
   .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
@@ -111,7 +113,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("loglevel", {
     alias: ["log-level", "ll", "log_level"],
-    choises: ["debug", "verbose", "info", "warn", "error"],
+    choises: ["off", "debug", "verbose", "info", "warn", "error"],
     description:
       "Logging level. By default - 'info', for output=console - 'warn'",
   })
@@ -129,7 +131,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("parallel-threshold", {
     type: "number",
-    description: "The maximum number of parallel queries"
+    description: "The maximum number of parallel queries",
   })
   .option("csv.destination-folder", {
     type: "string",
@@ -141,7 +143,7 @@ const argv = yargs(hideBin(process.argv))
     description: "Arrays separator symbol",
   })
   .option("csv.file-per-customer", {
-    type: "boolean"
+    type: "boolean",
   })
   .option("console.transpose", {
     choices: ["auto", "never", "always"],
@@ -349,8 +351,10 @@ async function main() {
     adsConfig = await loadAdsConfig('google-ads.yaml');
   }
   if (!adsConfig) {
-    console.log(chalk.red(
-        `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
+    if (argv.loglevel !== 'off') {
+      console.log(chalk.red(
+          `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
+    }
     process.exit(-1);
   }
 
@@ -369,7 +373,9 @@ async function main() {
   let customerIds = parseCustomerIds(argv.account, adsConfig);
 
   if (!customerIds || customerIds.length === 0) {
-    console.log(chalk.red(`No customer id/ids were provided. Exiting`));
+    if (argv.loglevel !== "off") {
+      console.log(chalk.red(`No customer id/ids were provided. Exiting`));
+    }
     process.exit(-1);
   }
   if (
@@ -383,6 +389,21 @@ async function main() {
   let client = new GoogleAdsApiClient(adsConfig);
   let executor = new AdsQueryExecutor(client);
 
+  if (argv._ && argv._[0] === "validate") {
+    try {
+      await client.getCustomerIds(customerIds);
+      if (argv.loglevel !== "off") {
+        console.log(chalk.green("Ads configuration has been validated"));
+      }
+      process.exit(0);
+    } catch (e) {
+      if (argv.loglevel !== "off") {
+        console.log("Validation of ads config has failed:");
+        console.log(chalk.red(e));
+      }
+      process.exit(-1);
+    }
+  }
   // NOTE: a note regarding the 'files' argument
   // normaly on *nix OSes (at least in bash and zsh) passing an argument
   // with mask like *.sql will expand it to a list of files (see
@@ -394,8 +415,10 @@ async function main() {
   // from outside zsh/bash) then we have to handle items in `files` argument and
   // expand them using glob rules
   if (!argv.files || !argv.files.length) {
-    console.log(chalk.redBright(
+    if (argv.loglevel !== "off") {
+      console.log(chalk.redBright(
         `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
+    }
     process.exit(-1);
   }
 
@@ -444,7 +467,9 @@ async function main() {
     }
   }
   if (customers.length === 0) {
-    console.log(chalk.redBright(`No customers found for processing`));
+    if (argv.loglevel !== "off") {
+      console.log(chalk.redBright(`No customers found for processing`));
+    }
     process.exit(-1);
   }
   logger.info(`Customers to process (${customers.length}):`);
@@ -487,8 +512,10 @@ async function loadAdsConfig(configFilepath: string) {
   try {
     return loadAdsConfigFromFile(configFilepath);
   } catch (e) {
-    console.log(chalk.red(
+    if (argv.loglevel !== "off") {
+      console.log(chalk.red(
         `Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+    }
     process.exit(-1);
   }
 }

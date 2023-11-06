@@ -41,6 +41,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .wrap(yargs_1.default.terminalWidth())
     .version()
     .alias("v", "version")
+    .command("validate", "Validate Ads configuration")
     .command("$0 <files..>", "Execute ads queries (GAQL)", {})
     .positional("files", {
     array: true,
@@ -98,7 +99,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("input", {
     choices: ["console", "file"],
-    description: "Different types of input besides the default file input"
+    description: "Different types of input besides the default file input",
 })
     .option("output", {
     choices: ["csv", "bq", "bigquery", "console"],
@@ -107,7 +108,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("loglevel", {
     alias: ["log-level", "ll", "log_level"],
-    choises: ["debug", "verbose", "info", "warn", "error"],
+    choises: ["off", "debug", "verbose", "info", "warn", "error"],
     description: "Logging level. By default - 'info', for output=console - 'warn'",
 })
     // TODO: support parallel query execution (to catch up with Python)
@@ -123,7 +124,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("parallel-threshold", {
     type: "number",
-    description: "The maximum number of parallel queries"
+    description: "The maximum number of parallel queries",
 })
     .option("csv.destination-folder", {
     type: "string",
@@ -135,7 +136,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     description: "Arrays separator symbol",
 })
     .option("csv.file-per-customer", {
-    type: "boolean"
+    type: "boolean",
 })
     .option("console.transpose", {
     choices: ["auto", "never", "always"],
@@ -306,7 +307,9 @@ async function main() {
         adsConfig = await loadAdsConfig('google-ads.yaml');
     }
     if (!adsConfig) {
-        console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
+        if (argv.loglevel !== 'off') {
+            console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
+        }
         process.exit(-1);
     }
     logger.verbose('Using ads config:');
@@ -316,7 +319,9 @@ async function main() {
     }), null, 2));
     let customerIds = (0, ads_api_client_1.parseCustomerIds)(argv.account, adsConfig);
     if (!customerIds || customerIds.length === 0) {
-        console.log(chalk_1.default.red(`No customer id/ids were provided. Exiting`));
+        if (argv.loglevel !== "off") {
+            console.log(chalk_1.default.red(`No customer id/ids were provided. Exiting`));
+        }
         process.exit(-1);
     }
     if (!adsConfig.login_customer_id &&
@@ -326,6 +331,22 @@ async function main() {
     }
     let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig);
     let executor = new ads_query_executor_1.AdsQueryExecutor(client);
+    if (argv._ && argv._[0] === "validate") {
+        try {
+            await client.getCustomerIds(customerIds);
+            if (argv.loglevel !== "off") {
+                console.log(chalk_1.default.green("Ads configuration has been validated"));
+            }
+            process.exit(0);
+        }
+        catch (e) {
+            if (argv.loglevel !== "off") {
+                console.log("Validation of ads config has failed:");
+                console.log(chalk_1.default.red(e));
+            }
+            process.exit(-1);
+        }
+    }
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
     // with mask like *.sql will expand it to a list of files (see
@@ -337,7 +358,9 @@ async function main() {
     // from outside zsh/bash) then we have to handle items in `files` argument and
     // expand them using glob rules
     if (!argv.files || !argv.files.length) {
-        console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
+        if (argv.loglevel !== "off") {
+            console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
+        }
         process.exit(-1);
     }
     if (argv.output === 'console') {
@@ -381,7 +404,9 @@ async function main() {
         }
     }
     if (customers.length === 0) {
-        console.log(chalk_1.default.redBright(`No customers found for processing`));
+        if (argv.loglevel !== "off") {
+            console.log(chalk_1.default.redBright(`No customers found for processing`));
+        }
         process.exit(-1);
     }
     logger.info(`Customers to process (${customers.length}):`);
@@ -410,7 +435,9 @@ async function loadAdsConfig(configFilepath) {
         return (0, ads_api_client_1.loadAdsConfigFromFile)(configFilepath);
     }
     catch (e) {
-        console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+        if (argv.loglevel !== "off") {
+            console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+        }
         process.exit(-1);
     }
 }
