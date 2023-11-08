@@ -71,7 +71,7 @@ function execute_deploy() {
   gcloud functions deploy $deployable_function \
       --trigger-http \
       --entry-point=$entry_point \
-      --runtime=nodejs16 \
+      --runtime=nodejs18 \
       --timeout=3600s \
       --memory=$memory \
       --region=$REGION \
