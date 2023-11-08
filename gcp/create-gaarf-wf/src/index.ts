@@ -78,7 +78,12 @@ function execSync(cmd: string, options?: CommonOptions): string {
 function exec_cmd(
   cmd: string,
   spinner?: clui.Spinner | undefined | null,
-  options?: {realtime?: boolean; silent?: boolean; keep_output?: boolean}
+  options?: {
+    realtime?: boolean;
+    silent?: boolean;
+    keep_output?: boolean;
+    cwd?: string;
+  }
 ): Promise<{code: number; stderr: string; stdout: string}> {
   options = options || {};
   if (spinner && options.realtime === undefined) {
@@ -99,6 +104,7 @@ function exec_cmd(
     shell: true,
     // inherit stdin, and wrap stdout/stderr
     stdio: ['inherit', 'pipe', 'pipe'],
+    cwd: options.cwd,
   });
   return new Promise(resolve => {
     let stderr = '';
@@ -822,6 +828,31 @@ async function init() {
     execSync('git pull --ff', {cwd: path.join(cwd, gaarf_folder)});
   }
 
+  // call the gaarf cli tool from the cloned repo to validate the ads credentials
+  if (
+    fs.existsSync(path_to_googleads_config) &&
+    !answers.disable_ads_validation
+  ) {
+    await exec_cmd(
+      'npm install --prod',
+      new clui.Spinner('Installing dependencies...'),
+      {
+        cwd: `./${gaarf_folder}/js`,
+      }
+    );
+    const res = await exec_cmd(
+      `./gaarf validate --ads-config=../../${path_to_googleads_config}`,
+      new clui.Spinner(
+        `Validating Ads credentials from ${path_to_googleads_config}...`
+      ),
+      {cwd: `./${gaarf_folder}/js`}
+    );
+    if (res.code !== 0 && !ignore_errors) {
+      console.log(chalk.red(res.stderr || res.stdout));
+      process.exit(res.code);
+    }
+  }
+
   // create a bucket
   const res = await exec_cmd(
     `gsutil mb -b on gs://${gcs_bucket}`,
@@ -1051,11 +1082,9 @@ fi
     });
     if (res.code !== 0 && !ignore_errors) {
       console.log(
-        chalk.red(
-          'Queries deployment (deploy-queries.sh) failed, breaking'
-        )          
+        chalk.red('Queries deployment (deploy-queries.sh) failed, breaking')
       );
-      process.exit(res.code);      
+      process.exit(res.code);
     }
     progress.scripts_deployed = true;
   } else {
@@ -1086,11 +1115,9 @@ fi
     );
     if (res.code !== 0 && !ignore_errors) {
       console.log(
-        chalk.red(
-          'Cloud components deployment (deploy-wf.sh) failed, breaking'
-        )          
+        chalk.red('Cloud components deployment (deploy-wf.sh) failed, breaking')
       );
-      process.exit(res.code);      
+      process.exit(res.code);
     }
     progress.wf_created = true;
   } else {
@@ -1196,13 +1223,10 @@ gcloud scheduler jobs create http $JOB_NAME \\
       );
       if (res.code !== 0 && !ignore_errors) {
         console.log(
-          chalk.red(
-            'Starting the Scheduler Job has failed, breaking'
-          )          
+          chalk.red('Starting the Scheduler Job has failed, breaking')
         );
-        process.exit(res.code);      
+        process.exit(res.code);
       }
-
     }
   }
   if (!answers3.run_job) {
@@ -1219,14 +1243,14 @@ gcloud scheduler jobs create http $JOB_NAME \\
       answers
     );
     if (answers_wf.run_wf) {
-      const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, {realtime: true});
+      const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, {
+        realtime: true,
+      });
       if (res.code !== 0 && !ignore_errors) {
         console.log(
-          chalk.red(
-            'Running workflow (run-wf.sh) has failed, breaking'
-          )          
+          chalk.red('Running workflow (run-wf.sh) has failed, breaking')
         );
-        process.exit(res.code);      
+        process.exit(res.code);
       }
     }
   }

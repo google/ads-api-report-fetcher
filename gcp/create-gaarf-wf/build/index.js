@@ -89,6 +89,7 @@ function exec_cmd(cmd, spinner, options) {
         shell: true,
         // inherit stdin, and wrap stdout/stderr
         stdio: ['inherit', 'pipe', 'pipe'],
+        cwd: options.cwd,
     });
     return new Promise(resolve => {
         var _a, _b;
@@ -317,7 +318,7 @@ function get_macro_values(folder_path, answers, prefix) {
                 chalk.gray('you can use constants, :YYYYMMDD-N values (where N is a number) and expressions (${..})') +
                 '\n' +
                 chalk.yellow('Tip: ') +
-                chalk.gray('For macros for dataset names make sure that you meet BigQuery requirements - use letters, numbers and underscores'));
+                chalk.gray('For macros with dataset names make sure that you meet BigQuery requirements - use letters, numbers and underscores'));
         }
         answers[prefix] = answers[prefix] || {};
         return prompt(options, answers[prefix]);
@@ -660,6 +661,18 @@ async function init() {
         }
         execSync('git pull --ff', { cwd: path.join(cwd, gaarf_folder) });
     }
+    // call the gaarf cli tool from the cloned repo to validate the ads credentials
+    if (fs.existsSync(path_to_googleads_config) &&
+        !answers.disable_ads_validation) {
+        await exec_cmd('npm install --prod', new clui.Spinner('Installing dependencies...'), {
+            cwd: `./${gaarf_folder}/js`,
+        });
+        const res = await exec_cmd(`./gaarf validate --ads-config=../../${path_to_googleads_config}`, new clui.Spinner(`Validating Ads credentials from ${path_to_googleads_config}...`), { cwd: `./${gaarf_folder}/js` });
+        if (res.code !== 0 && !ignore_errors) {
+            console.log(chalk.red(res.stderr || res.stdout));
+            process.exit(res.code);
+        }
+    }
     // create a bucket
     const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
     if (!res.stderr.includes(`ServiceException: 409 A Cloud Storage bucket named '${gcs_bucket}' already exists`)) {
@@ -678,7 +691,7 @@ async function init() {
         deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
     }
     // Note that we deploy queries to hard-coded paths
-    deploy_shell_script('deploy-queries.sh', `# Deploy Ads and BQ queries from local folders to Goggle Cloud Storage.
+    deploy_shell_script('deploy-queries.sh', `# Deploy Ads and BQ queries from local folders to Google Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
 
 gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
@@ -932,7 +945,9 @@ gcloud scheduler jobs create http $JOB_NAME \\
             },
         ], answers);
         if (answers_wf.run_wf) {
-            const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, { realtime: true });
+            const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, {
+                realtime: true,
+            });
             if (res.code !== 0 && !ignore_errors) {
                 console.log(chalk.red('Running workflow (run-wf.sh) has failed, breaking'));
                 process.exit(res.code);
