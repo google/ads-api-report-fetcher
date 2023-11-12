@@ -35,7 +35,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "google-ads>=22.1.0", "google-cloud-bigquery", "pandas>=1.3.4",
-        "pyarrow>=6.0.1", "smart_open[all]", "jinja2", "python-dateutil",
+        "pyarrow>=14.0.1", "smart_open[all]", "jinja2", "python-dateutil",
         "rich", "tenacity"
     ],
     extras_require=EXTRAS_REQUIRE,
