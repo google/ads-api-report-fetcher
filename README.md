@@ -117,6 +117,7 @@ Options specific for BigQuery writer:
 * `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
 * `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2") (*NodeJS version only*)
 * `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
+* `bq.key-file-path` - a SA key file path for BigQuery authentication (by default application default credentials will be used) (*NodeJS version only*)
 
 Options specific for Console writer (*NodeJS version only*):
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:

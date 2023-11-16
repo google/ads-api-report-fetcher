@@ -387,9 +387,6 @@ export class BigQueryWriter implements IResultWriter {
       Create a view to union all customer tables (if not disabled excplicitly):
       CREATE OR REPLACE VIEW `dataset.resource` AS
         SELECT * FROM `dataset.resource_*`;
-
-      Unfortunately BQ always creates a based empty table for templated
-      (customer) table, so we have to drop it first.
       */
       const table_fq = await this.bqExecutor.createUnifiedView(
         this.datasetId,

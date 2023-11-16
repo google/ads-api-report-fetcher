@@ -80,6 +80,8 @@ class BigQueryExecutor {
             dataset = await (0, bq_common_1.getDataset)(this.bigquery, dataset, this.datasetLocation);
         }
         const datasetId = dataset.id;
+        // Unfortunately BQ always creates a based empty table for templated
+        // (customer) table, so we have to drop it first.
         await dataset.table(tableId).delete({ ignoreNotFound: true });
         const table_fq = `${datasetId}.${tableId}`;
         try {

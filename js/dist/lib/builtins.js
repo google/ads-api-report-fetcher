@@ -8,7 +8,7 @@ class BuiltinQueryProcessor {
     }
     parse(name, query) {
         if (name === "ocid_mapping" || name === "ocid") {
-            let queryNew = "SELECT customer.id, metrics.optimization_score_url FROM campaign LIMIT 1";
+            let queryNew = "SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1";
             let fields = [
                 {
                     name: "customer_id",
@@ -29,7 +29,7 @@ class BuiltinQueryProcessor {
                     },
                 },
             ];
-            let resourceTypeFrom = this.queryEditor.getResource("campaign");
+            let resourceTypeFrom = this.queryEditor.getResource("customer");
             let resourceInfo = {
                 name: "ocid",
                 typeName: resourceTypeFrom.name,
@@ -45,7 +45,7 @@ class BuiltinQueryProcessor {
     async *execute(client, query, customerId) {
         var _a, _b;
         if (query.resource.name === "ocid") {
-            let queryReal = "SELECT customer.id, metrics.optimization_score_url FROM campaign LIMIT 1";
+            let queryReal = "SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1";
             // we need to parse result so we wrap generator
             let stream = client.executeQueryStream(queryReal, customerId);
             for await (const row of stream) {

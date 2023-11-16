@@ -201,6 +201,10 @@ const argv = yargs(hideBin(process.argv))
     type: "string",
     description: "Arrays separator symbol (for array-handling=strings)",
   })
+  .option("bq.key-file-path", {
+    type: "string",
+    description: "A path to a service account key file for BigQuery authentication",
+  })
   .option("skip-constants", {
     type: "boolean",
     description: "Do not execute scripts for constant resources",
@@ -221,6 +225,7 @@ const argv = yargs(hideBin(process.argv))
       "bq.insert-method",
       "bq.array-handling",
       "bq.array-separator",
+      "bq.key-file-path",
     ],
     "BigQuery writer options:"
   )
@@ -308,6 +313,7 @@ function getWriter(): IResultWriter {
         : BigQueryInsertMethod.loadTable;
     opts.arrayHandling = bq_opts["array-handling"];
     opts.arraySeparator = bq_opts["array-separator"];
+    opts.keyFilePath = bq_opts["key-file-path"]
     logger.debug("BigQueryWriterOptions:");
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
