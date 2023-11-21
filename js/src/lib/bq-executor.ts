@@ -121,10 +121,12 @@ export class BigQueryExecutor {
       // here there's a potential problem. If wildcard expression (resource_*)
       // catches another view the DML-query will fail with error:
       // 'Views cannot be queried through prefix. First view projectid:datasetid.viewname.'
-
-      const query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\` WHERE _TABLE_SUFFIX in (${customers
-        .map((s) => "'" + s + "'")
-        .join(",")})`;
+      let query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\``;
+      if (customers && customers.length) {
+        query += ` WHERE _TABLE_SUFFIX in (${customers
+          .map((s) => "'" + s + "'")
+          .join(",")})`;
+      }
       this.logger.debug(query);
       await dataset!.query({
         query: query,
