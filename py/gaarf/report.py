@@ -11,9 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
 
-from typing import Any, Sequence, Optional, Union
-from collections import abc
+from typing import Any, Literal
+from collections import defaultdict
+from collections.abc import MutableSequence, Sequence
+import itertools
 import operator
 import pandas as pd
 
@@ -22,19 +25,62 @@ from .query_editor import QuerySpecification
 
 class GaarfReport:
 
-    def __init__(self,
-                 results: Sequence[Any],
-                 column_names: Sequence[str],
-                 is_fake: bool = False,
-                 query_specification: Optional[QuerySpecification] = None) -> None:
+    def __init__(
+            self,
+            results: Sequence,
+            column_names: Sequence[str],
+            is_fake: bool = False,
+            query_specification: QuerySpecification | None = None) -> None:
         self.results = results
         self.column_names = column_names
         self.multi_column_report = len(column_names) > 1
         self.is_fake = is_fake
         self.query_specification = query_specification
 
-    def to_list(self) -> Sequence[Any]:
-        return self.results
+    def to_list(self,
+                flatten: bool = False,
+                distinct: bool = False) -> Sequence:
+        results = []
+        if flatten:
+            results = list(itertools.chain.from_iterable(self.results))
+            if distinct:
+                results = list(set(results))
+
+        return results or self.results
+
+    def to_dict(
+            self,
+            key_column: str,
+            value_column: str | None = None,
+            value_column_output: Literal["scalar", "list"] = "list") -> dict:
+        if key_column not in self.column_names:
+            raise GaarfReportException(
+                f"column name {key_column} not found in the report")
+        if value_column and value_column not in self.column_names:
+            raise GaarfReportException(
+                f"column name {value_column} not found in the report")
+        if value_column_output == "list":
+            output: dict = defaultdict(list)
+        else:
+            output = {}
+        key_index = self.column_names.index(key_column)
+        key_generator = list(zip(*self.results))[key_index]
+        if value_column:
+            value_index = self.column_names.index(value_column)
+            value_generator = list(zip(*self.results))[value_index]
+        else:
+            value_generator = self.results
+        for (key, value) in zip(key_generator, value_generator):
+            if not value_column:
+                value = dict(zip(self.column_names, value))
+            if value_column_output == "list":
+                output[key].append(value)
+            else:
+                if key in output:
+                    raise GaarfReportException(
+                        f"Non unique values found for key_column: {key}")
+                output[key] = value
+        return output
 
     def to_pandas(self) -> pd.DataFrame:
         return pd.DataFrame(data=self.results, columns=self.column_names)
@@ -48,7 +94,7 @@ class GaarfReport:
         for result in self.results:
             if self.multi_column_report:
                 yield GaarfRow(result, self.column_names)
-            elif isinstance(result, abc.Sequence):
+            elif isinstance(result, Sequence):
                 yield result[0]
             else:
                 yield result
@@ -61,7 +107,7 @@ class GaarfReport:
 
     def __getitem__(self, key):
         cls = type(self)
-        if isinstance(key, abc.MutableSequence):
+        if isinstance(key, MutableSequence):
             if set(key).issubset(set(self.column_names)):
                 indices = []
                 for k in key:
@@ -79,7 +125,7 @@ class GaarfReport:
                 if len(non_existing_keys) > 1:
                     message = f"Columns '{', '.join(list(non_existing_keys))}' cannot be found in the report"
                 message = f"Column '{non_existing_keys.pop()}' cannot be found in the report"
-                raise TypeError(message)
+                raise GaarfReportException(message)
         else:
             if key in self.column_names:
                 index = self.column_names.index(key)
@@ -103,9 +149,11 @@ class GaarfReport:
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
-            raise TypeError("Add operation is supported only for GaarfReport")
+            raise GaarfReportException(
+                "Add operation is supported only for GaarfReport")
         if self.column_names != other.column_names:
-            raise ValueError("column_names should be the same in GaarfReport")
+            raise GaarfReportException(
+                "column_names should be the same in GaarfReport")
         return GaarfReport(results=self.results + other.results,
                            column_names=self.column_names)
 
@@ -117,7 +165,7 @@ class GaarfReport:
 
 class GaarfRow:
 
-    def __init__(self, data: Sequence[Union[int, float, str]],
+    def __init__(self, data: Sequence[int | float | str],
                  column_names: Sequence[str]):
         super().__setattr__("data", data)
         super().__setattr__("column_names", column_names)
@@ -127,17 +175,17 @@ class GaarfRow:
             return self.data[self.column_names.index(element)]
         raise AttributeError(f"cannot find {element} element!")
 
-    def __getitem__(self, element: Union[str, int]) -> Any:
+    def __getitem__(self, element: str | int) -> Any:
         if isinstance(element, int) and element < len(self.column_names):
             return self.data[element]
         if isinstance(element, str):
             return self.__getattr__(element)
-        raise IndexError(f"cannot find {element} element!")
+        raise GaarfReportException(f"cannot find {element} element!")
 
-    def __setattr__(self, name: str, value: Union[str, int]) -> None:
+    def __setattr__(self, name: str, value: str | int) -> None:
         self.__setitem__(name, value)
 
-    def __setitem__(self, name: str, value: Union[str, int]) -> None:
+    def __setitem__(self, name: str, value: str | int) -> None:
         if name in self.column_names:
             if len(self.column_names) == len(self.data):
                 self.data[self.column_names.index(name)] = value
@@ -160,3 +208,7 @@ class GaarfRow:
     def __repr__(self):
         dict_data = {x[1]: x[0] for x in zip(self.data, self.column_names)}
         return f"GaarfRow(\n{dict_data}\n)"
+
+
+class GaarfReportException(Exception):
+    ...
