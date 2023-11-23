@@ -22,8 +22,10 @@ import {
 } from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import {getAdsConfig, getProject} from './utils';
+import {getAdsConfig, getProject, splitIntoChunks} from './utils';
 import {createLogger, ILogger} from './logger';
+
+const DEFAULT_BATCH_SIZE = 1_000;
 
 async function main_getcids_unsafe(
   req: express.Request,
@@ -32,6 +34,7 @@ async function main_getcids_unsafe(
 ) {
   // prepare Ads API parameters
   const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {refresh_token, ...ads_config_wo_token} = adsConfig;
   await logger.info('Ads API config', ads_config_wo_token);
 
@@ -65,39 +68,46 @@ async function main_getcids_unsafe(
       customer_ids_query
     );
   }
-  if (customerIds.length) {
-    customerIds.sort();
+  customerIds = customerIds || [];
+  customerIds.sort();
 
-    // extract a subset of CIDs if offset/batch are specified
-    let offset = 0;
-    if (req.query.customer_ids_offset) {
-      offset = parseInt(<string>req.query.customer_ids_offset);
-      if (isNaN(offset)) {
-        throw new Error('customer_ids_offset should be a number');
-      }
+  // now we have a final list of accounts (customerIds)
+  let batchSize = DEFAULT_BATCH_SIZE;
+  if (req.query.customer_ids_batchsize) {
+    batchSize = parseInt(<string>req.query.customer_ids_batchsize);
+    if (isNaN(batchSize)) {
+      throw new Error('customer_ids_batchsize should be a number');
     }
-    let batchsize = 0;
-    if (req.query.customer_ids_batchsize) {
-      batchsize = parseInt(<string>req.query.customer_ids_batchsize);
-      if (isNaN(offset)) {
-        throw new Error('customer_ids_batchsize should be a number');
-      }
+  }
+  if (req.query.customer_ids_offset) {
+    // extract a subset of CIDs if offset is specified
+    const offset = parseInt(<string>req.query.customer_ids_offset);
+    if (isNaN(offset)) {
+      throw new Error('customer_ids_offset should be a number');
     }
     const cids_length = customerIds.length;
-    if (batchsize > 0) {
-      customerIds = customerIds.slice(offset, offset + batchsize);
-    } else if (offset > 0) {
-      customerIds = customerIds.slice(offset);
-    }
+    customerIds = customerIds.slice(offset, offset + batchSize);
     if (cids_length !== customerIds.length) {
       await logger.info(
-        `Reshaped cids array from ${cids_length} to ${customerIds.length} items`
+        `Reshaped customer ids array from ${cids_length} to ${customerIds.length} items`
       );
     }
   }
 
-  res.json(customerIds);
-  res.end();
+  if (req.query.flatten) {
+    res.json(customerIds);
+    res.end();
+  } else {
+    // otherwise, by default we'll return CIDs grouped in batches:
+    //    [1, 2, ..., 10_000] => [ [1, 2, ..., 5_000], [5_001, 10_000], ]
+    const customerIdsBatched = splitIntoChunks(customerIds, batchSize);
+    res.json({
+      batchCount: customerIdsBatched.length,
+      batchSize: batchSize,
+      accounts: customerIdsBatched,
+    });
+    res.end();
+  }
 }
 
 export const main_getcids: HttpFunction = async (

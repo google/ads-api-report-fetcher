@@ -7,3 +7,4 @@ export declare function getScript(req: express.Request, logger: ILogger): Promis
 }>;
 export declare function getAdsConfig(req: express.Request): Promise<GoogleAdsApiConfig>;
 export declare function getProject(): Promise<string>;
+export declare function splitIntoChunks(array: Array<any>, max: number): any[][];

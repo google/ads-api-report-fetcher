@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
+exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
 const google_auth_library_1 = require("google-auth-library");
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const node_path_1 = __importDefault(require("node:path"));
@@ -81,4 +81,12 @@ async function getProject() {
     return projectId;
 }
 exports.getProject = getProject;
+function splitIntoChunks(array, max) {
+    const result = [];
+    for (let i = 0; i < array.length; i += max) {
+        result.push(array.slice(i, i + max));
+    }
+    return result;
+}
+exports.splitIntoChunks = splitIntoChunks;
 //# sourceMappingURL=utils.js.map

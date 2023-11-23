@@ -34,4 +34,7 @@ while :; do
   shift
 done
 
-gcloud workflows deploy $WORKFLOW_NAME --source=workflows.yaml --location=$REGION
+gcloud workflows deploy ${WORKFLOW_NAME}-ads --source=workflow-ads.yaml --location=$REGION
+
+gcloud workflows deploy ${WORKFLOW_NAME} --source=workflow.yaml --location=$REGION
+

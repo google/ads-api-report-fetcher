@@ -89,3 +89,11 @@ export async function getProject() {
   const projectId = await auth.getProjectId();
   return projectId;
 }
+
+export function splitIntoChunks(array: Array<any>, max: number) {
+  const result = [];
+  for (let i = 0; i < array.length; i += max) {
+    result.push(array.slice(i, i + max));
+  }
+  return result;
+}
