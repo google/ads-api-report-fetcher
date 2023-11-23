@@ -553,6 +553,15 @@ function get_answers() {
     }
     return answers;
 }
+function getMultiRegion(region) {
+    if (region.includes('us'))
+        return 'us';
+    if (region.includes('europe'))
+        return 'eu';
+    if (region.includes('asia'))
+        return 'asia';
+    return region;
+}
 async function init() {
     const answers = get_answers();
     const status_log = `Running create-gaarf-wf in ${cwd}`;
@@ -673,11 +682,13 @@ async function init() {
             process.exit(res.code);
         }
     }
+    const gcp_region = await get_gcp_regions(answers);
     // create a bucket
-    const res = await exec_cmd(`gsutil mb -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
-    if (!res.stderr.includes(`ServiceException: 409 A Cloud Storage bucket named '${gcs_bucket}' already exists`)) {
+    const res = await exec_cmd(`gsutil mb -l ${getMultiRegion(gcp_region)} -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
+    if (res.code !== 0 &&
+        !res.stderr.includes(`ServiceException: 409 A Cloud Storage bucket named '${gcs_bucket}' already exists`)) {
         console.log(chalk.red(`Could not create a bucket ${gcs_bucket}`));
-        console.log(res.stderr);
+        console.log(res.stderr || res.stdout);
     }
     const gcs_base_path = `gs://${gcs_bucket}/${name}`;
     // Create deploy-scripts.sh
@@ -694,16 +705,21 @@ async function init() {
     deploy_shell_script('deploy-queries.sh', `# Deploy Ads and BQ queries from local folders to Google Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
 
-gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
+if [[  -f ${path_to_googleads_config} ]]; then
+  gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
+fi
 ${deploy_custom_query_snippet}
 
-gsutil rm -r $GCS_BASE_PATH/${path_to_ads_queries}
-gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
+gsutil -m rm -r $GCS_BASE_PATH/${path_to_ads_queries}
+if ls ./${path_to_ads_queries}/* 1> /dev/null 2>&1; then
+  gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
+fi
 
-gsutil rm -r $GCS_BASE_PATH/${path_to_bq_queries}
-gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
+gsutil -m rm -r $GCS_BASE_PATH/${path_to_bq_queries}
+if ls ./${path_to_bq_queries}/* 1> /dev/null 2>&1; then
+  gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
+fi
 `);
-    const gcp_region = await get_gcp_regions(answers);
     // Create deploy-wf.sh
     const workflow_name = name + '-wf';
     const function_name = name;
