@@ -92,7 +92,7 @@ runAdsQueries:
             customer_id: ${cid}
             customer_ids_query: ${default(customer_ids_query, "")}
             customer_ids_offset: ${default(customer_ids_offset, "")}
-            customer_ids_batchsize: ${customer_ids_batchsize}
+            customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
           auth:
             type: OIDC
         result: accounts_response
