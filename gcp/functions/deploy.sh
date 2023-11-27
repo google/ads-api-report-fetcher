@@ -44,6 +44,10 @@ while :; do
       shift
       MEMORY=$1
       ;;
+  -mc|--memory-getcids)
+      shift
+      MEMORY_GETCIDS=$1
+      ;;
   --no-retry)
       NO_RETRY=true
       ;;
@@ -131,10 +135,7 @@ function redeploy_cf() {
 
 redeploy_cf $FUNCTION_NAME main $MEMORY
 
-# If you need to increase memory about 2GB use this (gcloud functions deploy fails with memory sizes above 2GB):
-#gcloud run services update $FUNCTION_NAME --region $REGION --cpu 1 --memory=2048Mi --no-cpu-throttling
-
-redeploy_cf $FUNCTION_NAME-getcids main_getcids
+redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS
 
 redeploy_cf $FUNCTION_NAME-bq main_bq
 

@@ -938,23 +938,6 @@ fi
       answers
     )
   ).cf_memory;
-  // NOTE: Cloud Function Gen2 (in contrast to Gen1) don't support arbitrary memory size, for using >1GB you need to increase CPU
-  //       but `gcloud functions` command doesn't support this.
-  //       So have to deploy via `gcloud functions` with small memory and then update via `gcloud run` to update CPU and memory.
-  let deploy_cf_add = '';
-  if (
-    cf_memory === '2048MB' ||
-    cf_memory === '4096MB' ||
-    cf_memory === '8192MB'
-  ) {
-    deploy_cf_add = `
-gcloud run services update ${function_name} --region ${gcp_region} --cpu 1 --memory=${cf_memory.replaceAll(
-      'MB',
-      'Mi'
-    )}
-`; //--no-cpu-throttling (add or not?)
-    cf_memory = '512MB';
-  }
   deploy_shell_script(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflow
@@ -965,7 +948,6 @@ cd ./gcp/workflow
 ./setup.sh --name ${workflow_name} --region ${gcp_region}
 cd ./../functions
 ./setup.sh --name ${function_name} --memory ${cf_memory} --region ${gcp_region}
-${deploy_cf_add}
 `
   );
 
