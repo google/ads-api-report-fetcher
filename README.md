@@ -122,6 +122,7 @@ Options specific for BigQuery writer:
 Options specific for Console writer (*NodeJS version only*):
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:
 `auto` (default) - transpose only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
+* `console.page_size` - maximum rows count to output per each script (aliases: `page-size`, `maxrows` in *NodeJS version only*)
 
 Options specific for SqlAlchemy writer (*Python version only*):
 * `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))

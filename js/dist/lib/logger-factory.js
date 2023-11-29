@@ -24,7 +24,9 @@ const logging_winston_1 = require("@google-cloud/logging-winston");
 const argv = require("yargs/yargs")(process.argv.slice(2)).argv;
 const { format } = winston_1.default;
 /** Default log level */
-exports.LOG_LEVEL = argv.loglevel ||
+// NOTE: as we use argv directly (before parsing) we have to manually check all aliases for the option log-level
+exports.LOG_LEVEL = argv.logLevel ||
+    argv.loglevel || argv.ll || argv.log_level ||
     process.env.LOG_LEVEL ||
     (process.env.NODE_ENV === "dev" ? "verbose" : "info");
 const colors = {

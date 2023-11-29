@@ -1,5 +1,12 @@
 # Changelog
-## 2.7 - 2023-1106
+## 2.8 - 2023-11-29
+* files with glob wildcards are now supported (`*` and `**`), so gaarf can process files by mask without relying on shell's wildcard expansion
+* Fix: console-writer: fixed hanging in some cases, prettified output for arrays
+* Fix: cli: aliases for `loglevel` argument weren't handled correctly for initializing logger
+* ads-api-client: added additional error codes from grpc to handle for retrying (RESOURCE_EXHAUSTED, DEADLINE_EXCEEDED)
+* console-writer: by default it limits output to 1000 rows
+
+## 2.7 - 2023-11-06
 * added 'validate' cli command for validating ads credentials: `gaarf validate --ads-config=/path/to/google-ads.yaml`
 * added silent mode: `--loglevel=off`
 

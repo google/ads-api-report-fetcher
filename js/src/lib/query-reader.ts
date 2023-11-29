@@ -3,13 +3,24 @@ import chalk from "chalk";
 import { getFileContent } from "./file-utils";
 import { IQueryReader, InputQuery } from "./types";
 import { getLogger } from "./logger";
+import { globSync } from "glob";
 
 export class FileQueryReader implements IQueryReader {
   scripts: string[];
   logger;
 
   constructor(scripts: string[] | undefined) {
-    this.scripts = scripts || [];
+    this.scripts = [];
+    if (scripts && scripts.length) {
+      for (const script of scripts) {
+        if (script.includes("*") || script.includes("**")) {
+          const expanded_files = globSync(script);
+          this.scripts.push(...expanded_files);
+        } else {
+          this.scripts.push(script);
+        }
+      }
+    }
     this.logger = getLogger();
   }
 

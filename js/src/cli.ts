@@ -151,9 +151,10 @@ const argv = yargs(hideBin(process.argv))
     description:
       "Transposing tables: auto - transponse only if table does not fit in terminal window (default), always - transpose all the time, never - never transpose",
   })
-  .option("console.page_size", {
+  .option("console.page-size", {
     type: "number",
-    description: "Maximum row count to output per each script",
+    alias: ['maxrows', 'page_size'],
+    description: "Maximum rows count to output per each script",
   })
   .option("bq", { hidden: true })
   .option("csv", { hidden: true })

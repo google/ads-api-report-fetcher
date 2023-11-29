@@ -137,9 +137,12 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     } else {
       // it could be an error from gRPC
       // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
+      // see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
       if (
-        (<any>error).code === 14 ||
-        (<any>error).details === "The service is currently unavailable"
+        (<any>error).code === 14 /* UNAVAILABLE */ ||
+        (<any>error).details === "The service is currently unavailable" ||
+        (<any>error).code === 8 /* RESOURCE_EXHAUSTED */ ||
+        (<any>error).code === 4 /* DEADLINE_EXCEEDED */
       ) {
         (<any>error).retryable = true;
       }

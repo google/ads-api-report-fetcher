@@ -14,9 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConsoleWriter = exports.TransposeModes = void 0;
 const table_1 = require("table");
+const lodash_1 = __importDefault(require("lodash"));
 var TransposeModes;
 (function (TransposeModes) {
     TransposeModes["auto"] = "auto";
@@ -29,7 +33,8 @@ class ConsoleWriter {
         options = options || {};
         this.transpose =
             TransposeModes[options.transpose || "auto"];
-        this.pageSize = options.page_size || 0;
+        this.pageSize = options.pageSize || ConsoleWriter.DEFAULT_MAX_ROWS;
+        this.hasMoreRows = false;
     }
     beginScript(scriptName, query) {
         this.scriptName = scriptName;
@@ -43,8 +48,10 @@ class ConsoleWriter {
     }
     addRow(customerId, parsedRow, rawRow) {
         if (this.pageSize > 0 &&
-            this.rowsByCustomer[customerId].length >= this.pageSize)
+            this.rowsByCustomer[customerId].length >= this.pageSize) {
+            this.hasMoreRows = true;
             return;
+        }
         this.rowsByCustomer[customerId].push(parsedRow);
     }
     endCustomer(customerId) {
@@ -54,12 +61,20 @@ class ConsoleWriter {
             truncate: 200,
         };
         let rows = this.rowsByCustomer[customerId];
-        console.log(`${this.scriptName} (${customerId})`);
+        if (!rows || !rows.length) {
+            this.rowsByCustomer[customerId] = [];
+            this.hasMoreRows = false;
+            return;
+        }
+        console.log(`${this.scriptName} (${customerId}), ${this.hasMoreRows ? 'first ' : ''}${rows.length} rows`);
         rows = rows.map((row) => {
-            return row.map((col) => {
-                if (col === undefined)
+            return row.map((val) => {
+                if (val === undefined)
                     return "";
-                return col;
+                if (lodash_1.default.isArray(val) && val.length > 0 && (lodash_1.default.max(val.map(v => v ? v.length : 0)) > 20)) {
+                    return val.map(i => i ? i.toString() + '\n' : '').join("");
+                }
+                return val;
             });
         });
         // original table plus a row (first) with headers (columns names)
@@ -112,6 +127,7 @@ class ConsoleWriter {
         }
         console.log(data_formatted);
         this.rowsByCustomer[customerId] = [];
+        this.hasMoreRows = false;
     }
     processTransposedTable(data_trans, headers) {
         let tableConfig = {
@@ -141,37 +157,42 @@ class ConsoleWriter {
             let column_count = first_line.length;
             let row_count = data_trans.length;
             // note: we're starting from 1 because there's always a header columns coming first
-            for (let i = 1; i < column_count; i++) {
-                // slice matrix up to i-th column
-                let submatrix = data_trans
-                    .slice(0, row_count + 1)
-                    .map((row) => row.slice(0, i + 1));
-                let submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
-                let first_line = submatrix_formatted.slice(0, submatrix_formatted.indexOf("\n"));
-                if (i === column_count - 1) {
-                    // it's the last column, and the matrix being dumped fitted into the window
-                    done = true;
-                }
-                else if (first_line.length > process.stdout.columns) {
-                    // we have to break at this column - dump sub-matrix from 0 to (i-1)th column
-                    submatrix = data_trans
+            if (column_count > 1) {
+                // if we have only 2 columns (headers+data) there's no way to shrink the matrix
+                for (let i = 1; i < column_count; i++) {
+                    // slice matrix up to i-th column
+                    let submatrix = data_trans
                         .slice(0, row_count + 1)
-                        .map((row) => row.slice(0, i));
-                    submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
-                    if (output)
-                        output += "\n";
-                    output = output + "#" + part + "\n" + submatrix_formatted;
-                    part++;
-                    // now remove the columns that have been dumped,
-                    data_trans = data_trans
-                        .slice(0, row_count + 1)
-                        .map((row) => row.slice(i, column_count + 1));
-                    // append headers at matrix first column (for each row)
-                    data_trans[0].splice(0, 0, "index");
-                    for (let j = 0; j < headers.length; j++) {
-                        data_trans[j + 1].splice(0, 0, headers[j]);
+                        .map((row) => row.slice(0, i + 1));
+                    let submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
+                    let first_line = submatrix_formatted.slice(0, submatrix_formatted.indexOf("\n"));
+                    if (first_line.length > process.stdout.columns &&
+                        column_count > 1) {
+                        // currently accumulated matrix has come too long horizontally,
+                        // we have to break at this column - i.e. dump sub-matrix from 0 to previous, (i - 1)th column
+                        submatrix = data_trans
+                            .slice(0, row_count + 1)
+                            .map((row) => row.slice(0, i));
+                        submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
+                        if (output)
+                            output += "\n";
+                        output = output + "#" + part + "\n" + submatrix_formatted;
+                        part++;
+                        // now remove the columns that have been dumped,
+                        data_trans = data_trans
+                            .slice(0, row_count + 1)
+                            .map((row) => row.slice(i, column_count + 1));
+                        // append headers at matrix first column (for each row)
+                        data_trans[0].splice(0, 0, "index");
+                        for (let j = 0; j < headers.length; j++) {
+                            data_trans[j + 1].splice(0, 0, headers[j]);
+                        }
+                        break;
                     }
-                    break;
+                    else if (i === column_count - 1) {
+                        // it's the last column, and the matrix being dumped fitted into the window
+                        done = true;
+                    }
                 }
             }
             if (done || column_count <= 2) {
@@ -185,4 +206,5 @@ class ConsoleWriter {
     }
 }
 exports.ConsoleWriter = ConsoleWriter;
+ConsoleWriter.DEFAULT_MAX_ROWS = 1000;
 //# sourceMappingURL=console-writer.js.map

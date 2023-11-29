@@ -8,9 +8,21 @@ const path_1 = __importDefault(require("path"));
 const chalk_1 = __importDefault(require("chalk"));
 const file_utils_1 = require("./file-utils");
 const logger_1 = require("./logger");
+const glob_1 = require("glob");
 class FileQueryReader {
     constructor(scripts) {
-        this.scripts = scripts || [];
+        this.scripts = [];
+        if (scripts && scripts.length) {
+            for (const script of scripts) {
+                if (script.includes("*") || script.includes("**")) {
+                    const expanded_files = (0, glob_1.globSync)(script);
+                    this.scripts.push(...expanded_files);
+                }
+                else {
+                    this.scripts.push(script);
+                }
+            }
+        }
         this.logger = (0, logger_1.getLogger)();
     }
     async *[Symbol.asyncIterator]() {
