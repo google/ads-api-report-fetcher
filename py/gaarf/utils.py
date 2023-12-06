@@ -24,7 +24,7 @@ from .report import GaarfRow, GaarfReport
 
 
 def get_customer_ids(ads_client: GoogleAdsApiClient,
-                     customer_id: Union[str, MutableSequence[str]],
+                     customer_id: Union[str, MutableSequence],
                      customer_ids_query: str = None) -> Sequence[str]:
     """Gets list of customer_ids from an MCC account.
 

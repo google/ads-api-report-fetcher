@@ -61,7 +61,7 @@ class AdsReportFetcher:
             ] if not isinstance(customer_ids, list) else customer_ids
 
     def expand_mcc(self,
-                   customer_ids: Union[str, MutableSequence[str]],
+                   customer_ids: Union[str, MutableSequence],
                    customer_ids_query: Optional[str] = None) -> List[str]:
         return self._get_customer_ids(customer_ids, customer_ids_query)
 
@@ -269,7 +269,7 @@ class AdsReportFetcher:
 
     def _get_customer_ids(
             self,
-            seed_customer_ids: Union[str, MutableSequence[str]],
+            seed_customer_ids: Union[str, MutableSequence],
             customer_ids_query: Optional[str] = None) -> List[str]:
         """Gets list of customer_ids from an MCC account.
 
@@ -352,7 +352,7 @@ class AdsQueryExecutor:
                      query_specification.query_title, type(writer_client))
 
     def expand_mcc(self,
-                   customer_ids: Union[str, MutableSequence[str]],
+                   customer_ids: Union[str, MutableSequence],
                    customer_ids_query: Optional[str] = None) -> List[str]:
         return self.report_fetcher._get_customer_ids(customer_ids,
                                                      customer_ids_query)
