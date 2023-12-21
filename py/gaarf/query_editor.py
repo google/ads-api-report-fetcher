@@ -261,7 +261,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                 if not isinstance(virtual_field, (int, float)):
                     if not self._not_a_quoted_string(virtual_field):
                         raise FieldError(
-                            f"Incorrect field '{virtual_field}' in the query '{self.title}'."
+                            f"Incorrect field '{virtual_field}' in the query '{self.text}'."
                         )
                     virtual_field = virtual_field.replace("'",
                                                           "").replace('"', '')
