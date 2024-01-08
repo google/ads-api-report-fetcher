@@ -18,7 +18,8 @@ from dataclasses import dataclass
 import os
 import yaml
 
-from google.ads.googleads.client import GoogleAdsClient  # type: ignore
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.client import _DEFAULT_VERSION as GOOGLE_ADS_API_VERSION  # type: ignore,
 from google.api_core.exceptions import NotFound
 from importlib import import_module
 import logging
@@ -26,8 +27,6 @@ from pathlib import Path
 from smart_open import open
 import re
 from proto.primitives import ProtoType
-
-GOOGLE_ADS_API_VERSION = "v14"
 
 
 @dataclass

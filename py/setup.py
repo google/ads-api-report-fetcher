@@ -15,7 +15,7 @@ EXTRAS_REQUIRE['full'] = list(set(chain(*EXTRAS_REQUIRE.values())))
 
 setup(
     name="google-ads-api-report-fetcher",
-    version="1.12.1",
+    version="1.12.2",
     python_requires=">3.8",
     description=
     "Library for fetching reports from Google Ads API and saving them locally / BigQuery.",
