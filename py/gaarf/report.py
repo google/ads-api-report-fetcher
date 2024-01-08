@@ -155,7 +155,8 @@ class GaarfReport:
             raise GaarfReportException(
                 "column_names should be the same in GaarfReport")
         return GaarfReport(results=self.results + other.results,
-                           column_names=self.column_names)
+                           column_names=self.column_names,
+                           is_fake=self.is_fake and other.is_fake)
 
     @classmethod
     def from_pandas(cls, df: pd.DataFrame):
