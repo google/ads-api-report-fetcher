@@ -19,6 +19,7 @@ from collections.abc import MutableSequence, Sequence
 import itertools
 import operator
 import pandas as pd
+import warnings
 
 from .query_editor import QuerySpecification
 
@@ -38,21 +39,38 @@ class GaarfReport:
         self.query_specification = query_specification
 
     def to_list(self,
+                row_type: Literal["list", "dict", "scalar"] = "list",
                 flatten: bool = False,
                 distinct: bool = False) -> Sequence:
-        results = []
         if flatten:
+            warnings.warn(
+                "`GaarfReport` will deprecate passing `flatten=True` to `to_list` method."
+                "Use row_type='scalar' instead.",
+                category=DeprecationWarning,
+                stacklevel=3)
+            row_type == "scalar"
+        if row_type == "list":
+            if self.multi_column_report:
+                return self.results
+            return self.to_list(row_type="scalar")
+        if row_type == "dict":
+            results: list[dict] = []
+            for row in iter(self):
+                results.append(row.to_dict())
+            return results
+        if row_type == "scalar":
             results = list(itertools.chain.from_iterable(self.results))
             if distinct:
                 results = list(set(results))
-
-        return results or self.results
+            return results
+        raise ValueError("incorrect row_type specified", row_type)
 
     def to_dict(
-            self,
-            key_column: str,
-            value_column: str | None = None,
-            value_column_output: Literal["scalar", "list"] = "list") -> dict:
+        self,
+        key_column: str,
+        value_column: str | None = None,
+        value_column_output: Literal["scalar", "list"] = "list"
+    ) -> dict:
         if key_column not in self.column_names:
             raise GaarfReportException(
                 f"column name {key_column} not found in the report")
@@ -64,7 +82,9 @@ class GaarfReport:
         else:
             output = {}
         key_index = self.column_names.index(key_column)
-        key_generator = list(zip(*self.results))[key_index]
+        if not (key_generator := list(zip(*self.results))):
+            return {key_column: None}
+        key_generator = key_generator[key_index]
         if value_column:
             value_index = self.column_names.index(value_column)
             value_generator = list(zip(*self.results))[value_index]
@@ -171,6 +191,9 @@ class GaarfRow:
         super().__setattr__("data", data)
         super().__setattr__("column_names", column_names)
 
+    def to_dict(self) -> dict:
+        return {x[1]: x[0] for x in zip(self.data, self.column_names)}
+
     def __getattr__(self, element: str) -> Any:
         if element in self.column_names:
             return self.data[self.column_names.index(element)]
@@ -207,8 +230,7 @@ class GaarfRow:
         return self.data == other.data
 
     def __repr__(self):
-        dict_data = {x[1]: x[0] for x in zip(self.data, self.column_names)}
-        return f"GaarfRow(\n{dict_data}\n)"
+        return f"GaarfRow(\n{self.to_dict()}\n)"
 
 
 class GaarfReportException(Exception):

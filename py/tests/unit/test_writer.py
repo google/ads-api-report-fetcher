@@ -11,14 +11,14 @@ def csv_writer():
 
 @pytest.fixture
 def single_column_data():
-    results = [1, 2, 3]
+    results = [[1, 2, 3]]
     columns = ["column_1"]
     return GaarfReport(results, columns)
 
 
 @pytest.fixture
 def sample_data():
-    results = [(1, "two", [3, 4])]
+    results = [[1, "two", [3, 4]]]
     columns = ["column_1", "column_2", "column_3"]
     return GaarfReport(results, columns)
 

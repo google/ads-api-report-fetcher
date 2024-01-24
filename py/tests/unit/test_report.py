@@ -224,12 +224,13 @@ def test_set_existing_attribute_gaarf_multiple_rows_updates_columns(
 
 
 def test_single_column_report_returns_flattened_list(single_column_report):
-    assert single_column_report.to_list(flatten=True) == [1, 1, 3]
+    assert single_column_report.to_list() == [1, 1, 3]
 
 
 def test_single_column_report_returns_distinct_flattened_list(
         single_column_report):
-    assert single_column_report.to_list(flatten=True, distinct=True) == [1, 3]
+    assert single_column_report.to_list(row_type="scalar",
+                                        distinct=True) == [1, 3]
 
 
 def test_multi_column_report_converted_to_dict_list_values(
@@ -289,3 +290,67 @@ def test_multi_column_report_converted_to_dict_with_missing_value_column(
             "ad_group_id": 4
         }],
     }
+
+
+def test_multi_column_report_converted_to_dict_without_arguments(
+        multi_column_report):
+    key_column = "campaign_id"
+    value_column = "ad_group_id"
+    output_dict = multi_column_report.to_list(row_type="dict")
+    assert output_dict == [{
+        "campaign_id": 1,
+        "ad_group_id": 2
+    }, {
+        "campaign_id": 2,
+        "ad_group_id": 3
+    }, {
+        "campaign_id": 3,
+        "ad_group_id": 4
+    }]
+
+
+def test_to_list_incorrect_row_type_raises_exception(multi_column_report):
+    key_column = "campaign_id"
+    value_column = "ad_group_id"
+    with pytest.raises(ValueError):
+        output_dict = multi_column_report.to_list(row_type="tuple")
+
+
+def test_empty_report_converted_to_dict_with_key_column(multi_column_report):
+    key_column = "campaign_id"
+    value_column = "ad_group_id"
+    # clear results of report
+    multi_column_report.results = []
+    output_dict = multi_column_report.to_dict(key_column=key_column,
+                                              value_column=value_column,
+                                              value_column_output="scalar")
+    assert output_dict == {key_column: None}
+
+
+def test_report_with_different_columns_not_equal(single_column_report,
+                                                 multi_column_report):
+    assert single_element_report != multi_column_report
+
+
+def test_report_with_different_data_are_not_equal(multi_column_report):
+    new_multi_column_report = GaarfReport(
+        results=list(multi_column_report.results),
+        column_names=list(multi_column_report.column_names))
+    new_multi_column_report.results[0] = [10, 10]
+    assert new_multi_column_report != multi_column_report
+
+
+def test_report_with_same_data_are_equal(multi_column_report):
+    new_multi_column_report = GaarfReport(
+        results=list(multi_column_report.results),
+        column_names=list(multi_column_report.column_names))
+    assert new_multi_column_report == multi_column_report
+
+
+def test_conversion_from_pandas():
+    values = [[1, 2], [3, 4]]
+    column_names = ["one", "two"]
+    df = pd.DataFrame(data=values, columns=column_names)
+    report = GaarfReport.from_pandas(df)
+    expected_report = GaarfReport(results=values, column_names=column_names)
+    assert report == expected_report
