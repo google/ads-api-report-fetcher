@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 import logging
 import abc
 import os
 import proto  # type: ignore
+from dataclasses import dataclass
 import datetime
 
 from google.cloud import bigquery  # type: ignore
@@ -29,42 +30,49 @@ from rich.table import Table
 import pandas as pd  # type: ignore
 import numpy as np
 
-from ..report import GaarfReport
-from .formatter import ArrayFormatter, ResultsFormatter  # type: ignore
+from gaarf.report import GaarfReport
+from gaarf.io import formatter
 
 logger = logging.getLogger(__name__)
 
 
 class AbsWriter(abc.ABC):
 
+    def __init__(self,
+                 array_handling: Literal["strings", "arrays"] = "strings",
+                 array_separator: str = "|",
+                 **kwargs) -> None:
+        self.array_handling = array_handling
+        self.array_separator = array_separator
+
     @abc.abstractmethod
-    def write(self, results: GaarfReport, destination: str) -> str:
+    def write(self, report: GaarfReport, destination: str) -> str:
         pass
 
-    def get_columns_results(
-            self, results: GaarfReport) -> Tuple[Sequence[str], Sequence[Any]]:
-        column_names = results.column_names
-        formatted_results = ArrayFormatter.format(
-            ResultsFormatter.format(results.to_list()), "|")
-        return column_names, formatted_results
+    def format_for_write(self, report) -> GaarfReport:
+        array_handling_strategy = formatter.ArrayHandlingStrategy(
+            type_=self.array_handling, delimiter=self.array_separator)
+        return formatter.format_report_for_writing(report,
+                                                   [array_handling_strategy])
 
 
 class StdoutWriter(AbsWriter):
 
     def __init__(self, page_size: int = 10, **kwargs):
+        super().__init__(**kwargs)
         self.page_size = int(page_size)
 
-    def write(self, results, destination):
+    def write(self, report, destination):
+        report = self.format_for_write(report)
         console = Console()
         table = Table(
             title=f"showing results for query <{destination.split('/')[-1]}>",
             caption=
-            f"showing rows 1-{min(self.page_size, len(results))} out of total {len(results)}",
+            f"showing rows 1-{min(self.page_size, len(report))} out of total {len(report)}",
             box=rich.box.MARKDOWN)
-        column_names, results = self.get_columns_results(results)
-        for header in column_names:
+        for header in report.column_names:
             table.add_column(header)
-        for i, row in enumerate(results):
+        for i, row in enumerate(report):
             if i < self.page_size:
                 table.add_row(*[str(field) for field in row])
         console.print(table)
@@ -78,6 +86,7 @@ class CsvWriter(AbsWriter):
                  quotechar='"',
                  quoting=csv.QUOTE_MINIMAL,
                  **kwargs):
+        super().__init__(**kwargs)
         self.destination_folder = destination_folder
         self.delimiter = delimiter
         self.quotechar = quotechar
@@ -86,10 +95,10 @@ class CsvWriter(AbsWriter):
     def __str__(self):
         return f"[CSV] - data are saved to {self.destination_folder} destination_folder."
 
-    def write(self, results, destination) -> str:
-        column_names, results = self.get_columns_results(results)
-        destination = DestinationFormatter.format_extension(
-            destination, new_extension=".csv")
+    def write(self, report, destination) -> str:
+        report = self.format_for_write(report)
+        destination = formatter.format_extension(destination,
+                                                 new_extension=".csv")
         if not os.path.isdir(self.destination_folder):
             os.makedirs(self.destination_folder)
         with open(os.path.join(self.destination_folder, destination),
@@ -98,8 +107,8 @@ class CsvWriter(AbsWriter):
                                 delimiter=self.delimiter,
                                 quotechar=self.quotechar,
                                 quoting=self.quoting)
-            writer.writerow(column_names)
-            writer.writerows(results)
+            writer.writerow(report.column_names)
+            writer.writerows(report.results)
         return f"[CSV] - at {destination}"
 
 
@@ -155,29 +164,30 @@ class SheetWriter(AbsWriter):
                     self.spreadsheet_url)
 
     def write(self,
-              results,
+              report,
               destination=f'Report {datetime.datetime.utcnow()}') -> str:
         import gspread
+        report = self.format_for_write(report)
         self.init_client()
         if not destination:
             destination = f'Report {datetime.datetime.utcnow()}'
-        destination = DestinationFormatter.format_extension(destination)
-        column_names, results = self.get_columns_results(results)
-        num_data_rows = len(results) + 1
+        destination = formatter.format_extension(destination)
+        num_data_rows = len(report) + 1
         try:
             sheet = self.spreadsheet.worksheet(destination)
         except gspread.exceptions.WorksheetNotFound:
             sheet = self.spreadsheet.add_worksheet(destination,
                                                    rows=num_data_rows,
-                                                   cols=len(column_names))
+                                                   cols=len(
+                                                       report.column_names))
         if not self.is_append:
             sheet.clear()
             self.add_rows_if_needed(num_data_rows, sheet)
-            sheet.append_rows([column_names] + results,
+            sheet.append_rows([report.column_names] + report.results,
                               value_input_option='RAW')
         else:
             self.add_rows_if_needed(num_data_rows, sheet)
-            sheet.append_rows(results, value_input_option='RAW')
+            sheet.append_rows(report.results, value_input_option='RAW')
 
         success_msg = f"Report is saved to {sheet.url}"
         logger.info(success_msg)
@@ -204,6 +214,7 @@ class BigQueryWriter(AbsWriter):
                  write_disposition: bigquery.WriteDisposition = bigquery.
                  WriteDisposition.WRITE_TRUNCATE,
                  **kwargs):
+        super().__init__(**kwargs)
         self.project = project
         self.dataset_id = f"{project}.{dataset}"
         self.location = location
@@ -223,22 +234,21 @@ class BigQueryWriter(AbsWriter):
             bq_dataset = self.client.create_dataset(bq_dataset, timeout=30)
         return bq_dataset
 
-    def write(self, results, destination) -> str:
-        self._init_client()
-        fake_report = results.is_fake
-        column_names, results = self.get_columns_results(results)
-        schema = self._define_schema(iter(results), column_names)
-        destination = DestinationFormatter.format_extension(destination)
+    def write(self, report, destination) -> str:
+        report = self.format_for_write(report)
+        schema = self._define_schema(report)
+        destination = formatter.format_extension(destination)
         table = self._create_or_get_table(f"{self.dataset_id}.{destination}",
                                           schema)
         job_config = bigquery.LoadJobConfig(
-            write_disposition=self.write_disposition,
-            schema=schema)
+            write_disposition=self.write_disposition, schema=schema)
 
-        df = pd.DataFrame(results, columns=column_names)
+        if not report:
+            df = pd.DataFrame(data=report.results_placeholder,
+                              columns=report.column_names).head(0)
+        else:
+            df = report.from_pandas()
         df = df.replace({np.nan: None})
-        if fake_report:
-            df = df.head(0)
         logger.debug("Writing %d rows of data to %s", len(df), destination)
         try:
             self.client.load_table_from_dataframe(dataframe=df,
@@ -250,16 +260,15 @@ class BigQueryWriter(AbsWriter):
         return f"[BigQuery] - at {self.dataset_id}.{destination}"
 
     @staticmethod
-    def _define_schema(results, header) -> List[bigquery.SchemaField]:
-        result_types = BigQueryWriter._get_result_types(results, header)
+    def _define_schema(report: GaarfReport) -> List[bigquery.SchemaField]:
+        result_types = BigQueryWriter._get_result_types(report)
         return BigQueryWriter._get_bq_schema(result_types)
 
     @staticmethod
-    def _get_result_types(
-            elements: Sequence[Any],
-            column_names: Sequence[str]) -> Dict[str, Dict[str, Any]]:
-        result_types = {}
-        for row in elements:
+    def _get_result_types(report: GaarfReport) -> Dict[str, Dict[str, Any]]:
+        result_types: Dict[str, Dict[str, Any]] = {}
+        column_names = report.column_names
+        for row in report.results or report.results_placeholder:
             if set(column_names) == set(result_types.keys()):
                 break
             for i, field in enumerate(row):
@@ -330,16 +339,18 @@ class SqlAlchemyWriter(AbsWriter):
                  connection_string: str,
                  if_exists: str = "replace",
                  **kwargs):
+        super().__init__(**kwargs)
         self.connection_string = connection_string
         self.if_exists = if_exists
 
-    def write(self, results, destination):
-        fake_report = results.is_fake
-        column_names, results = self.get_columns_results(results)
-        destination = DestinationFormatter.format_extension(destination)
-        df = pd.DataFrame(data=results, columns=column_names)
-        if fake_report:
-            df = df.head(0)
+    def write(self, report, destination):
+        report = self.format_for_write(report)
+        destination = formatter.format_extension(destination)
+        if not report:
+            df = pd.DataFrame(data=report.results_placeholder,
+                              columns=report.column_names).head(0)
+        else:
+            df = report.from_pandas()
         logger.debug("Writing %d rows of data to %s", len(df), destination)
         df.to_sql(name=destination,
                   con=self._create_engine(),
@@ -378,19 +389,6 @@ class WriterFactory:
             return self.write_options[writer_option](**kwargs)
         else:
             return NullWriter(writer_option)
-
-
-class DestinationFormatter:
-
-    @staticmethod
-    def format_extension(path_object: str,
-                         current_extension: str = ".sql",
-                         new_extension: str = "") -> str:
-        path_object_name = Path(path_object).name
-        if len(path_object_name.split(".")) > 1:
-            return path_object_name.replace(current_extension, new_extension)
-        else:
-            return f"{path_object}{new_extension}"
 
 
 class ZeroRowException(Exception):

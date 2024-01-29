@@ -88,7 +88,7 @@ def test_get_report_length(multi_column_report):
 
 def test_report_bool(single_element_report):
     assert single_element_report
-    single_element_report.is_fake = True
+    single_element_report.results = []
     assert not single_element_report
 
 
@@ -111,12 +111,6 @@ def test_add_reports_with_different_columns_raises_exception(
         multi_column_report, single_element_report):
     with pytest.raises(GaarfReportException):
         multi_column_report + single_element_report
-
-
-def test_iteration_over_fake_report_returns_empty_list(multi_column_report):
-    multi_column_report.is_fake = True
-    results = [row for row in multi_column_report]
-    assert results == []
 
 
 def test_slicing_multi_column_gaarf_report_returns_gaarf_report(

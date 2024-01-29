@@ -12,7 +12,7 @@ def csv_writer():
 
 @pytest.fixture
 def single_column_data():
-    results = [[1, 2, 3]]
+    results = [[1], [2], [3]]
     columns = ["column_1"]
     return GaarfReport(results, columns)
 
@@ -22,6 +22,7 @@ def sample_data():
     results = [[1, "two", [3, 4]]]
     columns = ["column_1", "column_2", "column_3"]
     return GaarfReport(results, columns)
+
 
 @pytest.fixture
 def sample_data_with_dates():
@@ -41,7 +42,19 @@ def test_csv_writer_single_column(csv_writer, single_column_data):
 
 def test_csv_writer_multi_column(csv_writer, sample_data):
     tmp_file = "/tmp/test.csv"
+    expected = ["column_1,column_2,column_3", '1,two,"[3, 4]"']
+    csv_writer.array_handling = "arrays"
+    csv_writer.write(sample_data, "test.csv")
+    with open(tmp_file, "r") as f:
+        file = f.readlines()
+    assert [row.strip() for row in file] == expected
+
+
+def test_csv_writer_multi_column_arrays_converted_to_strings(
+        csv_writer, sample_data):
+    tmp_file = "/tmp/test.csv"
     expected = ["column_1,column_2,column_3", '1,two,3|4']
+    csv_writer.array_handling = "strings",
     csv_writer.write(sample_data, "test.csv")
     with open(tmp_file, "r") as f:
         file = f.readlines()
@@ -49,8 +62,25 @@ def test_csv_writer_multi_column(csv_writer, sample_data):
 
 
 def test_bq_get_results_types(sample_data):
-    results, columns = sample_data.results, sample_data.column_names
-    result_types = writer.BigQueryWriter._get_result_types(results, columns)
+    result_types = writer.BigQueryWriter._get_result_types(sample_data)
+    assert result_types == {
+        'column_1': {
+            'field_type': int,
+            'repeated': False
+        },
+        'column_2': {
+            'field_type': str,
+            'repeated': False
+        },
+        'column_3': {
+            'field_type': int,
+            'repeated': True
+        }
+    }
+
+
+def test_bq_get_results_types_supports_arrays(sample_data):
+    result_types = writer.BigQueryWriter._get_result_types(sample_data)
     assert result_types == {
         'column_1': {
             'field_type': int,
@@ -68,8 +98,7 @@ def test_bq_get_results_types(sample_data):
 
 
 def test_bq_get_correct_schema(sample_data):
-    results, columns = sample_data.results, sample_data.column_names
-    schema = writer.BigQueryWriter._define_schema(results, columns)
+    schema = writer.BigQueryWriter._define_schema(sample_data)
     assert schema == [
         SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
         SchemaField('column_2', 'STRING', 'NULLABLE', None, None, (), None),
@@ -78,25 +107,12 @@ def test_bq_get_correct_schema(sample_data):
 
 
 def test_bq_get_correct_schema_with_dates(sample_data_with_dates):
-    results, columns = sample_data_with_dates.results, sample_data_with_dates.column_names
-    schema = writer.BigQueryWriter._define_schema(results, columns)
+    schema = writer.BigQueryWriter._define_schema(sample_data_with_dates)
     assert schema == [
         SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
         SchemaField('datetime', 'DATETIME', 'NULLABLE', None, None, (), None),
         SchemaField('date', 'DATE', 'NULLABLE', None, None, (), None)
     ]
-
-
-def test_format_extension():
-    default_output = writer.DestinationFormatter.format_extension(
-        "test_query.sql")
-    default_output_custom_extension = writer.DestinationFormatter.format_extension(
-        "test_query.txt", ".txt")
-    csv_output = writer.DestinationFormatter.format_extension(
-        "test_query.sql", new_extension=".csv")
-    assert default_output == "test_query"
-    assert default_output_custom_extension == "test_query"
-    assert csv_output == "test_query.csv"
 
 
 @pytest.fixture
@@ -121,10 +137,11 @@ def test_writer_factory_inits(writer_factory):
     csv_writer = writer_factory.create_writer(
         "csv", destination_folder="/fake_folder")
     sheet_writer = writer_factory.create_writer(
-        "sheet", share_with="1@google.com", credentials_file="home/me/client_secret.json")
+        "sheet",
+        share_with="1@google.com",
+        credentials_file="home/me/client_secret.json")
     sqlalchemy_writer = writer_factory.create_writer(
-        "sqldb",
-        connection_string="protocol://user:password@host:port/db")
+        "sqldb", connection_string="protocol://user:password@host:port/db")
     assert bq_writer.dataset_id == "fake_project.fake_dataset"
     assert csv_writer.destination_folder == "/fake_folder"
     assert sqlalchemy_writer.connection_string == "protocol://user:password@host:port/db"

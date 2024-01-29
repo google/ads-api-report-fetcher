@@ -12,24 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Sequence
+from typing import Type
 import abc
+from enum import Enum
+from pathlib import Path
 import proto  # type: ignore
 
+from gaarf.report import GaarfReport
 
-class AbsFormatter(abc.ABC):
-    @abc.abstractstaticmethod
-    def format(rows: Sequence[Sequence[Any]],
-               delimiter: str) -> Sequence[Sequence[Any]]:
+
+class FormattingStrategy:
+
+    def apply_transformations(self, report: GaarfReport) -> GaarfReport:
         raise NotImplementedError
 
+    def _cast_to_enum(self, enum: Type[Enum], value: str | Enum) -> Enum:
+        return enum[value.upper()] if isinstance(value, str) else value
 
-class ArrayFormatter(AbsFormatter):
-    @staticmethod
-    def format(rows: Sequence[Sequence[Any]],
-               delimiter: str) -> Sequence[Sequence[Any]]:
+
+class ArrayHandling(Enum):
+    STRINGS = 1
+    ARRAYS = 2
+
+
+class ArrayHandlingStrategy(FormattingStrategy):
+
+    def __init__(self,
+                 type_: ArrayHandling | str = ArrayHandling.STRINGS,
+                 delimiter: str = "|") -> None:
+        self.type_ = self._cast_to_enum(ArrayHandling, type_)
+        self.delimiter = delimiter
+
+    def apply_transformations(self, report: GaarfReport) -> GaarfReport:
+        if self.type_ == ArrayHandling.ARRAYS:
+            return report
         formatted_rows = []
-        for row in rows:
+        for row in report:
             formatted_row = []
             for field in row:
                 if isinstance(
@@ -38,16 +56,28 @@ class ArrayFormatter(AbsFormatter):
                      proto.marshal.collections.repeated.RepeatedComposite,
                      proto.marshal.collections.repeated.Repeated)):
                     formatted_row.append(
-                        delimiter.join([str(element) for element in field]))
+                        self.delimiter.join(
+                            [str(element) for element in field]))
                 else:
                     formatted_row.append(field)
             formatted_rows.append(formatted_row)
-        return formatted_rows
+        return GaarfReport(results=formatted_rows,
+                           column_names=report.column_names)
 
 
-class ResultsFormatter:
-    @staticmethod
-    def format(results: Sequence[Any]):
-        if len(results) > 0 and type(results[0]) in (int, float, str, bool):
-            results = [[result] for result in results]
-        return results
+def format_report_for_writing(
+        report: GaarfReport,
+        formatting_strategies: list[FormattingStrategy]) -> GaarfReport:
+    for strategy in formatting_strategies:
+        report = strategy.apply_transformations(report)
+    return report
+
+
+def format_extension(path_object: str,
+                     current_extension: str = ".sql",
+                     new_extension: str = "") -> str:
+    path_object_name = Path(path_object).name
+    if len(path_object_name.split(".")) > 1:
+        return path_object_name.replace(current_extension, new_extension)
+    else:
+        return f"{path_object}{new_extension}"
