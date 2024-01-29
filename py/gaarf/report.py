@@ -66,11 +66,10 @@ class GaarfReport:
         raise ValueError("incorrect row_type specified", row_type)
 
     def to_dict(
-        self,
-        key_column: str,
-        value_column: str | None = None,
-        value_column_output: Literal["scalar", "list"] = "list"
-    ) -> dict:
+            self,
+            key_column: str,
+            value_column: str | None = None,
+            value_column_output: Literal["scalar", "list"] = "list") -> dict:
         if key_column not in self.column_names:
             raise GaarfReportException(
                 f"column name {key_column} not found in the report")
@@ -112,18 +111,13 @@ class GaarfReport:
         if self.is_fake:
             return None
         for result in self.results:
-            if self.multi_column_report:
-                yield GaarfRow(result, self.column_names)
-            elif isinstance(result, Sequence):
-                yield result[0]
-            else:
-                yield result
+            yield GaarfRow(result, self.column_names)
 
     def __bool__(self):
         return not self.is_fake
 
     def __str__(self):
-        return f"{self.results}"
+        return self.to_pandas().to_string()
 
     def __getitem__(self, key):
         cls = type(self)

@@ -182,7 +182,7 @@ class GoogleAdsRowParser:
                     parsed_element = self.parser.parse(
                         extracted_attribute) or extracted_attribute
             final_rows.append(parsed_element)
-        return final_rows if len(final_rows) > 1 else final_rows[0]
+        return final_rows
 
     def _get_attributes_from_row(self, row, getter) -> Tuple[Any, ...]:
         attributes = getter(row)

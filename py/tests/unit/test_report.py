@@ -6,7 +6,7 @@ from gaarf.report import GaarfReport, GaarfRow, GaarfReportException
 
 @pytest.fixture
 def single_element_report():
-    return GaarfReport(results=[1], column_names=["campaign_id"])
+    return GaarfReport(results=[[1]], column_names=["campaign_id"])
 
 
 @pytest.fixture
@@ -20,12 +20,12 @@ def multi_column_report():
                        column_names=["campaign_id", "ad_group_id"])
 
 
-def test_single_element_report_returns_sequence(single_element_report):
-    assert [row for row in single_element_report] == [1]
+def test_single_element_report_returns_gaarf_row(single_element_report):
+    assert [row[0] for row in single_element_report] == [1]
 
 
 def test_single_column_report_returns_sequence(single_column_report):
-    assert [row for row in single_column_report] == [1, 1, 3]
+    assert [row[0] for row in single_column_report] == [1, 1, 3]
 
 
 def test_multi_column_report_returns_gaarf_row(multi_column_report):
@@ -84,10 +84,6 @@ def test_convert_report_to_pandas(multi_column_report):
 
 def test_get_report_length(multi_column_report):
     assert len(multi_column_report) == 3
-
-
-def test_report_str(single_element_report):
-    assert str(single_element_report) == "[1]"
 
 
 def test_report_bool(single_element_report):
