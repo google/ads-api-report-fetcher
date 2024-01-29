@@ -290,6 +290,8 @@ class BigQueryWriter(AbsWriter):
         TYPE_MAPPING = {
             list: "REPEATED",
             str: "STRING",
+            datetime.datetime: "DATETIME",
+            datetime.date: "DATE",
             int: "INT64",
             float: "FLOAT64",
             bool: "BOOL",

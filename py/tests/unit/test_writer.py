@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime
 from google.cloud.bigquery import SchemaField  # type: ignore
 import gaarf.io.writer as writer  # type: ignore
 from gaarf.report import GaarfReport
@@ -20,6 +21,12 @@ def single_column_data():
 def sample_data():
     results = [[1, "two", [3, 4]]]
     columns = ["column_1", "column_2", "column_3"]
+    return GaarfReport(results, columns)
+
+@pytest.fixture
+def sample_data_with_dates():
+    results = [[1, datetime.now(), datetime.now().date()]]
+    columns = ["column_1", "datetime", "date"]
     return GaarfReport(results, columns)
 
 
@@ -67,6 +74,16 @@ def test_bq_get_correct_schema(sample_data):
         SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
         SchemaField('column_2', 'STRING', 'NULLABLE', None, None, (), None),
         SchemaField('column_3', 'INT64', 'REPEATED', None, None, (), None)
+    ]
+
+
+def test_bq_get_correct_schema_with_dates(sample_data_with_dates):
+    results, columns = sample_data_with_dates.results, sample_data_with_dates.column_names
+    schema = writer.BigQueryWriter._define_schema(results, columns)
+    assert schema == [
+        SchemaField('column_1', 'INT64', 'NULLABLE', None, None, (), None),
+        SchemaField('datetime', 'DATETIME', 'NULLABLE', None, None, (), None),
+        SchemaField('date', 'DATE', 'NULLABLE', None, None, (), None)
     ]
 
 
