@@ -153,10 +153,6 @@ class SheetWriter(AbsWriter):
             else:
                 self.spreadsheet = self.gspread_client.open_by_url(
                     self.spreadsheet_url)
-            if self.share_with:
-                self.spreadsheet.share(self.share_with,
-                                       perm_type='user',
-                                       role='writer')
 
     def write(self,
               results,
@@ -185,6 +181,10 @@ class SheetWriter(AbsWriter):
 
         success_msg = f"Report is saved to {sheet.url}"
         logger.info(success_msg)
+        if self.share_with:
+            self.spreadsheet.share(self.share_with,
+                                   perm_type='user',
+                                   role='writer')
         return success_msg
 
     def add_rows_if_needed(self, num_data_rows: int,
