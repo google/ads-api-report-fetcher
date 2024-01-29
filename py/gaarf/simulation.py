@@ -38,10 +38,10 @@ def simulate_data(
     other_types = client.infer_types(query_specification.fields)
     v = report_fetcher.fetch(query_specification)
     try:
-        iter(v.results[0])
-        results = v.results[0]
+        iter(v.results_placeholder[0])
+        results = v.results_placeholder[0]
     except TypeError:
-        results = [v.results[0]]
+        results = [v.results_placeholder[0]]
     if not results:
         results = [results]
     types = [
