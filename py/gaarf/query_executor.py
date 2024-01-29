@@ -111,7 +111,6 @@ class AdsReportFetcher:
         else:
             customer_ids = []
         total_results: List[List[Tuple[Any]]] = []
-        is_fake_report = False
         if not isinstance(query_specification, QueryElements):
             query_specification = QuerySpecification(
                 text=str(query_specification),
@@ -143,17 +142,18 @@ class AdsReportFetcher:
                 logger.error(str(e))
                 raise
         if not total_results:
-            row = self.api_client.google_ads_row
-            results = [parser.parse_ads_row(row)]
-            total_results.extend(results)
-            is_fake_report = True
+            results_placeholder = [
+                parser.parse_ads_row(self.api_client.google_ads_row)
+            ]
             if not isinstance(self.api_client, api_clients.BaseClient):
                 logger.warning(
                     "Query %s generated zero results, using placeholders to infer schema",
                     query_specification.query_title)
+        else:
+            results_placeholder = []
         return GaarfReport(results=total_results,
                            column_names=query_specification.column_names,
-                           is_fake=is_fake_report,
+                           results_placeholder=results_placeholder,
                            query_specification=query_specification)
 
     def _parse_ads_response(

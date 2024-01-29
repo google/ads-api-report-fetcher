@@ -30,12 +30,15 @@ class GaarfReport:
             self,
             results: Sequence,
             column_names: Sequence[str],
-            is_fake: bool = False,
+            results_placeholder: Sequence | None = None,
             query_specification: QuerySpecification | None = None) -> None:
         self.results = results
         self.column_names = column_names
         self.multi_column_report = len(column_names) > 1
-        self.is_fake = is_fake
+        if results_placeholder:
+            self.results_placeholder = list(results_placeholder)
+        else:
+            self.results_placeholder = list()
         self.query_specification = query_specification
 
     def to_list(self,
@@ -108,13 +111,13 @@ class GaarfReport:
         return len(self.results)
 
     def __iter__(self):
-        if self.is_fake:
+        if self.results_placeholder:
             return None
         for result in self.results:
             yield GaarfRow(result, self.column_names)
 
     def __bool__(self):
-        return not self.is_fake
+        return bool(self.results)
 
     def __str__(self):
         return self.to_pandas().to_string()
@@ -170,7 +173,8 @@ class GaarfReport:
                 "column_names should be the same in GaarfReport")
         return GaarfReport(results=self.results + other.results,
                            column_names=self.column_names,
-                           is_fake=self.is_fake and other.is_fake)
+                           results_placeholder=self.results_placeholder
+                           and other.results_placeholder)
 
     @classmethod
     def from_pandas(cls, df: pd.DataFrame):
@@ -194,8 +198,10 @@ class GaarfRow:
         raise AttributeError(f"cannot find {element} element!")
 
     def __getitem__(self, element: str | int) -> Any:
-        if isinstance(element, int) and element < len(self.column_names):
-            return self.data[element]
+        if isinstance(element, int):
+            if element < len(self.column_names):
+                return self.data[element]
+            raise GaarfReportException(f"cannot find data in position {element}!")
         if isinstance(element, str):
             return self.__getattr__(element)
         raise GaarfReportException(f"cannot find {element} element!")
@@ -215,6 +221,10 @@ class GaarfRow:
 
     def get(self, item: str) -> Any:
         return self.__getattr__(item)
+
+    def __iter__(self):
+        for field in self.data:
+            yield field
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
