@@ -193,7 +193,8 @@ class AdsReportFetcher:
             logger.error("Cannot fetch data from API for query '%s' %d times",
                          query_specification.query_title,
                          retry_failure.last_attempt.attempt_number)
-            raise exceptions.InternalServerError
+            raise exceptions.InternalServerError(
+                message="Cannot get data from Google Ads API")
         if optimize_strategy in (OptimizeStrategy.BATCH,
                                  OptimizeStrategy.BATCH_PROTOBUF):
             logger.warning("Running gaarf in an optimized mode")
