@@ -11,23 +11,39 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+import itertools
+import logging
+import warnings
 from collections.abc import MutableSequence
 from concurrent import futures
-from enum import Enum, auto
-import itertools
-from google.ads.googleads.errors import GoogleAdsException  # type: ignore
-import logging
-from google.api_core import exceptions
-from tenacity import Retrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_exponential
-import warnings
+from enum import auto
+from enum import Enum
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+from typing import Union
 
-from . import parsers
-from . import api_clients
-from . import builtin_queries
-from .query_editor import QuerySpecification, QueryElements
-from .report import GaarfReport, GaarfRow
-from .io import writer, reader  # type: ignore
+from gaarf import api_clients
+from gaarf import builtin_queries
+from gaarf import parsers
+from gaarf.io.writers.abs_writer import AbsWriter  # type: ignore
+from gaarf.io.writers.console_writer import ConsoleWriter  # type: ignore
+from gaarf.query_editor import QueryElements
+from gaarf.query_editor import QuerySpecification
+from gaarf.report import GaarfReport
+from gaarf.report import GaarfRow
+from google.ads.googleads.errors import GoogleAdsException  # type: ignore
+from google.api_core import exceptions
+from tenacity import retry_if_exception_type
+from tenacity import RetryError
+from tenacity import Retrying
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +68,8 @@ class AdsReportFetcher:
         self.api_client = api_client
         if customer_ids:
             warnings.warn(
-                "`AdsReportFetcher` will deprecate passing `customer_ids` to `__init__` method. "
-                "Consider passing list of customer_ids to `AdsReportFetcher.fetch` method",
+                '`AdsReportFetcher` will deprecate passing `customer_ids` to `__init__` method. '
+                'Consider passing list of customer_ids to `AdsReportFetcher.fetch` method',
                 category=DeprecationWarning,
                 stacklevel=3)
             self.customer_ids = [
@@ -71,7 +87,7 @@ class AdsReportFetcher:
               customer_ids_query: Optional[str] = None,
               expand_mcc: bool = False,
               args: Optional[Dict[str, Any]] = None,
-              optimize_strategy: str = "NONE") -> GaarfReport:
+              optimize_strategy: str = 'NONE') -> GaarfReport:
         """Fetches data from Ads API based on query_specification.
 
         Args:
@@ -92,13 +108,13 @@ class AdsReportFetcher:
         if isinstance(self.api_client, api_clients.GoogleAdsApiClient):
             if not customer_ids:
                 warnings.warn(
-                    "`AdsReportFetcher` will require passing `customer_ids` to `fetch` method.",
+                    '`AdsReportFetcher` will require passing `customer_ids` to `fetch` method.',
                     category=DeprecationWarning,
                     stacklevel=3)
-                if hasattr(self, "customer_ids"):
+                if hasattr(self, 'customer_ids'):
                     if not self.customer_ids:
                         raise ValueError(
-                            "Please specify add `customer_ids` to `fetch` method"
+                            'Please specify add `customer_ids` to `fetch` method'
                         )
                     customer_ids = self.customer_ids
             else:
@@ -126,7 +142,7 @@ class AdsReportFetcher:
             return report(self, accounts=customer_ids)
         parser = parsers.GoogleAdsRowParser(query_specification)
         for customer_id in customer_ids:
-            logger.debug("Running query %s for customer_id %s",
+            logger.debug('Running query %s for customer_id %s',
                          query_specification.query_title, customer_id)
             try:
                 results = self._parse_ads_response(
@@ -134,10 +150,10 @@ class AdsReportFetcher:
                     getattr(OptimizeStrategy, optimize_strategy))
                 total_results.extend(results)
                 if query_specification.is_constant_resource:
-                    logger.debug("Constant resource query: running only once")
+                    logger.debug('Constant resource query: running only once')
                     break
             except GoogleAdsException as e:
-                logger.error("Cannot execute query %s for %s",
+                logger.error('Cannot execute query %s for %s',
                              query_specification.query_title, customer_id)
                 logger.error(str(e))
                 raise
@@ -147,7 +163,7 @@ class AdsReportFetcher:
             ]
             if not isinstance(self.api_client, api_clients.BaseClient):
                 logger.warning(
-                    "Query %s generated zero results, using placeholders to infer schema",
+                    'Query %s generated zero results, using placeholders to infer schema',
                     query_specification.query_title)
         else:
             results_placeholder = []
@@ -178,7 +194,7 @@ class AdsReportFetcher:
             Parsed rows for the whole response.
         """
         total_results: List[List[Tuple[Any]]] = []
-        logger.debug("Getting response for query %s for customer_id %s",
+        logger.debug('Getting response for query %s for customer_id %s',
                      query_specification.query_title, customer_id)
         try:
             for attempt in Retrying(retry=retry_if_exception_type(
@@ -194,11 +210,11 @@ class AdsReportFetcher:
                          query_specification.query_title,
                          retry_failure.last_attempt.attempt_number)
             raise exceptions.InternalServerError(
-                message="Cannot get data from Google Ads API")
+                message='Cannot get data from Google Ads API')
         if optimize_strategy in (OptimizeStrategy.BATCH,
                                  OptimizeStrategy.BATCH_PROTOBUF):
-            logger.warning("Running gaarf in an optimized mode")
-            logger.warning("Optimize strategy is %s", optimize_strategy.name)
+            logger.warning('Running gaarf in an optimized mode')
+            logger.warning('Optimize strategy is %s', optimize_strategy.name)
             if optimize_strategy == OptimizeStrategy.BATCH_PROTOBUF:
                 rows = [row._pb for batch in response for row in batch.results]
             else:
@@ -227,7 +243,7 @@ class AdsReportFetcher:
                         futures.as_completed(future_to_batch), start=1):
                     batch = future_to_batch[future]
                     logger.debug(
-                        "Parsed batch %d for query %s for customer_id %s", i,
+                        'Parsed batch %d for query %s for customer_id %s', i,
                         query_specification.query_title, customer_id)
                     parsed_batch = future.result()
                     parsed_batches.append(parsed_batch)
@@ -237,14 +253,14 @@ class AdsReportFetcher:
 
         else:
             logger.debug(
-                "Iterating over response for query %s for customer_id %s",
+                'Iterating over response for query %s for customer_id %s',
                 query_specification.query_title, customer_id)
             for batch in response:
-                logger.debug("Parsing batch for query %s for customer_id %s",
+                logger.debug('Parsing batch for query %s for customer_id %s',
                              query_specification.query_title, customer_id)
                 if optimize_strategy == OptimizeStrategy.PROTOBUF:
-                    logger.warning("Running gaarf in an optimized mode")
-                    logger.warning("Optimize strategy is %s",
+                    logger.warning('Running gaarf in an optimized mode')
+                    logger.warning('Optimize strategy is %s',
                                    optimize_strategy.name)
                     rows = (row._pb for row in batch.results)
                 else:
@@ -255,7 +271,7 @@ class AdsReportFetcher:
 
     def _parse_batch(
             self, parser,
-            batch: Sequence["GoogleAdsRow"]) -> List[List[Tuple[Any]]]:
+            batch: Sequence['GoogleAdsRow']) -> List[List[Tuple[Any]]]:
         """Parse reach row from batch of Ads API response.
 
         Args:
@@ -287,7 +303,7 @@ class AdsReportFetcher:
         """
         query_specification = QuerySpecification(query).generate()
         if not isinstance(seed_customer_ids, MutableSequence):
-            seed_customer_ids = seed_customer_ids.split(",")
+            seed_customer_ids = seed_customer_ids.split(',')
         child_customer_ids = self.fetch(query_specification,
                                         seed_customer_ids).to_list()
         if customer_ids_query:
@@ -324,9 +340,9 @@ class AdsQueryExecutor:
                 query_text: str,
                 query_name: str,
                 customer_ids: Union[List[str], str],
-                writer_client: writer.AbsWriter = writer.StdoutWriter(),
+                writer_client: AbsWriter = ConsoleWriter(),
                 args: Optional[Dict[str, Any]] = None,
-                optimize_performance: str = "NONE") -> None:
+                optimize_performance: str = 'NONE') -> None:
         """Reads query, extract results and stores them in a specified location.
 
         Args:
@@ -346,10 +362,10 @@ class AdsQueryExecutor:
             query_specification=query_specification,
             customer_ids=customer_ids,
             optimize_strategy=optimize_performance)
-        logger.debug("Start writing data for query %s via %s writer",
+        logger.debug('Start writing data for query %s via %s writer',
                      query_specification.query_title, type(writer_client))
         writer_client.write(results, query_specification.query_title)
-        logger.debug("Finish writing data for query %s via %s writer",
+        logger.debug('Finish writing data for query %s via %s writer',
                      query_specification.query_title, type(writer_client))
 
     def expand_mcc(self,
