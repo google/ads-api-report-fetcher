@@ -235,7 +235,9 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         for line in query_lines:
             if re.match('^(#|--|//)', line):
                 continue
-            result.append(re.sub('(--|//).*$', '', line).strip())
+            cleaned_query_line = re.sub(';$', '',
+                                        re.sub('(--|//).*$', '', line).strip())
+            result.append(cleaned_query_line)
         return result
 
     def extract_resource_from_query(self, query: str) -> str:

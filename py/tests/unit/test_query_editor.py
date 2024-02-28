@@ -26,7 +26,7 @@ SELECT
     {% if selective == "true" %}
         campaign.selective_optimization AS selective_optimization,
     {% endif %}
-from ad_group_ad
+from ad_group_ad;
 """
     return query
 
