@@ -63,7 +63,9 @@ class AdsQueryEditor {
         query = query.replaceAll(/\/\*([\s\S]*?)\*\//g, "");
         // remove non-single whitespaces
         query = "" + query.replace(/\s{2,}/g, " ");
-        return query.trim();
+        // remove trailing semicolon
+        query = query.trim().replace(/;$/gm, '');
+        return query;
     }
     parseFunctions(query) {
         let match = query.match(/FUNCTIONS (.*)/i);

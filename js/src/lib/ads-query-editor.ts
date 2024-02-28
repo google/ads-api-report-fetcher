@@ -60,7 +60,9 @@ export class AdsQueryEditor {
     query = query.replaceAll(/\/\*([\s\S]*?)\*\//g, "");
     // remove non-single whitespaces
     query = "" + query.replace(/\s{2,}/g, " ");
-    return query.trim();
+    // remove trailing semicolon
+    query = query.trim().replace(/;$/gm, '')
+    return query;
   }
 
   private parseFunctions(query: string): Record<string, Function> {
