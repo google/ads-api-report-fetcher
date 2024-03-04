@@ -1,4 +1,7 @@
 # Changelog
+## 2.9 - 2024-03-04
+* support Google Ads API v16 (updated google-ads-api to v16)
+
 ## 2.8 - 2023-11-29
 * files with glob wildcards are now supported (`*` and `**`), so gaarf can process files by mask without relying on shell's wildcard expansion
 * Fix: console-writer: fixed hanging in some cases, prettified output for arrays
