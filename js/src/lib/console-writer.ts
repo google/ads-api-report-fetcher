@@ -189,10 +189,12 @@ export class ConsoleWriter implements IResultWriter {
       let column_count = first_line.length;
       let row_count = data_trans.length;
       // note: we're starting from 1 because there's always a header columns coming first
-      if (column_count > 1) {
+      if (column_count <= 2) {
         // if we have only 2 columns (headers+data) there's no way to shrink the matrix
-        for (let i = 1; i < column_count; i++) {
-          // slice matrix up to i-th column
+        done = true;
+      } else {
+        for (let i = 2; i < column_count; i++) {
+          // slice matrix up to i-th column (included)
           let submatrix = data_trans
             .slice(0, row_count + 1)
             .map((row) => row.slice(0, i + 1));
@@ -201,10 +203,7 @@ export class ConsoleWriter implements IResultWriter {
             0,
             submatrix_formatted.indexOf("\n")
           );
-          if (
-            first_line.length > process.stdout.columns &&
-            column_count > 1
-          ) {
+          if (first_line.length >= process.stdout.columns) {
             // currently accumulated matrix has come too long horizontally,
             // we have to break at this column - i.e. dump sub-matrix from 0 to previous, (i - 1)th column
             submatrix = data_trans
@@ -217,7 +216,7 @@ export class ConsoleWriter implements IResultWriter {
             // now remove the columns that have been dumped,
             data_trans = data_trans
               .slice(0, row_count + 1)
-              .map((row) => row.slice(i, column_count + 1));
+              .map((row) => row.slice(i));
             // append headers at matrix first column (for each row)
             data_trans[0].splice(0, 0, "index");
             for (let j = 0; j < headers.length; j++) {
