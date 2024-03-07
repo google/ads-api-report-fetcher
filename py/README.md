@@ -102,7 +102,7 @@ parametrized_query_text = """
     WHERE campaign.status = '{status}'
     """
 active_campaigns = report_fetcher.fetch(parametrized_query_text, customer_ids,
-                                        {"status": "ENABLED"})
+                                        {"macro":{"status": "ENABLED"}})
 ```
 
 #### Define queries
