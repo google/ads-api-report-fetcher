@@ -21,7 +21,6 @@ from __future__ import annotations
 import re
 from collections import abc
 from operator import attrgetter
-from typing import Self
 from typing import TypeAlias
 
 import proto  # type: ignore
@@ -32,6 +31,7 @@ from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from proto.marshal.collections.repeated import Repeated
 from proto.marshal.collections.repeated import RepeatedComposite
+from typing_extensions import Self
 
 GoogleAdsRowElement: TypeAlias = int | float | str | bool | list | None
 
