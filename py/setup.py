@@ -38,7 +38,7 @@ setup(name='google-ads-api-report-fetcher',
       ],
       packages=find_packages(),
       install_requires=[
-          'google-ads>=23.0.0', 'smart_open[all]', 'jinja2', 'python-dateutil',
+          'google-ads>=23.1.0', 'smart_open[all]', 'jinja2', 'python-dateutil',
           'pandas>=1.3.4', 'rich', 'tenacity'
       ],
       extras_require=EXTRAS_REQUIRE,
