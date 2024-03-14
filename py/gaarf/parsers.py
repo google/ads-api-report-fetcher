@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from collections import abc
 from operator import attrgetter
-from typing import TypeAlias
+from typing import Union
 
 import proto  # type: ignore
 from gaarf.query_editor import QueryElements
@@ -32,8 +32,9 @@ from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from proto.marshal.collections.repeated import Repeated
 from proto.marshal.collections.repeated import RepeatedComposite
 from typing_extensions import Self
+from typing_extensions import TypeAlias
 
-GoogleAdsRowElement: TypeAlias = int | float | str | bool | list | None
+GoogleAdsRowElement: TypeAlias = Union[int, float, str, bool, list, None]
 
 
 class BaseParser:
