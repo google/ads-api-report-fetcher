@@ -74,7 +74,7 @@ class BigQueryWriter(AbsWriter):
             df = pd.DataFrame(data=report.results_placeholder,
                               columns=report.column_names).head(0)
         else:
-            df = report.from_pandas()
+            df = report.to_pandas()
         df = df.replace({np.nan: None})
         logging.debug('Writing %d rows of data to %s', len(df), destination)
         try:
