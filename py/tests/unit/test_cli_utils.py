@@ -123,7 +123,7 @@ def test_gaarf_config_saver_gaarf_transforms_comma_separated_account_into_list(
         config_saver):
     gaarf_config = utils.GaarfConfig(output="console",
                                      api_version="10",
-                                     account="1,2,3")
+                                     account="1-,2,3")
 
     config = config_saver.prepare_config({}, gaarf_config)
     assert config == {

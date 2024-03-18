@@ -40,6 +40,9 @@ class GaarfConfig:
     customer_ids_query: Optional[str] = None
     customer_ids_query_file: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        self.account = self.account.replace("-", "").strip()
+
 
 class GaarfConfigException(Exception):
     ...
