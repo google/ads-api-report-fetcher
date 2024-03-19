@@ -642,7 +642,7 @@ async function initialize_googleads_config(answers: Partial<any>) {
 developer_token: ${answers_new.googleads_config_devtoken}
 client_id: ${answers_new.googleads_config_clientid}
 client_secret: ${answers_new.googleads_config_clientsecret}
-login_customer_id: ${answers_new.googleads_config_mcc}
+login_customer_id: ${sanitizeCustomerId(answers_new.googleads_config_mcc)}
 refresh_token: ${refresh_token}
     `;
     fs.writeFileSync(path_to_googleads_config, yaml_content, {
@@ -688,6 +688,10 @@ function getMultiRegion(region: string) {
   if (region.includes('europe')) return 'eu';
   if (region.includes('asia')) return 'asia';
   return region;
+}
+
+function sanitizeCustomerId(cid: string|number) {
+  return cid.toString().replaceAll('-', '').replaceAll(' ','');
 }
 
 async function init() {
@@ -1024,7 +1028,7 @@ cd ./../functions
   const bq_location =
     gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
   const output_dataset = answers2.output_dataset;
-  const customer_id = answers2.customer_id.toString().replaceAll('-', '');
+  const customer_id = sanitizeCustomerId(answers2.customer_id);
   const wf_data = {
     cloud_function: name,
     gcs_bucket: gcs_bucket,
