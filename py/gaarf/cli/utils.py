@@ -42,6 +42,10 @@ class GaarfConfig:
 
     def __post_init__(self) -> None:
         self.account = self.account.replace("-", "").strip()
+        self.writer_params = {
+            key.replace("-", "_"): value
+            for key, value in self.writer_params.items()
+        }
 
 
 class GaarfConfigException(Exception):
