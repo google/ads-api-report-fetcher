@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 from collections.abc import MutableSequence
 from dataclasses import dataclass, field, asdict
@@ -34,14 +35,19 @@ from gaarf.query_editor import CommonParametersMixin
 class GaarfConfig:
     output: str
     api_version: str
-    account: str
+    account: str | list[str]
     params: Dict[str, Any] = field(default_factory=dict)
     writer_params: Dict[str, Any] = field(default_factory=dict)
     customer_ids_query: Optional[str] = None
     customer_ids_query_file: Optional[str] = None
 
     def __post_init__(self) -> None:
-        self.account = self.account.replace("-", "").strip()
+        if isinstance(self.account, MutableSequence):
+            self.account = [
+                account.replace("-", "").strip() for account in self.account
+            ]
+        else:
+            self.account = self.account.replace("-", "").strip()
         self.writer_params = {
             key.replace("-", "_"): value
             for key, value in self.writer_params.items()
