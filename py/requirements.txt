@@ -244,7 +244,9 @@ google-ads==22.1.0 \
     # via google-ads-api-report-fetcher
 google-ads-api-report-fetcher[full]==1.11.3 \
     --hash=sha256:965a5a54c53b93d4210a0e5cf4bd03e771452c1cab2db4e92ecd0c705966864d
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   google-ads-api-report-fetcher
 google-api-core[grpc]==2.12.0 \
     --hash=sha256:c22e01b1e3c4dcd90998494879612c38d0a3411d1f7b679eb89e2abe3ce1f553 \
     --hash=sha256:ec6054f7d64ad13b41e43d96f735acbd763b0f3b695dabaa2d579673f6a6e160
@@ -655,9 +657,9 @@ pandas==2.1.1 \
     --hash=sha256:fecb198dc389429be557cde50a2d46da8434a17fe37d7d41ff102e3987fd947b \
     --hash=sha256:ffa8f0966de2c22de408d0e322db2faed6f6e74265aa0856f3824813cf124363
     # via google-ads-api-report-fetcher
-paramiko==3.3.1 \
-    --hash=sha256:6a3777a961ac86dbef375c5f5b8d50014a1a96d0fd7f054a43bc880134b0ff77 \
-    --hash=sha256:b7bc5340a43de4287bbe22fe6de728aa2c22468b2a849615498dd944c2f275eb
+paramiko==3.4.0 \
+    --hash=sha256:43f0b51115a896f9c00f59618023484cb3a14b98bbceab43394a39c6739b7ee7 \
+    --hash=sha256:aac08f26a31dc4dffd92821527d1682d99d52f9ef6851968114a8728f3c274d3
     # via smart-open
 proto-plus==1.22.3 \
     --hash=sha256:a49cd903bc0b6ab41f76bf65510439d56ca76f868adf0274e738bfdd096894df \
