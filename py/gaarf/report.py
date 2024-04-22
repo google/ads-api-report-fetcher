@@ -13,13 +13,16 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Literal
-from collections import defaultdict
-from collections.abc import MutableSequence, Sequence
 import itertools
 import operator
-import pandas as pd
 import warnings
+from collections import defaultdict
+from collections.abc import MutableSequence
+from collections.abc import Sequence
+from typing import Any
+from typing import Literal
+
+import pandas as pd
 
 from .query_editor import QuerySpecification
 
@@ -42,44 +45,46 @@ class GaarfReport:
         self.query_specification = query_specification
 
     def to_list(self,
-                row_type: Literal["list", "dict", "scalar"] = "list",
+                row_type: Literal['list', 'dict', 'scalar'] = 'list',
                 flatten: bool = False,
                 distinct: bool = False) -> Sequence:
         if flatten:
             warnings.warn(
-                "`GaarfReport` will deprecate passing `flatten=True` to `to_list` method."
-                "Use row_type='scalar' instead.",
+                '`GaarfReport` will deprecate passing `flatten=True` '
+                "to `to_list` method. Use row_type='scalar' instead.",
                 category=DeprecationWarning,
                 stacklevel=3)
-            row_type == "scalar"
-        if row_type == "list":
+            row_type = 'scalar'
+        if row_type == 'list':
             if self.multi_column_report:
+                if distinct:
+                    return list(set(self.results))
                 return self.results
-            return self.to_list(row_type="scalar")
-        if row_type == "dict":
+            return self.to_list(row_type='scalar')
+        if row_type == 'dict':
             results: list[dict] = []
             for row in iter(self):
                 results.append(row.to_dict())
             return results
-        if row_type == "scalar":
+        if row_type == 'scalar':
             results = list(itertools.chain.from_iterable(self.results))
             if distinct:
                 results = list(set(results))
             return results
-        raise ValueError("incorrect row_type specified", row_type)
+        raise ValueError('incorrect row_type specified', row_type)
 
     def to_dict(
             self,
             key_column: str,
             value_column: str | None = None,
-            value_column_output: Literal["scalar", "list"] = "list") -> dict:
+            value_column_output: Literal['scalar', 'list'] = 'list') -> dict:
         if key_column not in self.column_names:
             raise GaarfReportException(
-                f"column name {key_column} not found in the report")
+                f'column name {key_column} not found in the report')
         if value_column and value_column not in self.column_names:
             raise GaarfReportException(
-                f"column name {value_column} not found in the report")
-        if value_column_output == "list":
+                f'column name {value_column} not found in the report')
+        if value_column_output == 'list':
             output: dict = defaultdict(list)
         else:
             output = {}
@@ -95,12 +100,12 @@ class GaarfReport:
         for (key, value) in zip(key_generator, value_generator):
             if not value_column:
                 value = dict(zip(self.column_names, value))
-            if value_column_output == "list":
+            if value_column_output == 'list':
                 output[key].append(value)
             else:
                 if key in output:
                     raise GaarfReportException(
-                        f"Non unique values found for key_column: {key}")
+                        f'Non unique values found for key_column: {key}')
                 output[key] = value
         return output
 
@@ -167,10 +172,10 @@ class GaarfReport:
     def __add__(self, other):
         if not isinstance(other, self.__class__):
             raise GaarfReportException(
-                "Add operation is supported only for GaarfReport")
+                'Add operation is supported only for GaarfReport')
         if self.column_names != other.column_names:
             raise GaarfReportException(
-                "column_names should be the same in GaarfReport")
+                'column_names should be the same in GaarfReport')
         return GaarfReport(results=self.results + other.results,
                            column_names=self.column_names,
                            results_placeholder=self.results_placeholder
@@ -186,8 +191,8 @@ class GaarfRow:
 
     def __init__(self, data: Sequence[int | float | str],
                  column_names: Sequence[str]):
-        super().__setattr__("data", data)
-        super().__setattr__("column_names", column_names)
+        super().__setattr__('data', data)
+        super().__setattr__('column_names', column_names)
 
     def to_dict(self) -> dict:
         return {x[1]: x[0] for x in zip(self.data, self.column_names)}
@@ -195,16 +200,16 @@ class GaarfRow:
     def __getattr__(self, element: str) -> Any:
         if element in self.column_names:
             return self.data[self.column_names.index(element)]
-        raise AttributeError(f"cannot find {element} element!")
+        raise AttributeError(f'cannot find {element} element!')
 
     def __getitem__(self, element: str | int) -> Any:
         if isinstance(element, int):
             if element < len(self.column_names):
                 return self.data[element]
-            raise GaarfReportException(f"cannot find data in position {element}!")
+            raise GaarfReportException(f'cannot find data in position {element}!')
         if isinstance(element, str):
             return self.__getattr__(element)
-        raise GaarfReportException(f"cannot find {element} element!")
+        raise GaarfReportException(f'cannot find {element} element!')
 
     def __setattr__(self, name: str, value: str | int) -> None:
         self.__setitem__(name, value)
@@ -234,7 +239,7 @@ class GaarfRow:
         return self.data == other.data
 
     def __repr__(self):
-        return f"GaarfRow(\n{self.to_dict()}\n)"
+        return f'GaarfRow(\n{self.to_dict()}\n)'
 
 
 class GaarfReportException(Exception):
