@@ -11,193 +11,319 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for defining client to interact with API."""
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Sequence
-from dataclasses import dataclass
-
+import dataclasses
 import os
-import yaml
-
-from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.client import _DEFAULT_VERSION as GOOGLE_ADS_API_VERSION  # type: ignore,
-from google.api_core.exceptions import NotFound
-from importlib import import_module
-import logging
-from pathlib import Path
-from smart_open import open
 import re
-from proto.primitives import ProtoType
+from collections.abc import Iterable
+from collections.abc import Sequence
+from importlib import import_module
+from pathlib import Path
+from types import ModuleType
+
+import proto
+import smart_open
+import yaml
+from google import protobuf
+from google.ads.googleads.client import _DEFAULT_VERSION as GOOGLE_ADS_API_VERSION  # type: ignore,
+from google.ads.googleads.client import GoogleAdsClient
+from google.api_core.exceptions import NotFound
 
 
-@dataclass
-class Field:
+@dataclasses.dataclass(frozen=True)
+class FieldPossibleValues:
     name: str
-    type: str
-    values: Set[str]
+    values: set[str]
 
 
 class BaseClient:
+    """Base API client class.
+
+    Attributes:
+        api_version:
+            Version of Google Ads API to use.
+        google_ads_row:
+            Proto message that contains all possible fields for a given
+            API version.
+    """
+
+    _MAPPING = {
+        'INT64': int,
+        'FLOAT': float,
+        'DOUBLE': float,
+        'BOOL': bool,
+    }
 
     def __init__(self, version: str = GOOGLE_ADS_API_VERSION):
+        """Initializes client based on provided API version.
+
+        Args:
+            version: Version of Google Ads API to use.
+        """
         self.api_version = str(version) if str(version).startswith(
-            "v") else f"v{version}"
+            'v') else f'v{version}'
         self.google_ads_row = self._get_google_ads_row(self.api_version)
 
-    def get_response(self, entity_id: str, query_text: str):
-        pass
+    @property
+    def _base_module(self) -> str:
+        """Name of Google Ads module for a given API version."""
+        return f'google.ads.googleads.{self.api_version}'
 
-    def _get_google_ads_row(self, api_version: str) -> "GoogleAdsRow":
-        base_module = f"google.ads.googleads.{api_version}"
+    @property
+    def _common_types_module(self) -> str:
+        """Name of module containing common data types."""
+        return f'{self._base_module}.common.types'
+
+    @property
+    def _metrics(self) -> ModuleType:
+        """Module containing metrics."""
+        return import_module(f'{self._common_types_module}.metrics')
+
+    @property
+    def _segments(self) -> ModuleType:
+        """Module containing segments."""
+        return import_module(f'{self._common_types_module}.segments')
+
+    def _get_google_ads_row(self, api_version: str) -> 'GoogleAdsRow':
+        """Gets GoogleAdsRow for a given API version.
+
+        Args:
+            version: Version of Google Ads API to use.
+
+        Returns:
+            GoogleAdsRow proto message for a given API version.
+        """
         google_ads_service = import_module(
-            f"{base_module}.services.types.google_ads_service")
+            f'{self._base_module}.services.types.google_ads_service')
         return google_ads_service.GoogleAdsRow()
 
-    def infer_types(self, fields: Sequence[str]) -> List[Any]:
-        """Maps API fields to Python primitives."""
+    def infer_types(self,
+                    field_names: Sequence[str]) -> list[FieldPossibleValues]:
+        """Maps API fields to Python primitives.
 
-        base_module = f"google.ads.googleads.{self.api_version}"
-        common_types_module = f"{base_module}.common.types"
-        segments = import_module(f"{common_types_module}.segments")
-        metrics = import_module(f"{common_types_module}.metrics")
+        Args:
+            field_names: Valid field names to be sent to Ads API.
 
-        mapping = {"INT64": int, "FLOAT": float, "DOUBLE": float, "BOOL": bool}
+        Returns:
+            Possible values for each field.
+        """
+
         output = []
-        for field in fields:
+        for field_name in field_names:
             try:
-                resource, *sub_resource, base_field = field.split(".")
-                base_field = "type_" if base_field == "type" else base_field
-                values = set()
-                if resource == "metrics":
-                    target_resource = metrics.Metrics
-                elif resource == "segments":
-                    # If segment has name segments.something.something
-                    if sub_resource:
-                        target_resource = getattr(
-                            segments, f"{clean_resource(sub_resource[-1])}")
-                    else:
-                        target_resource = getattr(
-                            segments, f"{clean_resource(resource)}")
-                else:
-                    resource_module = import_module(
-                        f"{base_module}.resources.types.{resource}")
-
-                    target_resource = getattr(resource_module,
-                                              f"{clean_resource(resource)}")
-                    try:
-                        # If resource has name resource.something.something
-                        if sub_resource:
-                            target_resource = getattr(
-                                target_resource,
-                                f"{clean_resource(sub_resource[-1])}")
-                    except AttributeError:
-                        resource_module = import_module(
-                            f"{base_module}.resources.types.{sub_resource[0]}")
-                        if len(sub_resource) > 1:
-                            if hasattr(resource_module,
-                                       f"{clean_resource(sub_resource[1])}"):
-                                target_resource = getattr(
-                                    resource_module,
-                                    f"{clean_resource(sub_resource[-1])}")
-                            else:
-                                resource_module = import_module(
-                                    f"{common_types_module}.ad_type_infos")
-
-                                target_resource = getattr(
-                                    resource_module,
-                                    f"{clean_resource(sub_resource[1])}Info")
-                        else:
-                            target_resource = getattr(
-                                resource_module,
-                                f"{clean_resource(sub_resource[-1])}")
-                descriptor = target_resource.meta.fields.get(
-                    base_field).descriptor
-                result = descriptor.type
-
-                if result == 14:  # 14 stands for ENUM
-                    enum_class, enum = descriptor.type_name.split(".")[-2:]
-                    file_name = re.sub(r'(?<!^)(?=[A-Z])', '_', enum).lower()
-                    enum_resource = import_module(
-                        f"{base_module}.enums.types.{file_name}")
-                    values = set([
-                        p.name for p in getattr(
-                            getattr(enum_resource, enum_class), enum)
-                    ])
-
-                field_type = mapping.get(ProtoType(result).name, str)
-                if result != 14:
-                    if field_type == str:
-                        values = {
-                            "",
-                        }
-                    if field_type == int:
-                        values = {
-                            0,
-                        }
-                    if field_type == float:
-                        values = {
-                            0.0,
-                        }
-                    if field_type == bool:
-                        values = {
-                            False,
-                        }
-                field = Field(name=field, type=field_type, values=values)
+                descriptor = self._get_descriptor(field_name)
+                values = self._get_possible_values_for_resource(descriptor)
+                field = FieldPossibleValues(name=field_name, values=values)
             except (AttributeError, ModuleNotFoundError):
-                field = Field(name=field, type=str, values={
-                    "",
-                })
+                field = FieldPossibleValues(
+                    name=field_name, values={
+                        '',
+                    })
             output.append(field)
         return output
 
+    def _get_descriptor(
+            self, field: str) -> protobuf.descriptor_pb2.FieldDescriptorProto:
+        """Gets descriptor for specified field.
+
+        Args:
+            field: Valid field name to be sent to Ads API.
+
+        Returns:
+            FieldDescriptorProto for specified field.
+        """
+        resource, *sub_resource, base_field = field.split('.')
+        base_field = 'type_' if base_field == 'type' else base_field
+        target_resource = self._get_target_resource(resource, sub_resource)
+        return target_resource.meta.fields.get(base_field).descriptor
+
+    def _get_target_resource(
+            self,
+            resource: str,
+            sub_resource: list[str] | None = None) -> proto.message.Message:
+        """Gets Proto message for specified resource and its sub-resources.
+
+        Args:
+            resource:
+                Google Ads resource (campaign, ad_group, segments, etc.).
+            sub_resource:
+                Possible sub-resources (date for segments resource).
+
+        Returns:
+            Proto describing combination of resource and sub-resource.
+        """
+        if resource == 'metrics':
+            target_resource = self._metrics.Metrics
+        elif resource == 'segments':
+            # If segment has name segments.something.something
+            if sub_resource:
+                target_resource = getattr(
+                    self._segments, f'{clean_resource(sub_resource[-1])}')
+            else:
+                target_resource = getattr(self._segments,
+                                          f'{clean_resource(resource)}')
+        else:
+            resource_module = import_module(
+                f'{self._base_module}.resources.types.{resource}')
+
+            target_resource = getattr(resource_module,
+                                      f'{clean_resource(resource)}')
+            try:
+                # If resource has name resource.something.something
+                if sub_resource:
+                    target_resource = getattr(
+                        target_resource, f'{clean_resource(sub_resource[-1])}')
+            except AttributeError:
+                try:
+                    resource_module = import_module(
+                        f'{self._base_module}.resources.types.{sub_resource[0]}'
+                    )
+                except ModuleNotFoundError:
+                    resource_module = import_module(
+                        f'{self._common_types_module}.{sub_resource[0]}')
+                if len(sub_resource) > 1:
+                    if hasattr(resource_module,
+                               f'{clean_resource(sub_resource[1])}'):
+                        target_resource = getattr(
+                            resource_module,
+                            f'{clean_resource(sub_resource[-1])}')
+                    else:
+                        resource_module = import_module(
+                            f'{self._common_types_module}.ad_type_infos')
+
+                        target_resource = getattr(
+                            resource_module,
+                            f'{clean_resource(sub_resource[1])}Info')
+                else:
+                    target_resource = getattr(
+                        resource_module, f'{clean_resource(sub_resource[-1])}')
+        return target_resource
+
+    def _get_possible_values_for_resource(
+            self,
+            descriptor: protobuf.descriptor_pb2.FieldDescriptorProto) -> set:
+        """Identifies possible values for a given descriptor or field_type.
+
+        If descriptor's type is ENUM function gets all possible values for
+        this Enum, otherwise the default value for descriptor type is taken
+        (0 for int, '' for str, False for bool).
+
+        Args:
+            descriptor: FieldDescriptorProto for specified field.
+
+        Returns:
+            Possible values for a given descriptor.
+        """
+        if descriptor.type == 14:  # 14 stands for ENUM
+            enum_class, enum = descriptor.type_name.split('.')[-2:]
+            file_name = re.sub(r'(?<!^)(?=[A-Z])', '_', enum).lower()
+            enum_resource = import_module(
+                f'{self._base_module}.enums.types.{file_name}')
+            return {
+                p.name
+                for p in getattr(getattr(enum_resource, enum_class), enum)
+            }
+
+        field_type = self._MAPPING.get(
+            proto.primitives.ProtoType(descriptor.type).name, str)
+        default_value = field_type()
+        return {
+            default_value,
+        }
+
 
 class GoogleAdsApiClient(BaseClient):
-    default_google_ads_yaml = str(Path.home() / "google-ads.yaml")
+    """Client to interact with Google Ads API.
+
+    Attributes:
+        default_google_ads_yaml: Default location for google-ads.yaml file.
+        client: GoogleAdsClient to perform stream and mutate operations.
+        ads_service: GoogleAdsService to perform stream operations.
+    """
+    default_google_ads_yaml = str(Path.home() / 'google-ads.yaml')
 
     def __init__(self,
                  path_to_config: str = default_google_ads_yaml,
-                 config_dict: Optional[Dict[str, str]] = None,
-                 yaml_str: Optional[str] = None,
-                 version: str = GOOGLE_ADS_API_VERSION):
+                 config_dict: dict[str, str] | None = None,
+                 yaml_str: str | None = None,
+                 version: str = GOOGLE_ADS_API_VERSION) -> None:
+        """Initializes GoogleAdsApiClient based on one of the methods.
+
+        Args:
+            path_to_config: Path to google-ads.yaml file.
+            config_dict: A dictionary containing authentication details.
+            yaml_str: Strings representation of google-ads.yaml.
+            version: Ads API version.
+
+
+        Raises:
+            ValueError: If GoogleAdsClient doesn't have 'use_proto_plus' flag.
+        """
         super().__init__(version)
-        self.client = self._init_client(path=path_to_config,
-                                        config_dict=config_dict,
-                                        yaml_str=yaml_str)
-        if hasattr(self.client, "use_proto_plus"):
+        self.client = self._init_client(
+            path=path_to_config, config_dict=config_dict, yaml_str=yaml_str)
+        if hasattr(self.client, 'use_proto_plus'):
             self.client.use_proto_plus = True
         else:
             raise ValueError(
                 "Specify 'use_proto_plus: True' in your google-ads.yaml file")
-        self.ads_service = self.client.get_service("GoogleAdsService")
+        self.ads_service = self.client.get_service('GoogleAdsService')
 
-    def get_response(self, entity_id, query_text):
-        response = self.ads_service.search_stream(customer_id=entity_id,
-                                                  query=query_text)
-        return response
+    def get_response(
+            self, entity_id: int,
+            query_text: str) -> Iterable['SearchGoogleAdsStreamResponse']:
+        """Executes query for a given entity_id (customer_id).
 
-    def _init_client(self, path, config_dict,
-                     yaml_str) -> Optional[GoogleAdsClient]:
+        Args:
+            entity_id: Google Ads customer_id.
+            query_text: GAQL query text..
+
+        Returns:
+            SearchGoogleAdsStreamResponse for a given API version.
+        """
+
+        return self.ads_service.search_stream(
+            customer_id=entity_id, query=query_text)
+
+    def _init_client(self, path: str, config_dict: dict[str, str],
+                     yaml_str: str) -> GoogleAdsClient | None:
+        """Initializes GoogleAdsClient based on one of the methods.
+
+        Args:
+            path: Path to google-ads.yaml file.
+            config_dict: A dictionary containing authentication details.
+            yaml_str: Strings representation of google-ads.yaml.
+
+        Returns:
+            Instantiated GoogleAdsClient;
+            None if instantiation hasn't been done.
+
+        Raises:
+            ValueError:
+                if google-ads.yaml wasn't found or environment does not
+        """
         if config_dict:
-            return GoogleAdsClient.load_from_dict(config_dict,
-                                                  self.api_version)
+            return GoogleAdsClient.load_from_dict(config_dict, self.api_version)
         if yaml_str:
             return GoogleAdsClient.load_from_string(yaml_str, self.api_version)
         if path:
             if os.path.isfile(path):
-                return GoogleAdsClient.load_from_storage(
-                    path, self.api_version)
-            else:
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        google_ads_config_dict = yaml.safe_load(f)
-                    return GoogleAdsClient.load_from_dict(
-                        google_ads_config_dict, self.api_version)
-                except NotFound as e:
-                    raise ValueError(f"File {path} not found")
+                return GoogleAdsClient.load_from_storage(path, self.api_version)
+            try:
+                with smart_open.open(path, 'r', encoding='utf-8') as f:
+                    google_ads_config_dict = yaml.safe_load(f)
+                return GoogleAdsClient.load_from_dict(google_ads_config_dict,
+                                                      self.api_version)
+            except NotFound:
+                raise ValueError(f'File {path} not found')
         try:
             return GoogleAdsClient.load_from_env(self.api_version)
-        except Exception as e:
-            raise ValueError("Cannot instantiate GoogleAdsClient")
+        except ValueError:
+            raise ValueError('Cannot instantiate GoogleAdsClient')
 
 
 def clean_resource(resource: str) -> str:
+    """Converts nested resource to a TitleCase format."""
     return resource.title().replace('_', '')
