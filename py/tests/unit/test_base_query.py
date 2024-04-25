@@ -1,34 +1,63 @@
-import pytest
-from gaarf.base_query import BaseQuery
+from __future__ import annotations
+
+import dataclasses
+
+from gaarf import base_query
 
 
-@pytest.fixture
-def fake_query():
-    class FakeQuery(BaseQuery):
-        def __init__(self):
-            self.query_text = "SELECT 1"
-    fake_query = FakeQuery()
-    return fake_query
+class FakeQueryWithoutInit(base_query.BaseQuery):
+    query_text = 'SELECT campaign.id FROM campaign'
 
 
-@pytest.fixture
-def wrong_query():
-    class WrongQuery(BaseQuery):
-        def __init__(self):
-            self.query = "SELECT 1"
-    wrong_query = WrongQuery()
-    return wrong_query
+class FakeQueryWithInit(base_query.BaseQuery):
+    query_text = '''
+        SELECT campaign.id FROM campaign WHERE campaign.id = {campaign_id}
+        '''
+
+    def __init__(self, campaign_id: int) -> None:
+        self.campaign_id = campaign_id
 
 
-def test_base_query_init_raises_error():
-    with pytest.raises(NotImplementedError):
-        base_query = BaseQuery()
+@dataclasses.dataclass
+class FakeQueryDataclass(base_query.BaseQuery):
+    query_text = '''
+        SELECT campaign.id FROM campaign WHERE campaign.id = {campaign_id}
+        '''
+    campaign_id: int
 
 
-def test_implemented_str(fake_query):
-    assert str(fake_query) == "SELECT 1"
+class FakeQueryOldStyle(base_query.BaseQuery):
+
+    def __init__(self, campaign_id: int) -> None:
+        self.query_text = f'''
+            SELECT campaign.id FROM campaign WHERE campaign.id = {campaign_id}
+        '''
 
 
-def test_not_implemented_str(wrong_query):
-    with pytest.raises(NotImplementedError):
-        print(wrong_query)
+class TestBaseQuery:
+
+    def test_base_query_correct_init(self):
+        expected_query_text = 'SELECT campaign.id FROM campaign'
+        fake_query = FakeQueryWithoutInit()
+        assert str(fake_query) == expected_query_text.strip()
+
+    def test_base_query_correct_init_with_argument(self):
+        expected_query_text = '''
+        SELECT campaign.id FROM campaign WHERE campaign.id = 1
+        '''
+        fake_query = FakeQueryWithInit(campaign_id=1)
+        assert str(fake_query) == expected_query_text.strip()
+
+    def test_base_query_correct_init_with_argument_old_style(self):
+        expected_query_text = '''
+        SELECT campaign.id FROM campaign WHERE campaign.id = 1
+        '''
+        fake_query = FakeQueryOldStyle(campaign_id=1)
+        assert str(fake_query) == expected_query_text.strip()
+
+    def test_base_query_correct_init_with_argument_dataclass(self):
+        expected_query_text = '''
+        SELECT campaign.id FROM campaign WHERE campaign.id = 1
+        '''
+        fake_query = FakeQueryDataclass(campaign_id=1)
+        assert str(fake_query) == expected_query_text.strip()

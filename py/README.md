@@ -7,7 +7,7 @@ Please see the full documentation in the root [README](https://github.com/google
 
 ### Prerequisites
 
-* Python 3.9+
+* Python 3.8+
 * pip installed
 * Google Ads API enabled
 * `google-ads.yaml` file. Learn how to create one [here](../docs/how-to-authenticate-ads-api.md).
@@ -25,6 +25,7 @@ pip install google-ads-api-report-fetcher
 
 #### Versions of the library
 
+*  `google-ads-api-report-fetcher[bq]` - version with BigQuery support
 *  `google-ads-api-report-fetcher[sqlalchemy]` - version with SQLalchemy support
 * `google-ads-api-report-fetcher[simulator]` - version with support for [simulating
     query results](../docs/simulating-data-with-gaarf.md) instead of calling Google Ads API.
@@ -132,6 +133,33 @@ reader_client = reader.FileReader()
 query = reader_client.read(query_path)
 
 # 3. define query as a class
+
+# New style
+class Campaigns(BaseQuery):
+    query_text  = """
+        SELECT
+            campaign.id
+        FROM campaign
+        WHERE campaign.status = {status}
+        """
+
+    def __init__(self, status: str = "ENABLED") -> None:
+        self.status = status
+
+# Dataclass style
+from dataclasses import dataclass
+
+@dataclass
+class Campaigns(BaseQuery):
+    query_text  = """
+        SELECT
+            campaign.id
+        FROM campaign
+        WHERE campaign.status = {status}
+        """
+    status: str = "ENABLED"
+
+# Old style
 class Campaigns(BaseQuery):
     def __init__(self, status: str = "ENABLED"):
         self.query_text = f"""

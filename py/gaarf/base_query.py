@@ -11,15 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for defining base class for Gaarf query classes.
+
+Gaarf query classes can inherit from BaseQuery and have a simple way of
+being fetched from API.
+"""
+from __future__ import annotations
+
 
 class BaseQuery:
-    def __init__(self, **kwargs):
-        raise NotImplementedError
+    """Base class to inherit all Gaarf queries from.
 
-    def __str__(self):
-        if hasattr(self, "query_text"):
-            return self.query_text
-        raise NotImplementedError(
-            "attribute self.query_text must be implemented "
-            f"in class {self.__class__.__name__}"
-        )
+
+    Attributes:
+        query_text: Contains query text or template.
+    """
+
+    query_text = ''
+
+    @property
+    def query(self) -> str:
+        """Returns expanded query with parameters takes from initialization."""
+        return self.query_text.format(**self.__dict__)
+
+    def __str__(self) -> str:
+        """Formatted query string representation."""
+        return self.query.strip()
