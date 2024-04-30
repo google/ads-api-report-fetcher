@@ -1,0 +1,47 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v3.2.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: check-added-large-files
+  - id: debug-statements
+  - id: double-quote-string-fixer
+- repo: https://github.com/asottile/reorder-python-imports
+  rev: v3.12.0
+  hooks:
+  - id: reorder-python-imports
+    args:
+      - --py38-plus
+      - --add-import
+      - from __future__ import annotations
+- repo: https://github.com/PyCQA/autoflake
+  rev: v2.2.1
+  hooks:
+  - id: autoflake
+    args: [--remove-all-unused-imports, --in-place]
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.8.0
+  hooks:
+  - id: mypy
+    verbose: true
+    entry: bash -c 'mypy "$@" || true'
+    args: [--ignore-missing-imports]
+- repo: local
+  hooks:
+  - id: pytest-check
+    name: pytest-check
+    entry: pytest -m 'not e2e'
+    language: system
+    pass_filenames: false
+    always_run: true
+  - id: yapf
+    name: yapf-formatter
+    entry: yapf
+    args: [--style=yapf]
+    language: system
+    pass_filenames: false
+    always_run: true
