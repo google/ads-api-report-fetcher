@@ -11,47 +11,55 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.import proto
+"""Module for various utility functions."""
+from __future__ import annotations
 
-from typing import Sequence, Union
-from collections.abc import MutableSequence
-import re
 import warnings
+from collections.abc import MutableSequence
+from collections.abc import Sequence
 
-from .api_clients import GoogleAdsApiClient
-from .query_editor import QuerySpecification
-from .query_executor import AdsReportFetcher
-from .report import GaarfRow, GaarfReport
+from gaarf import api_clients
+from gaarf import query_editor
+from gaarf import query_executor
+from gaarf import report
 
 
-def get_customer_ids(ads_client: GoogleAdsApiClient,
-                     customer_id: Union[str, MutableSequence],
-                     customer_ids_query: str = None) -> Sequence[str]:
+def get_customer_ids(ads_client: api_clients.GoogleAdsApiClient,
+                     customer_id: str | MutableSequence,
+                     customer_ids_query: str | None = None) -> Sequence[str]:
     """Gets list of customer_ids from an MCC account.
 
     Args:
         ads_client: GoogleAdsApiClient used for connection.
         customer_id: MCC account_id(s).
         custom_query: GAQL query used to reduce the number of customer_ids.
+
     Returns:
         All customer_ids from MCC satisfying the condition.
     """
 
     query = """
     SELECT customer_client.id FROM customer_client
-    WHERE customer_client.manager = FALSE AND customer_client.status = "ENABLED"
+    WHERE customer_client.manager = FALSE AND customer_client.status = ENABLED
     """
-    warnings.warn("`get_customer_ids` will be deprecated, use `AdsReportFetcher.expand_mcc` or `AdsQueryExecutor.expand_mcc` methods instead",
-                 category=DeprecationWarning, stacklevel=3)
-    query_specification = QuerySpecification(query).generate()
+    warnings.warn(
+        '`get_customer_ids` will be deprecated, '
+        'use `AdsReportFetcher.expand_mcc` or `AdsQueryExecutor.expand_mcc` '
+        'methods instead',
+        category=DeprecationWarning,
+        stacklevel=3)
+    query_specification = query_editor.QuerySpecification(query).generate()
     if not isinstance(customer_id, MutableSequence):
-        customer_id = customer_id.split(",")
-    report_fetcher = AdsReportFetcher(ads_client)
-    customer_ids = report_fetcher.fetch(query_specification, customer_id).to_list()
+        customer_id = customer_id.split(',')
+    report_fetcher = query_executor.AdsReportFetcher(ads_client)
+    customer_ids = report_fetcher.fetch(query_specification,
+                                        customer_id).to_list()
     if customer_ids_query:
-        query_specification = QuerySpecification(customer_ids_query).generate()
+        query_specification = query_editor.QuerySpecification(
+            customer_ids_query).generate()
         customer_ids = report_fetcher.fetch(query_specification, customer_ids)
         customer_ids = [
-            row[0] if isinstance(row, GaarfRow) else row
+            row[0] if isinstance(row, report.GaarfRow) else row
             for row in customer_ids
         ]
 
