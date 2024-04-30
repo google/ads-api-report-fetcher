@@ -24,13 +24,9 @@ from operator import attrgetter
 from typing import Union
 
 import proto  # type: ignore
-from gaarf.query_editor import QueryElements
-from gaarf.query_editor import VirtualColumn
-from gaarf.query_editor import VirtualColumnError
-from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
-from google.protobuf.internal.containers import RepeatedScalarFieldContainer
-from proto.marshal.collections.repeated import Repeated
-from proto.marshal.collections.repeated import RepeatedComposite
+from gaarf import query_editor
+from google import protobuf
+from proto.marshal.collections import repeated
 from typing_extensions import Self
 from typing_extensions import TypeAlias
 
@@ -61,7 +57,7 @@ class BaseParser:
 
 
 class RepeatedParser(BaseParser):
-    """Parses Repeated resources."""
+    """Parses repeated.Repeated resources."""
 
     def parse(self, element: GoogleAdsRowElement) -> GoogleAdsRowElement:
         """Parses only repeated elements from GoogleAdsRow.
@@ -75,10 +71,10 @@ class RepeatedParser(BaseParser):
         Returns:
             Parsed GoogleAdsRow element.
         """
-        if isinstance(
-                element,
-            (Repeated,
-             RepeatedScalarFieldContainer)) and 'customer' in str(element):
+        if isinstance(element,
+                      (repeated.Repeated,
+                       protobuf.internal.containers.RepeatedScalarFieldContainer
+                      )) and 'customer' in str(element):
             items: list[GoogleAdsRowElement] = []
             for item in element:
                 item = ResourceFormatter.get_resource_id(item)
@@ -88,7 +84,7 @@ class RepeatedParser(BaseParser):
 
 
 class RepeatedCompositeParser(BaseParser):
-    """Parses RepeatedComposite elements."""
+    """Parses repeated.RepeatedComposite elements."""
 
     def parse(self, element):
         """Parses only repeated composite resources from GoogleAdsRow.
@@ -102,8 +98,10 @@ class RepeatedCompositeParser(BaseParser):
         Returns:
             Parsed GoogleAdsRow element.
         """
-        if isinstance(element,
-                      (RepeatedComposite, RepeatedCompositeFieldContainer)):
+        if isinstance(
+                element,
+            (repeated.RepeatedComposite,
+             protobuf.internal.containers.RepeatedCompositeFieldContainer)):
             items = []
             for item in element:
                 item = ResourceFormatter.get_resource(item)
@@ -171,7 +169,7 @@ class GoogleAdsRowParser:
         respect_nulls: Whether or not convert nulls to zeros.
     """
 
-    def __init__(self, query_specification: QueryElements) -> None:
+    def __init__(self, query_specification: query_editor.QueryElements) -> None:
         """Initializes GoogleAdsRowParser.
 
         Args:
@@ -193,8 +191,10 @@ class GoogleAdsRowParser:
         """Initializes chain of parsers."""
         parser_chain = BaseParser(None)
         for parser in [
-                EmptyMessageParser, AttributeParser, RepeatedCompositeParser,
-                RepeatedParser
+                EmptyMessageParser,
+                AttributeParser,
+                RepeatedCompositeParser,
+                RepeatedParser,
         ]:
             new_parser = parser(parser_chain)
             parser_chain = new_parser
@@ -230,18 +230,25 @@ class GoogleAdsRowParser:
                             try:
                                 if isinstance(
                                         extracted_attribute,
-                                    (Repeated, RepeatedComposite,
-                                     RepeatedScalarFieldContainer,
-                                     RepeatedCompositeFieldContainer
-                                     )) or isinstance(
-                                         extracted_attribute_,
-                                         (Repeated, RepeatedComposite,
-                                          RepeatedScalarFieldContainer,
-                                          RepeatedCompositeFieldContainer)):
-                                    if isinstance(
-                                            extracted_attribute_,
-                                        (Repeated, RepeatedComposite)):
-                                        extracted_attribute = extracted_attribute_
+                                    (repeated.Repeated,
+                                     repeated.RepeatedComposite,
+                                     protobuf.internal.containers
+                                     .RepeatedScalarFieldContainer,
+                                     protobuf.internal.containers
+                                     .RepeatedCompositeFieldContainer
+                                    )) or isinstance(
+                                        extracted_attribute_,
+                                        (repeated.Repeated,
+                                         repeated.RepeatedComposite,
+                                         protobuf.internal.containers
+                                         .RepeatedScalarFieldContainer,
+                                         protobuf.internal.containers
+                                         .RepeatedCompositeFieldContainer)):
+                                    if isinstance(extracted_attribute_,
+                                                  (repeated.Repeated,
+                                                   repeated.RepeatedComposite)):
+                                        extracted_attribute = (
+                                            extracted_attribute)
                                     if len(values_) > 1:
                                         value = values_[1]
                                     else:
@@ -267,8 +274,7 @@ class GoogleAdsRowParser:
                                     for element in extracted_attribute
                                 ]
                                 extracted_attribute = [
-                                    self._get_resource_index(
-                                        attribute, caller)
+                                    self._get_resource_index(attribute, caller)
                                     for attribute in parsed_element
                                 ]
                             else:
@@ -287,8 +293,8 @@ class GoogleAdsRowParser:
 
     def _get_resource_index(self, extracted_attribute: str
                             | abc.MutableSequence[str], caller: dict) -> str:
-        extracted_attribute = re.split(
-            '~', extracted_attribute)[caller.get('value')]
+        extracted_attribute = re.split('~',
+                                       extracted_attribute)[caller.get('value')]
         return re.split('/', extracted_attribute)[-1]
 
     def _get_attributes_from_row(self, row: 'GoogleAdsRow', getter) -> tuple:
@@ -307,11 +313,11 @@ class GoogleAdsRowParser:
                 attributes = tuple(attributes)
         else:
             attributes = getter(row)
-        return attributes if isinstance(attributes, tuple) else (attributes, )
+        return attributes if isinstance(attributes, tuple) else (attributes,)
 
     def _convert_virtual_column(
             self, row: 'GoogleAdsRow',
-            virtual_column: VirtualColumn) -> GoogleAdsRowElement:
+            virtual_column: query_editor.VirtualColumn) -> GoogleAdsRowElement:
         """Convert virtual column definition to a single element.
 
         Args:
@@ -331,18 +337,17 @@ class GoogleAdsRowParser:
             try:
                 iter(virtual_column_values)
             except TypeError:
-                virtual_column_values = (virtual_column_values, )
+                virtual_column_values = (virtual_column_values,)
             virtual_column_replacements = {
-                field.replace('.', '_'): value
-                for field, value in zip(virtual_column.fields,
-                                        virtual_column_values)
+                field.replace('.', '_'): value for field, value in zip(
+                    virtual_column.fields, virtual_column_values)
             }
             try:
                 result = eval(
                     virtual_column.substitute_expression.format(
                         **virtual_column_replacements))
             except TypeError as e:
-                raise VirtualColumnError(
+                raise query_editor.VirtualColumnError(
                     f'cannot parse virtual_column {virtual_column.value}'
                 ) from e
             except ZeroDivisionError:

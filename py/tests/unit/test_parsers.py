@@ -1,51 +1,48 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 from typing import Any
-from typing import Dict
-from typing import List
 
 import proto
 import pytest
 from gaarf import parsers
-from gaarf.query_editor import VirtualColumn
-from gaarf.query_editor import VirtualColumnError
+from gaarf import query_editor
 
 
-@dataclass
+@dataclasses.dataclass
 class FakeGoogleAdsRowElement:
     value: int
     text: str
     name: str
 
 
-@dataclass
+@dataclasses.dataclass
 class TextAttribute:
     text: str
 
 
-@dataclass
+@dataclasses.dataclass
 class NameAttribute:
     name: str
 
 
-@dataclass
+@dataclasses.dataclass
 class AssetAttribute:
     name: str
 
 
-@dataclass
+@dataclasses.dataclass
 class ValueAttribute:
     value: str
 
 
-@dataclass
+@dataclasses.dataclass
 class Metric:
     clicks: int
     impressions: int
 
 
-@dataclass
+@dataclasses.dataclass
 class FakeAdsRowMultipleElements:
     campaign_type: NameAttribute
     clicks: int
@@ -54,12 +51,12 @@ class FakeAdsRowMultipleElements:
     metrics: Metric
 
 
-@dataclass
+@dataclasses.dataclass
 class FakeQuerySpecification:
-    customizers: Dict[str, Any]
-    virtual_columns: Dict[str, Any]
-    fields: List[str]
-    column_names: List[str]
+    customizers: dict[str, Any]
+    virtual_columns: dict[str, Any]
+    fields: list[str]
+    column_names: list[str]
 
 
 @pytest.fixture
@@ -67,19 +64,34 @@ def fake_query_specification():
     customizers = {
         'resource': {
             'type': 'resource_index',
-            'value': 0
+            'value': 0,
         },
         'value': {
             'type': 'nested_field',
-            'value': 'value'
+            'value': 'value',
         }
     }
-    virtual_columns = {'date': {'type': 'built-in', 'value': 'date'}}
+    virtual_columns = {
+        'date': {
+            'type': 'built-in',
+            'value': 'date',
+        }
+    }
     return FakeQuerySpecification(
         customizers=customizers,
         virtual_columns=virtual_columns,
-        fields=['campaign_type', 'clicks', 'resource', 'value'],
-        column_names=['campaign_type', 'clicks', 'resource', 'value'])
+        fields=[
+            'campaign_type',
+            'clicks',
+            'resource',
+            'value',
+        ],
+        column_names=[
+            'campaign_type',
+            'clicks',
+            'resource',
+            'value',
+        ])
 
 
 @pytest.fixture
@@ -130,22 +142,47 @@ class TestParser:
     def empty_message_parser(self, base_parser):
         return parsers.EmptyMessageParser(base_parser)
 
-    def test_base_parser(self, base_parser):
+    def test_base_parser_parse_returns_none(self, base_parser):
         assert base_parser.parse('') is None
 
-    @pytest.mark.parametrize('element,expected_value',
-                             [(NameAttribute('some-name'), 'some-name'),
-                              (TextAttribute('some-text'), 'some-text'),
-                              (AssetAttribute('some-asset'), 'some-asset'),
-                              (ValueAttribute(1), 1), ('', None)])
-    def test_attribute_parser(self, attribute_parser, element, expected_value):
+    @pytest.mark.parametrize('element,expected_value', [
+        (
+            NameAttribute('some-name'),
+            'some-name',
+        ),
+        (
+            TextAttribute('some-text'),
+            'some-text',
+        ),
+        (
+            AssetAttribute('some-asset'),
+            'some-asset',
+        ),
+        (
+            ValueAttribute(1),
+            1,
+        ),
+        (
+            '',
+            None,
+        ),
+    ])
+    def test_attribute_parser_parser_returns_expected_value(
+            self, attribute_parser, element, expected_value):
         assert attribute_parser.parse(element) == expected_value
 
-    @pytest.mark.parametrize('element,expected_value',
-                             [(FakeMessage(message='test'), 'Not set'),
-                              ('', None)])
-    def test_empty_message_parser(self, empty_message_parser, element,
-                                  expected_value):
+    @pytest.mark.parametrize('element,expected_value', [
+        (
+            FakeMessage(message='test'),
+            'Not set',
+        ),
+        (
+            '',
+            None,
+        ),
+    ])
+    def test_empty_message_parser_returns_expected_value(
+            self, empty_message_parser, element, expected_value):
         assert empty_message_parser.parse(element) == expected_value
 
 
@@ -162,10 +199,13 @@ class TestGoogleAdsRowParser:
 
     @pytest.fixture
     def fake_expression_virtual_column(self):
-        return VirtualColumn(
+        return query_editor.VirtualColumn(
             type='expression',
             value='metrics.clicks / metrics.impressions',
-            fields=['metrics.clicks', 'metrics.impressions'],
+            fields=[
+                'metrics.clicks',
+                'metrics.impressions',
+            ],
             substitute_expression='{metrics_clicks} / {metrics_impressions}')
 
     def test_google_ads_row_parser_return_last_parser_in_chain(
@@ -173,56 +213,66 @@ class TestGoogleAdsRowParser:
         assert isinstance(google_ads_row_parser.parser_chain,
                           parsers.RepeatedParser)
 
-    def test_get_attributes_from_row(self, google_ads_row_parser,
-                                     fake_ads_row):
+    def test_get_attributes_from_row_returns_correct_list(
+            self, google_ads_row_parser, fake_ads_row):
         extracted_rows = google_ads_row_parser._get_attributes_from_row(
             fake_ads_row, google_ads_row_parser.row_getter)
-        assert extracted_rows == (NameAttribute('SEARCH'), 1,
-                                  'customers/1/resource/2', ValueAttribute(1))
+        assert extracted_rows == (
+            NameAttribute('SEARCH'),
+            1,
+            'customers/1/resource/2',
+            ValueAttribute(1),
+        )
         assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
             'SEARCH', 1, '2', 1
         ]
 
-    def test_extract_resource_indices_from_array(self, google_ads_row_parser):
+    def test_parse_ads_row_extracts_correct_resource_indices_from_array(
+            self, google_ads_row_parser):
         fake_ads_row_with_array = FakeAdsRowMultipleElements(
             campaign_type=NameAttribute('SEARCH'),
             clicks=1,
-            resource=['customers/1/resource/1', 'customers/1/resource/2'],
+            resource=[
+                'customers/1/resource/1',
+                'customers/1/resource/2',
+            ],
             value=ValueAttribute(1),
             metrics=Metric(clicks=10, impressions=10))
-        assert google_ads_row_parser.parse_ads_row(
-            fake_ads_row_with_array) == ['SEARCH', 1, ['1', '2'], 1]
+        assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
+            'SEARCH', 1, ['1', '2'], 1
+        ]
 
-    def test_extract_resource_indices_from_array_of_attributes(
+    def test_parse_ads_row_extract_correct_resource_indices_from_array_of_attributes(  # pylint: disable=line-too-long
             self, google_ads_row_parser):
         fake_ads_row_with_array = FakeAdsRowMultipleElements(
             campaign_type=NameAttribute('SEARCH'),
             clicks=1,
             resource=[
                 AssetAttribute('customers/1/resource/1'),
-                AssetAttribute('customers/1/resource/2')
+                AssetAttribute('customers/1/resource/2'),
             ],
             value=ValueAttribute(1),
             metrics=Metric(clicks=10, impressions=10))
-        assert google_ads_row_parser.parse_ads_row(
-            fake_ads_row_with_array) == ['SEARCH', 1, ['1', '2'], 1]
+        assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
+            'SEARCH', 1, ['1', '2'], 1
+        ]
 
-    def test_convert_builtin_virtual_column(self, google_ads_row_parser,
-                                            fake_ads_row):
-        fake_builtin_virtual_column = VirtualColumn(type='built-in',
-                                                    value='fake_value')
+    def test_convert_virtual_column_returns_correct_value_for_builtin_type(
+            self, google_ads_row_parser, fake_ads_row):
+        fake_builtin_virtual_column = query_editor.VirtualColumn(
+            type='built-in', value='fake_value')
         result = google_ads_row_parser._convert_virtual_column(
             fake_ads_row, fake_builtin_virtual_column)
         assert result == 'fake_value'
 
-    def test_convert_expression_virtual_column(self, google_ads_row_parser,
-                                               fake_ads_row,
-                                               fake_expression_virtual_column):
+    def test_convert_virtual_column_returns_correct_value_for_expression(
+            self, google_ads_row_parser, fake_ads_row,
+            fake_expression_virtual_column):
         result = google_ads_row_parser._convert_virtual_column(
             fake_ads_row, fake_expression_virtual_column)
         assert result == 1.0
 
-    def test_convert_expression_virtual_column_with_zero_denominator_returns_zero(
+    def test_convert_virtual_column_returns_zero_for_expression_with_zero_in_denominator(  # pylint: disable=line-too-long
             self, google_ads_row_parser, fake_ads_row,
             fake_expression_virtual_column):
         fake_ads_row.metrics.impressions = 0
@@ -230,18 +280,32 @@ class TestGoogleAdsRowParser:
             fake_ads_row, fake_expression_virtual_column)
         assert result == 0
 
-    def test_if_convert_expression_virtual_column_raises_type_error_raise_virtual_column_error(
+    def test_convert_virtual_column_raises_virtual_column_error_on_incorrect_type(  # pylint: disable=line-too-long
             self, google_ads_row_parser, fake_ads_row,
             fake_expression_virtual_column):
         fake_ads_row.metrics.impressions = 'str'
-        with pytest.raises(VirtualColumnError):
+        with pytest.raises(query_editor.VirtualColumnError):
             google_ads_row_parser._convert_virtual_column(
                 fake_ads_row, fake_expression_virtual_column)
 
-    def test_if_convert_expression_virtual_column_fails_return_column_value(
+    def test_convert_virtual_column_returns_virtual_column_value_on_incorrect_expression(  # pylint: disable=line-too-long
             self, google_ads_row_parser, fake_ads_row,
             fake_expression_virtual_column):
         fake_ads_row.metrics.impressions = '0 +'
         result = google_ads_row_parser._convert_virtual_column(
             fake_ads_row, fake_expression_virtual_column)
         assert result == fake_expression_virtual_column.value
+
+    def test_convert_virtual_column_raises_value_error_on_incorrect_type(  # pylint: disable=line-too-long
+            self, google_ads_row_parser, fake_ads_row):
+        virtual_column = query_editor.VirtualColumn(
+            type='non-existing-type',
+            value='metrics.clicks / metrics.impressions',
+            fields=[
+                'metrics.clicks',
+                'metrics.impressions',
+            ],
+            substitute_expression='{metrics_clicks} / {metrics_impressions}')
+        with pytest.raises(ValueError):
+            google_ads_row_parser._convert_virtual_column(
+                fake_ads_row, virtual_column)
