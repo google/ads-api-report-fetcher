@@ -36,7 +36,7 @@ EXTRAS_REQUIRE['full'] = list(set(itertools.chain(*EXTRAS_REQUIRE.values())))
 
 setuptools.setup(
     name='google-ads-api-report-fetcher',
-    version='1.13.0',
+    version='1.13.1',
     python_requires='>3.8',
     description=('Library for fetching reports from Google Ads API '
                  'and saving them locally & remotely.'),
@@ -55,7 +55,7 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(),
     install_requires=[
-        'google-ads>=23.1.0',
+        'google-ads>=24.0.0',
         'smart_open[all]',
         'jinja2',
         'python-dateutil',
