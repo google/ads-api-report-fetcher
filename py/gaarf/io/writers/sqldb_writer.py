@@ -23,37 +23,60 @@ except ImportError as e:
 import logging
 import pandas as pd
 
-from gaarf.report import GaarfReport
+from gaarf import report as gaarf_report
 from gaarf.io import formatter
-from gaarf.io.writers.abs_writer import AbsWriter
+from gaarf.io.writers import abs_writer
 
 
-class SqlAlchemyWriter(AbsWriter):
+class SqlAlchemyWriter(abs_writer.AbsWriter):
+    """Handles writing GaarfReports data to databases supported by SqlAlchemy.
+
+    Attributes:
+        connection_string:
+            Connection string to database.
+            More at https://docs.sqlalchemy.org/en/20/core/engines.html.
+        if_exists:
+            Behaviour when data already exists in the table.
+    """
 
     def __init__(self,
                  connection_string: str,
                  if_exists: str = 'replace',
                  **kwargs):
+        """Initializes SqlAlchemyWriter based on connection_string.
+
+        Args:
+            connection_string: Connection string to database.
+        if_exists: Behaviour when data already exists in the table.
+        """
         super().__init__(**kwargs)
         self.connection_string = connection_string
         self.if_exists = if_exists
 
-    def write(self, report: GaarfReport, destination: str) -> None:
+    def write(self, report: gaarf_report.GaarfReport, destination: str) -> None:
+        """Writes Gaarf report to the table.
+
+        Args:
+            report: GaarfReport to be written.
+            destination: Name of the output table.
+        """
         report = self.format_for_write(report)
         destination = formatter.format_extension(destination)
         if not report:
-            df = pd.DataFrame(data=report.results_placeholder,
-                              columns=report.column_names).head(0)
+            df = pd.DataFrame(
+                data=report.results_placeholder,
+                columns=report.column_names).head(0)
         else:
             df = report.to_pandas()
         logging.debug('Writing %d rows of data to %s', len(df), destination)
-        engine = self._create_engine()
-        with engine.connect() as conn:
-            df.to_sql(name=destination,
-                      con=conn.connection,
-                      index=False,
-                      if_exists=self.if_exists)
+        df.to_sql(
+            name=destination,
+            con=self.engine,
+            index=False,
+            if_exists=self.if_exists)
         logging.debug('Writing to %s is completed', destination)
 
-    def _create_engine(self):
+    @property
+    def engine(self) -> sqlalchemy.engine.Engine:
+        """Creates engine based on connection string."""
         return sqlalchemy.create_engine(self.connection_string)
