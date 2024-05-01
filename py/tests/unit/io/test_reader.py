@@ -1,10 +1,12 @@
-import pytest
+from __future__ import annotations
+
 import gaarf.io.reader as reader
+import pytest
 
 
 def test_console_reader():
     console_reader = reader.ConsoleReader()
-    expected = "SELECT 1"
+    expected = 'SELECT 1'
     assert expected == console_reader.read(expected)
 
 
@@ -15,18 +17,18 @@ def reader_factory():
 
 def test_reader_factory_load(reader_factory):
     assert reader_factory.reader_options == {
-        "file": reader.FileReader,
-        "console": reader.ConsoleReader
+        'file': reader.FileReader,
+        'console': reader.ConsoleReader
     }
 
 
 def test_reader_factory_inits(reader_factory):
-    file_reader = reader_factory.create_reader("file")
-    console_reader = reader_factory.create_reader("console")
+    file_reader = reader_factory.create_reader('file')
+    console_reader = reader_factory.create_reader('console')
     assert isinstance(file_reader, reader.FileReader)
     assert isinstance(console_reader, reader.ConsoleReader)
 
 
 def test_null_reader_raises_unknown_reader_error(reader_factory):
     with pytest.raises(ValueError):
-        reader_factory.create_reader("non-existing-option")
+        reader_factory.create_reader('non-existing-option')
