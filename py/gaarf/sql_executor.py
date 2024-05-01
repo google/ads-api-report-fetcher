@@ -11,28 +11,58 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Defines mechanism for executing queries via SqlAlchemy."""
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
 import logging
-import sqlalchemy
+import re
+from typing import Any
+
 import pandas as pd
-
-from .query_post_processor import PostProcessorMixin
-
-logger = logging.getLogger(__name__)
+import sqlalchemy
+from gaarf import query_post_processor
 
 
-class SqlAlchemyQueryExecutor(PostProcessorMixin):
+class SqlAlchemyQueryExecutor(query_post_processor.PostProcessorMixin):
+    """Handles query execution via SqlAlchemy.
+
+    Attributes:
+        engine: Initialized Engine object to operated on a given database.
+    """
 
     def __init__(self, engine: sqlalchemy.engine.base.Engine) -> None:
+        """Initializes executor with a given engine.
+
+        Args:
+            engine: Initialized Engine object to operated on a given database.
+        """
         self.engine = engine
 
-    def execute(
-            self,
-            script_name: str,
-            query_text: str,
-            params: Optional[Dict[str, Any]] = None) -> Optional[pd.DataFrame]:
+    def execute(self,
+                script_name: str | None,
+                query_text: str,
+                params: dict[str, Any] | None = None) -> pd.DataFrame | None:
+        """Executes query in a given database via SqlAlchemy.
+
+        Args:
+            script_name: Script identifier.
+            query_text: Query to be executed.
+            params: Optional parameters to be replaced in query text.
+
+        Returns:
+            DataFrame if query returns some data, None if data are saved to DB.
+        """
+        logging.info('Executing script: %s', script_name)
         query_text = self.replace_params_template(query_text, params)
         with self.engine.begin() as conn:
+            if re.findall(r'(create|update) ', query_text.lower()):
+                conn.connection.executescript(query_text)
+                return None
+            temp_table_name = f'temp_{script_name}'.replace('.', '_')
+            query_text = f'CREATE TABLE {temp_table_name} AS {query_text}'
             conn.connection.executescript(query_text)
-        return None
+            try:
+                result = pd.read_sql(f'SELECT * FROM {temp_table_name}', conn)
+            finally:
+                conn.connection.execute(f'DROP TABLE {temp_table_name}')
+            return result
