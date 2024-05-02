@@ -1,0 +1,7 @@
+developer_token: test-token
+client_id: test-client-id
+client_secret: test-client-secret
+refresh_token: test-refresh-token
+login_customer_id: 1234567890
+client_customer_id: 1234567890
+use_proto_plus: True
