@@ -67,4 +67,4 @@ class GaarfBuiltInQueryException(GaarfException):
 
 
 class GaarfExecutorException(GaarfException):
-    """."""
+    """Base exception for errors during GaarfQuery execution."""

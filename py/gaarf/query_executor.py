@@ -206,7 +206,7 @@ class AdsReportFetcher:
         try:
             for attempt in tenacity.Retrying(
                     retry=tenacity.retry_if_exception_type(
-                        exceptions.InternalServerError),
+                        google_exceptions.InternalServerError),
                     stop=tenacity.stop_after_attempt(3),
                     wait=tenacity.wait_exponential()):
                 with attempt:
