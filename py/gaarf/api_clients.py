@@ -22,14 +22,17 @@ from collections.abc import Sequence
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
+from typing import Final
 
 import proto
 import smart_open
 import yaml
 from google import protobuf
-from google.ads.googleads.client import _DEFAULT_VERSION as GOOGLE_ADS_API_VERSION  # type: ignore,
+from google.ads.googleads.client import _DEFAULT_VERSION
 from google.ads.googleads.client import GoogleAdsClient
 from google.api_core.exceptions import NotFound
+
+GOOGLE_ADS_API_VERSION: Final = _DEFAULT_VERSION
 
 
 @dataclasses.dataclass(frozen=True)
