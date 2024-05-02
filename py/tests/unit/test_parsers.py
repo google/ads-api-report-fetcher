@@ -5,6 +5,7 @@ from typing import Any
 
 import proto
 import pytest
+from gaarf import exceptions
 from gaarf import parsers
 from gaarf import query_editor
 
@@ -280,11 +281,11 @@ class TestGoogleAdsRowParser:
             fake_ads_row, fake_expression_virtual_column)
         assert result == 0
 
-    def test_convert_virtual_column_raises_virtual_column_error_on_incorrect_type(  # pylint: disable=line-too-long
+    def test_convert_virtual_column_raises_virtual_column_exception_on_incorrect_type(  # pylint: disable=line-too-long
             self, google_ads_row_parser, fake_ads_row,
             fake_expression_virtual_column):
         fake_ads_row.metrics.impressions = 'str'
-        with pytest.raises(query_editor.VirtualColumnError):
+        with pytest.raises(exceptions.GaarfVirtualColumnException):
             google_ads_row_parser._convert_virtual_column(
                 fake_ads_row, fake_expression_virtual_column)
 
@@ -296,7 +297,7 @@ class TestGoogleAdsRowParser:
             fake_ads_row, fake_expression_virtual_column)
         assert result == fake_expression_virtual_column.value
 
-    def test_convert_virtual_column_raises_value_error_on_incorrect_type(  # pylint: disable=line-too-long
+    def test_convert_virtual_column_raises_virtual_column_exception_on_incorrect_type(  # pylint: disable=line-too-long
             self, google_ads_row_parser, fake_ads_row):
         virtual_column = query_editor.VirtualColumn(
             type='non-existing-type',
@@ -306,6 +307,6 @@ class TestGoogleAdsRowParser:
                 'metrics.impressions',
             ],
             substitute_expression='{metrics_clicks} / {metrics_impressions}')
-        with pytest.raises(ValueError):
+        with pytest.raises(exceptions.GaarfVirtualColumnException):
             google_ads_row_parser._convert_virtual_column(
                 fake_ads_row, virtual_column)

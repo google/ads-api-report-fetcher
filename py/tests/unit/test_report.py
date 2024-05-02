@@ -4,24 +4,24 @@ from collections import abc
 
 import pandas as pd
 import pytest
-from gaarf.report import GaarfReport
-from gaarf.report import GaarfReportException
-from gaarf.report import GaarfRow
+from gaarf import exceptions
+from gaarf import report
 
 
 @pytest.fixture
 def single_element_report():
-    return GaarfReport(results=[[1]], column_names=['campaign_id'])
+    return report.GaarfReport(results=[[1]], column_names=['campaign_id'])
 
 
 @pytest.fixture
 def single_column_report():
-    return GaarfReport(results=[[1], [1], [3]], column_names=['campaign_id'])
+    return report.GaarfReport(
+        results=[[1], [1], [3]], column_names=['campaign_id'])
 
 
 @pytest.fixture
 def multi_column_report():
-    return GaarfReport(
+    return report.GaarfReport(
         results=[[1, 2], [2, 3], [3, 4]],
         column_names=['campaign_id', 'ad_group_id'])
 
@@ -36,7 +36,7 @@ def test_single_column_report_returns_sequence(single_column_report):
 
 def test_multi_column_report_returns_gaarf_row(multi_column_report):
     results = [row for row in multi_column_report]
-    assert isinstance(results[0], GaarfRow)
+    assert isinstance(results[0], report.GaarfRow)
 
 
 def test_multi_column_report_support_iteration_with_gaarf_iterator(
@@ -61,7 +61,7 @@ def test_multi_column_report_get_element_as_attribute(multi_column_report):
 
 
 def test_getitem_raise_index_error_for_out_of_index_value(multi_column_report):
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         [row[99] for row in multi_column_report] == [1, 2, 3]
 
 
@@ -104,7 +104,7 @@ def test_add_two_reports(multi_column_report):
 
 
 def test_add_report_and_non_report_raises_exception(multi_column_report):
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         multi_column_report + 1
 
 
@@ -115,35 +115,35 @@ def test_add_non_report_and_report_raises_exception(multi_column_report):
 
 def test_add_reports_with_different_columns_raises_exception(
         multi_column_report, single_element_report):
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         multi_column_report + single_element_report
 
 
 def test_slicing_multi_column_gaarf_report_returns_gaarf_report(
         multi_column_report):
     new_report = multi_column_report[0:2]
-    assert new_report == GaarfReport(
+    assert new_report == report.GaarfReport(
         results=[[1, 2], [2, 3]], column_names=['campaign_id', 'ad_group_id'])
 
 
 def test_indexing_multi_column_gaarf_report_by_single_index_returns_gaarf_row(
         multi_column_report):
     new_report = multi_column_report[0]
-    assert new_report == GaarfRow(
+    assert new_report == report.GaarfRow(
         data=[1, 2], column_names=['campaign_id', 'ad_group_id'])
 
 
 def test_indexing_multi_column_gaarf_report_by_multi_index_returns_gaarf_report(
         multi_column_report):
     new_report = multi_column_report[0:2]
-    assert new_report == GaarfReport(
+    assert new_report == report.GaarfReport(
         results=[[1, 2], [2, 3]], column_names=['campaign_id', 'ad_group_id'])
 
 
 def test_indexing_multi_column_gaarf_report_by_one_column_returns_gaarf_report(
         multi_column_report):
     new_report = multi_column_report['campaign_id']
-    assert new_report == GaarfReport(
+    assert new_report == report.GaarfReport(
         results=[[1], [2], [3]], column_names=['campaign_id'])
 
 
@@ -155,7 +155,7 @@ def test_indexing_multi_column_gaarf_report_by_several_columns_returns_gaarf_rep
 
 def test_indexing_multi_column_gaarf_report_by_non_existing_column_raises_exception(
         multi_column_report):
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         multi_column_report[['campaign_id', 'ad_group']]
 
 
@@ -173,7 +173,7 @@ def test_slicing_multi_column_gaarf_report_returns_element(
 def test_set_non_existing_item_gaarf_row_get_new_column(multi_column_report):
     row = multi_column_report[0]
     row['campaign_id_new'] = row['campaign_id'] * 100
-    assert row == GaarfRow(
+    assert row == report.GaarfRow(
         data=[1, 2, 100],
         column_names=['campaign_id', 'ad_group_id', 'campaign_id_new'])
 
@@ -181,7 +181,7 @@ def test_set_non_existing_item_gaarf_row_get_new_column(multi_column_report):
 def test_set_existing_item_gaarf_row_updates_column(multi_column_report):
     row = multi_column_report[0]
     row['campaign_id'] = row['campaign_id'] * 100
-    assert row == GaarfRow(
+    assert row == report.GaarfRow(
         data=[100, 2], column_names=['campaign_id', 'ad_group_id'])
 
 
@@ -189,7 +189,7 @@ def test_set_non_existing_attribute_gaarf_row_get_new_column(
         multi_column_report):
     row = multi_column_report[0]
     row.campaign_id_new = row.campaign_id * 100
-    assert row == GaarfRow(
+    assert row == report.GaarfRow(
         data=[1, 2, 100],
         column_names=['campaign_id', 'ad_group_id', 'campaign_id_new'])
 
@@ -198,7 +198,7 @@ def test_set_non_existing_attribute_gaarf_rows_get_new_columns(
         multi_column_report):
     for row in multi_column_report:
         row.campaign_id_new = row.campaign_id * 100
-    assert multi_column_report == GaarfReport(
+    assert multi_column_report == report.GaarfReport(
         results=[[1, 2, 100], [2, 3, 200], [3, 4, 300]],
         column_names=['campaign_id', 'ad_group_id', 'campaign_id_new'])
 
@@ -206,7 +206,7 @@ def test_set_non_existing_attribute_gaarf_rows_get_new_columns(
 def test_set_existing_attribute_gaarf_row_updates_column(multi_column_report):
     row = multi_column_report[0]
     row.campaign_id = row.campaign_id * 100
-    assert row == GaarfRow(
+    assert row == report.GaarfRow(
         data=[100, 2], column_names=['campaign_id', 'ad_group_id'])
 
 
@@ -214,7 +214,7 @@ def test_set_existing_attribute_gaarf_multiple_rows_updates_columns(
         multi_column_report):
     for row in multi_column_report:
         row.campaign_id = row.campaign_id * 100
-    assert multi_column_report == GaarfReport(
+    assert multi_column_report == report.GaarfReport(
         results=[[100, 2], [200, 3], [300, 4]],
         column_names=['campaign_id', 'ad_group_id'])
 
@@ -257,7 +257,7 @@ def test_multi_column_report_converted_to_dict_raises_exception_on_non_existing_
         multi_column_report):
     key_column = 'missing_column'
     value_column = 'ad_group_id'
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         output_dict = multi_column_report.to_dict(
             key_column=key_column,
             value_column=value_column,
@@ -268,7 +268,7 @@ def test_multi_column_report_converted_to_dict_raises_exception_on_non_existing_
         multi_column_report):
     key_column = 'campaign_id'
     value_column = 'missing_column'
-    with pytest.raises(GaarfReportException):
+    with pytest.raises(exceptions.GaarfReportException):
         output_dict = multi_column_report.to_dict(
             key_column=key_column,
             value_column=value_column,
@@ -297,8 +297,6 @@ def test_multi_column_report_converted_to_dict_with_missing_value_column(
 
 def test_multi_column_report_converted_to_dict_without_arguments(
         multi_column_report):
-    key_column = 'campaign_id'
-    value_column = 'ad_group_id'
     output_dict = multi_column_report.to_list(row_type='dict')
     assert output_dict == [{
         'campaign_id': 1,
@@ -313,10 +311,8 @@ def test_multi_column_report_converted_to_dict_without_arguments(
 
 
 def test_to_list_incorrect_row_type_raises_exception(multi_column_report):
-    key_column = 'campaign_id'
-    value_column = 'ad_group_id'
-    with pytest.raises(ValueError):
-        output_dict = multi_column_report.to_list(row_type='tuple')
+    with pytest.raises(exceptions.GaarfReportException):
+        multi_column_report.to_list(row_type='tuple')
 
 
 def test_empty_report_converted_to_dict_with_key_column(multi_column_report):
@@ -337,7 +333,7 @@ def test_report_with_different_columns_not_equal(single_column_report,
 
 
 def test_report_with_different_data_are_not_equal(multi_column_report):
-    new_multi_column_report = GaarfReport(
+    new_multi_column_report = report.GaarfReport(
         results=list(multi_column_report.results),
         column_names=list(multi_column_report.column_names))
     new_multi_column_report.results[0] = [10, 10]
@@ -345,7 +341,7 @@ def test_report_with_different_data_are_not_equal(multi_column_report):
 
 
 def test_report_with_same_data_are_equal(multi_column_report):
-    new_multi_column_report = GaarfReport(
+    new_multi_column_report = report.GaarfReport(
         results=list(multi_column_report.results),
         column_names=list(multi_column_report.column_names))
     assert new_multi_column_report == multi_column_report
@@ -355,6 +351,7 @@ def test_conversion_from_pandas():
     values = [[1, 2], [3, 4]]
     column_names = ['one', 'two']
     df = pd.DataFrame(data=values, columns=column_names)
-    report = GaarfReport.from_pandas(df)
-    expected_report = GaarfReport(results=values, column_names=column_names)
-    assert report == expected_report
+    report_from_df = report.GaarfReport.from_pandas(df)
+    expected_report = report.GaarfReport(
+        results=values, column_names=column_names)
+    assert report_from_df == expected_report

@@ -13,18 +13,18 @@
 # limitations under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
+import operator
 import re
-from dataclasses import dataclass
-from operator import attrgetter
 
-from dateutil.relativedelta import relativedelta
-from gaarf.api_clients import BaseClient
-from gaarf.api_clients import GOOGLE_ADS_API_VERSION
-from gaarf.query_post_processor import PostProcessorMixin
+from dateutil import relativedelta
+from gaarf import api_clients
+from gaarf import exceptions
+from gaarf import query_post_processor
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class VirtualColumn:
     type: str
     value: str
@@ -32,33 +32,21 @@ class VirtualColumn:
     substitute_expression: str | None = None
 
 
-@dataclass
+@dataclasses.dataclass
 class ExtractedLineElements:
     fields: list[str] | None
     alias: str | None
     virtual_column: VirtualColumn | None
 
 
-@dataclass
+@dataclasses.dataclass
 class ProcessedField:
     field: str
     customizer_type: str | None = None
     customizer_value: str | None = None
 
 
-class VirtualColumnError(Exception):
-    ...
-
-
-class FieldError(Exception):
-    ...
-
-
-class MacroError(Exception):
-    ...
-
-
-@dataclass
+@dataclasses.dataclass
 class QueryElements:
     """Contains raw query and parsed elements.
 
@@ -87,28 +75,30 @@ class QueryElements:
 class CommonParametersMixin:
     common_params = {
         'date_iso':
-        datetime.date.today().strftime('%Y%m%d'),
+            datetime.date.today().strftime('%Y%m%d'),
         'yesterday_iso':
-        (datetime.date.today() - relativedelta(days=1)).strftime('%Y%m%d'),
+            (datetime.date.today() -
+             relativedelta.relativedelta(days=1)).strftime('%Y%m%d'),
         'current_date':
-        datetime.date.today().strftime('%Y-%m-%d'),
+            datetime.date.today().strftime('%Y-%m-%d'),
         'current_datetime':
-        datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+            datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     }
 
 
-class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
+class QuerySpecification(CommonParametersMixin,
+                         query_post_processor.PostProcessorMixin):
 
     def __init__(self,
                  text: str,
                  title: str | None = None,
                  args: dict | None = None,
-                 api_version: str = GOOGLE_ADS_API_VERSION) -> None:
+                 api_version: str = api_clients.GOOGLE_ADS_API_VERSION) -> None:
         self.text = text
         self.title = title
         self.args = args or {}
         self.macros = self._init_macros()
-        self.base_client = BaseClient(api_version)
+        self.base_client = api_clients.BaseClient(api_version)
 
     def _init_macros(self) -> dict[str, str]:
         if not self.args:
@@ -129,19 +119,19 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         query_text = self.expand_jinja(self.text, self.args.get('template'))
         resource_name = self.extract_resource_from_query(query_text)
         if is_builtin_query := bool(resource_name.startswith('builtin')):
-            return QueryElements(query_title=resource_name.replace(
-                'builtin.', ''),
-                                 query_text=query_text,
-                                 fields=None,
-                                 column_names=None,
-                                 customizers=None,
-                                 virtual_columns=None,
-                                 resource_name=resource_name,
-                                 is_constant_resource=False,
-                                 is_builtin_query=True)
+            return QueryElements(
+                query_title=resource_name.replace('builtin.', ''),
+                query_text=query_text,
+                fields=None,
+                column_names=None,
+                customizers=None,
+                virtual_columns=None,
+                resource_name=resource_name,
+                is_constant_resource=False,
+                is_builtin_query=True)
         if not is_builtin_query and resource_name not in dir(
                 self.base_client.google_ads_row):
-            raise ValueError(
+            raise exceptions.GaarfResourceException(
                 f'Invalid resource specified in the query: {resource_name}')
         is_constant_resource = bool(resource_name.endswith('_constant'))
         query_lines = self.cleanup_query_text(query_text)
@@ -149,7 +139,8 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         try:
             query_text = query_text.format(**self.macros)
         except KeyError as e:
-            raise MacroError(f'No value provided for macro {str(e)}.') from e
+            raise exceptions.GaarfMacroException(
+                f'No value provided for macro {str(e)}.') from e
         fields = []
         column_names = []
         customizers = {}
@@ -169,7 +160,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                     fields.append(self.format_type_field_name(field_name))
                     customizer_type = processed_field.customizer_type
             if not line_elements.alias and not field_name and not is_builtin_query:
-                raise VirtualColumnError(
+                raise exceptions.GaarfVirtualColumnException(
                     'Virtual attributes should be aliased')
             column_name = line_elements.alias.strip().replace(
                 ',', '') if line_elements.alias else field_name
@@ -183,20 +174,20 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                     'type': customizer_type,
                     'value': processed_field.customizer_value
                 }
-        query_text = self.create_query_text(fields, virtual_columns,
-                                            query_text)
+        query_text = self.create_query_text(fields, virtual_columns, query_text)
         for _, column in virtual_columns.items():
             if not isinstance(column.value, (int, float)):
                 column.value.format(**self.macros)
-        return QueryElements(query_title=self.title,
-                             query_text=query_text,
-                             fields=fields,
-                             column_names=column_names,
-                             customizers=customizers,
-                             virtual_columns=virtual_columns,
-                             resource_name=resource_name,
-                             is_constant_resource=is_constant_resource,
-                             is_builtin_query=is_builtin_query)
+        return QueryElements(
+            query_title=self.title,
+            query_text=query_text,
+            fields=fields,
+            column_names=column_names,
+            customizers=customizers,
+            virtual_columns=virtual_columns,
+            resource_name=resource_name,
+            is_constant_resource=is_constant_resource,
+            is_builtin_query=is_builtin_query)
 
     def create_query_text(self, fields: list[str],
                           virtual_columns: dict[str, VirtualColumn],
@@ -246,10 +237,9 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                        flags=re.IGNORECASE)[0]).strip()
 
     def extract_query_lines(self, query_text: str) -> list[str]:
-        selected_fields = re.sub(r'\bSELECT\b|FROM .*',
-                                 '',
-                                 query_text,
-                                 flags=re.IGNORECASE).split(',')
+        selected_fields = re.sub(
+            r'\bSELECT\b|FROM .*', '', query_text,
+            flags=re.IGNORECASE).split(',')
         return [field.strip() for field in selected_fields if field != ' ']
 
     def extract_from_statement(self, query_text: str) -> str:
@@ -264,7 +254,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         processed_field = self._process_field(field_raw)
         virtual_field = processed_field.field
         try:
-            _ = attrgetter(virtual_field)(self.base_client.google_ads_row)
+            operator.attrgetter(virtual_field)(self.base_client.google_ads_row)
         except AttributeError:
             if virtual_field.isdigit():
                 virtual_field = int(virtual_field)
@@ -275,14 +265,13 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
                     pass
 
             operators = ('/', r'\*', r'\+', ' - ')
-            if len(expressions := re.split('|'.join(operators),
-                                           field_raw)) > 1:
+            if len(expressions := re.split('|'.join(operators), field_raw)) > 1:
                 virtual_column_fields = []
                 substitute_expression = virtual_field
                 for element in expressions:
                     element = element.strip()
                     try:
-                        _ = attrgetter(element)(
+                        operator.attrgetter(element)(
                             self.base_client.google_ads_row)
                         virtual_column_fields.append(element)
                         substitute_expression = substitute_expression.replace(
@@ -299,22 +288,23 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
             else:
                 if not isinstance(virtual_field, (int, float)):
                     if not self._not_a_quoted_string(virtual_field):
-                        raise FieldError(
+                        raise exceptions.GaarfFieldException(
                             f"Incorrect field '{virtual_field}' in the query '{self.text}'."
                         )
                     virtual_field = virtual_field.replace("'",
                                                           '').replace('"', '')
                     virtual_field = virtual_field.format(
                         **macros) if macros else virtual_field
-                virtual_column = VirtualColumn(type='built-in',
-                                               value=virtual_field)
+                virtual_column = VirtualColumn(
+                    type='built-in', value=virtual_field)
         if not virtual_column and field_raw:
             fields = [field_raw]
         else:
             fields = None
-        return ExtractedLineElements(fields=fields,
-                                     alias=alias[0] if alias else None,
-                                     virtual_column=virtual_column)
+        return ExtractedLineElements(
+            fields=fields,
+            alias=alias[0] if alias else None,
+            virtual_column=virtual_column)
 
     def _process_field(self, raw_field: str) -> ProcessedField:
         """Process field to extract possible customizers.
@@ -326,20 +316,23 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         """
         if len(resources := self.extract_resource_element(raw_field)) > 1:
             field_name, resource_index = resources
-            return ProcessedField(field=field_name,
-                                  customizer_type='resource_index',
-                                  customizer_value=int(resource_index))
+            return ProcessedField(
+                field=field_name,
+                customizer_type='resource_index',
+                customizer_value=int(resource_index))
 
         if len(nested_fields := self.extract_nested_resource(raw_field)) > 1:
             field_name, nested_field = nested_fields
-            return ProcessedField(field=field_name,
-                                  customizer_type='nested_field',
-                                  customizer_value=nested_field)
+            return ProcessedField(
+                field=field_name,
+                customizer_type='nested_field',
+                customizer_value=nested_field)
         if len(pointers := self.extract_pointer(raw_field)) > 1:
             field_name, pointer = pointers
-            return ProcessedField(field=field_name,
-                                  customizer_type='pointer',
-                                  customizer_value=pointer)
+            return ProcessedField(
+                field=field_name,
+                customizer_type='pointer',
+                customizer_value=pointer)
         return ProcessedField(field=raw_field)
 
     def extract_resource_element(self, line_elements: str) -> list[str]:
@@ -364,7 +357,7 @@ class QuerySpecification(CommonParametersMixin, PostProcessorMixin):
         return re.sub(r'\.type_', '.type', query)
 
     def _not_a_quoted_string(self, field_name: str) -> bool:
-        if ((field_name.startswith("'") and field_name.endswith("'"))
-                or (field_name.startswith('"') and field_name.endswith('"'))):
+        if ((field_name.startswith("'") and field_name.endswith("'")) or
+            (field_name.startswith('"') and field_name.endswith('"'))):
             return True
         return False

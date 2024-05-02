@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
+from gaarf import exceptions
 from gaarf import query_editor
 
 
@@ -155,7 +156,7 @@ class TestRegularQuery:
         spec = query_editor.QuerySpecification(title='sample_query',
                                                text=query,
                                                args=None)
-        with pytest.raises(ValueError):
+        with pytest.raises(exceptions.GaarfResourceException):
             spec.generate()
 
     def test_incorrect_specification_raises_macro_error(self):
@@ -163,7 +164,7 @@ class TestRegularQuery:
         spec = query_editor.QuerySpecification(title='sample_query',
                                                text=query,
                                                args=None)
-        with pytest.raises(query_editor.MacroError):
+        with pytest.raises(exceptions.GaarfMacroException):
             spec.generate()
 
     def test_incorrect_specification_raises_virtual_column_error(self):
@@ -171,7 +172,7 @@ class TestRegularQuery:
         spec = query_editor.QuerySpecification(title='sample_query',
                                                text=query,
                                                args=None)
-        with pytest.raises(query_editor.VirtualColumnError):
+        with pytest.raises(exceptions.GaarfVirtualColumnException):
             spec.generate()
 
     def test_incorrect_field_raises_value_error(self):
@@ -179,7 +180,7 @@ class TestRegularQuery:
         spec = query_editor.QuerySpecification(title='sample_query',
                                                text=query,
                                                args=None)
-        with pytest.raises(query_editor.FieldError):
+        with pytest.raises(exceptions.GaarfFieldException):
             spec.generate()
 
 

@@ -23,18 +23,19 @@ from typing import Any
 from typing import Literal
 
 import pandas as pd
-
-from .query_editor import QuerySpecification
+from gaarf import exceptions
+from gaarf import query_editor
 
 
 class GaarfReport:
 
     def __init__(
-            self,
-            results: Sequence,
-            column_names: Sequence[str],
-            results_placeholder: Sequence | None = None,
-            query_specification: QuerySpecification | None = None) -> None:
+        self,
+        results: Sequence,
+        column_names: Sequence[str],
+        results_placeholder: Sequence | None = None,
+        query_specification: query_editor.QuerySpecification | None = None
+    ) -> None:
         self.results = results
         self.column_names = column_names
         self.multi_column_report = len(column_names) > 1
@@ -71,7 +72,8 @@ class GaarfReport:
             if distinct:
                 results = list(set(results))
             return results
-        raise ValueError('incorrect row_type specified', row_type)
+        raise exceptions.GaarfReportException('incorrect row_type specified',
+                                              row_type)
 
     def to_dict(
             self,
@@ -79,10 +81,10 @@ class GaarfReport:
             value_column: str | None = None,
             value_column_output: Literal['scalar', 'list'] = 'list') -> dict:
         if key_column not in self.column_names:
-            raise GaarfReportException(
+            raise exceptions.GaarfReportException(
                 f'column name {key_column} not found in the report')
         if value_column and value_column not in self.column_names:
-            raise GaarfReportException(
+            raise exceptions.GaarfReportException(
                 f'column name {value_column} not found in the report')
         if value_column_output == 'list':
             output: dict = defaultdict(list)
@@ -104,7 +106,7 @@ class GaarfReport:
                 output[key].append(value)
             else:
                 if key in output:
-                    raise GaarfReportException(
+                    raise exceptions.GaarfReportException(
                         f'Non unique values found for key_column: {key}')
                 output[key] = value
         return output
@@ -145,9 +147,12 @@ class GaarfReport:
                 non_existing_keys = set(key).intersection(
                     set(self.column_names))
                 if len(non_existing_keys) > 1:
-                    message = f"Columns '{', '.join(list(non_existing_keys))}' cannot be found in the report"
-                message = f"Column '{non_existing_keys.pop()}' cannot be found in the report"
-                raise GaarfReportException(message)
+                    message = (
+                        f"Columns '{', '.join(list(non_existing_keys))}' "
+                        'cannot be found in the report')
+                message = (f"Column '{non_existing_keys.pop()}' "
+                           'cannot be found in the report')
+                raise exceptions.GaarfReportException(message)
         else:
             if key in self.column_names:
                 index = self.column_names.index(key)
@@ -171,20 +176,21 @@ class GaarfReport:
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
-            raise GaarfReportException(
+            raise exceptions.GaarfReportException(
                 'Add operation is supported only for GaarfReport')
         if self.column_names != other.column_names:
-            raise GaarfReportException(
+            raise exceptions.GaarfReportException(
                 'column_names should be the same in GaarfReport')
-        return GaarfReport(results=self.results + other.results,
-                           column_names=self.column_names,
-                           results_placeholder=self.results_placeholder
-                           and other.results_placeholder)
+        return GaarfReport(
+            results=self.results + other.results,
+            column_names=self.column_names,
+            results_placeholder=self.results_placeholder and
+            other.results_placeholder)
 
     @classmethod
     def from_pandas(cls, df: pd.DataFrame):
-        return cls(results=df.values.tolist(),
-                   column_names=list(df.columns.values))
+        return cls(
+            results=df.values.tolist(), column_names=list(df.columns.values))
 
 
 class GaarfRow:
@@ -206,10 +212,11 @@ class GaarfRow:
         if isinstance(element, int):
             if element < len(self.column_names):
                 return self.data[element]
-            raise GaarfReportException(f'cannot find data in position {element}!')
+            raise exceptions.GaarfReportException(
+                f'cannot find data in position {element}!')
         if isinstance(element, str):
             return self.__getattr__(element)
-        raise GaarfReportException(f'cannot find {element} element!')
+        raise exceptions.GaarfReportException(f'cannot find {element} element!')
 
     def __setattr__(self, name: str, value: str | int) -> None:
         self.__setitem__(name, value)
@@ -240,7 +247,3 @@ class GaarfRow:
 
     def __repr__(self):
         return f'GaarfRow(\n{self.to_dict()}\n)'
-
-
-class GaarfReportException(Exception):
-    ...

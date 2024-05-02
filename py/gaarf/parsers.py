@@ -24,6 +24,7 @@ from operator import attrgetter
 from typing import Union
 
 import proto  # type: ignore
+from gaarf import exceptions
 from gaarf import query_editor
 from google import protobuf
 from proto.marshal.collections import repeated
@@ -262,7 +263,7 @@ class GoogleAdsRowParser:
                                         caller.get('value'))(
                                             extracted_attribute)
                             except AttributeError as e:
-                                raise ValueError(
+                                raise exceptions.GaarfCustomizerException(
                                     f'customizer {caller} is incorrect,\n'
                                     f"details: '{e}',\n"
                                     f"row: '{row}'") from e
@@ -327,7 +328,7 @@ class GoogleAdsRowParser:
             Parsed element.
         """
         if virtual_column.type not in ('built-in', 'expression'):
-            raise ValueError(
+            raise exceptions.GaarfVirtualColumnException(
                 f'Unsupported virtual column type: {virtual_column.type}')
         if virtual_column.type == 'built-in':
             return virtual_column.value
@@ -347,7 +348,7 @@ class GoogleAdsRowParser:
                     virtual_column.substitute_expression.format(
                         **virtual_column_replacements))
             except TypeError as e:
-                raise query_editor.VirtualColumnError(
+                raise exceptions.GaarfVirtualColumnException(
                     f'cannot parse virtual_column {virtual_column.value}'
                 ) from e
             except ZeroDivisionError:
