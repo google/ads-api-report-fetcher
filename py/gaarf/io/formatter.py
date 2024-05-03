@@ -79,7 +79,9 @@ class ArrayHandlingStrategy(FormattingStrategy):
                     formatted_row.append(field)
             formatted_rows.append(formatted_row)
         return GaarfReport(
-            results=formatted_rows, column_names=report.column_names)
+            results=formatted_rows,
+            column_names=report.column_names,
+            results_placeholder=report.results_placeholder)
 
 
 def format_report_for_writing(
