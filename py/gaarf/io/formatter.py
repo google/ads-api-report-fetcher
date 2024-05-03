@@ -11,13 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for formatting Gaarf reports before writing."""
 from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
+from typing import Callable
+from typing import get_args
+from typing import Union
 
 import proto  # type: ignore
 from gaarf.report import GaarfReport
+from typing_extensions import TypeAlias
+
+_NESTED_FIELD: TypeAlias = Union[
+    list,
+    proto.marshal.collections.repeated.RepeatedComposite,
+    proto.marshal.collections.repeated.Repeated,
+]
 
 
 class FormattingStrategy:
@@ -64,24 +75,46 @@ class ArrayHandlingStrategy(FormattingStrategy):
         """Replaces arrays in the report."""
         if self.type_ == ArrayHandling.ARRAYS:
             return report
-        formatted_rows = []
-        for row in report:
-            formatted_row = []
-            for field in row:
-                if isinstance(
-                        field,
-                    (list, proto.marshal.collections.repeated.RepeatedComposite,
-                     proto.marshal.collections.repeated.Repeated)):
-                    formatted_row.append(
-                        self.delimiter.join([str(element) for element in field
-                                            ]))
-                else:
-                    formatted_row.append(field)
-            formatted_rows.append(formatted_row)
+
+        formatted_rows = self._format_rows(report.results, self._delimiter_join)
+        formatted_placeholders = self._format_rows(report.results_placeholder,
+                                                   lambda x: '')
         return GaarfReport(
             results=formatted_rows,
             column_names=report.column_names,
-            results_placeholder=report.results_placeholder)
+            results_placeholder=formatted_placeholders)
+
+    def _format_rows(self, rows: list[list],
+                     nested_field_handler: Callable) -> list[list]:
+        """Formats rows of report based on join_strategy.
+
+        Args:
+            rows: Rows on GaarfReport.
+            nested_field_handler: Handlers to nested structures.
+
+        Returns:
+            Formatted rows.
+        """
+        formatted_rows = []
+        for row in rows:
+            formatted_row = []
+            for field in row:
+                if isinstance(field, get_args(_NESTED_FIELD)):
+                    field = nested_field_handler(field)
+                formatted_row.append(field)
+            formatted_rows.append(formatted_row)
+        return formatted_rows
+
+    def _delimiter_join(self, field: _NESTED_FIELD) -> str:
+        """Helper function to perform join by an instance delimiter.
+
+        Args:
+            field: A nested field.
+
+        Returns:
+            The same field but concatenated to string.
+        """
+        return self.delimiter.join([str(element) for element in field])
 
 
 def format_report_for_writing(
