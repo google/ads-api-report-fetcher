@@ -11,9 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for executing Gaarf queries and writing them to local/remote.
+
+
+Module defines two major classes:
+    * AdsReportFetcher - to perform fetching data from Ads API, parsing it
+      and returning GaarfReport.
+    * AdsQueryExecutor - to perform fetching data from Ads API in a form of
+      GaarfReport and saving it to local/remote storage.
+"""
 from __future__ import annotations
 
 import enum
+import importlib
 import itertools
 import logging
 import warnings
@@ -21,6 +31,7 @@ from collections.abc import MutableSequence
 from collections.abc import Sequence
 from concurrent import futures
 from typing import Any
+from typing import Generator
 
 import tenacity
 from gaarf import api_clients
@@ -33,6 +44,10 @@ from gaarf.io.writers import abs_writer
 from gaarf.io.writers import console_writer
 from google.ads.googleads import errors as googleads_exceptions
 from google.api_core import exceptions as google_exceptions
+
+google_ads_service = importlib.import_module(
+    f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}.'
+    'services.types.google_ads_service')
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +215,6 @@ class AdsReportFetcher:
             google_exceptions.InternalServerError:
                 When data cannot be fetched from Ads API.
         """
-        total_results: list[list[tuple]] = []
         logger.debug('Getting response for query %s for customer_id %s',
                      query_specification.query_title, customer_id)
         try:
@@ -223,62 +237,87 @@ class AdsReportFetcher:
                                  OptimizeStrategy.BATCH_PROTOBUF):
             logger.warning('Running gaarf in an optimized mode')
             logger.warning('Optimize strategy is %s', optimize_strategy.name)
-            if optimize_strategy == OptimizeStrategy.BATCH_PROTOBUF:
-                rows = [row._pb for batch in response for row in batch.results]
-            else:
-                rows = [row for batch in response for row in batch.results]
-            parsed_batches = []
-            with futures.ThreadPoolExecutor() as executor:
-                BATCH_SIZE = 10000
-                batches = list(range(0, len(rows), BATCH_SIZE))
-                future_to_batch = {}
-                for i, batch_index in enumerate(batches):
-                    try:
-                        from_, to = batch_index, batches[i + 1]
-                        future_to_batch[executor.submit(
-                            self._parse_batch, parser,
-                            itertools.islice(rows, from_,
-                                             to))] = itertools.islice(
-                                                 rows, from_, to)
-                    except IndexError:
-                        future_to_batch[executor.submit(
-                            self._parse_batch, parser,
-                            itertools.islice(rows, batch_index,
-                                             len(rows)))] = itertools.islice(
-                                                 rows, batch_index, len(rows))
+        if optimize_strategy in (OptimizeStrategy.BATCH,
+                                 OptimizeStrategy.BATCH_PROTOBUF):
+            return self._parse_ads_response_in_batches(
+                response,
+                query_specification,
+                customer_id,
+                parser,
+            )
+        return self._parse_ads_response_sequentially(response,
+                                                     query_specification,
+                                                     customer_id, parser)
 
-                for i, future in enumerate(
-                        futures.as_completed(future_to_batch), start=1):
-                    batch = future_to_batch[future]
-                    logger.debug(
-                        'Parsed batch %d for query %s for customer_id %s', i,
-                        query_specification.query_title, customer_id)
-                    parsed_batch = future.result()
-                    parsed_batches.append(parsed_batch)
-            total_results = [
-                items for batch in parsed_batches for items in batch
-            ]
+    def _parse_ads_response_in_batches(
+            self, response: google_ads_service.SearchGoogleAdsResponse,
+            query_specification: query_editor.QueryElements, customer_id: str,
+            parser: parsers.GoogleAdsRowParser) -> list[list]:
+        """Parses response returned from Ads API request in parallel batches.
 
-        else:
-            logger.debug(
-                'Iterating over response for query %s for customer_id %s',
-                query_specification.query_title, customer_id)
+        Args:
+            response: Google Ads API response.
+            query_specification:
+                Query text that will be passed to Ads API
+                alongside column_names, customizers and virtual columns.
+            customer_id:
+                Account for which data are parsed.
+            parser:
+                An instance of parser class that transforms each row from
+                request into desired format.
+
+        Returns:
+            Parsed rows for the whole response.
+        """
+        parsed_batches = []
+        with futures.ThreadPoolExecutor() as executor:
+            future_to_batch = {}
             for batch in response:
-                logger.debug('Parsing batch for query %s for customer_id %s',
-                             query_specification.query_title, customer_id)
-                if optimize_strategy == OptimizeStrategy.PROTOBUF:
-                    logger.warning('Running gaarf in an optimized mode')
-                    logger.warning('Optimize strategy is %s',
-                                   optimize_strategy.name)
-                    rows = (row._pb for row in batch.results)
-                else:
-                    rows = (row for row in batch.results)
-                results = self._parse_batch(parser, rows)
-                total_results.extend(results)
+                future_to_batch[executor.submit(self._parse_batch, parser,
+                                                batch.results)] = batch.results
+            for i, future in enumerate(
+                    futures.as_completed(future_to_batch), start=1):
+                logger.debug('Parsed batch %d for query %s for customer_id %s',
+                             i, query_specification.query_title, customer_id)
+                parsed_batch = future.result()
+                parsed_batches.append(parsed_batch)
+        return list(itertools.chain.from_iterable(parsed_batches))
+
+    def _parse_ads_response_sequentially(
+            self, response: google_ads_service.SearchGoogleAdsResponse,
+            query_specification: query_editor.QueryElements, customer_id: str,
+            parser: parsers.GoogleAdsRowParser) -> list[list]:
+        """Parses response returned from Ads API request sequentially.
+
+        Args:
+            response: Google Ads API response.
+            query_specification:
+                Query text that will be passed to Ads API
+                alongside column_names, customizers and virtual columns.
+            customer_id:
+                Account for which data are parsed.
+            parser:
+                An instance of parser class that transforms each row from
+                request into desired format.
+
+        Returns:
+            Parsed rows for the whole response.
+        """
+        total_results: list[list] = []
+        logger.debug('Iterating over response for query %s for customer_id %s',
+                     query_specification.query_title, customer_id)
+        for batch in response:
+            logger.debug('Parsing batch for query %s for customer_id %s',
+                         query_specification.query_title, customer_id)
+
+            results = self._parse_batch(parser, batch.results)
+            total_results.extend(list(results))
         return total_results
 
-    def _parse_batch(self, parser,
-                     batch: Sequence['GoogleAdsRow']) -> list[list[tuple]]:
+    def _parse_batch(
+        self, parser: parsers.GoogleAdsRowParser,
+        batch: Sequence[google_ads_service.GoogleAdsRow]
+    ) -> Generator[list, None, None]:
         """Parse reach row from batch of Ads API response.
 
         Args:
@@ -287,11 +326,12 @@ class AdsReportFetcher:
                 request into desired format.
             batch:
                 Sequence of GoogleAdsRow that needs to be parsed.
-        Returns:
+        Yields:
             Parsed rows for a batch.
         """
 
-        return [parser.parse_ads_row(row) for row in batch]
+        for row in batch:
+            yield parser.parse_ads_row(row)
 
     def _get_customer_ids(self,
                           seed_customer_ids: str | MutableSequence,
