@@ -51,6 +51,10 @@ class FakeAdsRowMultipleElements:
     value: str
     metrics: Metric
 
+    @property
+    def _pb(self):
+        return self
+
 
 @dataclasses.dataclass
 class FakeQuerySpecification:
@@ -310,3 +314,10 @@ class TestGoogleAdsRowParser:
         with pytest.raises(exceptions.GaarfVirtualColumnException):
             google_ads_row_parser._convert_virtual_column(
                 fake_ads_row, virtual_column)
+
+    def test_parse_ads_row_with_extract_protobufs_returns_correct_results(
+            self, google_ads_row_parser, fake_ads_row):
+        google_ads_row_parser.extract_protobufs = True
+        assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
+            'SEARCH', 1, '2', 1
+        ]

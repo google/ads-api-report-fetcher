@@ -18,12 +18,15 @@ strategies to each element of the row.
 """
 from __future__ import annotations
 
+import importlib
+import operator
 import re
 from collections import abc
-from operator import attrgetter
+from typing import get_args
 from typing import Union
 
 import proto  # type: ignore
+from gaarf import api_clients
 from gaarf import exceptions
 from gaarf import query_editor
 from google import protobuf
@@ -31,7 +34,25 @@ from proto.marshal.collections import repeated
 from typing_extensions import Self
 from typing_extensions import TypeAlias
 
+google_ads_service = importlib.import_module(
+    f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}.'
+    'services.types.google_ads_service')
+
 GoogleAdsRowElement: TypeAlias = Union[int, float, str, bool, list, None]
+
+_REPEATED: TypeAlias = Union[
+    repeated.Repeated,
+    protobuf.internal.containers.RepeatedScalarFieldContainer,
+]
+_REPEATED_COMPOSITE: TypeAlias = Union[
+    repeated.RepeatedComposite,
+    protobuf.internal.containers.RepeatedCompositeFieldContainer,
+]
+
+_NESTED_FIELD: TypeAlias = Union[
+    _REPEATED,
+    _REPEATED_COMPOSITE,
+]
 
 
 class BaseParser:
@@ -73,9 +94,7 @@ class RepeatedParser(BaseParser):
             Parsed GoogleAdsRow element.
         """
         if isinstance(element,
-                      (repeated.Repeated,
-                       protobuf.internal.containers.RepeatedScalarFieldContainer
-                      )) and 'customer' in str(element):
+                      get_args(_REPEATED)) and 'customer' in str(element):
             items: list[GoogleAdsRowElement] = []
             for item in element:
                 item = ResourceFormatter.get_resource_id(item)
@@ -99,10 +118,7 @@ class RepeatedCompositeParser(BaseParser):
         Returns:
             Parsed GoogleAdsRow element.
         """
-        if isinstance(
-                element,
-            (repeated.RepeatedComposite,
-             protobuf.internal.containers.RepeatedCompositeFieldContainer)):
+        if isinstance(element, get_args(_REPEATED_COMPOSITE)):
             items = []
             for item in element:
                 item = ResourceFormatter.get_resource(item)
@@ -168,25 +184,32 @@ class GoogleAdsRowParser:
         parser: Chain of parsers to execute on a single GoogleAdsRow.
         row_getter: Helper to easily extract fields from GogleAdsRow.
         respect_nulls: Whether or not convert nulls to zeros.
+        extract_protobufs: Whether or not take protobuf for row elements.
     """
 
-    def __init__(self, query_specification: query_editor.QueryElements) -> None:
+    def __init__(self,
+                 query_specification: query_editor.QueryElements,
+                 extract_protobufs: bool = False) -> None:
         """Initializes GoogleAdsRowParser.
 
         Args:
-            query_specification: All elements forming gaarf query.
+            query_specification:
+                All elements forming gaarf query.
+            extra_protobufs:
+                Whether to extract protobuf from 'GoogleAdsRow' before parsing.
         """
         self.fields = query_specification.fields
         self.customizers = query_specification.customizers
         self.virtual_columns = query_specification.virtual_columns
         self.column_names = query_specification.column_names
         self.parser_chain = self._init_parsers_chain()
-        self.row_getter = attrgetter(*query_specification.fields)
+        self.row_getter = operator.attrgetter(*query_specification.fields)
         # Some segments are automatically converted to 0 when not present
         # For this case we specify attribute `respect_null` which converts
         # such attributes to None rather than 0
         self.respect_nulls = ('segments.sk_ad_network_conversion_value'
                               in self.fields)
+        self.extract_protobufs = extract_protobufs
 
     def _init_parsers_chain(self):
         """Initializes chain of parsers."""
@@ -201,7 +224,9 @@ class GoogleAdsRowParser:
             parser_chain = new_parser
         return parser_chain
 
-    def parse_ads_row(self, row: 'GoogleAdsRow') -> list[GoogleAdsRowElement]:
+    def parse_ads_row(
+            self,
+            row: google_ads_service.GoogleAdsRow) -> list[GoogleAdsRowElement]:
         """Parses GoogleAdsRow by applying various transformations.
 
         Args:
@@ -210,6 +235,8 @@ class GoogleAdsRowParser:
             List of parsed elements.
         """
         parsed_row_elements: list[GoogleAdsRowElement] = []
+        if self.extract_protobufs:
+            row = row._pb
         extracted_attributes = self._get_attributes_from_row(
             row, self.row_getter)
         index = 0
@@ -231,20 +258,9 @@ class GoogleAdsRowParser:
                             try:
                                 if isinstance(
                                         extracted_attribute,
-                                    (repeated.Repeated,
-                                     repeated.RepeatedComposite,
-                                     protobuf.internal.containers
-                                     .RepeatedScalarFieldContainer,
-                                     protobuf.internal.containers
-                                     .RepeatedCompositeFieldContainer
-                                    )) or isinstance(
-                                        extracted_attribute_,
-                                        (repeated.Repeated,
-                                         repeated.RepeatedComposite,
-                                         protobuf.internal.containers
-                                         .RepeatedScalarFieldContainer,
-                                         protobuf.internal.containers
-                                         .RepeatedCompositeFieldContainer)):
+                                        get_args(_NESTED_FIELD)) or isinstance(
+                                            extracted_attribute_,
+                                            get_args(_NESTED_FIELD)):
                                     if isinstance(extracted_attribute_,
                                                   (repeated.Repeated,
                                                    repeated.RepeatedComposite)):
@@ -255,11 +271,11 @@ class GoogleAdsRowParser:
                                     else:
                                         value = caller.get('value')
                                     extracted_attribute = list({
-                                        attrgetter(value)(element)
+                                        operator.attrgetter(value)(element)
                                         for element in extracted_attribute
                                     })
                                 else:
-                                    extracted_attribute = attrgetter(
+                                    extracted_attribute = operator.attrgetter(
                                         caller.get('value'))(
                                             extracted_attribute)
                             except AttributeError as e:
@@ -298,7 +314,22 @@ class GoogleAdsRowParser:
                                        extracted_attribute)[caller.get('value')]
         return re.split('/', extracted_attribute)[-1]
 
-    def _get_attributes_from_row(self, row: 'GoogleAdsRow', getter) -> tuple:
+    def _get_attributes_from_row(
+            self, row: google_ads_service.GoogleAdsRow,
+            getter: operator.attrgetter) -> tuple[GoogleAdsRowElement, ...]:
+        """Extracts attributes from GoogleAdsRow based on attribute getter.
+
+        Attribute getter contains nested attribute access operations (i.e.
+        campaign -> id) which can be easily executed on nested GoogleAdsRow
+        object.
+
+        Args:
+            row: A single GoogleAdsRow.
+            getter: Initialized attribute getter.
+
+        Returns:
+            All parsed elements from a single GoogleAdsRow..
+        """
         attributes = getter(row)
         if self.respect_nulls:
             # Validate whether field is actually present in a protobuf message
@@ -317,7 +348,7 @@ class GoogleAdsRowParser:
         return attributes if isinstance(attributes, tuple) else (attributes,)
 
     def _convert_virtual_column(
-            self, row: 'GoogleAdsRow',
+            self, row: google_ads_service.GoogleAdsRow,
             virtual_column: query_editor.VirtualColumn) -> GoogleAdsRowElement:
         """Convert virtual column definition to a single element.
 
@@ -333,7 +364,7 @@ class GoogleAdsRowParser:
         if virtual_column.type == 'built-in':
             return virtual_column.value
         if virtual_column.type == 'expression':
-            virtual_column_getter = attrgetter(*virtual_column.fields)
+            virtual_column_getter = operator.attrgetter(*virtual_column.fields)
             virtual_column_values = virtual_column_getter(row)
             try:
                 iter(virtual_column_values)

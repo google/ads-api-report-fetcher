@@ -152,14 +152,18 @@ class AdsReportFetcher:
                     'Cannot find the built-in query '
                     f'"{query_specification.title}"')
             return builtin_report(self, accounts=customer_ids)
-        parser = parsers.GoogleAdsRowParser(query_specification)
+        optimize_strategy = OptimizeStrategy[optimize_strategy]
+        extract_protobufs = optimize_strategy in (
+            OptimizeStrategy.PROTOBUF, OptimizeStrategy.BATCH_PROTOBUF)
+        parser = parsers.GoogleAdsRowParser(query_specification,
+                                            extract_protobufs)
         for customer_id in customer_ids:
             logger.debug('Running query %s for customer_id %s',
                          query_specification.query_title, customer_id)
             try:
-                results = self._parse_ads_response(
-                    query_specification, customer_id, parser,
-                    getattr(OptimizeStrategy, optimize_strategy))
+                results = self._parse_ads_response(query_specification,
+                                                   customer_id, parser,
+                                                   optimize_strategy)
                 total_results.extend(results)
                 if query_specification.is_constant_resource:
                     logger.debug('Constant resource query: running only once')
