@@ -24,6 +24,18 @@ from gaarf.io.writers import abs_writer
 
 def create_writer(writer_option: str,
                   **kwargs: str) -> type[abs_writer.AbsWriter]:
+    """Factory function for creating concrete writer.
+
+    Writer is created based on `writer_option` and possible `kwargs` needed
+    to correctly instantiate it.
+
+    Args:
+        writer_option: Type of writer.
+        kwargs: Any possible arguments needed o instantiate writer.
+
+    Returns:
+        Concrete instantiated writer.
+    """
     if writer_option in ('bq', 'bigquery'):
         writer_module = import_module('gaarf.io.writers.bigquery_writer')
         return writer_module.BigQueryWriter(**kwargs)
@@ -39,11 +51,15 @@ def create_writer(writer_option: str,
     if writer_option == 'csv':
         writer_module = import_module('gaarf.io.writers.csv_writer')
         return writer_module.CsvWriter(**kwargs)
+    if writer_option == 'json':
+        writer_module = import_module('gaarf.io.writers.json_writer')
+        return writer_module.JsonWriter(**kwargs)
     return import_module('gaarf.io.writers.null_writer').NullWriter(
         writer_option)
 
 
 class WriterFactory:
+    """Deprecated class for creating concrete writer."""
 
     def __init__(self) -> None:
         warnings.warn(
@@ -54,11 +70,24 @@ class WriterFactory:
 
     def create_writer(self, writer_option: str,
                       **kwargs: str) -> type[abs_writer.AbsWriter]:
+        """Factory method for creating concrete writer.
+
+        Writer is created based on `writer_option` and possible `kwargs` needed
+        to correctly instantiate it.
+
+        Args:
+            writer_option: Type of writer.
+            kwargs: Any possible arguments needed o instantiate writer.
+
+        Returns:
+            Concrete instantiated writer.
+        """
         return create_writer(writer_option, **kwargs)
 
 
 # Deprecated writers
 class BigQueryWriter:
+    """Deprecated class for creating BigQueryWriter."""
 
     def __new__(cls,
                 project: str,
@@ -78,6 +107,7 @@ class BigQueryWriter:
 
 
 class CsvWriter:
+    """Deprecated class for creating CsvWriter."""
 
     def __new__(cls,
                 destination_folder: str = os.getcwd(),
@@ -98,6 +128,7 @@ class CsvWriter:
 
 
 class SqlAlchemyWriter:
+    """Deprecated class for creating SqlAlchemyWriter."""
 
     def __new__(cls, connection_string, if_exists='replace', **kwargs):
         warnings.warn(
@@ -112,6 +143,7 @@ class SqlAlchemyWriter:
 
 
 class SheetWriter:
+    """Deprecated class for creating SheetWriter."""
 
     def __new__(cls,
                 share_with,
@@ -132,6 +164,7 @@ class SheetWriter:
 
 
 class StdoutWriter:
+    """Deprecated class for creating StdoutWriter."""
 
     def __new__(cls, page_size: int = 10, **kwargs):
         warnings.warn(
@@ -144,4 +177,4 @@ class StdoutWriter:
 
 
 class ZeroRowException(Exception):
-    pass
+    """Raised when report has no data."""

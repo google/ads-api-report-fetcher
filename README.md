@@ -83,6 +83,7 @@ Options:
   * `console` - write data to standard output
   * `sqldb` - writes data to a database supported by SQL Alchemy (Python only).
   * `sheet` - writes data to a Google Sheets (Python only).
+  * `json` - writes data to JSON (Python only).
 * `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
@@ -133,6 +134,9 @@ Options specific for Sheet writer (*Python version only*):
 * `sheet.share-with` - with whom the newly created spreadsheet should be shared.
 * `sheet.credentials-file` - path to service account used to write data. More at [gspread authentication](https://docs.gspread.org/en/v5.10.0/oauth2.html)
 * `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended.
+
+Options specific for CSV writer (*Python version only*):
+* `json.destination-folder` - output folder where json files will be created
 
 ####  Query specific options
 
