@@ -1,16 +1,28 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
 
 import pytest
-from gaarf.api_clients import BaseClient
-from gaarf.api_clients import clean_resource
-from gaarf.api_clients import FieldPossibleValues
+import tenacity
+from gaarf import api_clients
+from google.api_core import exceptions as google_exceptions
 
 
 class TestBaseClient:
 
     @pytest.fixture
     def client(self):
-        return BaseClient()
+        return api_clients.BaseClient()
 
     @pytest.mark.parametrize('field_name, possible_values', [
         (
@@ -56,7 +68,8 @@ class TestBaseClient:
             field_name,
         ])
         expected_value = [
-            FieldPossibleValues(name=field_name, values=possible_values),
+            api_clients.FieldPossibleValues(
+                name=field_name, values=possible_values),
         ]
         assert field_possible_values == expected_value
 
@@ -94,7 +107,8 @@ class TestBaseClient:
             field_name,
         ])
         expected_value = [
-            FieldPossibleValues(name=field_name, values=possible_values),
+            api_clients.FieldPossibleValues(
+                name=field_name, values=possible_values),
         ]
         assert field_possible_values == expected_value
 
@@ -114,7 +128,7 @@ class TestBaseClient:
             sub_resource,
         ])
         expected_resource = getattr(client._segments,
-                                    clean_resource(sub_resource))
+                                    api_clients.clean_resource(sub_resource))
         assert target_resource == expected_resource
 
     @pytest.mark.skip('Implement')
@@ -125,7 +139,7 @@ class TestBaseClient:
             sub_resource,
         ])
         expected_resource = getattr(client._segments,
-                                    clean_resource(sub_resource))
+                                    api_clients.clean_resource(sub_resource))
         assert target_resource == expected_resource
 
     def test_get_decriptor_returns_correct_attribute_name(self, client):
@@ -157,8 +171,7 @@ class TestBaseClient:
     def test_get_possible_values_for_resource_returns_default_value_for_primitives(
             self, client, field_name, value):
         descriptor = client._get_descriptor(field_name)
-        default_value = client._get_possible_values_for_resource(
-            descriptor)
+        default_value = client._get_possible_values_for_resource(descriptor)
         expected_value = {
             value,
         }
@@ -168,8 +181,7 @@ class TestBaseClient:
             self, client):
 
         descriptor = client._get_descriptor('segments.device')
-        default_value = client._get_possible_values_for_resource(
-            descriptor)
+        default_value = client._get_possible_values_for_resource(descriptor)
         expected_values = {
             'CONNECTED_TV',
             'DESKTOP',
@@ -180,3 +192,29 @@ class TestBaseClient:
             'UNSPECIFIED',
         }
         assert default_value == expected_values
+
+
+class TestGoogleAdsApiClient:
+
+    @pytest.fixture
+    def test_client(self, mocker):
+        mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
+        mocker.patch(
+            f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}'
+            '.services.services.google_ads_service.GoogleAdsServiceClient'
+            '.search_stream',
+            side_effect=[
+                google_exceptions.InternalServerError('test'),
+                google_exceptions.InternalServerError('test'),
+                google_exceptions.InternalServerError('test'),
+            ])
+        return api_clients.GoogleAdsApiClient()
+
+    def test_get_response_raises_internal_service_error_after_3_failed_retries(
+            self, test_client, mocker):
+        test_client.get_response.retry.wait = tenacity.wait_none()
+        with pytest.raises(google_exceptions.InternalServerError):
+            test_client.get_response(
+                entity_id='1',
+                query_text='SELECT customer.id FROM customer',
+                query_title='test')

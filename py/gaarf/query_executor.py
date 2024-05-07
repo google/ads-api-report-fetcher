@@ -33,7 +33,6 @@ from concurrent import futures
 from typing import Any
 from typing import Generator
 
-import tenacity
 from gaarf import api_clients
 from gaarf import builtin_queries
 from gaarf import exceptions
@@ -222,21 +221,15 @@ class AdsReportFetcher:
         logger.debug('Getting response for query %s for customer_id %s',
                      query_specification.query_title, customer_id)
         try:
-            for attempt in tenacity.Retrying(
-                    retry=tenacity.retry_if_exception_type(
-                        google_exceptions.InternalServerError),
-                    stop=tenacity.stop_after_attempt(3),
-                    wait=tenacity.wait_exponential()):
-                with attempt:
-                    response = self.api_client.get_response(
-                        entity_id=str(customer_id),
-                        query_text=query_specification.query_text)
-        except tenacity.RetryError as retry_failure:
-            logger.error("Cannot fetch data from API for query '%s' %d times",
-                         query_specification.query_title,
-                         retry_failure.last_attempt.attempt_number)
-            raise google_exceptions.InternalServerError(
-                message='Cannot get data from Google Ads API')
+            response = self.api_client.get_response(
+                entity_id=str(customer_id),
+                query_text=query_specification.query_text,
+                query_title=query_specification.query_title)
+        except google_exceptions.InternalServerError:
+            logging.error('Cannot fetch data from API for query "%s" 3 times',
+                          query_specification.query_title)
+            raise
+
         if optimize_strategy in (OptimizeStrategy.BATCH,
                                  OptimizeStrategy.BATCH_PROTOBUF):
             logger.warning('Running gaarf in an optimized mode')

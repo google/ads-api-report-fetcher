@@ -17,10 +17,12 @@ import itertools
 import logging
 
 import pytest
+import tenacity
 from gaarf import api_clients
 from gaarf import parsers
 from gaarf import query_editor
 from gaarf import query_executor
+from google.api_core import exceptions as google_exceptions
 
 _QUERY = 'SELECT customer.id AS customer_id FROM customer'
 _EXPECTED_RESULTS = [
@@ -75,6 +77,22 @@ class TestAdsReportFetcher:
     def test_client(self, mocker):
         mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
         return api_clients.GoogleAdsApiClient()
+
+    @pytest.fixture
+    def failing_api_client(self, mocker):
+        mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
+        mocker.patch(
+            f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}'
+            '.services.services.google_ads_service.GoogleAdsServiceClient'
+            '.search_stream',
+            side_effect=[
+                google_exceptions.InternalServerError('test'),
+                google_exceptions.InternalServerError('test'),
+                google_exceptions.InternalServerError('test'),
+            ])
+        api_client = api_clients.GoogleAdsApiClient()
+        api_client.get_response.retry.wait = tenacity.wait_none()
+        return api_client
 
     @pytest.fixture
     def fake_report_fetcher(self, mocker, test_client, fake_response):
@@ -142,6 +160,20 @@ class TestAdsReportFetcher:
             customer_id=customer_id)
 
         assert_sequence_content_the_same(results, _EXPECTED_RESULTS)
+
+    def test_parse_ads_response_raises_internal_server_error_after_3_failed_attemps(  # pylint: disable=line-too-long
+            self, failing_api_client, caplog):
+        report_fetcher = query_executor.AdsReportFetcher(failing_api_client)
+        query_specification = query_editor.QuerySpecification(_QUERY).generate()
+        parser = parsers.GoogleAdsRowParser(query_specification)
+        customer_id = 1
+        with pytest.raises(google_exceptions.InternalServerError):
+            report_fetcher._parse_ads_response(
+                query_specification=query_specification,
+                parser=parser,
+                customer_id=customer_id)
+        assert ('Cannot fetch data from API for query '
+                f'"{query_specification.query_title}" 3 times') in caplog.text
 
 
 def assert_sequence_content_the_same(

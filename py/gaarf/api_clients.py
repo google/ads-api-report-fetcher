@@ -15,24 +15,26 @@
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import os
 import re
-from collections.abc import Iterable
 from collections.abc import Sequence
-from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 from typing import Final
 
 import proto
 import smart_open
+import tenacity
 import yaml
 from google import protobuf
-from google.ads.googleads.client import _DEFAULT_VERSION
-from google.ads.googleads.client import GoogleAdsClient
-from google.api_core.exceptions import NotFound
+from google.ads.googleads import client as googleads_client
+from google.api_core import exceptions as google_exceptions
 
-GOOGLE_ADS_API_VERSION: Final = _DEFAULT_VERSION
+GOOGLE_ADS_API_VERSION: Final = googleads_client._DEFAULT_VERSION
+google_ads_service = importlib.import_module(
+    f'google.ads.googleads.{GOOGLE_ADS_API_VERSION}.'
+    'services.types.google_ads_service')
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,14 +84,15 @@ class BaseClient:
     @property
     def _metrics(self) -> ModuleType:
         """Module containing metrics."""
-        return import_module(f'{self._common_types_module}.metrics')
+        return importlib.import_module(f'{self._common_types_module}.metrics')
 
     @property
     def _segments(self) -> ModuleType:
         """Module containing segments."""
-        return import_module(f'{self._common_types_module}.segments')
+        return importlib.import_module(f'{self._common_types_module}.segments')
 
-    def _get_google_ads_row(self, api_version: str) -> 'GoogleAdsRow':
+    def _get_google_ads_row(
+            self, api_version: str) -> google_ads_service.GoogleAdsRow:
         """Gets GoogleAdsRow for a given API version.
 
         Args:
@@ -98,7 +101,7 @@ class BaseClient:
         Returns:
             GoogleAdsRow proto message for a given API version.
         """
-        google_ads_service = import_module(
+        google_ads_service = importlib.import_module(
             f'{self._base_module}.services.types.google_ads_service')
         return google_ads_service.GoogleAdsRow()
 
@@ -168,7 +171,7 @@ class BaseClient:
                 target_resource = getattr(self._segments,
                                           f'{clean_resource(resource)}')
         else:
-            resource_module = import_module(
+            resource_module = importlib.import_module(
                 f'{self._base_module}.resources.types.{resource}')
 
             target_resource = getattr(resource_module,
@@ -180,11 +183,11 @@ class BaseClient:
                         target_resource, f'{clean_resource(sub_resource[-1])}')
             except AttributeError:
                 try:
-                    resource_module = import_module(
+                    resource_module = importlib.import_module(
                         f'{self._base_module}.resources.types.{sub_resource[0]}'
                     )
                 except ModuleNotFoundError:
-                    resource_module = import_module(
+                    resource_module = importlib.import_module(
                         f'{self._common_types_module}.{sub_resource[0]}')
                 if len(sub_resource) > 1:
                     if hasattr(resource_module,
@@ -193,7 +196,7 @@ class BaseClient:
                             resource_module,
                             f'{clean_resource(sub_resource[-1])}')
                     else:
-                        resource_module = import_module(
+                        resource_module = importlib.import_module(
                             f'{self._common_types_module}.ad_type_infos')
 
                         target_resource = getattr(
@@ -222,7 +225,7 @@ class BaseClient:
         if descriptor.type == 14:  # 14 stands for ENUM
             enum_class, enum = descriptor.type_name.split('.')[-2:]
             file_name = re.sub(r'(?<!^)(?=[A-Z])', '_', enum).lower()
-            enum_resource = import_module(
+            enum_resource = importlib.import_module(
                 f'{self._base_module}.enums.types.{file_name}')
             return {
                 p.name
@@ -274,24 +277,38 @@ class GoogleAdsApiClient(BaseClient):
                 "Specify 'use_proto_plus: True' in your google-ads.yaml file")
         self.ads_service = self.client.get_service('GoogleAdsService')
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        retry=tenacity.retry_if_exception_type(
+            google_exceptions.InternalServerError),
+        reraise=True)
     def get_response(
-            self, entity_id: int,
-            query_text: str) -> Iterable['SearchGoogleAdsStreamResponse']:
+        self,
+        entity_id: int,
+        query_text: str,
+        query_title: str | None = None
+    ) -> google_ads_service.SearchGoogleAdsStreamResponse:
         """Executes query for a given entity_id (customer_id).
 
         Args:
             entity_id: Google Ads customer_id.
-            query_text: GAQL query text..
+            query_text: GAQL query text.
+            query_title: Optional name of the query.
 
         Returns:
             SearchGoogleAdsStreamResponse for a given API version.
+
+        Raises:
+            google_exceptions.InternalServerError:
+                When data cannot be fetched from Ads API.
         """
 
         return self.ads_service.search_stream(
             customer_id=entity_id, query=query_text)
 
     def _init_client(self, path: str, config_dict: dict[str, str],
-                     yaml_str: str) -> GoogleAdsClient | None:
+                     yaml_str: str) -> googleads_client.GoogleAdsClient | None:
         """Initializes GoogleAdsClient based on one of the methods.
 
         Args:
@@ -308,21 +325,25 @@ class GoogleAdsApiClient(BaseClient):
                 if google-ads.yaml wasn't found or environment does not
         """
         if config_dict:
-            return GoogleAdsClient.load_from_dict(config_dict, self.api_version)
+            return googleads_client.GoogleAdsClient.load_from_dict(
+                config_dict, self.api_version)
         if yaml_str:
-            return GoogleAdsClient.load_from_string(yaml_str, self.api_version)
+            return googleads_client.GoogleAdsClient.load_from_string(
+                yaml_str, self.api_version)
         if path:
             if os.path.isfile(path):
-                return GoogleAdsClient.load_from_storage(path, self.api_version)
+                return googleads_client.GoogleAdsClient.load_from_storage(
+                    path, self.api_version)
             try:
                 with smart_open.open(path, 'r', encoding='utf-8') as f:
                     google_ads_config_dict = yaml.safe_load(f)
-                return GoogleAdsClient.load_from_dict(google_ads_config_dict,
-                                                      self.api_version)
-            except NotFound:
+                return googleads_client.GoogleAdsClient.load_from_dict(
+                    google_ads_config_dict, self.api_version)
+            except google_exceptions.NotFound:
                 raise ValueError(f'File {path} not found')
         try:
-            return GoogleAdsClient.load_from_env(self.api_version)
+            return googleads_client.GoogleAdsClient.load_from_env(
+                self.api_version)
         except ValueError:
             raise ValueError('Cannot instantiate GoogleAdsClient')
 
