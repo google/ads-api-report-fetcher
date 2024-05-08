@@ -2,8 +2,11 @@
 
 An interactive generator for [Gaarf Workflow](https://github.com/google/ads-api-report-fetcher/tree/main/gcp) - Google Cloud components for running Gaarf (Google Ads API Report Fetcher).
 
-It can be called via `npm init`:
-
+It can be called via `npx`:
+```
+npx create-gaarf-wf
+```
+or via `npm init`:
 ```
 npm init gaarf-wf@latest
 ```
@@ -14,12 +17,16 @@ Several additional options are supported:
 * `answers` - use a supplied JSON file as answers for all questions, if the file contains all answers the generation will be non-interactive (usage: `--answers=file.json`)
 * `save` - save all answers into a file (usage: `--save` or `--save=file.json`)
 
-To pass the options use `--` before them while calling via npm init:
+If you're running the tool via `npm init` then use the `--` before all other options:
 ```
 npm init gaarf-wf@latest -- --debug
 ```
+for running npx it's not needed:
+```
+npx create-gaarf-wf --debug
+```
 
-It's assumed that you will be running `npm init gaarf-wf` command in a folder where you placed google-ads.yaml and Ads and BigQuery queries.
+It's assumed that you will be running the tool in a folder where you placed `google-ads.yaml` and Ads and BigQuery queries in subfolders.
 
 
 > Please note that if you're running the tool in Google Cloud Shell then you might need to remove npm cache manually via `rm -rf ~/.npm/`.

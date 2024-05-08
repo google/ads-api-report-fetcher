@@ -28,10 +28,8 @@ Google Ads API Report Fetcher (`gaarf`) simplifies running [Google Ads API Repor
 by separating logic of writing [GAQL](https://developers.google.com/google-ads/api/docs/query/overview)-like query from executing it and saving results.\
 The library allows you to define GAQL queries alongside aliases and custom extractors and specify where the results of such query should be stored.
 You can find example queries in [examples](examples) folder.
-Based on such a query the library fill extract the correct GAQL query, automatically extract all necessary fields from schema
+Based on such a query the library constructs the correct GAQL query, automatically extract all necessary fields from schema
 and transform them into a structure suitable for writing data.
-
-Currently the tool supports two types of output: CSV files and BigQuery tables.
 
 
 ## Getting started
@@ -62,13 +60,16 @@ gaarf <queries> [options]
 ### Options
 The required positional arguments are a list of files or a text that contain Ads queries (GAQL).
 On *nix OSes you can use a glob pattern, e.g. `./ads-queries/**/*.sql`.
-A file path can be not only a local path but also a GCS file.
+A file path can be not only a local path but also a GCS file (gs://).
 
 > If you run the tool on a *nix OS then your shell (like zsh/bash) probably
 > supports file names expansion (see [bash](https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html),
 > [zsh](https://zsh.sourceforge.io/Doc/Release/Expansion.html), 14.8 Filename Generation).
 > And so it does expansion of glob pattern (file mask) into a list of files.
-> Currently the tool doesn't support wildcards for file names (doesn't do expansion) - it's important to understand if you run it in an environment that doesn't support expansion.
+
+Currently only the NodeJS version supports wildcards natively (without glob expansion by the OS).
+* `gaarf ads-queries/*.sql` - using OS wildcards expansion
+* `gaarf "ads-queries/*.sql"` - using native wildcards (i.e. passing wildcard into the tool)
 
 Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
