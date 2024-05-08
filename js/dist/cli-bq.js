@@ -36,7 +36,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .positional("files", {
     array: true,
     type: "string",
-    description: "List of files with BigQuery queries (can be gcs:// resources)",
+    description: "List of files with BigQuery queries (can be gs:// resources)",
 })
     .option("project", {
     type: "string",

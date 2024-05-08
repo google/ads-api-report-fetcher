@@ -21,6 +21,7 @@ import {
   errors,
   GoogleAdsApi,
   services,
+  enums
 } from "google-ads-api";
 import yaml from "js-yaml";
 import _ from "lodash";
@@ -200,6 +201,12 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     }
   }
 
+  /**
+   * Get all nested non-MCC account for the specified one.
+   * If the specified one is a leaf account (non-MCC) then it will be returned
+   * @param customerId A customer account (CID)
+   * @returns a list of child account (at all levels)
+   */
   async getCustomerIds(customerId: string | string[]): Promise<string[]> {
     const query = `SELECT
           customer_client.id
@@ -217,6 +224,52 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
       all_ids.push(...ids);
     }
     return all_ids;
+  }
+
+  async getCustomerInfo(customerId: string): Promise<CustomerInfo> {
+    const query = `SELECT
+      customer_client.id,
+      customer_client.level,
+      customer_client.status,
+      customer_client.manager
+    FROM customer_client
+    WHERE
+      customer_client.level <= 1
+      AND customer_client.status = "ENABLED"
+    ORDER BY customer_client.level`;
+    //
+    const query2 = `SELECT customer.descriptive_name FROM customer`;
+    let rows = await this.executeQuery(query, customerId);
+    let customer: CustomerInfo | undefined = undefined;
+    for (const row of rows) {
+      const cid = row.customer_client!.id!.toString();
+      if (row.customer_client?.level === 0) {
+        // the current account itself
+        /* Status:
+          UNSPECIFIED = 0,
+          UNKNOWN = 1,
+          ENABLED = 2,
+          CANCELED = 3,
+          SUSPENDED = 4,
+          CLOSED = 5
+         */
+        const response =
+          row.customer_client!.status === 2
+            ? await this.executeQuery(query2, cid)
+            : null;
+        customer = {
+          id: cid,
+          name: response ? response[0].customer!.descriptive_name! : null,
+          is_mcc: false,
+          status: <string>enums.CustomerStatus[row.customer_client!.status!],
+          children: [],
+        };
+      } else {
+        customer!.children.push(await this.getCustomerInfo(cid));
+        customer!.is_mcc = true;
+      }
+    }
+    return customer!;
   }
 }
 
@@ -272,4 +325,12 @@ export async function loadAdsConfigFromFile(configFilepath: string): Promise<Goo
       `Failed to load Ads API configuration from ${configFilepath}: ${e}`
     );
   }
+}
+
+export interface CustomerInfo {
+  id: string,
+  name: string | null,
+  is_mcc: boolean,
+  status: string,
+  children: CustomerInfo[]
 }

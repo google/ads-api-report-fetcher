@@ -28,13 +28,15 @@ const ads_api_client_1 = require("./lib/ads-api-client");
 const ads_query_executor_1 = require("./lib/ads-query-executor");
 const bq_writer_1 = require("./lib/bq-writer");
 const console_writer_1 = require("./lib/console-writer");
-const csv_writer_1 = require("./lib/csv-writer");
+const file_writers_1 = require("./lib/file-writers");
 const file_utils_1 = require("./lib/file-utils");
 const logger_1 = require("./lib/logger");
 const utils_1 = require("./lib/utils");
 const query_reader_1 = require("./lib/query-reader");
-const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
-const configObj = configPath ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8')) : {};
+const configPath = find_up_1.default.sync([".gaarfrc", ".gaarfrc.json"]);
+const configObj = configPath
+    ? JSON.parse(fs_1.default.readFileSync(configPath, "utf-8"))
+    : {};
 const logger = (0, logger_1.getLogger)();
 const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .scriptName("gaarf")
@@ -42,11 +44,12 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .version()
     .alias("v", "version")
     .command("validate", "Validate Ads configuration")
+    .command("account-tree", "Display info about a customer account")
     .command("$0 <files..>", "Execute ads queries (GAQL)", {})
     .positional("files", {
     array: true,
     type: "string",
-    description: "List of files with Ads queries (can be gcs:// resources)",
+    description: "List of files (or wildcards) with Ads queries (can be gs:// resources)",
 })
     // .command(
     //     'bigquery <files>', 'Execute BigQuery queries',
@@ -102,7 +105,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     description: "Different types of input besides the default file input",
 })
     .option("output", {
-    choices: ["csv", "bq", "bigquery", "console"],
+    choices: ["csv", "bq", "bigquery", "console", "json"],
     alias: "o",
     description: "Output writer to use",
 })
@@ -138,6 +141,17 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .option("csv.file-per-customer", {
     type: "boolean",
 })
+    .option("json.format", {
+    type: "string",
+    description: "output format: json or jsonl (JSON Lines)",
+})
+    .option("json.value-format", {
+    type: "string",
+    description: "value format: arrays (values as arrays), objects (values as objects), raw (raw output)",
+})
+    .option("json.file-per-customer", {
+    type: "boolean",
+})
     .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
@@ -145,7 +159,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("console.page-size", {
     type: "number",
-    alias: ['maxrows', 'page_size'],
+    alias: ["maxrows", "page_size"],
     description: "Maximum rows count to output per each script",
 })
     .option("bq", { hidden: true })
@@ -239,13 +253,16 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 function getWriter() {
     let output = (argv.output || "").toString();
     if (output === "") {
-        return new csv_writer_1.NullWriter();
+        return new file_writers_1.NullWriter();
     }
     if (output === "console") {
         return new console_writer_1.ConsoleWriter(argv.console);
     }
     if (output === "csv") {
-        return new csv_writer_1.CsvWriter(argv.csv);
+        return new file_writers_1.CsvWriter(argv.csv);
+    }
+    if (output === "json") {
+        return new file_writers_1.JsonWriter(argv.json);
     }
     if (output === "bq" || output === "bigquery") {
         // TODO: move all options to BigQueryWriterOptions
@@ -284,7 +301,7 @@ function getWriter() {
 }
 function getReader() {
     let input = (argv.input || "").toString();
-    if (input === 'console') {
+    if (input === "console") {
         return new query_reader_1.ConsoleQueryReader(argv.files);
     }
     return new query_reader_1.FileQueryReader(argv.files);
@@ -301,25 +318,25 @@ async function main() {
     if (argv.ads) {
         let ads_cfg = argv.ads;
         adsConfig = Object.assign(adsConfig || {}, {
-            client_id: ads_cfg.client_id || '',
-            client_secret: ads_cfg.client_secret || '',
-            developer_token: ads_cfg.developer_token || '',
-            refresh_token: ads_cfg.refresh_token || '',
-            login_customer_id: ads_cfg.login_customer_id || '',
+            client_id: ads_cfg.client_id || "",
+            client_secret: ads_cfg.client_secret || "",
+            developer_token: ads_cfg.developer_token || "",
+            refresh_token: ads_cfg.refresh_token || "",
+            login_customer_id: ads_cfg.login_customer_id || "",
         });
     }
-    else if (!adConfigFilePath && fs_1.default.existsSync('google-ads.yaml')) {
+    else if (!adConfigFilePath && fs_1.default.existsSync("google-ads.yaml")) {
         // load a default google-ads if it wasn't explicitly specified
         // TODO: support searching google-ads.yaml in user home folder (?)
-        adsConfig = await loadAdsConfig('google-ads.yaml');
+        adsConfig = await loadAdsConfig("google-ads.yaml");
     }
     if (!adsConfig) {
-        if (argv.loglevel !== 'off') {
+        if (argv.loglevel !== "off") {
             console.log(chalk_1.default.red(`Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
         }
         process.exit(-1);
     }
-    logger.verbose('Using ads config:');
+    logger.verbose("Using ads config:");
     logger.verbose(JSON.stringify(Object.assign({}, adsConfig, {
         refresh_token: "<hidden>",
         developer_token: "<hidden>",
@@ -331,9 +348,7 @@ async function main() {
         }
         process.exit(-1);
     }
-    if (!adsConfig.login_customer_id &&
-        customerIds &&
-        customerIds.length === 1) {
+    if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
         adsConfig.login_customer_id = customerIds[0];
     }
     let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig);
@@ -354,6 +369,13 @@ async function main() {
             process.exit(-1);
         }
     }
+    else if (argv._ && argv._[0] === "account-tree") {
+        for (const cid of customerIds) {
+            const info = await client.getCustomerInfo(cid);
+            dumpCustomerInfo(info);
+        }
+        process.exit(0);
+    }
     // NOTE: a note regarding the 'files' argument
     // normaly on *nix OSes (at least in bash and zsh) passing an argument
     // with mask like *.sql will expand it to a list of files (see
@@ -364,28 +386,27 @@ async function main() {
     // if we want to support glob patterns as parameter (for example for calling
     // from outside zsh/bash) then we have to handle items in `files` argument and
     // expand them using glob rules
-    if (!argv.files || !argv.files.length) {
+    if ((!argv.files || !argv.files.length) && (argv._[0] !== "customer")) {
         if (argv.loglevel !== "off") {
             console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
         }
         process.exit(-1);
     }
-    if (argv.output === 'console') {
+    if (argv.output === "console") {
         // for console writer by default increase default log level to 'warn' (to
         // hide all auxillary info)
         logger.transports.forEach((transport) => {
-            if (transport.name === 'console' && !argv.loglevel) {
-                transport.level = 'warn';
+            if (transport.name === "console" && !argv.loglevel) {
+                transport.level = "warn";
             }
         });
     }
-    let customer_ids_query = '';
+    let customer_ids_query = "";
     if (argv.customer_ids_query) {
         customer_ids_query = argv.customer_ids_query;
     }
     else if (argv.customer_ids_query_file) {
-        customer_ids_query =
-            await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
+        customer_ids_query = await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
     }
     let customers;
     if (argv.disable_account_expansion) {
@@ -394,9 +415,9 @@ async function main() {
     }
     else {
         // expand the provided accounts to leaf ones as they could be MMC accounts
-        logger.info(`Expanding customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
+        logger.info(`Expanding customer ids ${customer_ids_query ? "(using custom query)" : ""}`);
         customers = await client.getCustomerIds(customerIds);
-        logger.verbose(`Customer ids from the root account(s) ${customerIds.join(',')} (${customers.length}):`);
+        logger.verbose(`Customer ids from the root account(s) ${customerIds.join(",")} (${customers.length}):`);
         logger.verbose(customers);
         if (customer_ids_query) {
             logger.verbose(`Filtering customer ids with custom query`);
@@ -435,7 +456,7 @@ async function main() {
         logger.info(`Query from ${chalk_1.default.gray(query.name)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }
     let elapsed = (0, utils_1.getElapsed)(started);
-    logger.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
+    logger.info(chalk_1.default.green("All done!") + " " + chalk_1.default.gray(`Elapsed: ${elapsed}`));
 }
 async function loadAdsConfig(configFilepath) {
     try {
@@ -446,6 +467,16 @@ async function loadAdsConfig(configFilepath) {
             console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));
         }
         process.exit(-1);
+    }
+}
+function dumpCustomerInfo(info, level = 0) {
+    let txt = `${info.id} - ${info.name} ${info.is_mcc ? " - MCC" : ""}`;
+    console.log("  ".repeat(level) + txt);
+    if (info.children && info.children.length) {
+        level += 1;
+        for (let child of info.children) {
+            dumpCustomerInfo(child, level);
+        }
     }
 }
 main().catch(console.error);

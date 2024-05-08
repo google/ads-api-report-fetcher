@@ -129,6 +129,12 @@ class GoogleAdsApiClient {
             throw (this.handleGoogleAdsError(e, customerId, query) || e);
         }
     }
+    /**
+     * Get all nested non-MCC account for the specified one.
+     * If the specified one is a leaf account (non-MCC) then it will be returned
+     * @param customerId A customer account (CID)
+     * @returns a list of child account (at all levels)
+     */
     async getCustomerIds(customerId) {
         const query = `SELECT
           customer_client.id
@@ -146,6 +152,52 @@ class GoogleAdsApiClient {
             all_ids.push(...ids);
         }
         return all_ids;
+    }
+    async getCustomerInfo(customerId) {
+        var _a;
+        const query = `SELECT
+      customer_client.id,
+      customer_client.level,
+      customer_client.status,
+      customer_client.manager
+    FROM customer_client
+    WHERE
+      customer_client.level <= 1
+      AND customer_client.status = "ENABLED"
+    ORDER BY customer_client.level`;
+        //
+        const query2 = `SELECT customer.descriptive_name FROM customer`;
+        let rows = await this.executeQuery(query, customerId);
+        let customer = undefined;
+        for (const row of rows) {
+            const cid = row.customer_client.id.toString();
+            if (((_a = row.customer_client) === null || _a === void 0 ? void 0 : _a.level) === 0) {
+                // the current account itself
+                /* Status:
+                  UNSPECIFIED = 0,
+                  UNKNOWN = 1,
+                  ENABLED = 2,
+                  CANCELED = 3,
+                  SUSPENDED = 4,
+                  CLOSED = 5
+                 */
+                const response = row.customer_client.status === 2
+                    ? await this.executeQuery(query2, cid)
+                    : null;
+                customer = {
+                    id: cid,
+                    name: response ? response[0].customer.descriptive_name : null,
+                    is_mcc: false,
+                    status: google_ads_api_1.enums.CustomerStatus[row.customer_client.status],
+                    children: [],
+                };
+            }
+            else {
+                customer.children.push(await this.getCustomerInfo(cid));
+                customer.is_mcc = true;
+            }
+        }
+        return customer;
     }
 }
 exports.GoogleAdsApiClient = GoogleAdsApiClient;

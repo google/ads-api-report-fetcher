@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryWriter = exports.BigQueryArrayHandling = exports.BigQueryInsertMethod = void 0;
+exports.BigQueryWriter = exports.BigQueryInsertMethod = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
 const node_fs_1 = __importDefault(require("node:fs"));
 const promises_1 = __importDefault(require("node:fs/promises"));
@@ -35,11 +35,6 @@ var BigQueryInsertMethod;
     BigQueryInsertMethod[BigQueryInsertMethod["insertAll"] = 0] = "insertAll";
     BigQueryInsertMethod[BigQueryInsertMethod["loadTable"] = 1] = "loadTable";
 })(BigQueryInsertMethod = exports.BigQueryInsertMethod || (exports.BigQueryInsertMethod = {}));
-var BigQueryArrayHandling;
-(function (BigQueryArrayHandling) {
-    BigQueryArrayHandling["strings"] = "strings";
-    BigQueryArrayHandling["arrays"] = "arrays";
-})(BigQueryArrayHandling = exports.BigQueryArrayHandling || (exports.BigQueryArrayHandling = {}));
 class BigQueryWriter {
     constructor(projectId, dataset, options) {
         const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || "us";
@@ -57,7 +52,7 @@ class BigQueryWriter {
         this.keepData = (options === null || options === void 0 ? void 0 : options.keepData) || false;
         this.noUnionView = (options === null || options === void 0 ? void 0 : options.noUnionView) || false;
         this.insertMethod = (options === null || options === void 0 ? void 0 : options.insertMethod) || BigQueryInsertMethod.loadTable;
-        this.arrayHandling = (options === null || options === void 0 ? void 0 : options.arrayHandling) || BigQueryArrayHandling.arrays;
+        this.arrayHandling = (options === null || options === void 0 ? void 0 : options.arrayHandling) || types_1.ArrayHandling.arrays;
         this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || "|";
         this.customers = [];
         this.rowsByCustomer = {};
@@ -163,7 +158,7 @@ class BigQueryWriter {
                         }
                     }
                 }
-                if (this.arrayHandling === BigQueryArrayHandling.strings) {
+                if (this.arrayHandling === types_1.ArrayHandling.strings) {
                     val = val.join(this.arraySeparator);
                 }
             }
@@ -334,7 +329,7 @@ class BigQueryWriter {
         for (let column of query.columns) {
             let field = {
                 mode: column.type.repeated &&
-                    this.arrayHandling === BigQueryArrayHandling.arrays
+                    this.arrayHandling === types_1.ArrayHandling.arrays
                     ? "REPEATED"
                     : "NULLABLE",
                 name: column.name.replace(/\./g, "_"),
@@ -350,7 +345,7 @@ class BigQueryWriter {
         return schema;
     }
     getBigQueryFieldType(colType) {
-        if (this.arrayHandling === BigQueryArrayHandling.strings &&
+        if (this.arrayHandling === types_1.ArrayHandling.strings &&
             colType.repeated)
             return "STRING";
         if (lodash_1.default.isString(colType.type)) {

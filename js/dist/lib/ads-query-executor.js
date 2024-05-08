@@ -22,6 +22,9 @@ const ads_row_parser_1 = require("./ads-row-parser");
 const logger_1 = require("./logger");
 const utils_1 = require("./utils");
 const async_1 = require("async");
+/**
+ * The main component for Adq query execution.
+ */
 class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
@@ -30,8 +33,14 @@ class AdsQueryExecutor {
         this.logger = (0, logger_1.getLogger)();
         this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
-    parseQuery(queryText, macros) {
-        return this.editor.parseQuery(queryText, macros);
+    parseQuery(queryText, scriptName, macros) {
+        try {
+            return this.editor.parseQuery(queryText, macros);
+        }
+        catch (e) {
+            e.message = (scriptName ? scriptName + ": " : "") + e.message;
+            throw e;
+        }
     }
     /**
      * Executes a query for a list of customers.
@@ -51,7 +60,7 @@ class AdsQueryExecutor {
         let threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
         if (sync)
             this.logger.verbose(`Running in synchronous mode`, { scriptName });
-        let query = this.parseQuery(queryText, macros);
+        let query = this.parseQuery(queryText, scriptName, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
@@ -117,7 +126,7 @@ class AdsQueryExecutor {
      */
     async *executeGen(scriptName, queryText, customers, macros, options) {
         let skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
-        let query = this.parseQuery(queryText, macros);
+        let query = this.parseQuery(queryText, scriptName, macros);
         let isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
@@ -199,7 +208,7 @@ class AdsQueryExecutor {
     }
     executeAdsQuery(query, customerId) {
         if (query.executor) {
-            return query.executor.execute(this.client, query, customerId);
+            return query.executor.execute(query, customerId, this);
         }
         else {
             let stream = this.client.executeQueryStream(query.queryText, customerId);

@@ -269,7 +269,7 @@ export class AdsQueryEditor {
             };
           } else {
             let raw_expr_fields: any[] = [];
-            parsed_expression.forEach((node, path, parent) => {
+            parsed_expression.traverse((node, path, parent) => {
               if ((<any>node).isAccessorNode) {
                 raw_expr_fields.push(node.toString());
               }

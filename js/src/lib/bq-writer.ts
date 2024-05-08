@@ -23,6 +23,7 @@ import _ from "lodash";
 
 import {getLogger} from "./logger";
 import {
+  ArrayHandling,
   FieldType,
   FieldTypeKind,
   IResultWriter,
@@ -46,16 +47,12 @@ export interface BigQueryWriterOptions {
   keepData?: boolean;
   keyFilePath?: string;
   insertMethod?: BigQueryInsertMethod;
-  arrayHandling?: BigQueryArrayHandling;
+  arrayHandling?: ArrayHandling;
   arraySeparator?: string | undefined;
 }
 export enum BigQueryInsertMethod {
   insertAll,
   loadTable,
-}
-export enum BigQueryArrayHandling {
-  strings = 'strings',
-  arrays = 'arrays'
 }
 
 export class BigQueryWriter implements IResultWriter {
@@ -78,7 +75,7 @@ export class BigQueryWriter implements IResultWriter {
   noUnionView: boolean;
   insertMethod: BigQueryInsertMethod;
   logger;
-  arrayHandling: BigQueryArrayHandling;
+  arrayHandling: ArrayHandling;
   arraySeparator: string;
 
   constructor(
@@ -101,7 +98,7 @@ export class BigQueryWriter implements IResultWriter {
     this.keepData = options?.keepData || false;
     this.noUnionView = options?.noUnionView || false;
     this.insertMethod = options?.insertMethod || BigQueryInsertMethod.loadTable;
-    this.arrayHandling = options?.arrayHandling || BigQueryArrayHandling.arrays;
+    this.arrayHandling = options?.arrayHandling || ArrayHandling.arrays;
     this.arraySeparator = options?.arraySeparator || "|";
     this.customers = [];
     this.rowsByCustomer = {};
@@ -224,7 +221,7 @@ export class BigQueryWriter implements IResultWriter {
             }
           }
         }
-        if (this.arrayHandling === BigQueryArrayHandling.strings) {
+        if (this.arrayHandling === ArrayHandling.strings) {
           val = val.join(this.arraySeparator);
         }
       } else if (colType.kind === FieldTypeKind.struct) {
@@ -413,7 +410,7 @@ export class BigQueryWriter implements IResultWriter {
       let field: bigquery.ITableFieldSchema = {
         mode:
           column.type.repeated &&
-          this.arrayHandling === BigQueryArrayHandling.arrays
+          this.arrayHandling === ArrayHandling.arrays
             ? "REPEATED"
             : "NULLABLE",
         name: column.name.replace(/\./g, "_"),
@@ -431,7 +428,7 @@ export class BigQueryWriter implements IResultWriter {
 
   private getBigQueryFieldType(colType: FieldType): string | undefined {
     if (
-      this.arrayHandling === BigQueryArrayHandling.strings &&
+      this.arrayHandling === ArrayHandling.strings &&
       colType.repeated
     )
       return "STRING";

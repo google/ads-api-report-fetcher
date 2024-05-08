@@ -79,12 +79,12 @@ Options:
   * `file` - (default) local or remote (GCS, S3, Azure, etc.) files
   * `console` - data are read from standard input
 * `output` - output type, Supports the following values:
-  * `csv` - write data to CSV files
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
-  * `sqldb` - writes data to a database supported by SQL Alchemy (Python only).
-  * `sheet` - writes data to a Google Sheets (Python only).
-  * `json` - writes data to JSON (Python only).
+  * `csv` - write data to CSV files
+  * `json` - writes data to JSON files
+  * `sqldb` - writes data to a database supported by SQL Alchemy (Python only)
+  * `sheet` - writes data to a Google Sheets (Python only)
 * `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
@@ -136,8 +136,11 @@ Options specific for Sheet writer (*Python version only*):
 * `sheet.credentials-file` - path to service account used to write data. More at [gspread authentication](https://docs.gspread.org/en/v5.10.0/oauth2.html)
 * `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended.
 
-Options specific for CSV writer (*Python version only*):
+Options specific for JSON writer:
 * `json.destination-folder` - output folder where json files will be created
+* `json.file-per-customer` - create a CSV file per customer (default: false) (*NodeJS version only*)
+* `json.format` - output format: "json" (JSON) or "jsonl" (JSON Lines)
+* `json.value-format` - value format - representation of values: "arrays" (values as arrays), "objects" (values as objects), "raw" (raw output)
 
 ####  Query specific options
 

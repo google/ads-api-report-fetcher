@@ -15,6 +15,8 @@
  */
 import { EvalFunction } from "mathjs";
 import { IGoogleAdsApiClient } from "./ads-api-client";
+import { IAdsRowParser } from "./ads-row-parser";
+import { AdsQueryExecutor } from "./ads-query-executor";
 
 export interface CustomizerResourceIndex {
   type: CustomizerType.ResourceIndex;
@@ -112,8 +114,11 @@ export interface Column {
   customizer?: Customizer | null | undefined;
 }
 export interface IQueryExecutor {
-  execute(client: IGoogleAdsApiClient, query: QueryElements, customerId: string)
-    : AsyncGenerator<any>
+  execute(
+    query: QueryElements,
+    customerId: string,
+    executor: AdsQueryExecutor
+  ): AsyncGenerator<any>;
 }
 
 export class QueryElements {
@@ -167,4 +172,9 @@ export interface InputQuery {
 
 export interface IQueryReader extends AsyncIterable<InputQuery> {
   //*[Symbol.iterator];
+}
+
+export enum ArrayHandling {
+  strings = "strings",
+  arrays = "arrays",
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
+exports.ArrayHandling = exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
 var CustomizerType;
 (function (CustomizerType) {
     CustomizerType["ResourceIndex"] = "ResourceIndex";
@@ -34,4 +34,9 @@ class QueryElements {
     }
 }
 exports.QueryElements = QueryElements;
+var ArrayHandling;
+(function (ArrayHandling) {
+    ArrayHandling["strings"] = "strings";
+    ArrayHandling["arrays"] = "arrays";
+})(ArrayHandling = exports.ArrayHandling || (exports.ArrayHandling = {}));
 //# sourceMappingURL=types.js.map

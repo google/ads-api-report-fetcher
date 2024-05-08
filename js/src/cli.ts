@@ -14,28 +14,54 @@
  * limitations under the License.
  */
 
-import chalk from 'chalk';
-import findUp from 'find-up';
-import fs from 'fs';
-import yaml from 'js-yaml';
-import _ from 'lodash';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+import chalk from "chalk";
+import findUp from "find-up";
+import fs from "fs";
+import yaml from "js-yaml";
+import _ from "lodash";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
-import {GoogleAdsApiClient, GoogleAdsApiConfig, loadAdsConfigFromFile, parseCustomerIds} from './lib/ads-api-client';
-import {AdsQueryExecutor, AdsQueryExecutorOptions, AdsApiVersion} from './lib/ads-query-executor';
-import {BigQueryInsertMethod, BigQueryWriter, BigQueryWriterOptions} from './lib/bq-writer';
-import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
-import {CsvWriter, CsvWriterOptions, NullWriter} from './lib/csv-writer';
-import {getFileContent} from './lib/file-utils';
-import {getLogger} from './lib/logger';
-import {IQueryReader, IResultWriter, InputQuery, QueryElements} from './lib/types';
-import {getElapsed} from './lib/utils';
-import { ConsoleQueryReader, FileQueryReader } from './lib/query-reader';
+import {
+  CustomerInfo,
+  GoogleAdsApiClient,
+  GoogleAdsApiConfig,
+  loadAdsConfigFromFile,
+  parseCustomerIds,
+} from "./lib/ads-api-client";
+import {
+  AdsQueryExecutor,
+  AdsQueryExecutorOptions,
+  AdsApiVersion,
+} from "./lib/ads-query-executor";
+import {
+  BigQueryInsertMethod,
+  BigQueryWriter,
+  BigQueryWriterOptions,
+} from "./lib/bq-writer";
+import { ConsoleWriter, ConsoleWriterOptions } from "./lib/console-writer";
+import {
+  CsvWriter,
+  CsvWriterOptions,
+  JsonWriter,
+  JsonWriterOptions,
+  NullWriter,
+} from "./lib/file-writers";
+import { getFileContent } from "./lib/file-utils";
+import { getLogger } from "./lib/logger";
+import {
+  IQueryReader,
+  IResultWriter,
+  InputQuery,
+  QueryElements,
+} from "./lib/types";
+import { getElapsed } from "./lib/utils";
+import { ConsoleQueryReader, FileQueryReader } from "./lib/query-reader";
 
-const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json'])
-const configObj =
-    configPath ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
+const configPath = findUp.sync([".gaarfrc", ".gaarfrc.json"]);
+const configObj = configPath
+  ? JSON.parse(fs.readFileSync(configPath, "utf-8"))
+  : {};
 
 const logger = getLogger();
 
@@ -45,11 +71,12 @@ const argv = yargs(hideBin(process.argv))
   .version()
   .alias("v", "version")
   .command("validate", "Validate Ads configuration")
+  .command("account-tree", "Display info about a customer account")
   .command("$0 <files..>", "Execute ads queries (GAQL)", {})
   .positional("files", {
     array: true,
     type: "string",
-    description: "List of files with Ads queries (can be gcs:// resources)",
+    description: "List of files (or wildcards) with Ads queries (can be gs:// resources)",
   })
   // .command(
   //     'bigquery <files>', 'Execute BigQuery queries',
@@ -107,7 +134,7 @@ const argv = yargs(hideBin(process.argv))
     description: "Different types of input besides the default file input",
   })
   .option("output", {
-    choices: ["csv", "bq", "bigquery", "console"],
+    choices: ["csv", "bq", "bigquery", "console", "json"],
     alias: "o",
     description: "Output writer to use",
   })
@@ -145,6 +172,17 @@ const argv = yargs(hideBin(process.argv))
   .option("csv.file-per-customer", {
     type: "boolean",
   })
+  .option("json.format", {
+    type: "string",
+    description: "output format: json or jsonl (JSON Lines)",
+  })
+  .option("json.value-format", {
+    type: "string",
+    description: "value format: arrays (values as arrays), objects (values as objects), raw (raw output)",
+  })
+  .option("json.file-per-customer", {
+    type: "boolean",
+  })
   .option("console.transpose", {
     choices: ["auto", "never", "always"],
     default: "auto",
@@ -153,7 +191,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("console.page-size", {
     type: "number",
-    alias: ['maxrows', 'page_size'],
+    alias: ["maxrows", "page_size"],
     description: "Maximum rows count to output per each script",
   })
   .option("bq", { hidden: true })
@@ -204,7 +242,8 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("bq.key-file-path", {
     type: "string",
-    description: "A path to a service account key file for BigQuery authentication",
+    description:
+      "A path to a service account key file for BigQuery authentication",
   })
   .option("skip-constants", {
     type: "boolean",
@@ -269,7 +308,6 @@ const argv = yargs(hideBin(process.argv))
   // TODO: .completion()
   .parseSync();
 
-
 function getWriter(): IResultWriter {
   let output = (argv.output || "").toString();
   if (output === "") {
@@ -280,6 +318,9 @@ function getWriter(): IResultWriter {
   }
   if (output === "csv") {
     return new CsvWriter(<CsvWriterOptions>argv.csv);
+  }
+  if (output === "json") {
+    return new JsonWriter(<JsonWriterOptions>argv.json);
   }
   if (output === "bq" || output === "bigquery") {
     // TODO: move all options to BigQueryWriterOptions
@@ -314,7 +355,7 @@ function getWriter(): IResultWriter {
         : BigQueryInsertMethod.loadTable;
     opts.arrayHandling = bq_opts["array-handling"];
     opts.arraySeparator = bq_opts["array-separator"];
-    opts.keyFilePath = bq_opts["key-file-path"]
+    opts.keyFilePath = bq_opts["key-file-path"];
     logger.debug("BigQueryWriterOptions:");
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
@@ -326,17 +367,16 @@ function getWriter(): IResultWriter {
 
 function getReader(): IQueryReader {
   let input = (argv.input || "").toString();
-  if (input === 'console') {
+  if (input === "console") {
     return new ConsoleQueryReader(argv.files);
   }
   return new FileQueryReader(argv.files);
 }
 
-
 async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));
 
-  let adsConfig: GoogleAdsApiConfig|undefined = undefined;
+  let adsConfig: GoogleAdsApiConfig | undefined = undefined;
   let adConfigFilePath = <string>argv.adsConfig;
   if (adConfigFilePath) {
     // try to use ads config from extenral file (ads-config arg)
@@ -346,26 +386,29 @@ async function main() {
   if (argv.ads) {
     let ads_cfg = <any>argv.ads;
     adsConfig = Object.assign(adsConfig || {}, {
-      client_id: ads_cfg.client_id || '',
-      client_secret: ads_cfg.client_secret || '',
-      developer_token: ads_cfg.developer_token || '',
-      refresh_token: ads_cfg.refresh_token || '',
-      login_customer_id: ads_cfg.login_customer_id || '',
+      client_id: ads_cfg.client_id || "",
+      client_secret: ads_cfg.client_secret || "",
+      developer_token: ads_cfg.developer_token || "",
+      refresh_token: ads_cfg.refresh_token || "",
+      login_customer_id: ads_cfg.login_customer_id || "",
     });
-  } else if (!adConfigFilePath && fs.existsSync('google-ads.yaml')) {
+  } else if (!adConfigFilePath && fs.existsSync("google-ads.yaml")) {
     // load a default google-ads if it wasn't explicitly specified
     // TODO: support searching google-ads.yaml in user home folder (?)
-    adsConfig = await loadAdsConfig('google-ads.yaml');
+    adsConfig = await loadAdsConfig("google-ads.yaml");
   }
   if (!adsConfig) {
-    if (argv.loglevel !== 'off') {
-      console.log(chalk.red(
-          `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`));
+    if (argv.loglevel !== "off") {
+      console.log(
+        chalk.red(
+          `Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting`
+        )
+      );
     }
     process.exit(-1);
   }
 
-  logger.verbose('Using ads config:');
+  logger.verbose("Using ads config:");
   logger.verbose(
     JSON.stringify(
       Object.assign({}, adsConfig, {
@@ -385,13 +428,9 @@ async function main() {
     }
     process.exit(-1);
   }
-  if (
-      !adsConfig.login_customer_id &&
-      customerIds &&
-      customerIds.length === 1
-    ) {
-      adsConfig.login_customer_id = customerIds[0];
-    }
+  if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
+    adsConfig.login_customer_id = customerIds[0];
+  }
 
   let client = new GoogleAdsApiClient(adsConfig);
   let executor = new AdsQueryExecutor(client);
@@ -410,7 +449,14 @@ async function main() {
       }
       process.exit(-1);
     }
+  } else if (argv._ && argv._[0] === "account-tree") {
+    for (const cid of customerIds) {
+      const info = await client.getCustomerInfo(cid);
+      dumpCustomerInfo(info);
+    }
+    process.exit(0);
   }
+
   // NOTE: a note regarding the 'files' argument
   // normaly on *nix OSes (at least in bash and zsh) passing an argument
   // with mask like *.sql will expand it to a list of files (see
@@ -421,54 +467,68 @@ async function main() {
   // if we want to support glob patterns as parameter (for example for calling
   // from outside zsh/bash) then we have to handle items in `files` argument and
   // expand them using glob rules
-  if (!argv.files || !argv.files.length) {
+  if ((!argv.files || !argv.files.length) && (argv._[0] !== "customer")) {
     if (argv.loglevel !== "off") {
-      console.log(chalk.redBright(
-        `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
+      console.log(
+        chalk.redBright(
+          `Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`
+        )
+      );
     }
     process.exit(-1);
   }
 
-  if (argv.output === 'console') {
+  if (argv.output === "console") {
     // for console writer by default increase default log level to 'warn' (to
     // hide all auxillary info)
     logger.transports.forEach((transport) => {
-      if ((<any>transport).name === 'console' && !argv.loglevel) {
-        transport.level = 'warn';
+      if ((<any>transport).name === "console" && !argv.loglevel) {
+        transport.level = "warn";
       }
     });
   }
 
-  let customer_ids_query = '';
+  let customer_ids_query = "";
   if (argv.customer_ids_query) {
     customer_ids_query = <string>argv.customer_ids_query;
   } else if (argv.customer_ids_query_file) {
-    customer_ids_query =
-        await getFileContent(<string>argv.customer_ids_query_file);
+    customer_ids_query = await getFileContent(
+      <string>argv.customer_ids_query_file
+    );
   }
 
   let customers: string[];
   if (argv.disable_account_expansion) {
     logger.info(
       "Skipping account expansion because of disable_account_expansion flag"
-     );
+    );
     customers = customerIds;
   } else {
     // expand the provided accounts to leaf ones as they could be MMC accounts
-    logger.info(`Expanding customer ids ${
-      customer_ids_query ? '(using custom query)' : ''}`);
+    logger.info(
+      `Expanding customer ids ${
+        customer_ids_query ? "(using custom query)" : ""
+      }`
+    );
     customers = await client.getCustomerIds(customerIds);
     logger.verbose(
-      `Customer ids from the root account(s) ${customerIds.join(',')} (${customers.length}):`
+      `Customer ids from the root account(s) ${customerIds.join(",")} (${
+        customers.length
+      }):`
     );
     logger.verbose(customers);
     if (customer_ids_query) {
       logger.verbose(`Filtering customer ids with custom query`);
       logger.debug(customer_ids_query);
       try {
-        customers = await executor.getCustomerIds(customers, customer_ids_query);
+        customers = await executor.getCustomerIds(
+          customers,
+          customer_ids_query
+        );
       } catch (e) {
-        logger.error(`Fetching customer ids using customer_ids_query failed: ` + e);
+        logger.error(
+          `Fetching customer ids using customer_ids_query failed: ` + e
+        );
         process.exit(-1);
       }
     }
@@ -479,12 +539,13 @@ async function main() {
     }
     process.exit(-1);
   }
+
   logger.info(`Customers to process (${customers.length}):`);
   logger.info(customers);
 
   let macros = <Record<string, any>>argv["macro"] || {};
-  let writer = getWriter();  // NOTE: create writer from argv
-  let reader = getReader();  // NOTE: create reader from argv
+  let writer = getWriter(); // NOTE: create writer from argv
+  let reader = getReader(); // NOTE: create reader from argv
   let options: AdsQueryExecutorOptions = {
     skipConstants: argv.skipConstants,
     parallelAccounts: argv.parallelAccounts,
@@ -493,7 +554,7 @@ async function main() {
   };
 
   let started = new Date();
-  for await (const  query of reader) {
+  for await (const query of reader) {
     const started_script = new Date();
     await executor.execute(
       query.name,
@@ -512,7 +573,8 @@ async function main() {
   }
   let elapsed = getElapsed(started);
   logger.info(
-      chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
+    chalk.green("All done!") + " " + chalk.gray(`Elapsed: ${elapsed}`)
+  );
 }
 
 async function loadAdsConfig(configFilepath: string) {
@@ -520,10 +582,24 @@ async function loadAdsConfig(configFilepath: string) {
     return loadAdsConfigFromFile(configFilepath);
   } catch (e) {
     if (argv.loglevel !== "off") {
-      console.log(chalk.red(
-        `Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+      console.log(
+        chalk.red(
+          `Failed to load Ads API configuration from ${configFilepath}: ${e}`
+        )
+      );
     }
     process.exit(-1);
+  }
+}
+
+function dumpCustomerInfo(info: CustomerInfo, level: number = 0) {
+  let txt = `${info.id} - ${info.name} ${info.is_mcc ? " - MCC" : ""}`
+  console.log("  ".repeat(level) + txt);
+  if (info.children && info.children.length) {
+    level += 1;
+    for (let child of info.children) {
+      dumpCustomerInfo(child, level);
+    }
   }
 }
 

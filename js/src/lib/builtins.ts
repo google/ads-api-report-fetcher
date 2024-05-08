@@ -1,7 +1,6 @@
-import { IGoogleAdsApiClient } from "./ads-api-client";
 import { FieldTypeKind, IQueryExecutor, QueryElements } from "./types";
 import { AdsQueryEditor } from "./ads-query-editor";
-import { services } from "google-ads-api";
+import { AdsQueryExecutor } from "./ads-query-executor";
 
 export class BuiltinQueryProcessor implements IQueryExecutor {
   constructor(public queryEditor: AdsQueryEditor) {}
@@ -45,15 +44,15 @@ export class BuiltinQueryProcessor implements IQueryExecutor {
   }
 
   async *execute(
-    client: IGoogleAdsApiClient,
     query: QueryElements,
-    customerId: string
+    customerId: string,
+    executor: AdsQueryExecutor
   ): AsyncGenerator<any> {
     if (query.resource.name === "ocid") {
       let queryReal =
         "SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1";
       // we need to parse result so we wrap generator
-      let stream = client.executeQueryStream(queryReal, customerId);
+      let stream = executor.client.executeQueryStream(queryReal, customerId);
       for await (const row of stream) {
         let new_row = {
           customer_id: row.customer?.id,

@@ -67,7 +67,7 @@ suite('AdsQueryEditor', () => {
     assert.deepEqual(query.columnNames, ['asset_id']);
   });
 
-  test('nested field2', function() {
+  test('nested field with 2 levels', function() {
     let editor = new AdsQueryEditor();
     let queryText = `SELECT
       campaign.frequency_caps AS frequency_caps_raw,

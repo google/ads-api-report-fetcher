@@ -37,7 +37,7 @@ __exportStar(require("./lib/ads-query-editor"), exports);
 __exportStar(require("./lib/ads-query-executor"), exports);
 __exportStar(require("./lib/bq-executor"), exports);
 __exportStar(require("./lib/bq-writer"), exports);
-__exportStar(require("./lib/csv-writer"), exports);
+__exportStar(require("./lib/file-writers"), exports);
 __exportStar(require("./lib/file-utils"), exports);
 __exportStar(require("./lib/google-cloud"), exports);
 __exportStar(require("./lib/types"), exports);

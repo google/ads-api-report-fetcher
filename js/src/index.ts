@@ -21,7 +21,7 @@ export * from './lib/ads-query-editor';
 export * from './lib/ads-query-executor';
 export * from './lib/bq-executor';
 export * from './lib/bq-writer';
-export * from './lib/csv-writer';
+export * from './lib/file-writers';
 
 export * from './lib/file-utils';
 export * from './lib/google-cloud';

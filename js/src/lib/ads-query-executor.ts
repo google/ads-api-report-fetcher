@@ -29,18 +29,21 @@ export interface AdsQueryExecutorOptions {
   /** Do not execute script for constant resources */
   skipConstants?: boolean | undefined;
   /**
-   * execution mode: parallel (default) or synchronous -
-   * each script will be executed for all customers synchronously,
-   * otherwise (by default) - in parallel
+   * Execution mode: parallel (default) or synchronous -
+   * whether a scripts will be executed for all account in parallel or synchronously
    */
   parallelAccounts?: boolean;
   /**
-   * A level of parallelism (if parallelAccounts:true) - maximum number of requests execuring in parallel
+   * A level of parallelism (if parallelAccounts:true) - maximum number
+   * of requests executing in parallel.
    */
   parallelThreshold?: number;
   dumpQuery?: boolean;
 }
 
+/**
+ * The main component for Adq query execution.
+ */
 export class AdsQueryExecutor {
   static DEFAULT_PARALLEL_THRESHOLD = 16;
   static DEFAULT_RETRY_COUNT = 3;
@@ -59,8 +62,17 @@ export class AdsQueryExecutor {
     this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
   }
 
-  parseQuery(queryText: string, macros?: Record<string, any>) {
-    return this.editor.parseQuery(queryText, macros);
+  parseQuery(
+    queryText: string,
+    scriptName?: string,
+    macros?: Record<string, any>
+  ) {
+    try {
+      return this.editor.parseQuery(queryText, macros);
+    } catch (e) {
+      e.message = (scriptName ? scriptName + ": " : "") + e.message;
+      throw e;
+    }
   }
 
   /**
@@ -89,7 +101,7 @@ export class AdsQueryExecutor {
       options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
     if (sync)
       this.logger.verbose(`Running in synchronous mode`, { scriptName });
-    let query = this.parseQuery(queryText, macros);
+    let query = this.parseQuery(queryText, scriptName, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       this.logger.verbose(
@@ -180,7 +192,7 @@ export class AdsQueryExecutor {
     options?: AdsQueryExecutorOptions
   ): AsyncGenerator<QueryResult, void, QueryResult | void> {
     let skipConstants = !!options?.skipConstants;
-    let query = this.parseQuery(queryText, macros);
+    let query = this.parseQuery(queryText, scriptName, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       this.logger.verbose(
@@ -291,7 +303,7 @@ export class AdsQueryExecutor {
 
   protected executeAdsQuery(query: QueryElements, customerId: string) {
     if (query.executor) {
-      return query.executor.execute(this.client, query, customerId);
+      return query.executor.execute(query, customerId, this);
     } else {
       let stream = this.client.executeQueryStream(query.queryText, customerId);
       return stream;

@@ -21,8 +21,11 @@ import { math_parse } from "./math-engine";
 import {Column, Customizer, CustomizerType, FieldTypeKind, QueryElements} from './types';
 import {navigateObject, traverseObject, tryParseNumber} from './utils';
 
+export interface IAdsRowParser {
+  parseRow(row: any, query: QueryElements): any[];
+}
 
-export class AdsRowParser {
+export class AdsRowParser implements IAdsRowParser {
   parseRow(row: any, query: QueryElements) {
     // flatten the tree of object into a flat obejct with all properties
     let row_values: Record<string, any> = {};
@@ -93,7 +96,7 @@ export class AdsRowParser {
     return row_values_arr;
   }
 
-  getValueWithCustomizer(
+  protected getValueWithCustomizer(
     row: any,
     column: Column,
     customizer: Customizer,
