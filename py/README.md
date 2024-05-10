@@ -1,5 +1,7 @@
 # Google Ads API Report Fetcher (gaarf)
 
+[![](https://img.shields.io/pypi/pyversions/google-ads-api-report-fetcher.svg)](https://pypi.org/project/google-ads-api-report-fetcher/)
+
 Python version of Google Ads API Report Fetcher tool a.k.a. `gaarf`.
 Please see the full documentation in the root [README](https://github.com/google/ads-api-report-fetcher/blob/main/README.md).
 
