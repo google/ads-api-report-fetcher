@@ -1,13 +1,28 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+import json
 
 import proto
 import pytest
 from gaarf import exceptions
 from gaarf import parsers
 from gaarf import query_editor
+from google.ads.googleads.v16.resources.types import ad_group_ad_asset_view
+from google.ads.googleads.v16.resources.types import change_event
 
 
 @dataclasses.dataclass
@@ -43,13 +58,21 @@ class Metric:
     impressions: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
+class NestedResource:
+    nested_field: str
+
+
+@dataclasses.dataclass(frozen=True)
 class FakeAdsRowMultipleElements:
     campaign_type: NameAttribute
     clicks: int
     resource: str
     value: str
     metrics: Metric
+    old_resource: NestedResource
+    new_resource: change_event.ChangeEvent.ChangedResource
+    policy_summary: ad_group_ad_asset_view.AdGroupAdAssetPolicySummary
 
     @property
     def _pb(self):
@@ -58,8 +81,8 @@ class FakeAdsRowMultipleElements:
 
 @dataclasses.dataclass
 class FakeQuerySpecification:
-    customizers: dict[str, Any]
-    virtual_columns: dict[str, Any]
+    customizers: dict[str, str]
+    virtual_columns: dict[str, str]
     fields: list[str]
     column_names: list[str]
 
@@ -71,9 +94,21 @@ def fake_query_specification():
             'type': 'resource_index',
             'value': 0,
         },
-        'value': {
+        'old_resource': {
             'type': 'nested_field',
-            'value': 'value',
+            'value': 'nested_field',
+        },
+        'new_resource': {
+            'type': 'nested_field',
+            'value': 'campaign.target_cpa.target_cpa_micros',
+        },
+        'policy_summary': {
+            'type': 'nested_field',
+            'value': 'policy_topic_entries.type',
+        },
+        'approval_status': {
+            'type': 'nested_field',
+            'value': 'approval_status',
         }
     }
     virtual_columns = {
@@ -90,12 +125,20 @@ def fake_query_specification():
             'clicks',
             'resource',
             'value',
+            'old_resource',
+            'new_resource',
+            'policy_summary',
+            'policy_summary',
         ],
         column_names=[
             'campaign_type',
             'clicks',
             'resource',
             'value',
+            'old_resource',
+            'new_resource',
+            'policy_summary',
+            'approval_status',
         ])
 
 
@@ -194,13 +237,41 @@ class TestParser:
 class TestGoogleAdsRowParser:
 
     @pytest.fixture
-    def fake_ads_row(self):
+    def fake_change_event(self):
+        return change_event.ChangeEvent.ChangedResource.from_json(
+            json.dumps({'campaign': {
+                'target_cpa': {
+                    'target_cpa_micros': 1
+                }
+            }}))
+
+    @pytest.fixture
+    def fake_policy_summary(self):
+        return ad_group_ad_asset_view.AdGroupAdAssetPolicySummary.from_json(
+            json.dumps({
+                'approvalStatus': 'APPROVED',
+                'policyTopicEntries': [{
+                    'type': 'LIMITED'
+                }]
+            }))
+
+    @pytest.fixture
+    def fake_approval_status(self):
+        return ad_group_ad_asset_view.AdGroupAdAssetPolicySummary.from_json(
+            json.dumps({'approvalStatus': 'APPROVED'}))
+
+    @pytest.fixture
+    def fake_ads_row(self, fake_change_event, fake_policy_summary,
+                     fake_approval_status):
         return FakeAdsRowMultipleElements(
             campaign_type=NameAttribute('SEARCH'),
             clicks=1,
             resource='customers/1/resource/2',
             value=ValueAttribute(1),
-            metrics=Metric(clicks=10, impressions=10))
+            metrics=Metric(clicks=10, impressions=10),
+            old_resource=NestedResource('nested_value'),
+            new_resource=fake_change_event,
+            policy_summary=fake_policy_summary)
 
     @pytest.fixture
     def fake_expression_virtual_column(self):
@@ -219,7 +290,8 @@ class TestGoogleAdsRowParser:
                           parsers.RepeatedParser)
 
     def test_get_attributes_from_row_returns_correct_list(
-            self, google_ads_row_parser, fake_ads_row):
+            self, google_ads_row_parser, fake_ads_row, fake_change_event,
+            fake_policy_summary):
         extracted_rows = google_ads_row_parser._get_attributes_from_row(
             fake_ads_row, google_ads_row_parser.row_getter)
         assert extracted_rows == (
@@ -227,13 +299,25 @@ class TestGoogleAdsRowParser:
             1,
             'customers/1/resource/2',
             ValueAttribute(1),
+            NestedResource('nested_value'),
+            fake_change_event,
+            fake_policy_summary,
+            fake_policy_summary,
         )
         assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
-            'SEARCH', 1, '2', 1
+            'SEARCH',
+            1,
+            '2',
+            1,
+            'nested_value',
+            1,
+            ['LIMITED'],
+            'APPROVED',
         ]
 
     def test_parse_ads_row_extracts_correct_resource_indices_from_array(
-            self, google_ads_row_parser):
+            self, google_ads_row_parser, fake_change_event, fake_policy_summary,
+            fake_approval_status):
         fake_ads_row_with_array = FakeAdsRowMultipleElements(
             campaign_type=NameAttribute('SEARCH'),
             clicks=1,
@@ -242,13 +326,24 @@ class TestGoogleAdsRowParser:
                 'customers/1/resource/2',
             ],
             value=ValueAttribute(1),
-            metrics=Metric(clicks=10, impressions=10))
+            metrics=Metric(clicks=10, impressions=10),
+            old_resource=NestedResource('nested_value'),
+            new_resource=fake_change_event,
+            policy_summary=fake_policy_summary)
         assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
-            'SEARCH', 1, ['1', '2'], 1
+            'SEARCH',
+            1,
+            ['1', '2'],
+            1,
+            'nested_value',
+            1,
+            ['LIMITED'],
+            'APPROVED',
         ]
 
     def test_parse_ads_row_extract_correct_resource_indices_from_array_of_attributes(  # pylint: disable=line-too-long
-            self, google_ads_row_parser):
+            self, google_ads_row_parser, fake_change_event, fake_policy_summary,
+            fake_approval_status):
         fake_ads_row_with_array = FakeAdsRowMultipleElements(
             campaign_type=NameAttribute('SEARCH'),
             clicks=1,
@@ -257,9 +352,19 @@ class TestGoogleAdsRowParser:
                 AssetAttribute('customers/1/resource/2'),
             ],
             value=ValueAttribute(1),
-            metrics=Metric(clicks=10, impressions=10))
+            metrics=Metric(clicks=10, impressions=10),
+            old_resource=NestedResource('nested_value'),
+            new_resource=fake_change_event,
+            policy_summary=fake_policy_summary)
         assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
-            'SEARCH', 1, ['1', '2'], 1
+            'SEARCH',
+            1,
+            ['1', '2'],
+            1,
+            'nested_value',
+            1,
+            ['LIMITED'],
+            'APPROVED',
         ]
 
     def test_convert_virtual_column_returns_correct_value_for_builtin_type(
@@ -319,5 +424,12 @@ class TestGoogleAdsRowParser:
             self, google_ads_row_parser, fake_ads_row):
         google_ads_row_parser.extract_protobufs = True
         assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
-            'SEARCH', 1, '2', 1
+            'SEARCH',
+            1,
+            '2',
+            1,
+            'nested_value',
+            1,
+            ['LIMITED'],
+            'APPROVED',
         ]

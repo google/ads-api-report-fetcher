@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module defining key query elements for building and parsing GAQL query."""
 from __future__ import annotations
 
+import ast
 import dataclasses
 import datetime
 import operator
@@ -22,6 +24,14 @@ from dateutil import relativedelta
 from gaarf import api_clients
 from gaarf import exceptions
 from gaarf import query_post_processor
+
+VALID_VIRTUAL_COLUMN_OPERATORS = (
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.operator,
+    ast.Num,
+    ast.Expression,
+)
 
 
 @dataclasses.dataclass(frozen=True)

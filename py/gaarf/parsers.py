@@ -18,6 +18,7 @@ strategies to each element of the row.
 """
 from __future__ import annotations
 
+import ast
 import importlib
 import operator
 import re
@@ -30,6 +31,7 @@ from gaarf import api_clients
 from gaarf import exceptions
 from gaarf import query_editor
 from google import protobuf
+from google.ads.googleads import util as googleads_utils
 from proto.marshal.collections import repeated
 from typing_extensions import Self
 from typing_extensions import TypeAlias
@@ -184,19 +186,13 @@ class GoogleAdsRowParser:
         parser: Chain of parsers to execute on a single GoogleAdsRow.
         row_getter: Helper to easily extract fields from GogleAdsRow.
         respect_nulls: Whether or not convert nulls to zeros.
-        extract_protobufs: Whether or not take protobuf for row elements.
     """
 
-    def __init__(self,
-                 query_specification: query_editor.QueryElements,
-                 extract_protobufs: bool = False) -> None:
+    def __init__(self, query_specification: query_editor.QueryElements) -> None:
         """Initializes GoogleAdsRowParser.
 
         Args:
-            query_specification:
-                All elements forming gaarf query.
-            extra_protobufs:
-                Whether to extract protobuf from 'GoogleAdsRow' before parsing.
+            query_specification: All elements forming gaarf query.
         """
         self.fields = query_specification.fields
         self.customizers = query_specification.customizers
@@ -209,7 +205,6 @@ class GoogleAdsRowParser:
         # such attributes to None rather than 0
         self.respect_nulls = ('segments.sk_ad_network_conversion_value'
                               in self.fields)
-        self.extract_protobufs = extract_protobufs
 
     def _init_parsers_chain(self):
         """Initializes chain of parsers."""
@@ -231,85 +226,144 @@ class GoogleAdsRowParser:
 
         Args:
             row: A single GoogleAdsRow.
+
         Returns:
             List of parsed elements.
         """
         parsed_row_elements: list[GoogleAdsRowElement] = []
-        if self.extract_protobufs:
-            row = row._pb
         extracted_attributes = self._get_attributes_from_row(
             row, self.row_getter)
         index = 0
-        for i, column in enumerate(self.column_names):
+        for column in self.column_names:
             if column in self.virtual_columns.keys():
                 parsed_element = self._convert_virtual_column(
                     row, self.virtual_columns[column])
             else:
-                extracted_attribute = extracted_attributes[index]
+                parsed_element = self._parse_row_element(
+                    extracted_attributes[index], column)
                 index += 1
-                if self.customizers:
-                    if (caller := self.customizers.get(column)):
-                        if caller.get('type') == 'nested_field':
-                            values_ = caller.get('value').split('.')
-                            extracted_attribute_ = getattr(
-                                extracted_attribute, values_[0]) if hasattr(
-                                    extracted_attribute,
-                                    values_[0]) else extracted_attribute
-                            try:
-                                if isinstance(
-                                        extracted_attribute,
-                                        get_args(_NESTED_FIELD)) or isinstance(
-                                            extracted_attribute_,
-                                            get_args(_NESTED_FIELD)):
-                                    if isinstance(extracted_attribute_,
-                                                  (repeated.Repeated,
-                                                   repeated.RepeatedComposite)):
-                                        extracted_attribute = (
-                                            extracted_attribute)
-                                    if len(values_) > 1:
-                                        value = values_[1]
-                                    else:
-                                        value = caller.get('value')
-                                    extracted_attribute = list({
-                                        operator.attrgetter(value)(element)
-                                        for element in extracted_attribute
-                                    })
-                                else:
-                                    extracted_attribute = operator.attrgetter(
-                                        caller.get('value'))(
-                                            extracted_attribute)
-                            except AttributeError as e:
-                                raise exceptions.GaarfCustomizerException(
-                                    f'customizer {caller} is incorrect,\n'
-                                    f"details: '{e}',\n"
-                                    f"row: '{row}'") from e
-                        elif caller.get('type') == 'resource_index':
-                            if isinstance(extracted_attribute,
-                                          abc.MutableSequence):
-                                parsed_element = [
-                                    self.parser_chain.parse(element) or element
-                                    for element in extracted_attribute
-                                ]
-                                extracted_attribute = [
-                                    self._get_resource_index(attribute, caller)
-                                    for attribute in parsed_element
-                                ]
-                            else:
-                                extracted_attribute = self._get_resource_index(
-                                    extracted_attribute, caller)
-                if isinstance(extracted_attribute, abc.MutableSequence):
-                    parsed_element = [
-                        self.parser_chain.parse(element) or element
-                        for element in extracted_attribute
-                    ]
-                else:
-                    parsed_element = self.parser_chain.parse(
-                        extracted_attribute) or extracted_attribute
             parsed_row_elements.append(parsed_element)
         return parsed_row_elements
 
-    def _get_resource_index(self, extracted_attribute: str
-                            | abc.MutableSequence[str], caller: dict) -> str:
+    def _parse_row_element(self, extracted_attribute: GoogleAdsRowElement,
+                           column: str) -> GoogleAdsRowElement:
+        """Parses a single element from row.
+
+        Args:
+            extracted_attribute: A single element from GoogleAdsRow.
+            column: Corresponding name of the element.
+
+        Returns:
+            Parsed element.
+        """
+        if self.customizers:
+            extracted_attribute = self._extract_attributes_with_customizer(
+                extracted_attribute, column)
+        if isinstance(extracted_attribute, abc.MutableSequence):
+            parsed_element = [
+                self.parser_chain.parse(element) or element
+                for element in extracted_attribute
+            ]
+        else:
+            parsed_element = self.parser_chain.parse(
+                extracted_attribute) or extracted_attribute
+
+        return parsed_element
+
+    def _extract_attributes_with_customizer(
+            self, extracted_attribute: GoogleAdsRowElement,
+            column: str) -> GoogleAdsRowElement:
+        """Extracts additional info from row element based on customizers.
+
+        Some GoogleAdsRow objects can be complex and customizers help extract
+        specific values from them by using special syntax.
+
+        Args:
+            extracted_attribute: A single element from GoogleAdsRow.
+            column: Corresponding name of the element.
+
+        Returns:
+            Extracted row attribute.
+        """
+        if (caller := self.customizers.get(column)):
+            if caller.get('type') == 'nested_field':
+                extracted_attribute = self._extract_nested_customizer(
+                    extracted_attribute, caller)
+            elif caller.get('type') == 'resource_index':
+                extracted_attribute = self._get_resource_index(
+                    extracted_attribute, caller)
+        return extracted_attribute
+
+    def _extract_nested_customizer(
+            self, extracted_attribute,
+            caller: dict[str, str]) -> GoogleAdsRowElement:
+        """Extracts additional info from nested resource.
+
+        Some GoogleAdsRow objects are nested and has attributes that can be
+        further accessed using special customizer syntax.
+
+        Args:
+            extracted_attribute: A single element from GoogleAdsRow.
+            caller: Mapping between type of customizer type and its value.
+
+        Returns:
+            Extracted row attribute.
+
+        Raises:
+            GaarfCustomizerException: When customizer incorrectly specified.
+        """
+        values_ = caller.get('value').split('.')
+        extracted_attribute_ = getattr(
+            extracted_attribute, values_[0]) if hasattr(
+                extracted_attribute, values_[0]) else extracted_attribute
+        try:
+            if isinstance(extracted_attribute,
+                          get_args(_NESTED_FIELD)) or isinstance(
+                              extracted_attribute_, get_args(_NESTED_FIELD)):
+                if isinstance(extracted_attribute_,
+                              (repeated.Repeated, repeated.RepeatedComposite)):
+                    extracted_attribute = extracted_attribute
+                if len(values_) > 1:
+                    value = values_[1]
+                else:
+                    value = caller.get('value')
+                extracted_attribute = list({
+                    operator.attrgetter(value)(element)
+                    for element in extracted_attribute_
+                })
+            else:
+                extracted_attribute = operator.attrgetter(caller.get('value'))(
+                    extracted_attribute)
+            return extracted_attribute
+        except AttributeError as e:
+            raise exceptions.GaarfCustomizerException(
+                f'customizer "{caller}" is incorrect,\n'
+                f'details: "{e}"')
+
+    def _get_resource_index(self, extracted_attribute: GoogleAdsRowElement,
+                            caller: dict[str, str]) -> str:
+        """Extracts additional info from resource_name.
+
+        Some GoogleAdsRow objects resource_names
+        (i.e. customers/1/conversionActions/2~3); with resource_index we can
+        access only the last element of this expression ('3').
+
+        Args:
+            extracted_attribute: A single element from GoogleAdsRow.
+            caller: Mapping between type of customizer type and its value.
+
+        Returns:
+            Extracted row attribute.
+        """
+        if isinstance(extracted_attribute, abc.MutableSequence):
+            parsed_element = [
+                self.parser_chain.parse(element) or element
+                for element in extracted_attribute
+            ]
+            return [
+                self._get_resource_index(attribute, caller)
+                for attribute in parsed_element
+            ]
         extracted_attribute = re.split('~',
                                        extracted_attribute)[caller.get('value')]
         return re.split('/', extracted_attribute)[-1]
@@ -332,10 +386,8 @@ class GoogleAdsRowParser:
         """
         attributes = getter(row)
         if self.respect_nulls:
-            # Validate whether field is actually present in a protobuf message
-            value = row.segments._pb.HasField('sk_ad_network_conversion_value')
-            # If not present
-            if not value:
+            row = googleads_utils.convert_proto_plus_to_protobuf(row)
+            if row.segments.HasField('sk_ad_network_conversion_value'):
                 # Convert to list to perform modification
                 attributes = list(attributes)
                 # Replace 0 attributes in the row with None
@@ -355,6 +407,7 @@ class GoogleAdsRowParser:
         Args:
             row: A single GoogleAdsRow.
             virtual_column: Virtual column definition.
+
         Returns:
             Parsed element.
         """
@@ -375,9 +428,18 @@ class GoogleAdsRowParser:
                     virtual_column.fields, virtual_column_values)
             }
             try:
-                result = eval(
+                virtual_column_expression = (
                     virtual_column.substitute_expression.format(
                         **virtual_column_replacements))
+                tree = ast.parse(virtual_column_expression, mode='eval')
+                valid = all(
+                    isinstance(node,
+                               query_editor.VALID_VIRTUAL_COLUMN_OPERATORS)
+                    for node in ast.walk(tree))
+                if valid:
+                    result = eval(
+                        compile(tree, filename='', mode='eval'),
+                        {'__builtins__': None})
             except TypeError as e:
                 raise exceptions.GaarfVirtualColumnException(
                     f'cannot parse virtual_column {virtual_column.value}'

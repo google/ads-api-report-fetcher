@@ -116,7 +116,10 @@ def main():
     logger.debug('initialized config: %s', config)
 
     ads_client = api_clients.GoogleAdsApiClient(
-        config_dict=google_ads_config_dict, version=config.api_version)
+        config_dict=google_ads_config_dict,
+        version=config.api_version,
+        use_proto_plus=main_args.optimize_performance
+        not in ('PROTOBUF', 'BATCH_PROTOBUF'))
     ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
     reader_factory = reader.ReaderFactory()
     reader_client = reader_factory.create_reader(main_args.input)
@@ -158,8 +161,8 @@ def main():
         with futures.ThreadPoolExecutor() as executor:
             future_to_query = {
                 executor.submit(ads_query_executor.execute,
-                                reader_client.read(query), query,
-                                customer_ids, writer_client, config.params,
+                                reader_client.read(query), query, customer_ids,
+                                writer_client, config.params,
                                 main_args.optimize_performance):
                     query for query in main_args.query
             }

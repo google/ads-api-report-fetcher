@@ -152,10 +152,7 @@ class AdsReportFetcher:
                     f'"{query_specification.title}"')
             return builtin_report(self, accounts=customer_ids)
         optimize_strategy = OptimizeStrategy[optimize_strategy]
-        extract_protobufs = optimize_strategy in (
-            OptimizeStrategy.PROTOBUF, OptimizeStrategy.BATCH_PROTOBUF)
-        parser = parsers.GoogleAdsRowParser(query_specification,
-                                            extract_protobufs)
+        parser = parsers.GoogleAdsRowParser(query_specification)
         for customer_id in customer_ids:
             logger.debug('Running query %s for customer_id %s',
                          query_specification.query_title, customer_id)

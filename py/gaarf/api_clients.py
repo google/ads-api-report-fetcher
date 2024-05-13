@@ -254,7 +254,8 @@ class GoogleAdsApiClient(BaseClient):
                  path_to_config: str = default_google_ads_yaml,
                  config_dict: dict[str, str] | None = None,
                  yaml_str: str | None = None,
-                 version: str = GOOGLE_ADS_API_VERSION) -> None:
+                 version: str = GOOGLE_ADS_API_VERSION,
+                 use_proto_plus: bool = True) -> None:
         """Initializes GoogleAdsApiClient based on one of the methods.
 
         Args:
@@ -262,6 +263,7 @@ class GoogleAdsApiClient(BaseClient):
             config_dict: A dictionary containing authentication details.
             yaml_str: Strings representation of google-ads.yaml.
             version: Ads API version.
+            use_proto_plus: Whether to convert Enums to names in response.
 
 
         Raises:
@@ -270,11 +272,7 @@ class GoogleAdsApiClient(BaseClient):
         super().__init__(version)
         self.client = self._init_client(
             path=path_to_config, config_dict=config_dict, yaml_str=yaml_str)
-        if hasattr(self.client, 'use_proto_plus'):
-            self.client.use_proto_plus = True
-        else:
-            raise ValueError(
-                "Specify 'use_proto_plus: True' in your google-ads.yaml file")
+        self.client.use_proto_plus = use_proto_plus
         self.ads_service = self.client.get_service('GoogleAdsService')
 
     @tenacity.retry(
