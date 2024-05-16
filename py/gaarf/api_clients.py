@@ -251,7 +251,7 @@ class GoogleAdsApiClient(BaseClient):
     default_google_ads_yaml = str(Path.home() / 'google-ads.yaml')
 
     def __init__(self,
-                 path_to_config: str = default_google_ads_yaml,
+                 path_to_config: str | os.PathLike = default_google_ads_yaml,
                  config_dict: dict[str, str] | None = None,
                  yaml_str: str | None = None,
                  version: str = GOOGLE_ADS_API_VERSION,
@@ -265,9 +265,10 @@ class GoogleAdsApiClient(BaseClient):
             version: Ads API version.
             use_proto_plus: Whether to convert Enums to names in response.
 
-
         Raises:
-            ValueError: If GoogleAdsClient doesn't have 'use_proto_plus' flag.
+            ValueError:
+                When GoogleAdsClient cannot be instantiated due to missing
+                credentials.
         """
         super().__init__(version)
         self.client = self._init_client(
