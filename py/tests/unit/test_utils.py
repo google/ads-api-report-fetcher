@@ -47,7 +47,7 @@ class FakeGoogleAdsRowElement:
 
 
 @pytest.fixture
-def test_client(mocker):
+def test_client(mocker, config_path):
     fake_results = [
         [
             FakeGoogleAdsRowElement(CustomerClient(1)),
@@ -58,7 +58,7 @@ def test_client(mocker):
     mocker.patch(
         'gaarf.api_clients.GoogleAdsApiClient.get_response',
         return_value=fake_response)
-    return api_clients.GoogleAdsApiClient()
+    return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
 
 @pytest.fixture

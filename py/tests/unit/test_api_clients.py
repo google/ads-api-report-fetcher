@@ -197,7 +197,7 @@ class TestBaseClient:
 class TestGoogleAdsApiClient:
 
     @pytest.fixture
-    def test_client(self, mocker):
+    def test_client(self, mocker, config_path):
         mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
         mocker.patch(
             f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}'
@@ -208,7 +208,7 @@ class TestGoogleAdsApiClient:
                 google_exceptions.InternalServerError('test'),
                 google_exceptions.InternalServerError('test'),
             ])
-        return api_clients.GoogleAdsApiClient()
+        return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
     def test_get_response_raises_internal_service_error_after_3_failed_retries(
             self, test_client, mocker):

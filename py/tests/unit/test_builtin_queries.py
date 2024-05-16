@@ -10,9 +10,9 @@ from gaarf import report
 class TestBuiltInQueries:
 
     @pytest.fixture
-    def test_client(self, mocker):
+    def test_client(self, mocker, config_path):
         mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
-        return api_clients.GoogleAdsApiClient()
+        return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
     @pytest.fixture
     def fake_report_fetcher(self, mocker, test_client):

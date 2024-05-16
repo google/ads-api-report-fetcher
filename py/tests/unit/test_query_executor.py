@@ -74,12 +74,12 @@ class TestAdsReportFetcher:
         return FakeResponse(data=fake_results)
 
     @pytest.fixture
-    def test_client(self, mocker):
+    def test_client(self, mocker, config_path):
         mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
-        return api_clients.GoogleAdsApiClient()
+        return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
     @pytest.fixture
-    def failing_api_client(self, mocker):
+    def failing_api_client(self, mocker, config_path):
         mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
         mocker.patch(
             f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}'
@@ -90,7 +90,7 @@ class TestAdsReportFetcher:
                 google_exceptions.InternalServerError('test'),
                 google_exceptions.InternalServerError('test'),
             ])
-        api_client = api_clients.GoogleAdsApiClient()
+        api_client = api_clients.GoogleAdsApiClient(path_to_config=config_path)
         api_client.get_response.retry.wait = tenacity.wait_none()
         return api_client
 
