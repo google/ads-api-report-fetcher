@@ -31,6 +31,7 @@ pip install google-ads-api-report-fetcher
 *  `google-ads-api-report-fetcher[sqlalchemy]` - version with SQLalchemy support
 * `google-ads-api-report-fetcher[simulator]` - version with support for [simulating
     query results](../docs/simulating-data-with-gaarf.md) instead of calling Google Ads API.
+*  `google-ads-api-report-fetcher[sheets]` - version with Google Sheets support
 * `google-ads-api-report-fetcher[full]` - full version
 
 2.  Run the tool with `gaarf` command:
@@ -49,17 +50,17 @@ Once `google-ads-api-report-fetcher` is installed you can use it as a library.
 
 ### Initialize `GoogleAdsApiClient` to connect to Google Ads API
 
-`GoogleAdsApiClient` is responsible for connecting to Google Ads API and provides several method for authentication.
+`GoogleAdsApiClient` is responsible for connecting to Google Ads API and provides several methods for authentication.
 
 ```python
 from gaarf.api_clients import GoogleAdsApiClient
 
 
 # initialize from local file
-client = GoogleAdsApiClient(path_to_config="google-ads.yaml", version="v12")
+client = GoogleAdsApiClient(path_to_config="google-ads.yaml")
 
 # initialize from remote file
-client = GoogleAdsApiClient(path_to_config="gs://<PROJECT-ID>/google-ads.yaml", version="v12")
+client = GoogleAdsApiClient(path_to_config="gs://<PROJECT-ID>/google-ads.yaml")
 
 # initialize from dictionary
 google_ads_config_dict = {
@@ -70,7 +71,7 @@ google_ads_config_dict = {
     "client_customer_id": "",
     "use_proto_plus": True
 }
-client = GoogleAdsApiClient(config_dict=google_ads_config_dict, version="v12")
+client = GoogleAdsApiClient(config_dict=google_ads_config_dict)
 ```
 
 ### initialize `AdsReportFetcher` to get reports
@@ -105,7 +106,9 @@ parametrized_query_text = """
     WHERE campaign.status = '{status}'
     """
 active_campaigns = report_fetcher.fetch(parametrized_query_text, customer_ids,
-                                        {"status": "ENABLED"})
+                                        {"macro": {
+                                            "status": "ENABLED"
+                                        }})
 ```
 
 #### Define queries
@@ -225,11 +228,52 @@ first_10_rows_from_campaigns = campaigns[0:10]
 `GaarfReport` can be easily converted to common data structures:
 
 ```python
-# convert `campaigns` to list
+# convert `campaigns` to list of lists
 campaigns_list = campaigns.to_list()
+
+# convert `campaigns` to flatten list
+campaigns_list = campaigns.to_list(row_type="scalar")
+
+# convert `campaigns` column campaign_id to list
+campaigns_list = campaigns["campaign_id"].to_list()
+
+# convert `campaigns` column campaign_id to list with unique values
+campaigns_list = campaigns["campaign_id"].to_list(distinct=True)
+
+# convert `campaigns` to list of dictionaries
+# each dictionary maps report column to its value, i.e.
+# {"campaign_name": "test_campaign", "campaign_id": 1, "clicks": 10}
+campaigns_list = campaigns.to_list(row_type="dict")
 
 # convert `campaigns` to pandas DataFrame
 campaigns_df = campaigns.to_pandas()
+
+# convert `campaigns` to dictionary
+# map campaign_id to campaign_name one-to-one
+campaigns_df = campaigns.to_dict(
+    key_column="campaign_id",
+    value_column="campaign_name",
+    value_column_output="scalar",
+    )
+
+# convert `campaigns` to dictionary
+# map campaign_id to campaign_name one-to-many
+campaigns_df = campaigns.to_dict(
+    key_column="campaign_id",
+    value_column="campaign_name",
+    value_column_output="list",
+    )
+```
+
+#### Build report
+
+`GaarfReport` can be easily built from pandas data frame:
+
+```
+import pandas as pd
+
+df = pd.DataFrame(data=[[1]], columns=["one"])
+report = GaarfReport.from_pandas(df)
 ```
 
 #### Save report
@@ -237,25 +281,38 @@ campaigns_df = campaigns.to_pandas()
 `GaarfReport` can be easily saved to local or remote storage:
 
 ```python
-from gaarf.io import writer
+from gaarf.io import writers
 
 # initialize CSV writer
-csv_writer = writer.CsvWriter(destination_folder="/tmp")
+csv_writer = writers.csv_writer.CsvWriter(destination_folder="/tmp")
 
 # initialize BigQuery writer
-bq_writer = writer.BigQueryWriter(project="", dataset="", location="")
+bq_writer = writers.bigquery_writer.BigQueryWriter(
+    project="", dataset="", location="")
 
 # initialize SQLAlchemy writer
-sqlalchemy_writer = writer.SqlAlchemyWriter(connection_string="")
+sqlalchemy_writer = writers.sqlalchemy_writer.SqlAlchemyWriter(
+    connection_string="")
 
 # initialize Console writer
-console_writer = writer.Console(page_size=10)
+console_writer = writers.console_writer.ConsoleWriter(page_size=10)
+
+# initialize Json writer
+json_writer = writers.json_writer.JsonWriter(destination_folder="/tmp")
+
+# initialize Google Sheets writer
+sheet_writer = writers.sheets_writer.SheetWriter(
+    share_with="you@email.com",
+    credential_files="path/to/credentials.json"
+    )
 
 
 # save report using one of the writers
 csv_writer.write(campaigns, destination="my_file_name")
 bq_writer.write(campaigns, destination="my_table_name")
 sqlalchemy_writer.write(campaigns, destination="my_table_name")
+json_writer.write(campaigns, destination="my_table_name")
+sheet_writer.write(campaigns, destination="my_table_name")
 ```
 
 ### Combine fetching and saving with `AdsQueryExecutor`
