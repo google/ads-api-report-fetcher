@@ -539,9 +539,9 @@ def test_config_saver_does_not_save_empty_nested_params(config_saver):
     }
 
 
-@pytest.fixture
-def config_with_runtime_params():
-    return utils.GaarfConfig(
+def test_initialize_runtime_paramers_injects_common_parameters_to_present_macros(  # pylint: disable=line-to-long
+):
+    config = utils.GaarfConfig(
         output='console',
         api_version='10',
         account='1',
@@ -551,31 +551,13 @@ def config_with_runtime_params():
         writer_params={},
         customer_ids_query=None,
         customer_ids_query_file=None)
-
-
-@pytest.fixture
-def config_without_runtime_params():
-    return utils.GaarfConfig(
-        output='console',
-        api_version='10',
-        account='1',
-        params={'macro': {
-            'start_date': '2022-01-01'
-        }},
-        writer_params={},
-        customer_ids_query=None,
-        customer_ids_query_file=None)
-
-
-def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
     with mock.patch.object(
             CommonParametersMixin, 'common_params', {
                 'date_iso': '19700101',
                 'current_date': '1970-01-01',
                 'current_datetime': '1970-01-01 00-00-00'
             }):
-        initialized_config = utils.initialize_runtime_parameters(
-            config_with_runtime_params)
+        initialized_config = utils.initialize_runtime_parameters(config)
         expected_config = utils.GaarfConfig(
             output='console',
             api_version='10',
@@ -594,16 +576,24 @@ def test_initialize_config_with_runtime_parameters(config_with_runtime_params):
         assert initialized_config == expected_config
 
 
-def test_initialize_config_without_runtime_parameters(
-        config_without_runtime_params):
+def test_initialize_runtime_paramers_injects_common_parameters_to_empty_macros():  # pylint: disable=line-too-long
+    config = utils.GaarfConfig(
+        output='console',
+        api_version='10',
+        account='1',
+        params={'macro': {
+            'start_date': '2022-01-01'
+        }},
+        writer_params={},
+        customer_ids_query=None,
+        customer_ids_query_file=None)
     with mock.patch.object(
             CommonParametersMixin, 'common_params', {
                 'date_iso': '19700101',
                 'current_date': '1970-01-01',
                 'current_datetime': '1970-01-01 00-00-00'
             }):
-        initialized_config = utils.initialize_runtime_parameters(
-            config_without_runtime_params)
+        initialized_config = utils.initialize_runtime_parameters(config)
         expected_config = utils.GaarfConfig(
             output='console',
             api_version='10',
@@ -612,6 +602,43 @@ def test_initialize_config_without_runtime_parameters(
                 'macro': {
                     'start_date': '2022-01-01',
                     'date_iso': '19700101',
+                    'current_date': '1970-01-01',
+                    'current_datetime': '1970-01-01 00-00-00'
+                }
+            },
+            writer_params={},
+            customer_ids_query=None,
+            customer_ids_query_file=None)
+        assert initialized_config == expected_config
+
+
+def test_initialize_runtime_parameters_overwrites_common_params():
+    config = utils.GaarfConfig(
+        output='console',
+        api_version='10',
+        account='1',
+        params={'macro': {
+            'start_date': '2022-01-01',
+            'date_iso': '20220101',
+        }},
+        writer_params={},
+        customer_ids_query=None,
+        customer_ids_query_file=None)
+    with mock.patch.object(
+            CommonParametersMixin, 'common_params', {
+                'date_iso': '19700101',
+                'current_date': '1970-01-01',
+                'current_datetime': '1970-01-01 00-00-00'
+            }):
+        initialized_config = utils.initialize_runtime_parameters(config)
+        expected_config = utils.GaarfConfig(
+            output='console',
+            api_version='10',
+            account='1',
+            params={
+                'macro': {
+                    'start_date': '2022-01-01',
+                    'date_iso': '20220101',
                     'current_date': '1970-01-01',
                     'current_datetime': '1970-01-01 00-00-00'
                 }

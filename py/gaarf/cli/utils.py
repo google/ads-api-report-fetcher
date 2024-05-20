@@ -445,10 +445,26 @@ class ConfigSaver:
 
 
 def initialize_runtime_parameters(config: BaseConfig) -> BaseConfig:
+    """Formats parameters and add common parameter in config.
+
+    Initialization identifies whether there are `date` parameters and performs
+    necessary date conversions.
+    Set of parameters that need to be generally available are injected into
+    every parameter section of the config.
+
+    Args:
+        config: Instantiated config.
+
+    Returns:
+        Config with formatted parameters.
+    """
     for key, param in config.params.items():
         for key_param, value_param in param.items():
             config.params[key][key_param] = convert_date(value_param)
-        config.params[key].update(ParamsParser.common_params)
+        for (common_param_key,
+             common_param_value) in ParamsParser.common_params.items():
+            if common_param_key not in config.params[key]:
+                config.params[key][common_param_key] = common_param_value
     return config
 
 
