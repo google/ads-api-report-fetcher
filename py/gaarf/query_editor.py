@@ -107,16 +107,15 @@ class QuerySpecification(CommonParametersMixin,
         self.text = text
         self.title = title
         self.args = args or {}
-        self.macros = self._init_macros()
         self.base_client = api_clients.BaseClient(api_version)
 
-    def _init_macros(self) -> dict[str, str]:
-        if not self.args:
-            return self.common_params
+    @property
+    def macros(self) -> dict[str, str]:
+        """Returns macros with injected common parameters."""
+        common_params = dict(self.common_params)
         if macros := self.args.get('macro'):
-            macros.update(self.common_params)
-            return macros
-        return self.common_params
+            common_params.update(macros)
+        return common_params
 
     def generate(self) -> QueryElements:
         """Generates necessary query elements based on query text and arguments.
