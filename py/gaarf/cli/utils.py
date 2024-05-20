@@ -26,13 +26,13 @@ from collections.abc import Sequence
 from typing import Any
 from typing import Callable
 
-import rich
 import smart_open
 import yaml
 from dateutil import relativedelta
 from gaarf import query_editor
 from gaarf.io import writer
 from google.ads.googleads import errors as google_ads_errors
+from rich import logging as rich_logging
 
 
 @dataclasses.dataclass
@@ -505,7 +505,7 @@ def init_logging(loglevel: str = 'INFO',
             level=loglevel,
             datefmt='%Y-%m-%d %H:%M:%S',
             handlers=[
-                rich.logging.RichHandler(rich_tracebacks=True),
+                rich_logging.RichHandler(rich_tracebacks=True),
             ])
     else:
         logging.basicConfig(
