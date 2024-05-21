@@ -149,15 +149,32 @@ class BaseConfigBuilder:
             self.type = 'cli'
             self.gaarf_config_path = None
 
+    @property
+    def has_cli_attributes(self) -> bool:
+        """Checks whether config args contains customization attributes."""
+        has_name_attributes = any(
+            arg for arg in self.args[0].__dict__ if arg != 'gaarf_config')
+        return has_name_attributes or bool(self.args[1])
+
     def build(self) -> BaseConfig:
-        """Loads config from file or build from arguments.
+        """Creates config from file and/or CLI arguments.
+
+        If config args have both the configuration file and CLI parameters
+        the latter has highest priority of forming attributes of the config.
 
         Returns:
             A subclass of BaseConfig.
         """
-        if self.type == 'file':
-            return self._load_gaarf_config()
-        return self._build_gaarf_config()
+        config_cli = None
+        if self.type == 'cli':
+            return self._build_gaarf_config()
+        config_file = self._load_gaarf_config()
+        if self.has_cli_attributes:
+            config_cli = self._build_gaarf_config()
+        if config_file and config_cli:
+            config_file.__dict__.update(
+                _remove_empty_values(config_cli.__dict__))
+        return config_file
 
     def _load_gaarf_config(self) -> BaseConfig:
         """Loads config from gaarf_config_path."""

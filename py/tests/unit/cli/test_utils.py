@@ -127,6 +127,41 @@ class TestGaarfConfigBuilder:
         config = utils.GaarfConfigBuilder(args).build()
         assert config == expected_config
 
+    def test_build_builds_from_config_and_args_if_both_are_provided(
+            self, fake_config_path):
+        expected_config = utils.GaarfConfig(
+            output='console',
+            api_version=16,
+            account='987654321',
+            params={
+                'macro': {
+                    'start_date': ':YYYYMMDD-1'
+                },
+                'template': {
+                    'has_skan': 'true'
+                },
+                'console': {
+                    'page_size': '10',
+                },
+            },
+            writer_params={'page_size': '10'})
+        args = (
+            argparse.Namespace(
+                gaarf_config=fake_config_path,
+                save='console',
+                api_version=16,
+                customer_id='987654321',
+                customer_ids_query=None,
+                customer_ids_query_file=None),
+            [
+                '--console.page-size=10',
+                'macro.start_date=:YYYYMMDD-1',
+                '--template.has_skan=true',
+            ],
+        )
+        config = utils.GaarfConfigBuilder(args).build()
+        assert config == expected_config
+
     def test_build_raises_gaarf_config_exception_when_gaarf_section_is_missing(
             self, tmp_path):
         config = {}
@@ -208,6 +243,30 @@ class TestGaarfBqConfigBuilder:
         config = utils.GaarfBqConfigBuilder(args).build()
         assert config == expected_config
 
+    def test_build_builds_from_config_and_args_if_both_are_provided(
+            self, fake_config_path):
+        expected_config = utils.GaarfBqConfig(
+            project='new-fake-project',
+            dataset_location=None,
+            params={
+                'macro': {
+                    'start_date': '2024-01-01'
+                },
+                'sql': {},
+                'template': {},
+            })
+        args = (
+            argparse.Namespace(
+                gaarf_config=None,
+                project='new-fake-project',
+                dataset_location=None),
+            [
+                '--macro.start_date=2024-01-01',
+            ],
+        )
+        config = utils.GaarfBqConfigBuilder(args).build()
+        assert config == expected_config
+
     def test_build_raises_gaarfbq_config_exception_when_gaarf_bq_section_is_missing(  # pylint: disable=line-too-long
             self, tmp_path):
         config = {}
@@ -265,6 +324,27 @@ class TestGaarfSqlConfigBuilder:
             })
         args = (argparse.Namespace(
             gaarf_config=None, connection_string='connection-string'), [])
+        config = utils.GaarfSqlConfigBuilder(args).build()
+        assert config == expected_config
+
+    def test_build_builds_from_config_and_args_if_both_are_provided(
+            self, fake_config_path):
+        expected_config = utils.GaarfSqlConfig(
+            connection_string='new-connection-string',
+            params={
+                'macro': {
+                    'start_date': '2024-01-01'
+                },
+                'sql': {},
+                'template': {},
+            })
+        args = (
+            argparse.Namespace(
+                gaarf_config=None, connection_string='new-connection-string'),
+            [
+                '--macro.start_date=2024-01-01',
+            ],
+        )
         config = utils.GaarfSqlConfigBuilder(args).build()
         assert config == expected_config
 
