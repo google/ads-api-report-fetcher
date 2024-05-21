@@ -1,6 +1,18 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
 
-import argparse
 from datetime import datetime
 from unittest import mock
 
@@ -45,328 +57,6 @@ class TestGaarfConfig:
         assert 'page_size' in config.writer_params
 
 
-class TestBaseConfigBuilder:
-
-    @pytest.mark.parametrize('gaarf_config,config_type', [(
-        'fake-config.yaml',
-        'file',
-    ), (
-        None,
-        'cli',
-    )])
-    def test_build_return_correct(self, gaarf_config, config_type):
-        args = (
-            argparse.Namespace(gaarf_config=gaarf_config),
-            [],
-        )
-        config = utils.BaseConfigBuilder(args)
-        assert config.type == config_type
-        assert config.gaarf_config_path == gaarf_config
-
-
-class TestGaarfConfigBuilder:
-
-    @pytest.fixture
-    def fake_config_path(self, tmp_path):
-        config = {
-            'gaarf': {
-                'output': 'console',
-                'api_version': 16,
-                'console': {
-                    'page_size': 10,
-                },
-            }
-        }
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        return file
-
-    def test_build_loads_from_filesystem_if_gaarf_config_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfConfig(
-            output='console',
-            api_version=16,
-            account=None,
-            writer_params={'page_size': 10})
-        args = (
-            argparse.Namespace(gaarf_config=fake_config_path),
-            [],
-        )
-        config = utils.GaarfConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_args_if_gaarf_config_not_provided(self):
-        expected_config = utils.GaarfConfig(
-            output='console',
-            api_version=16,
-            account=None,
-            params={
-                'macro': {},
-                'template': {},
-                'console': {
-                    'page_size': '10',
-                },
-            },
-            writer_params={'page_size': '10'})
-        args = (
-            argparse.Namespace(
-                gaarf_config=None,
-                save='console',
-                api_version=16,
-                customer_id=None,
-                customer_ids_query=None,
-                customer_ids_query_file=None),
-            ['--console.page-size=10'],
-        )
-        config = utils.GaarfConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_config_and_args_if_both_are_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfConfig(
-            output='console',
-            api_version=16,
-            account='987654321',
-            params={
-                'macro': {
-                    'start_date': ':YYYYMMDD-1'
-                },
-                'template': {
-                    'has_skan': 'true'
-                },
-                'console': {
-                    'page_size': '10',
-                },
-            },
-            writer_params={'page_size': '10'})
-        args = (
-            argparse.Namespace(
-                gaarf_config=fake_config_path,
-                save='console',
-                api_version=16,
-                customer_id='987654321',
-                customer_ids_query=None,
-                customer_ids_query_file=None),
-            [
-                '--console.page-size=10',
-                'macro.start_date=:YYYYMMDD-1',
-                '--template.has_skan=true',
-            ],
-        )
-        config = utils.GaarfConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_raises_gaarf_config_exception_when_gaarf_section_is_missing(
-            self, tmp_path):
-        config = {}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        args = (
-            argparse.Namespace(gaarf_config=file),
-            [],
-        )
-        with pytest.raises(utils.GaarfConfigException):
-            utils.GaarfConfigBuilder(args).build()
-
-    def test_build_raises_value_error_when_output_section_is_missing(
-            self, tmp_path):
-        config = {'gaarf': {'api_version': 16}}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        args = (
-            argparse.Namespace(gaarf_config=file),
-            [],
-        )
-        with pytest.raises(ValueError):
-            utils.GaarfConfigBuilder(args).build()
-
-
-class TestGaarfBqConfigBuilder:
-
-    @pytest.fixture
-    def fake_config_path(self, tmp_path):
-        config = {'gaarf-bq': {'project': 'fake-project',}}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        return file
-
-    def test_build_loads_from_filesystem_if_gaarf_config_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfBqConfig(
-            project='fake-project',
-            dataset_location=None,
-            params={},
-        )
-        args = (
-            argparse.Namespace(gaarf_config=fake_config_path),
-            [],
-        )
-        config = utils.GaarfBqConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_args_if_gaarf_config_not_provided(self):
-        expected_config = utils.GaarfBqConfig(
-            project='fake-project',
-            dataset_location=None,
-            params={
-                'macro': {},
-                'sql': {},
-                'template': {},
-            })
-        args = (argparse.Namespace(
-            gaarf_config=None, project='fake-project',
-            dataset_location=None), [])
-        config = utils.GaarfBqConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_config_and_args_if_both_are_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfBqConfig(
-            project='new-fake-project',
-            dataset_location=None,
-            params={
-                'macro': {
-                    'start_date': '2024-01-01'
-                },
-                'sql': {},
-                'template': {},
-            })
-        args = (
-            argparse.Namespace(
-                gaarf_config=None,
-                project='new-fake-project',
-                dataset_location=None),
-            [
-                '--macro.start_date=2024-01-01',
-            ],
-        )
-        config = utils.GaarfBqConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_raises_gaarfbq_config_exception_when_gaarf_bq_section_is_missing(  # pylint: disable=line-too-long
-            self, tmp_path):
-        config = {}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        args = (
-            argparse.Namespace(gaarf_config=file),
-            [],
-        )
-        with pytest.raises(utils.GaarfBqConfigException):
-            utils.GaarfBqConfigBuilder(args).build()
-
-
-class TestGaarfSqlConfigBuilder:
-
-    @pytest.fixture
-    def fake_config_path(self, tmp_path):
-        config = {'gaarf-sql': {'connection-string': 'connection-string',}}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        return file
-
-    def test_build_loads_from_filesystem_if_gaarf_config_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfSqlConfig(
-            connection_string='connection-string',
-            params={},
-        )
-        args = (
-            argparse.Namespace(gaarf_config=fake_config_path),
-            [],
-        )
-        config = utils.GaarfSqlConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_args_if_gaarf_config_not_provided(self):
-        expected_config = utils.GaarfSqlConfig(
-            connection_string='connection-string',
-            params={
-                'macro': {},
-                'sql': {},
-                'template': {},
-            })
-        args = (argparse.Namespace(
-            gaarf_config=None, connection_string='connection-string'), [])
-        config = utils.GaarfSqlConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_builds_from_config_and_args_if_both_are_provided(
-            self, fake_config_path):
-        expected_config = utils.GaarfSqlConfig(
-            connection_string='new-connection-string',
-            params={
-                'macro': {
-                    'start_date': '2024-01-01'
-                },
-                'sql': {},
-                'template': {},
-            })
-        args = (
-            argparse.Namespace(
-                gaarf_config=None, connection_string='new-connection-string'),
-            [
-                '--macro.start_date=2024-01-01',
-            ],
-        )
-        config = utils.GaarfSqlConfigBuilder(args).build()
-        assert config == expected_config
-
-    def test_build_raises_gaarfsql_config_exception_when_gaarf_bq_section_is_missing(  # pylint: disable=line-too-long
-            self, tmp_path):
-        config = {}
-        file = tmp_path / 'config.yaml'
-        with open(file, mode='w', encoding='utf-8') as f:
-            yaml.dump(
-                config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                encoding='utf-8')
-        args = (
-            argparse.Namespace(gaarf_config=file),
-            [],
-        )
-        with pytest.raises(utils.GaarfSqlConfigException):
-            utils.GaarfSqlConfigBuilder(args).build()
-
-
 def test_convert_date():
     current_date = datetime.today()
     current_year = datetime(current_date.year, 1, 1)
@@ -408,7 +98,7 @@ def test_wrong_convert_date():
 
 @pytest.fixture
 def param_parser():
-    return utils.ParamsParser(['macro', 'sql', 'template'])
+    return utils.ParamsParser(['macro', 'template'])
 
 
 def test_if_incorrect_param_is_provided(param_parser):
@@ -454,7 +144,6 @@ def test_parse(param_parser):
             'start_date': '2022-01-01',
             'end_date': '2022-12-31'
         },
-        'sql': {},
         'template': {},
     }
 
@@ -603,7 +292,6 @@ def test_config_saver_does_not_save_empty_nested_params(config_saver):
             'macro': {
                 'bq_project': 'another-fake-project'
             },
-            'sql': {}
         })
     config = config_saver.prepare_config({}, gaarf_bq_config)
     assert config == {
@@ -727,3 +415,218 @@ def test_initialize_runtime_parameters_overwrites_common_params():
             customer_ids_query=None,
             customer_ids_query_file=None)
         assert initialized_config == expected_config
+
+
+class TestConfigBuilder:
+
+    @pytest.fixture
+    def fake_config_path(self, tmp_path):
+        config = {
+            'gaarf': {
+                'output': 'csv',
+                'account': '123456789',
+                'api_version': 'v16',
+                'csv': {
+                    'destination_folder': '/home',
+                },
+            },
+            'gaarf-bq': {
+                'project': 'fake-project',
+            },
+            'gaarf-sql': {
+                'connection_string': 'fake-connection-string',
+            }
+        }
+        file = tmp_path / 'config.yaml'
+        with open(file, mode='w', encoding='utf-8') as f:
+            yaml.dump(
+                config,
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+                encoding='utf-8')
+        return file
+
+    def test_build_raises_gaarf_config_exception_when_gaarf_section_is_missing(
+            self):
+        with pytest.raises(utils.GaarfConfigException):
+            utils.ConfigBuilder(config_type='unknown-type')
+
+    class TestGaarfConfig:
+
+        def test_build_create_valid_config_from_config_file(
+                self, fake_config_path):
+            expected_config = utils.GaarfConfig(
+                output='csv',
+                api_version='v16',
+                account='123456789',
+                writer_params={'destination_folder': '/home'})
+
+            builder = utils.ConfigBuilder(config_type='gaarf')
+            args = {'gaarf_config': fake_config_path}
+            kwargs = []
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_cli(self):
+            expected_config = utils.GaarfConfig(
+                output='csv',
+                api_version='v16',
+                account='123456789',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                },
+                writer_params={'destination_folder': '/srv'})
+
+            builder = utils.ConfigBuilder(config_type='gaarf')
+            args = {'output': 'csv', 'account': 123456789}
+            kwargs = [
+                '--csv.destination-folder=/srv',
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_config_file_and_cli(
+                self, fake_config_path):
+            expected_config = utils.GaarfConfig(
+                output='csv',
+                api_version='v16',
+                account='123456789',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                },
+                writer_params={'destination_folder': '/srv'})
+
+            builder = utils.ConfigBuilder(config_type='gaarf')
+            args = {'gaarf_config': fake_config_path, 'output': 'csv'}
+            kwargs = [
+                '--csv.destination-folder=/srv',
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+    class TestGaarfBqConfig:
+
+        def test_build_create_valid_config_file(self, fake_config_path):
+            expected_config = utils.GaarfBqConfig(project='fake-project')
+            builder = utils.ConfigBuilder(config_type='gaarf-bq')
+            args = {'gaarf_config': fake_config_path}
+            kwargs = []
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_cli(self):
+            expected_config = utils.GaarfBqConfig(
+                project='fake-project',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                })
+
+            builder = utils.ConfigBuilder(config_type='gaarf-bq')
+            args = {'project': 'fake-project'}
+            kwargs = [
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_config_file_and_cli(
+                self, fake_config_path):
+            expected_config = utils.GaarfBqConfig(
+                project='new-fake-project',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                })
+
+            builder = utils.ConfigBuilder(config_type='gaarf-bq')
+            args = {
+                'gaarf_config': fake_config_path,
+                'project': 'new-fake-project'
+            }
+            kwargs = [
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+    class TestGaarfSqlConfig:
+
+        def test_build_create_valid_config_from_config_file(
+                self, fake_config_path):
+            expected_config = utils.GaarfSqlConfig(
+                connection_string='fake-connection-string')
+            builder = utils.ConfigBuilder(config_type='gaarf-sql')
+            args = {'gaarf_config': fake_config_path}
+            kwargs = []
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_cli(self):
+            expected_config = utils.GaarfSqlConfig(
+                connection_string='fake-connection-string',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                })
+            builder = utils.ConfigBuilder(config_type='gaarf-sql')
+            args = {'connection_string': 'fake-connection-string'}
+            kwargs = [
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config
+
+        def test_build_create_valid_config_from_config_file_and_cli(
+                self, fake_config_path):
+            expected_config = utils.GaarfSqlConfig(
+                connection_string='new-fake-connection-string',
+                params={
+                    'macro': {
+                        'start_date': '1970-01-01',
+                    },
+                    'template': {
+                        'skan4': 'true',
+                    }
+                })
+            builder = utils.ConfigBuilder(config_type='gaarf-sql')
+            args = {
+                'gaarf_config': fake_config_path,
+                'connection_string': 'new-fake-connection-string'
+            }
+            kwargs = [
+                '--macro.start_date=1970-01-01',
+                '--template.skan4=true',
+            ]
+            config = builder.build(args, kwargs)
+            assert config == expected_config

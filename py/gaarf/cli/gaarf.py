@@ -34,7 +34,7 @@ def main():
     parser.add_argument('query', nargs='*')
     parser.add_argument('-c', '--config', dest='gaarf_config', default=None)
     parser.add_argument('--account', dest='customer_id', default=None)
-    parser.add_argument('--output', dest='save', default='console')
+    parser.add_argument('--output', dest='save', default=None)
     parser.add_argument('--input', dest='input', default='file')
     parser.add_argument(
         '--ads-config',
@@ -43,7 +43,7 @@ def main():
     parser.add_argument(
         '--api-version',
         dest='api_version',
-        default=api_clients.GOOGLE_ADS_API_VERSION)
+        default=None)
     parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
     parser.add_argument('--logger', dest='logger', default='local')
     parser.add_argument(
