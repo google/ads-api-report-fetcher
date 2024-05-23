@@ -11,86 +11,89 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for defing `gaarf` CLI utility.
+
+`gaarf-sql` allows to execute SQL queries in various Databases via SqlAlchemy.
+"""
+from __future__ import annotations
 
 import argparse
-from concurrent import futures
 import functools
-import sqlalchemy
+from concurrent import futures
 
+import sqlalchemy
+from gaarf import sql_executor
+from gaarf.cli import utils
 from gaarf.io import reader  # type: ignore
-from gaarf.sql_executor import SqlAlchemyQueryExecutor
-from .utils import (GaarfSqlConfigBuilder, ConfigSaver,
-                    initialize_runtime_parameters, postprocessor_runner,
-                    init_logging)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("query", nargs="+")
-    parser.add_argument("-c", "--config", dest="gaarf_config", default=None)
-    parser.add_argument("--conn",
-                        "--connection-string",
-                        dest="connection_string")
-    parser.add_argument("--save-config",
-                        dest="save_config",
-                        action="store_true")
-    parser.add_argument("--no-save-config",
-                        dest="save_config",
-                        action="store_false")
-    parser.add_argument("--config-destination",
-                        dest="save_config_dest",
-                        default="config.yaml")
-    parser.add_argument("--log", "--loglevel", dest="loglevel", default="info")
-    parser.add_argument("--logger", dest="logger", default="local")
-    parser.add_argument("--dry-run", dest="dry_run", action="store_true")
-    parser.add_argument("--parallel-queries",
-                        dest="parallel_queries",
-                        action="store_true")
-    parser.add_argument("--no-parallel-queries",
-                        dest="parallel_queries",
-                        action="store_false")
+    parser.add_argument('query', nargs='+')
+    parser.add_argument('-c', '--config', dest='gaarf_config', default=None)
+    parser.add_argument('--conn',
+                        '--connection-string',
+                        dest='connection_string')
+    parser.add_argument('--save-config',
+                        dest='save_config',
+                        action='store_true')
+    parser.add_argument('--no-save-config',
+                        dest='save_config',
+                        action='store_false')
+    parser.add_argument('--config-destination',
+                        dest='save_config_dest',
+                        default='config.yaml')
+    parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
+    parser.add_argument('--logger', dest='logger', default='local')
+    parser.add_argument('--dry-run', dest='dry_run', action='store_true')
+    parser.add_argument('--parallel-queries',
+                        dest='parallel_queries',
+                        action='store_true')
+    parser.add_argument('--no-parallel-queries',
+                        dest='parallel_queries',
+                        action='store_false')
     parser.set_defaults(save_config=False)
     parser.set_defaults(dry_run=False)
     parser.set_defaults(parallel_queries=True)
     args = parser.parse_known_args()
     main_args = args[0]
 
-    logger = init_logging(loglevel=main_args.loglevel.upper(),
+    logger = utils.init_logging(loglevel=main_args.loglevel.upper(),
                           logger_type=main_args.logger)
 
-    config = GaarfSqlConfigBuilder(args).build()
-    logger.debug("config: %s", config)
+    config = utils.ConfigBuilder('gaarf-sql').build(vars(main_args), args[1])
+    logger.debug('config: %s', config)
     if main_args.save_config and not main_args.gaarf_config:
-        ConfigSaver(main_args.save_config_dest).save(config)
+        utils.ConfigSaver(main_args.save_config_dest).save(config)
     if main_args.dry_run:
         exit()
 
-    config = initialize_runtime_parameters(config)
-    logger.debug("initialized config: %s", config)
+    config = utils.initialize_runtime_parameters(config)
+    logger.debug('initialized config: %s', config)
 
     engine = sqlalchemy.create_engine(config.connection_string)
-    sql_executor = SqlAlchemyQueryExecutor(engine)
+    sqlalchemy_query_executor = sql_executor.SqlAlchemyQueryExecutor(engine)
 
     reader_client = reader.FileReader()
 
     if main_args.parallel_queries:
-        logger.info("Running queries in parallel")
+        logger.info('Running queries in parallel')
         with futures.ThreadPoolExecutor() as executor:
             future_to_query = {
-                executor.submit(sql_executor.execute, query,
+                executor.submit(sqlalchemy_query_executor.execute, query,
                                 reader_client.read(query), config.params): query
                 for query in sorted(main_args.query)
             }
             for future in futures.as_completed(future_to_query):
                 query = future_to_query[future]
-                postprocessor_runner(query, future.result, logger)
+                utils.postprocessor_runner(query, future.result, logger)
     else:
-        logger.info("Running queries sequentially")
+        logger.info('Running queries sequentially')
         for query in sorted(main_args.query):
-            callback = functools.partial(sql_executor.execute, query,
+            callback = functools.partial(executor.execute, query,
                 reader_client.read(query), config.params)
-            postprocessor_runner(query, callback, logger)
+            utils.postprocessor_runner(query, callback, logger)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -10,7 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Module for defing `gaarf` CLI utility."""
+"""Module for defing `gaarf` CLI utility.
+
+`gaarf` allows to execute GAQL queries and store results in local/remote
+storage.
+"""
 from __future__ import annotations
 
 import argparse
@@ -33,17 +37,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('query', nargs='*')
     parser.add_argument('-c', '--config', dest='gaarf_config', default=None)
-    parser.add_argument('--account', dest='customer_id', default=None)
-    parser.add_argument('--output', dest='save', default=None)
+    parser.add_argument('--account', dest='account', default=None)
+    parser.add_argument('--output', dest='output', default=None)
     parser.add_argument('--input', dest='input', default='file')
     parser.add_argument(
         '--ads-config',
         dest='config',
         default=str(Path.home() / 'google-ads.yaml'))
-    parser.add_argument(
-        '--api-version',
-        dest='api_version',
-        default=None)
+    parser.add_argument('--api-version', dest='api_version', default=None)
     parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
     parser.add_argument('--logger', dest='logger', default='local')
     parser.add_argument(
@@ -94,9 +95,7 @@ def main():
     with smart_open.open(main_args.config, 'r', encoding='utf-8') as f:
         google_ads_config_dict = yaml.safe_load(f)
 
-    config = utils.GaarfConfigBuilder(args).build()
-    if account := main_args.customer_id:
-        config.account = account
+    config = utils.ConfigBuilder('gaarf').build(vars(main_args), args[1])
     if not config.account:
         if mcc := google_ads_config_dict.get('login_customer_id'):
             config.account = str(mcc)
