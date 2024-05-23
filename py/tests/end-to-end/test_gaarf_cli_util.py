@@ -101,4 +101,4 @@ def test_gaarf_only_saves_config_during_dry_run(tmp_path):
     out = result.stdout
     assert not result.stderr
     assert 'initialized config' not in out
-    assert 'Running queries' in out
+    assert 'Running queries' not in out
