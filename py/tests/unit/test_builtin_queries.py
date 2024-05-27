@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from gaarf import api_clients
 from gaarf import builtin_queries
-from gaarf import query_executor
 from gaarf import report
+from gaarf import report_fetcher
 
 
 class TestBuiltInQueries:
@@ -27,9 +27,9 @@ class TestBuiltInQueries:
             'url',
         ]
         mocker.patch(
-            'gaarf.query_executor.AdsReportFetcher.fetch',
+            'gaarf.report_fetcher.AdsReportFetcher.fetch',
             return_value=report.GaarfReport(data, column_names))
-        return query_executor.AdsReportFetcher(test_client)
+        return report_fetcher.AdsReportFetcher(test_client)
 
     @pytest.fixture
     def missing_ocid_fake_report_fetcher(self, mocker, test_client):
@@ -44,9 +44,9 @@ class TestBuiltInQueries:
             'url',
         ]
         mocker.patch(
-            'gaarf.query_executor.AdsReportFetcher.fetch',
+            'gaarf.report_fetcher.AdsReportFetcher.fetch',
             return_value=report.GaarfReport(data, column_names))
-        return query_executor.AdsReportFetcher(test_client)
+        return report_fetcher.AdsReportFetcher(test_client)
 
     @pytest.fixture
     def empty_fake_report_fetcher(self, mocker, test_client):
@@ -55,9 +55,9 @@ class TestBuiltInQueries:
             'url',
         ]
         mocker.patch(
-            'gaarf.query_executor.AdsReportFetcher.fetch',
+            'gaarf.report_fetcher.AdsReportFetcher.fetch',
             return_value=report.GaarfReport([], column_names))
-        return query_executor.AdsReportFetcher(test_client)
+        return report_fetcher.AdsReportFetcher(test_client)
 
     def test_get_ocid_mapping_returns_correct_result(self, fake_report_fetcher):
         account_id = 1

@@ -30,10 +30,9 @@ from collections import defaultdict
 from typing import Callable
 
 import gaarf
-from gaarf import query_executor
 
 
-def get_ocid_mapping(report_fetcher: query_executor.AdsReportFetcher,
+def get_ocid_mapping(report_fetcher: gaarf.report_fetcher.AdsReportFetcher,
                      accounts: list[str]) -> gaarf.report.GaarfReport:
     """Returns mapping between external customer_id and OCID parameter.
 
@@ -68,7 +67,7 @@ def get_ocid_mapping(report_fetcher: query_executor.AdsReportFetcher,
 
 
 def get_account_hierarchy_flattened(
-        report_fetcher: query_executor.AdsReportFetcher,
+        report_fetcher: gaarf.report_fetcher.AdsReportFetcher,
         accounts: list[str]) -> gaarf.report.GaarfReport:
     SEED_ACCOUNTS_QUERY = """
     SELECT

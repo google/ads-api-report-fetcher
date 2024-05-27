@@ -18,7 +18,7 @@ import warnings
 from collections.abc import MutableSequence
 
 from gaarf import api_clients
-from gaarf import query_executor
+from gaarf import report_fetcher
 
 
 def get_customer_ids(ads_client: api_clients.GoogleAdsApiClient,
@@ -29,17 +29,16 @@ def get_customer_ids(ads_client: api_clients.GoogleAdsApiClient,
     Args:
         ads_client: GoogleAdsApiClient used for connection.
         customer_id: MCC account_id(s).
-        custom_query: GAQL query used to reduce the number of customer_ids.
+        customer_ids_query: GAQL query used to reduce the number of accounts.
 
     Returns:
         All customer_ids from MCC satisfying the condition.
     """
-
     warnings.warn(
         '`get_customer_ids` will be deprecated, '
         'use `AdsReportFetcher.expand_mcc` or `AdsQueryExecutor.expand_mcc` '
         'methods instead',
         category=DeprecationWarning,
         stacklevel=3)
-    report_fetcher = query_executor.AdsReportFetcher(ads_client)
-    return report_fetcher.expand_mcc(customer_id, customer_ids_query)
+    return report_fetcher.AdsReportFetcher(ads_client).expand_mcc(
+        customer_id, customer_ids_query)

@@ -18,7 +18,7 @@ import dataclasses
 import pytest
 from gaarf import api_clients
 from gaarf import parsers
-from gaarf import query_executor
+from gaarf import report_fetcher
 from gaarf import utils
 
 
@@ -65,8 +65,8 @@ def test_client(mocker, config_path):
 def fake_report_fetcher(mocker, test_client):
     data = ['1']
     mocker.patch(
-        'gaarf.query_executor.AdsReportFetcher.expand_mcc', return_value=data)
-    return query_executor.AdsReportFetcher(test_client)
+        'gaarf.report_fetcher.AdsReportFetcher.expand_mcc', return_value=data)
+    return report_fetcher.AdsReportFetcher(test_client)
 
 
 def test_calling_get_customer_ids_is_deprecated(test_client):
