@@ -274,7 +274,7 @@ class ConfigBuilder:
         return self.config(**config_parameters)
 
 
-class ParamsParser(query_editor.CommonParametersMixin):
+class ParamsParser:
 
     def __init__(self, identifiers: Sequence[str]) -> None:
         self.identifiers = identifiers
@@ -409,11 +409,12 @@ def initialize_runtime_parameters(config: BaseConfig) -> BaseConfig:
     Returns:
         Config with formatted parameters.
     """
+    common_params = query_editor.CommonParametersMixin().common_params
     for key, param in config.params.items():
         for key_param, value_param in param.items():
             config.params[key][key_param] = convert_date(value_param)
         for (common_param_key,
-             common_param_value) in ParamsParser.common_params.items():
+             common_param_value) in common_params.items():
             if common_param_key not in config.params[key]:
                 config.params[key][common_param_key] = common_param_value
     return config

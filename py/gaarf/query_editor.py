@@ -83,17 +83,22 @@ class QueryElements:
 
 
 class CommonParametersMixin:
-    common_params = {
+    _common_params = {
         'date_iso':
-            datetime.date.today().strftime('%Y%m%d'),
+            lambda: datetime.date.today().strftime('%Y%m%d'),
         'yesterday_iso':
-            (datetime.date.today() -
-             relativedelta.relativedelta(days=1)).strftime('%Y%m%d'),
+            lambda: (datetime.date.today() - relativedelta.relativedelta(days=1)
+                    ).strftime('%Y%m%d'),
         'current_date':
-            datetime.date.today().strftime('%Y-%m-%d'),
+            lambda: datetime.date.today().strftime('%Y-%m-%d'),
         'current_datetime':
-            datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+            lambda: datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     }
+
+    @property
+    def common_params(self):
+        """Instantiates common parameters to the current values."""
+        return {key: value() for key, value in self._common_params.items()}
 
 
 class QuerySpecification(CommonParametersMixin,
