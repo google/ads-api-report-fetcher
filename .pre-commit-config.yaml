@@ -45,3 +45,10 @@ repos:
     language: system
     pass_filenames: false
     always_run: true
+  - id: pytest-e2e
+    stages: [push]
+    name: e2e
+    entry: pytest -m 'e2e'
+    language: system
+    pass_filenames: false
+    always_run: true
