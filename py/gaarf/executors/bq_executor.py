@@ -13,13 +13,18 @@
 # limitations under the License.
 """Module for executing queries in BigQuery."""
 from __future__ import annotations
+try:
+    from google.cloud import bigquery  # type: ignore
+except ImportError as e:
+    raise ImportError(
+        'Please install google-ads-api-report-fetcher with sqlalchemy support '
+        '- `pip install google-ads-api-report-fetcher[bq]`') from e
 
 import logging
 
+from google.cloud import exceptions as google_cloud_exceptions
 import pandas as pd
 from gaarf import query_post_processor
-from google.cloud import bigquery  # type: ignore
-from google.cloud import exceptions as google_cloud_exceptions  # type: ignore
 
 logger = logging.getLogger(__name__)
 

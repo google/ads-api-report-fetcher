@@ -13,13 +13,18 @@
 # limitations under the License.
 """Defines mechanism for executing queries via SqlAlchemy."""
 from __future__ import annotations
+try:
+    import sqlalchemy
+except ImportError as e:
+    raise ImportError(
+        'Please install google-ads-api-report-fetcher with sqlalchemy support '
+        '- `pip install google-ads-api-report-fetcher[sqlalchemy]`') from e
 
 import logging
 import re
 from typing import Any
 
 import pandas as pd
-import sqlalchemy
 from gaarf import query_post_processor
 
 

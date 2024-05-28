@@ -19,11 +19,7 @@ import like this `gaarf.executors.AdsQueryExecutor`
 from __future__ import annotations
 
 from gaarf.executors.ads_executor import AdsQueryExecutor
-from gaarf.executors.bq_executor import BigQueryExecutor
-from gaarf.executors.sql_executor import SqlAlchemyQueryExecutor
 
 __all__ = [
     'AdsQueryExecutor',
-    'BigQueryExecutor',
-    'SqlAlchemyQueryExecutor',
 ]
