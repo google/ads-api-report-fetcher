@@ -25,16 +25,16 @@ Useful Resources:
 You need a Google Cloud project with enabled Google Ads API. 
 See details here: [Configure a Google API Console Project for the Google Ads API](https://developers.google.com/google-ads/api/docs/oauth/cloud-project)
 
-Create an OAuth credentials (for the first time you'll need to create a concent screen either).
+Create an OAuth credentials (for the first time you'll need to create a consent screen either).
 Please note you need to generate OAuth2 credentials for **desktop application**.
 
 
 3. Generate refresh token
 
-  3.1. Generate refresh token using `oauth2l`
-
 >Before proceeding with token generation you need to make sure that either [your oauth brand](https://console.cloud.google.com/apis/credentials/consent)
 made public (published) or you added yourself as a test user if it's in testing status (it's not recommended because refresh tokens will exprire in 7 days).
+
+  3.1. Generate refresh token using `oauth2l`
 
 First you need to download [oauth2l](https://github.com/google/oauth2l) tool ("oauth tool").
 For Windows and Linux please download [pre-compiled binaries](https://github.com/google/oauth2l#pre-compiled-binaries),

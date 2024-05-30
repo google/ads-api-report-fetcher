@@ -26,6 +26,7 @@
  */
 import {
   AdsQueryExecutor,
+  AdsApiVersion,
   BigQueryWriter,
   BigQueryWriterOptions,
   GoogleAdsApiClient,
@@ -40,13 +41,11 @@ async function main_unsafe(
   req: express.Request,
   res: express.Response,
   projectId: string,
-  logger: ILogger
+  logger: ILogger,
+  functionName: string
 ) {
   // prepare Ads API parameters
   const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
-  const {refresh_token, ...ads_config_wo_token} = adsConfig;
-  await logger.info('Ads API config', ads_config_wo_token);
-
   projectId =
     <string>req.query.bq_project_id || process.env.PROJECT_ID || projectId;
 
@@ -78,19 +77,30 @@ async function main_unsafe(
   };
 
   const {queryText, scriptName} = await getScript(req, logger);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+  const {refresh_token, developer_token, ...ads_config_wo_token} = <any>(
+    adsConfig
+  );
+  ads_config_wo_token['ApiVersion'] = AdsApiVersion;
+  await logger.info(
+    `Running Cloud Function ${functionName}, Ads API ${AdsApiVersion}, ${
+      singleCustomer
+        ? 'without MCC expansion (CID=' + customerId + ')'
+        : 'with MCC expansion (MCC=' + customerId + ')'
+    }, see Ads API config in metadata field`,
+    {
+      adsConfig: ads_config_wo_token,
+      scriptName,
+      customerId,
+      request: {body: req.body, query: req.query},
+    }
+  );
+
   let customers: string[];
   if (singleCustomer) {
-    await logger.info(
-      `[${scriptName}] Executing for a single customer id: ${customerId}`,
-      {scriptName, customerId}
-    );
     customers = [<string>customerId];
     bq_writer_options.noUnionView = true;
   } else {
-    await logger.info(`[${scriptName}] Fetching customer ids`, {
-      customerId,
-      scriptName,
-    });
     customers = await ads_client.getCustomerIds(<string>customerId);
     await logger.info(
       `[${scriptName}] Customers to process (${customers.length})`,
@@ -117,7 +127,7 @@ async function main_unsafe(
     writer
   );
 
-  await logger.info('Cloud Function gaarf compeleted', {
+  await logger.info(`Cloud Function ${functionName} compeleted`, {
     customerId,
     scriptName,
     result,
@@ -132,14 +142,14 @@ export const main: HttpFunction = async (
   res: express.Response
 ) => {
   const projectId = await getProject();
-  const logger = createLogger(req, projectId, process.env.K_SERVICE || 'gaarf');
-  await logger.info('request', {body: req.body, query: req.query});
+  const functionName = process.env.K_SERVICE || 'gaarf';
+  const logger = createLogger(req, projectId, functionName);
 
   try {
-    await main_unsafe(req, res, projectId, logger);
+    await main_unsafe(req, res, projectId, logger, functionName);
   } catch (e) {
     console.log(e);
-    await logger.error(e.message, {error: e});
+    await logger.error(e.message, {error: e, body: req.body, query: req.query});
     res.status(500).send(e.message).end();
   }
 };
