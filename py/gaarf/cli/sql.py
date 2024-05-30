@@ -50,6 +50,9 @@ def main():
   parser.add_argument(
     '--no-parallel-queries', dest='parallel_queries', action='store_false'
   )
+  parser.add_argument(
+    '--parallel-threshold', dest='parallel_threshold', default=None
+  )
   parser.set_defaults(save_config=False)
   parser.set_defaults(dry_run=False)
   parser.set_defaults(parallel_queries=True)
@@ -77,7 +80,9 @@ def main():
 
   if main_args.parallel_queries:
     logger.info('Running queries in parallel')
-    with futures.ThreadPoolExecutor() as executor:
+    with futures.ThreadPoolExecutor(
+      max_workers=main_args.parallel_threshold
+    ) as executor:
       future_to_query = {
         executor.submit(
           sqlalchemy_query_executor.execute,

@@ -74,6 +74,9 @@ def main():
     action='store_true',
   )
   parser.add_argument('-v', '--version', dest='version', action='store_true')
+  parser.add_argument(
+    '--parallel-threshold', dest='parallel_threshold', default=None
+  )
   parser.set_defaults(save_config=False)
   parser.set_defaults(parallel_queries=True)
   parser.set_defaults(dry_run=False)
@@ -175,7 +178,7 @@ def main():
 
   if main_args.parallel_queries:
     logger.info('Running queries in parallel')
-    with futures.ThreadPoolExecutor() as executor:
+    with futures.ThreadPoolExecutor(main_args.parallel_threshold) as executor:
       future_to_query = {
         executor.submit(
           ads_query_executor.execute,
