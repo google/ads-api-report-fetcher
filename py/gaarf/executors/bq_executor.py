@@ -99,7 +99,7 @@ class BigQueryExecutor(query_post_processor.PostProcessorMixin):
                     logger.debug('Created new dataset %s', dataset_id)
 
 
-def extract_datasets(macros: dict | None) -> list[str] | None:
+def extract_datasets(macros: dict | None) -> list[str]:
     """Finds dataset-related keys based on values in a dict.
 
     If dict contains keys with 'dataset' in them, then values for such keys
@@ -112,5 +112,5 @@ def extract_datasets(macros: dict | None) -> list[str] | None:
         Possible names of datasets.
     """
     if not macros:
-        return None
+        return []
     return [value for macro, value in macros.items() if 'dataset' in macro]

@@ -36,7 +36,7 @@ class BigQueryExecutor:
         return executors.bq_executor.BigQueryExecutor(project_id, location)
 
 
-def extract_datasets(macros: dict[str, str] | None = None) -> list[str] | None:
+def extract_datasets(macros: dict[str, str] | None = None) -> list[str]:
     """Deprecated method for extracting BigQuery datasets."""
     warnings.warn(
         'Loading `extract_datasets` from `gaarf.bq_executor` is '
