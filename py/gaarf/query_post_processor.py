@@ -20,54 +20,48 @@ logger = logging.getLogger(__name__)
 
 
 class PostProcessorMixin:
-
-    def replace_params_template(
-            self,
-            query_text: str,
-            params: Optional[Dict[str, Any]] = None) -> str:
-        logger.debug("Original query text:\n%s", query_text)
-        if params:
-            if (templates := params.get("template")):
-                query_templates = {
-                    name: value
-                    for name, value in templates.items() if name in query_text
-                }
-                if query_templates:
-                    query_text = self.expand_jinja(query_text, query_templates)
-                    logger.debug("Query text after jinja expansion:\n%s",
-                                 query_text)
-                else:
-                    query_text = self.expand_jinja(query_text, {})
-            else:
-                query_text = self.expand_jinja(query_text, {})
-            if (macros := params.get("macro")):
-                query_text = query_text.format(**macros)
-                logger.debug("Query text after macro substitution:\n%s",
-                             query_text)
+  def replace_params_template(
+    self, query_text: str, params: Optional[Dict[str, Any]] = None
+  ) -> str:
+    logger.debug('Original query text:\n%s', query_text)
+    if params:
+      if templates := params.get('template'):
+        query_templates = {
+          name: value for name, value in templates.items() if name in query_text
+        }
+        if query_templates:
+          query_text = self.expand_jinja(query_text, query_templates)
+          logger.debug('Query text after jinja expansion:\n%s', query_text)
         else:
-            query_text = self.expand_jinja(query_text, {})
-        return query_text
+          query_text = self.expand_jinja(query_text, {})
+      else:
+        query_text = self.expand_jinja(query_text, {})
+      if macros := params.get('macro'):
+        query_text = query_text.format(**macros)
+        logger.debug('Query text after macro substitution:\n%s', query_text)
+    else:
+      query_text = self.expand_jinja(query_text, {})
+    return query_text
 
-    def expand_jinja(self,
-                     query_text: str,
-                     template_params: Optional[Dict[str, Any]] = None) -> str:
-        file_inclusions = ("% include", "% import", "% extend")
-        if any(file_inclusion in query_text
-               for file_inclusion in file_inclusions):
-            template = Environment(loader=FileSystemLoader("."))
-            query = template.from_string(query_text)
+  def expand_jinja(
+    self, query_text: str, template_params: Optional[Dict[str, Any]] = None
+  ) -> str:
+    file_inclusions = ('% include', '% import', '% extend')
+    if any(file_inclusion in query_text for file_inclusion in file_inclusions):
+      template = Environment(loader=FileSystemLoader('.'))
+      query = template.from_string(query_text)
+    else:
+      query = Template(query_text)
+    if not template_params:
+      return query.render()
+    for key, value in template_params.items():
+      if value:
+        if isinstance(value, list):
+          template_params[key] = value
+        elif len(splitted_param := value.split(',')) > 1:
+          template_params[key] = splitted_param
         else:
-            query = Template(query_text)
-        if not template_params:
-            return query.render()
-        for key, value in template_params.items():
-            if value:
-                if isinstance(value, list):
-                    template_params[key] = value
-                elif len(splitted_param := value.split(",")) > 1:
-                    template_params[key] = splitted_param
-                else:
-                    template_params[key] = value
-            else:
-                template_params = ""
-        return query.render(template_params)
+          template_params[key] = value
+      else:
+        template_params = ''
+    return query.render(template_params)

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for executing queries in BigQuery."""
+
 from __future__ import annotations
 
 import warnings
@@ -20,28 +21,28 @@ from gaarf import executors
 
 
 class BigQueryExecutor:
-    """Deprecated class for creating BigQueryExecutor."""
+  """Deprecated class for creating BigQueryExecutor."""
 
-    def __new__(
-            cls,
-            project_id: str,
-            location: str | None = None
-    ) -> executors.bq_executor.BigQueryExecutor:
-        warnings.warn(
-            'Loading BigQueryExecutor from `gaarf.bq_executor` is '
-            'deprecated; Import BigQueryExecutor from '
-            '`gaarf.executors.bq_executor` instead',
-            category=DeprecationWarning,
-            stacklevel=2)
-        return executors.bq_executor.BigQueryExecutor(project_id, location)
+  def __new__(
+    cls, project_id: str, location: str | None = None
+  ) -> executors.bq_executor.BigQueryExecutor:
+    warnings.warn(
+      'Loading BigQueryExecutor from `gaarf.bq_executor` is '
+      'deprecated; Import BigQueryExecutor from '
+      '`gaarf.executors.bq_executor` instead',
+      category=DeprecationWarning,
+      stacklevel=2,
+    )
+    return executors.bq_executor.BigQueryExecutor(project_id, location)
 
 
 def extract_datasets(macros: dict[str, str] | None = None) -> list[str]:
-    """Deprecated method for extracting BigQuery datasets."""
-    warnings.warn(
-        'Loading `extract_datasets` from `gaarf.bq_executor` is '
-        'deprecated; Import `extract_datasets` from '
-        '`gaarf.executors.bq_executor` instead',
-        category=DeprecationWarning,
-        stacklevel=2)
-    return executors.bq_executor.extract_datasets(macros)
+  """Deprecated method for extracting BigQuery datasets."""
+  warnings.warn(
+    'Loading `extract_datasets` from `gaarf.bq_executor` is '
+    'deprecated; Import `extract_datasets` from '
+    '`gaarf.executors.bq_executor` instead',
+    category=DeprecationWarning,
+    stacklevel=2,
+  )
+  return executors.bq_executor.extract_datasets(macros)

@@ -19,5 +19,6 @@ import pytest
 
 @pytest.fixture
 def config_path() -> pathlib.Path:
-    return pathlib.Path(
-        __file__).parent / '../end-to-end/data/test-google-ads.yaml'
+  return (
+    pathlib.Path(__file__).parent / '../end-to-end/data/test-google-ads.yaml'
+  )

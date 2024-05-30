@@ -24,56 +24,60 @@ from gaarf import utils
 
 @dataclasses.dataclass
 class FakeResponse:
-    data: list[list[parsers.GoogleAdsRowElement]]
+  data: list[list[parsers.GoogleAdsRowElement]]
 
-    def __iter__(self):
-        for result in self.data:
-            yield FakeBatch(result)
+  def __iter__(self):
+    for result in self.data:
+      yield FakeBatch(result)
 
 
 @dataclasses.dataclass
 class FakeBatch:
-    results: list[list]
+  results: list[list]
 
 
 @dataclasses.dataclass
 class CustomerClient:
-    id: int
+  id: int
 
 
 @dataclasses.dataclass
 class FakeGoogleAdsRowElement:
-    customer_client: CustomerClient
+  customer_client: CustomerClient
 
 
 @pytest.fixture
 def test_client(mocker, config_path):
-    fake_results = [
-        [
-            FakeGoogleAdsRowElement(CustomerClient(1)),
-        ],
-    ]
-    fake_response = FakeResponse(data=fake_results)
-    mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
-    mocker.patch(
-        'gaarf.api_clients.GoogleAdsApiClient.get_response',
-        return_value=fake_response)
-    return api_clients.GoogleAdsApiClient(path_to_config=config_path)
+  fake_results = [
+    [
+      FakeGoogleAdsRowElement(CustomerClient(1)),
+    ],
+  ]
+  fake_response = FakeResponse(data=fake_results)
+  mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
+  mocker.patch(
+    'gaarf.api_clients.GoogleAdsApiClient.get_response',
+    return_value=fake_response,
+  )
+  return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
 
 @pytest.fixture
 def fake_report_fetcher(mocker, test_client):
-    data = ['1']
-    mocker.patch(
-        'gaarf.report_fetcher.AdsReportFetcher.expand_mcc', return_value=data)
-    return report_fetcher.AdsReportFetcher(test_client)
+  data = ['1']
+  mocker.patch(
+    'gaarf.report_fetcher.AdsReportFetcher.expand_mcc', return_value=data
+  )
+  return report_fetcher.AdsReportFetcher(test_client)
 
 
 def test_calling_get_customer_ids_is_deprecated(test_client):
-    with pytest.warns(DeprecationWarning) as w:
-        utils.get_customer_ids(test_client, '1')
-        assert len(w) == 1
-        assert str(w[0].message) == ('`get_customer_ids` will be deprecated, '
-                                     'use `AdsReportFetcher.expand_mcc` or '
-                                     '`AdsQueryExecutor.expand_mcc` '
-                                     'methods instead')
+  with pytest.warns(DeprecationWarning) as w:
+    utils.get_customer_ids(test_client, '1')
+    assert len(w) == 1
+    assert str(w[0].message) == (
+      '`get_customer_ids` will be deprecated, '
+      'use `AdsReportFetcher.expand_mcc` or '
+      '`AdsQueryExecutor.expand_mcc` '
+      'methods instead'
+    )

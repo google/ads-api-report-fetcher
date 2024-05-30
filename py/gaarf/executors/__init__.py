@@ -16,10 +16,11 @@
 Instead of importing `gaarf.executors.ads_executors.AdsQueryExecutor`
 import like this `gaarf.executors.AdsQueryExecutor`
 """
+
 from __future__ import annotations
 
 from gaarf.executors.ads_executor import AdsQueryExecutor
 
 __all__ = [
-    'AdsQueryExecutor',
+  'AdsQueryExecutor',
 ]

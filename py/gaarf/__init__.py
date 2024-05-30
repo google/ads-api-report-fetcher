@@ -16,12 +16,13 @@
 Instead of importing `gaarf.report.GaarfReport`
 import like this `from gaarf import GaarfReport`
 """
+
 from __future__ import annotations
 
 from gaarf.api_clients import GoogleAdsApiClient
 from gaarf.report import GaarfReport
 
 __all__ = [
-    'GaarfReport',
-    'GoogleAdsApiClient',
+  'GaarfReport',
+  'GoogleAdsApiClient',
 ]

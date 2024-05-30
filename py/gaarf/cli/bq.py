@@ -15,6 +15,7 @@
 
 `gaarf-bq` allows to execute BigQuery queries based on Gaarf config.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,68 +28,78 @@ from gaarf.io import reader  # type: ignore
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('query', nargs='+')
-    parser.add_argument('-c', '--config', dest='gaarf_config', default=None)
-    parser.add_argument('--project', dest='project')
-    parser.add_argument(
-        '--dataset-location', dest='dataset_location', default=None)
-    parser.add_argument(
-        '--save-config', dest='save_config', action='store_true')
-    parser.add_argument(
-        '--no-save-config', dest='save_config', action='store_false')
-    parser.add_argument(
-        '--config-destination', dest='save_config_dest', default='config.yaml')
-    parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
-    parser.add_argument('--logger', dest='logger', default='local')
-    parser.add_argument('--dry-run', dest='dry_run', action='store_true')
-    parser.add_argument(
-        '--parallel-queries', dest='parallel_queries', action='store_true')
-    parser.add_argument(
-        '--no-parallel-queries', dest='parallel_queries', action='store_false')
-    parser.set_defaults(save_config=False)
-    parser.set_defaults(dry_run=False)
-    parser.set_defaults(parallel_queries=True)
-    args = parser.parse_known_args()
-    main_args = args[0]
+  parser = argparse.ArgumentParser()
+  parser.add_argument('query', nargs='+')
+  parser.add_argument('-c', '--config', dest='gaarf_config', default=None)
+  parser.add_argument('--project', dest='project')
+  parser.add_argument(
+    '--dataset-location', dest='dataset_location', default=None
+  )
+  parser.add_argument('--save-config', dest='save_config', action='store_true')
+  parser.add_argument(
+    '--no-save-config', dest='save_config', action='store_false'
+  )
+  parser.add_argument(
+    '--config-destination', dest='save_config_dest', default='config.yaml'
+  )
+  parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
+  parser.add_argument('--logger', dest='logger', default='local')
+  parser.add_argument('--dry-run', dest='dry_run', action='store_true')
+  parser.add_argument(
+    '--parallel-queries', dest='parallel_queries', action='store_true'
+  )
+  parser.add_argument(
+    '--no-parallel-queries', dest='parallel_queries', action='store_false'
+  )
+  parser.set_defaults(save_config=False)
+  parser.set_defaults(dry_run=False)
+  parser.set_defaults(parallel_queries=True)
+  args = parser.parse_known_args()
+  main_args = args[0]
 
-    logger = utils.init_logging(
-        loglevel=main_args.loglevel.upper(), logger_type=main_args.logger)
-    config = utils.ConfigBuilder('gaarf-bq').build(vars(main_args), args[1])
-    logger.debug('config: %s', config)
-    if main_args.save_config and not main_args.gaarf_config:
-        utils.ConfigSaver(main_args.save_config_dest).save(config)
-    if main_args.dry_run:
-        exit()
+  logger = utils.init_logging(
+    loglevel=main_args.loglevel.upper(), logger_type=main_args.logger
+  )
+  config = utils.ConfigBuilder('gaarf-bq').build(vars(main_args), args[1])
+  logger.debug('config: %s', config)
+  if main_args.save_config and not main_args.gaarf_config:
+    utils.ConfigSaver(main_args.save_config_dest).save(config)
+  if main_args.dry_run:
+    exit()
 
-    config = utils.initialize_runtime_parameters(config)
-    logger.debug('initialized config: %s', config)
+  config = utils.initialize_runtime_parameters(config)
+  logger.debug('initialized config: %s', config)
 
-    bigquery_executor = bq_executor.BigQueryExecutor(
-        project_id=config.project, location=config.dataset_location)
-    bigquery_executor.create_datasets(config.params.get('macro'))
+  bigquery_executor = bq_executor.BigQueryExecutor(
+    project_id=config.project, location=config.dataset_location
+  )
+  bigquery_executor.create_datasets(config.params.get('macro'))
 
-    reader_client = reader.FileReader()
+  reader_client = reader.FileReader()
 
-    if main_args.parallel_queries:
-        logger.info('Running queries in parallel')
-        with futures.ThreadPoolExecutor() as executor:
-            future_to_query = {
-                executor.submit(bigquery_executor.execute, query,
-                                reader_client.read(query), config.params):
-                    query for query in sorted(main_args.query)
-            }
-            for future in futures.as_completed(future_to_query):
-                query = future_to_query[future]
-                utils.postprocessor_runner(query, future.result, logger)
-    else:
-        logger.info('Running queries sequentially')
-        for query in sorted(main_args.query):
-            callback = functools.partial(executor.execute, query,
-                                         reader_client.read(query),
-                                         config.params)
-            utils.postprocessor_runner(query, callback, logger)
+  if main_args.parallel_queries:
+    logger.info('Running queries in parallel')
+    with futures.ThreadPoolExecutor() as executor:
+      future_to_query = {
+        executor.submit(
+          bigquery_executor.execute,
+          query,
+          reader_client.read(query),
+          config.params,
+        ): query
+        for query in sorted(main_args.query)
+      }
+      for future in futures.as_completed(future_to_query):
+        query = future_to_query[future]
+        utils.postprocessor_runner(query, future.result, logger)
+  else:
+    logger.info('Running queries sequentially')
+    for query in sorted(main_args.query):
+      callback = functools.partial(
+        executor.execute, query, reader_client.read(query), config.params
+      )
+      utils.postprocessor_runner(query, callback, logger)
 
 
 if __name__ == '__main__':
-    main()
+  main()

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Defines an interface for Abstract writer."""
+
 from __future__ import annotations
 
 import abc
@@ -26,20 +27,23 @@ logger = logging.getLogger(__name__)
 
 
 class AbsWriter(abc.ABC):
+  def __init__(
+    self,
+    array_handling: Literal['strings', 'arrays'] = 'strings',
+    array_separator: str = '|',
+    **kwargs,
+  ) -> None:
+    self.array_handling = array_handling
+    self.array_separator = array_separator
 
-    def __init__(self,
-                 array_handling: Literal['strings', 'arrays'] = 'strings',
-                 array_separator: str = '|',
-                 **kwargs) -> None:
-        self.array_handling = array_handling
-        self.array_separator = array_separator
+  @abc.abstractmethod
+  def write(self, report: GaarfReport, destination: str) -> str | None:
+    raise NotImplementedError
 
-    @abc.abstractmethod
-    def write(self, report: GaarfReport, destination: str) -> str | None:
-        raise NotImplementedError
-
-    def format_for_write(self, report: GaarfReport) -> GaarfReport:
-        array_handling_strategy = formatter.ArrayHandlingStrategy(
-            type_=self.array_handling, delimiter=self.array_separator)
-        return formatter.format_report_for_writing(report,
-                                                   [array_handling_strategy])
+  def format_for_write(self, report: GaarfReport) -> GaarfReport:
+    array_handling_strategy = formatter.ArrayHandlingStrategy(
+      type_=self.array_handling, delimiter=self.array_separator
+    )
+    return formatter.format_report_for_writing(
+      report, [array_handling_strategy]
+    )

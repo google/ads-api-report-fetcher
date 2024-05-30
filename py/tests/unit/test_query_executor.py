@@ -19,23 +19,21 @@ from gaarf import query_executor
 
 @pytest.fixture
 def test_client(mocker, config_path):
-    mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
-    return api_clients.GoogleAdsApiClient(path_to_config=config_path)
+  mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
+  return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
 
 class TestAdsReportFetcher:
-
-    def test_instantiating_ads_report_fetcher_Is_deprecated(self, test_client):
-        with pytest.warns(DeprecationWarning) as w:
-            query_executor.AdsReportFetcher(api_client=test_client)
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
+  def test_instantiating_ads_report_fetcher_Is_deprecated(self, test_client):
+    with pytest.warns(DeprecationWarning) as w:
+      query_executor.AdsReportFetcher(api_client=test_client)
+      assert len(w) == 1
+      assert issubclass(w[0].category, DeprecationWarning)
 
 
 class TestAdsQueryExecutor:
-
-    def test_instantiating_ads_query_executor_Is_deprecated(self, test_client):
-        with pytest.warns(DeprecationWarning) as w:
-            query_executor.AdsQueryExecutor(api_client=test_client)
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
+  def test_instantiating_ads_query_executor_Is_deprecated(self, test_client):
+    with pytest.warns(DeprecationWarning) as w:
+      query_executor.AdsQueryExecutor(api_client=test_client)
+      assert len(w) == 1
+      assert issubclass(w[0].category, DeprecationWarning)

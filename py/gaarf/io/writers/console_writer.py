@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for writing data with console."""
+
 from __future__ import annotations
 
 import rich
@@ -22,22 +23,21 @@ from rich.table import Table
 
 
 class ConsoleWriter(AbsWriter):
+  def __init__(self, page_size: int = 10, **kwargs):
+    super().__init__(**kwargs)
+    self.page_size = int(page_size)
 
-    def __init__(self, page_size: int = 10, **kwargs):
-        super().__init__(**kwargs)
-        self.page_size = int(page_size)
-
-    def write(self, report: GaarfReport, destination: str) -> None:
-        report = self.format_for_write(report)
-        console = Console()
-        table = Table(
-            title=f"showing results for query <{destination.split('/')[-1]}>",
-            caption=
-            f'showing rows 1-{min(self.page_size, len(report))} out of total {len(report)}',
-            box=rich.box.MARKDOWN)
-        for header in report.column_names:
-            table.add_column(header)
-        for i, row in enumerate(report):
-            if i < self.page_size:
-                table.add_row(*[str(field) for field in row])
-        console.print(table)
+  def write(self, report: GaarfReport, destination: str) -> None:
+    report = self.format_for_write(report)
+    console = Console()
+    table = Table(
+      title=f"showing results for query <{destination.split('/')[-1]}>",
+      caption=f'showing rows 1-{min(self.page_size, len(report))} out of total {len(report)}',
+      box=rich.box.MARKDOWN,
+    )
+    for header in report.column_names:
+      table.add_column(header)
+    for i, row in enumerate(report):
+      if i < self.page_size:
+        table.add_row(*[str(field) for field in row])
+    console.print(table)

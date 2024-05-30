@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for writing data to Google Sheets."""
+
 from __future__ import annotations
 
 from gaarf.io.writers.abs_writer import AbsWriter
@@ -19,9 +20,8 @@ from gaarf.report import GaarfReport
 
 
 class NullWriter(AbsWriter):
+  def __init__(self, writer_option, **kwargs):
+    raise ValueError(f'{writer_option} is unknown writer type!')
 
-    def __init__(self, writer_option, **kwargs):
-        raise ValueError(f'{writer_option} is unknown writer type!')
-
-    def write(self, report: GaarfReport, destination: str) -> None:
-        print('Unknown writer type!')
+  def write(self, report: GaarfReport, destination: str) -> None:
+    print('Unknown writer type!')

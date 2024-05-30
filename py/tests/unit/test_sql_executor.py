@@ -18,13 +18,12 @@ from gaarf import sql_executor
 
 
 class TestSqlAlchemyQueryExecutor:
+  @pytest.fixture
+  def engine(self):
+    return sqlalchemy.create_engine('sqlite:///:memory:')
 
-    @pytest.fixture
-    def engine(self):
-        return sqlalchemy.create_engine('sqlite:///:memory:')
-
-    def test_instantiating_sql_executor_is_deprecated(self, engine):
-        with pytest.warns(DeprecationWarning) as w:
-            sql_executor.SqlAlchemyQueryExecutor(engine)
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
+  def test_instantiating_sql_executor_is_deprecated(self, engine):
+    with pytest.warns(DeprecationWarning) as w:
+      sql_executor.SqlAlchemyQueryExecutor(engine)
+      assert len(w) == 1
+      assert issubclass(w[0].category, DeprecationWarning)

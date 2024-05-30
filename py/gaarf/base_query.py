@@ -16,24 +16,25 @@
 Gaarf query classes can inherit from BaseQuery and have a simple way of
 being fetched from API.
 """
+
 from __future__ import annotations
 
 
 class BaseQuery:
-    """Base class to inherit all Gaarf queries from.
+  """Base class to inherit all Gaarf queries from.
 
 
-    Attributes:
-        query_text: Contains query text or template.
-    """
+  Attributes:
+      query_text: Contains query text or template.
+  """
 
-    query_text = ''
+  query_text = ''
 
-    @property
-    def query(self) -> str:
-        """Returns expanded query with parameters takes from initialization."""
-        return self.query_text.format(**self.__dict__)
+  @property
+  def query(self) -> str:
+    """Returns expanded query with parameters takes from initialization."""
+    return self.query_text.format(**self.__dict__)
 
-    def __str__(self) -> str:
-        """Formatted query string representation."""
-        return self.query.strip()
+  def __str__(self) -> str:
+    """Formatted query string representation."""
+    return self.query.strip()

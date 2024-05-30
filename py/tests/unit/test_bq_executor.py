@@ -17,25 +17,25 @@ from gaarf import bq_executor
 
 
 class TestBigQueryExecutor:
-
-    def test_instantiating_bq_executor_is_deprecated(self):
-        with pytest.warns(DeprecationWarning) as w:
-            bq_executor.BigQueryExecutor(project_id='fake-project')
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert str(w[0].message) == (
-                'Loading BigQueryExecutor from `gaarf.bq_executor` is '
-                'deprecated; Import BigQueryExecutor from '
-                '`gaarf.executors.bq_executor` instead')
+  def test_instantiating_bq_executor_is_deprecated(self):
+    with pytest.warns(DeprecationWarning) as w:
+      bq_executor.BigQueryExecutor(project_id='fake-project')
+      assert len(w) == 1
+      assert issubclass(w[0].category, DeprecationWarning)
+      assert str(w[0].message) == (
+        'Loading BigQueryExecutor from `gaarf.bq_executor` is '
+        'deprecated; Import BigQueryExecutor from '
+        '`gaarf.executors.bq_executor` instead'
+      )
 
 
 def test_extract_datasets_is_deprecated():
-
-    with pytest.warns(DeprecationWarning) as w:
-        bq_executor.extract_datasets({})
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert str(w[0].message) == (
-            'Loading `extract_datasets` from `gaarf.bq_executor` is '
-            'deprecated; Import `extract_datasets` from '
-            '`gaarf.executors.bq_executor` instead')
+  with pytest.warns(DeprecationWarning) as w:
+    bq_executor.extract_datasets({})
+    assert len(w) == 1
+    assert issubclass(w[0].category, DeprecationWarning)
+    assert str(w[0].message) == (
+      'Loading `extract_datasets` from `gaarf.bq_executor` is '
+      'deprecated; Import `extract_datasets` from '
+      '`gaarf.executors.bq_executor` instead'
+    )

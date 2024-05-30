@@ -11,60 +11,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for defining exceptions."""
+
 from __future__ import annotations
 
 
 class GaarfException(Exception):
-    """Base exception."""
+  """Base exception."""
 
 
 class GaarfCliException(GaarfException):
-    """Base exception for CLI tools."""
+  """Base exception for CLI tools."""
 
 
 class GaarfMissingQueryException(GaarfCliException):
-    """Specifies missing queries to CLI tool."""
+  """Specifies missing queries to CLI tool."""
 
 
 class GaarfMissingAccountException(GaarfCliException):
-    """Specifies missing account parameter for CLI tool."""
+  """Specifies missing account parameter for CLI tool."""
 
 
 class GaarfQueryException(GaarfException):
-    """Base exception for Gaarf queries."""
+  """Base exception for Gaarf queries."""
 
 
 class GaarfParserException(GaarfException):
-    """Base exception for Gaarf parsers."""
+  """Base exception for Gaarf parsers."""
 
 
 class GaarfCustomizerException(GaarfParserException):
-    """Specifies incorrect customizer."""
+  """Specifies incorrect customizer."""
 
 
 class GaarfVirtualColumnException(GaarfParserException):
-    """Specifies incorrect virtual column type."""
+  """Specifies incorrect virtual column type."""
 
 
 class GaarfFieldException(GaarfQueryException):
-    """Specifies incorrect Google Ads API field."""
+  """Specifies incorrect Google Ads API field."""
 
 
 class GaarfMacroException(GaarfQueryException):
-    """Specifies incorrect macro in Gaarf query."""
+  """Specifies incorrect macro in Gaarf query."""
 
 
 class GaarfResourceException(GaarfQueryException):
-    """Specifies incorrect resource name in Google Ads API."""
+  """Specifies incorrect resource name in Google Ads API."""
 
 
 class GaarfReportException(GaarfException):
-    """Base exception for Gaarf reports."""
+  """Base exception for Gaarf reports."""
 
 
 class GaarfBuiltInQueryException(GaarfException):
-    """Specifies missing built-in Gaarf query."""
+  """Specifies missing built-in Gaarf query."""
 
 
 class GaarfExecutorException(GaarfException):
-    """Base exception for errors during GaarfQuery execution."""
+  """Base exception for errors during GaarfQuery execution."""

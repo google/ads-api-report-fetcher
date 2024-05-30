@@ -20,6 +20,7 @@ Module defines two major classes:
     * AdsQueryExecutor - to perform fetching data from Ads API in a form of
       GaarfReport and saving it to local/remote storage.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -31,33 +32,35 @@ from gaarf import report_fetcher
 
 
 class AdsReportFetcher:
-    """Deprecated class for creating AdsReportFetcher."""
+  """Deprecated class for creating AdsReportFetcher."""
 
-    def __new__(
-        cls,
-        api_client: api_clients.BaseClient,
-        customer_ids: Sequence[str] | None = None
-    ) -> report_fetcher.AdsReportFetcher:
-        warnings.warn(
-            'Loading AdsReportFetcher from `gaarf.query_executor` is '
-            'deprecated; Import AdsReportFetcher from `gaarf.report_fetcher` '
-            'instead',
-            category=DeprecationWarning,
-            stacklevel=2)
-        return report_fetcher.AdsReportFetcher(api_client, customer_ids)
+  def __new__(
+    cls,
+    api_client: api_clients.BaseClient,
+    customer_ids: Sequence[str] | None = None,
+  ) -> report_fetcher.AdsReportFetcher:
+    warnings.warn(
+      'Loading AdsReportFetcher from `gaarf.query_executor` is '
+      'deprecated; Import AdsReportFetcher from `gaarf.report_fetcher` '
+      'instead',
+      category=DeprecationWarning,
+      stacklevel=2,
+    )
+    return report_fetcher.AdsReportFetcher(api_client, customer_ids)
 
 
 class AdsQueryExecutor:
-    """Deprecated class for creating AdsQueryExecutor."""
+  """Deprecated class for creating AdsQueryExecutor."""
 
-    def __new__(
-        cls,
-        api_client: api_clients.BaseClient,
-    ) -> executors.ads_executor.AdsQueryExecutor:
-        warnings.warn(
-            'Loading AdsReportFetcher from `gaarf.query_executor` is '
-            'deprecated; Import AdsReportFetcher from `gaarf.report_fetcher` '
-            'instead',
-            category=DeprecationWarning,
-            stacklevel=2)
-        return executors.ads_executor.AdsQueryExecutor(api_client)
+  def __new__(
+    cls,
+    api_client: api_clients.BaseClient,
+  ) -> executors.ads_executor.AdsQueryExecutor:
+    warnings.warn(
+      'Loading AdsReportFetcher from `gaarf.query_executor` is '
+      'deprecated; Import AdsReportFetcher from `gaarf.report_fetcher` '
+      'instead',
+      category=DeprecationWarning,
+      stacklevel=2,
+    )
+    return executors.ads_executor.AdsQueryExecutor(api_client)

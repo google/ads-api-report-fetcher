@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Defines mechanism for executing queries via SqlAlchemy."""
+
 from __future__ import annotations
 
 import warnings
@@ -21,15 +22,16 @@ from gaarf import executors
 
 
 class SqlAlchemyQueryExecutor:
-    """Deprecated class for creating SqlAlchemyQueryExecutor."""
+  """Deprecated class for creating SqlAlchemyQueryExecutor."""
 
-    def __new__(
-        cls, engine: sqlalchemy.engine.base.Engine
-    ) -> executors.sql_executor.SqlAlchemyQueryExecutor:
-        warnings.warn(
-            'Loading SqlAlchemyQueryExecutor from `gaarf.sql_executor` is '
-            'deprecated; Import SqlAlchemyQueryExecutor from '
-            '`gaarf.executors.sql_executor` instead',
-            category=DeprecationWarning,
-            stacklevel=2)
-        return executors.sql_executor.SqlAlchemyQueryExecutor(engine)
+  def __new__(
+    cls, engine: sqlalchemy.engine.base.Engine
+  ) -> executors.sql_executor.SqlAlchemyQueryExecutor:
+    warnings.warn(
+      'Loading SqlAlchemyQueryExecutor from `gaarf.sql_executor` is '
+      'deprecated; Import SqlAlchemyQueryExecutor from '
+      '`gaarf.executors.sql_executor` instead',
+      category=DeprecationWarning,
+      stacklevel=2,
+    )
+    return executors.sql_executor.SqlAlchemyQueryExecutor(engine)
