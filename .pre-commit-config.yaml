@@ -1,5 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+fail_fast: true
+default_stages: [commit]
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v3.2.0
@@ -18,11 +20,6 @@ repos:
       - --py38-plus
       - --add-import
       - from __future__ import annotations
-- repo: https://github.com/PyCQA/autoflake
-  rev: v2.2.1
-  hooks:
-  - id: autoflake
-    args: [--remove-all-unused-imports, --in-place]
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.8.0
   hooks:
@@ -30,25 +27,22 @@ repos:
     verbose: true
     entry: bash -c 'mypy "$@" || true'
     args: [--ignore-missing-imports]
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.4.6
+  hooks:
+    - id: ruff-format
 - repo: local
   hooks:
   - id: pytest-check
     name: pytest-check
-    entry: pytest -m 'not e2e'
-    language: system
-    pass_filenames: false
-    always_run: true
-  - id: yapf
-    name: yapf-formatter
-    entry: yapf
-    args: [--style=yapf]
+    entry: pytest -n auto -m 'not e2e'
     language: system
     pass_filenames: false
     always_run: true
   - id: pytest-e2e
     stages: [push]
     name: e2e
-    entry: pytest -m 'e2e'
+    entry: pytest -n auto -m 'e2e'
     language: system
     pass_filenames: false
     always_run: true

@@ -1,0 +1,13 @@
+{
+  "py/gaarf/*.py": {"type": "gaarf", "alternate": "py/tests/unit/test_{}.py"},
+  "py/tests/unit/test_*.py": {"alternate": "py/gaarf/{}.py"},
+  "py/gaarf/cli/utils.py": {"alternate": "py/tests/unit/cli/test_utils.py"},
+  "py/tests/unit/cli/test_utils.py": {"alternate": "py/gaarf/cli/utils.py"},
+  "py/gaarf/cli/*.py": {"type": "cli", "alternate": "py/tests/end-to-end/test_{}_cli_util.py"},
+  "py/gaarf/io/*.py": {"type": "io", "alternate": "py/tests/unit/io/test_{}.py"},
+  "py/tests/unit/io/test_*.py": {"type": "io", "alternate": "py/gaarf/io/{}.py"},
+  "py/gaarf/io/writers/*.py": {"type": "writers", "alternate": "py/tests/unit/io/writers/test_{}.py"},
+  "py/tests/unit/io/writers/test_*.py": {"alternate": "py/gaarf/io/writers/{}.py"},
+  "py/gaarf/executors/*.py": {"type": "executors", "alternate": "py/tests/unit/executors/test_{}.py"},
+  "py/tests/unit/executors/test_*.py": {"alternate": "py/gaarf/executors/{}.py"}
+}
