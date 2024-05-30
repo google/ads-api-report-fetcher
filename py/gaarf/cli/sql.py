@@ -23,6 +23,7 @@ import functools
 from concurrent import futures
 
 import sqlalchemy
+
 from gaarf import sql_executor
 from gaarf.cli import utils
 from gaarf.io import reader  # type: ignore

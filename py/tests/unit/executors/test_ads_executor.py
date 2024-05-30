@@ -5,8 +5,8 @@ import json
 import os
 
 import pytest
-from gaarf import api_clients
-from gaarf import parsers
+
+from gaarf import api_clients, parsers
 from gaarf.executors import ads_executor
 from gaarf.io.writers import json_writer
 

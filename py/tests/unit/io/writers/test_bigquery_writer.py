@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from gaarf.io.writers import bigquery_writer
 from google.cloud import bigquery
+
+from gaarf.io.writers import bigquery_writer
 
 
 class TestBigQueryWriter:

@@ -3,8 +3,8 @@ from __future__ import annotations
 import datetime
 
 import pytest
-from gaarf import exceptions
-from gaarf import query_editor
+
+from gaarf import exceptions, query_editor
 
 
 @pytest.fixture

@@ -12,14 +12,6 @@ repos:
   - id: check-added-large-files
   - id: debug-statements
   - id: double-quote-string-fixer
-- repo: https://github.com/asottile/reorder-python-imports
-  rev: v3.12.0
-  hooks:
-  - id: reorder-python-imports
-    args:
-      - --py38-plus
-      - --add-import
-      - from __future__ import annotations
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.8.0
   hooks:
@@ -30,6 +22,8 @@ repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.4.6
   hooks:
+    - id: ruff
+      args: [ --fix, --select, I]
     - id: ruff-format
 - repo: local
   hooks:

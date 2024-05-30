@@ -26,12 +26,10 @@ from pathlib import Path
 
 import smart_open
 import yaml
-from gaarf import api_clients
-from gaarf import exceptions
-from gaarf import query_executor
+
+from gaarf import api_clients, exceptions, query_executor
 from gaarf.cli import utils
-from gaarf.io import reader
-from gaarf.io import writer
+from gaarf.io import reader, writer
 
 
 def main():

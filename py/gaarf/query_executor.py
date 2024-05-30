@@ -26,9 +26,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Sequence
 
-from gaarf import api_clients
-from gaarf import executors
-from gaarf import report_fetcher
+from gaarf import api_clients, executors, report_fetcher
 
 
 class AdsReportFetcher:

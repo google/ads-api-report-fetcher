@@ -4,8 +4,8 @@ from collections import abc
 
 import pandas as pd
 import pytest
-from gaarf import exceptions
-from gaarf import report
+
+from gaarf import exceptions, report
 
 
 @pytest.fixture

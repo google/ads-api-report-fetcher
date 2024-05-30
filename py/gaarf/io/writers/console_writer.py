@@ -16,10 +16,11 @@
 from __future__ import annotations
 
 import rich
-from gaarf.io.writers.abs_writer import AbsWriter
-from gaarf.report import GaarfReport
 from rich.console import Console
 from rich.table import Table
+
+from gaarf.io.writers.abs_writer import AbsWriter
+from gaarf.report import GaarfReport
 
 
 class ConsoleWriter(AbsWriter):

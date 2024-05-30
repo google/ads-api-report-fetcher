@@ -18,6 +18,7 @@ from __future__ import annotations
 import warnings
 
 import sqlalchemy
+
 from gaarf.executors import sql_executor
 
 

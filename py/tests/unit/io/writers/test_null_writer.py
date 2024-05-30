@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from gaarf.io.writers import null_writer
 
 

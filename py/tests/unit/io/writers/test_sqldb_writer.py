@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+
 from gaarf import report
 from gaarf.io.writers import sqldb_writer
 

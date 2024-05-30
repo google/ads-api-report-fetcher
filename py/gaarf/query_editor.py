@@ -22,9 +22,8 @@ import operator
 import re
 
 from dateutil import relativedelta
-from gaarf import api_clients
-from gaarf import exceptions
-from gaarf import query_post_processor
+
+from gaarf import api_clients, exceptions, query_post_processor
 
 VALID_VIRTUAL_COLUMN_OPERATORS = (
   ast.BinOp,

@@ -26,8 +26,7 @@ from __future__ import annotations
 import functools
 import operator
 import re
-from collections import abc
-from collections import defaultdict
+from collections import abc, defaultdict
 from typing import Callable
 
 import gaarf

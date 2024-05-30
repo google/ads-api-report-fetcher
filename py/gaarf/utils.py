@@ -18,8 +18,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import MutableSequence
 
-from gaarf import api_clients
-from gaarf import report_fetcher
+from gaarf import api_clients, report_fetcher
 
 
 def get_customer_ids(

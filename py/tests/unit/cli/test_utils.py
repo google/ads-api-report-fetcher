@@ -19,6 +19,7 @@ from unittest import mock
 import pytest
 import yaml
 from dateutil.relativedelta import relativedelta
+
 from gaarf.cli import utils
 from gaarf.query_editor import CommonParametersMixin
 

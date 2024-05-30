@@ -16,10 +16,8 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-from gaarf import api_clients
-from gaarf import parsers
-from gaarf import report_fetcher
-from gaarf import utils
+
+from gaarf import api_clients, parsers, report_fetcher, utils
 
 
 @dataclasses.dataclass

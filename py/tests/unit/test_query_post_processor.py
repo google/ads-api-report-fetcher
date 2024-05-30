@@ -1,4 +1,5 @@
 import pytest
+
 from gaarf.query_post_processor import PostProcessorMixin
 
 

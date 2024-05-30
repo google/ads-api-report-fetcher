@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import gaarf.io.reader as reader
 import pytest
+
+import gaarf.io.reader as reader
 
 
 def test_console_reader():

@@ -24,6 +24,7 @@ except ImportError as e:
   ) from e
 
 import logging
+
 import pandas as pd
 
 from gaarf import report as gaarf_report

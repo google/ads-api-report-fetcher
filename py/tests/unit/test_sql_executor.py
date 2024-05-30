@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 import sqlalchemy
+
 from gaarf import sql_executor
 
 

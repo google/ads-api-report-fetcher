@@ -24,18 +24,15 @@ import importlib
 import operator
 import re
 from collections import abc
-from typing import get_args
-from typing import Union
+from typing import Union, get_args
 
 import proto  # type: ignore
-from gaarf import api_clients
-from gaarf import exceptions
-from gaarf import query_editor
 from google import protobuf
 from google.ads.googleads import util as googleads_utils
 from proto.marshal.collections import repeated
-from typing_extensions import Self
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
+
+from gaarf import api_clients, exceptions, query_editor
 
 google_ads_service = importlib.import_module(
   f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}.'

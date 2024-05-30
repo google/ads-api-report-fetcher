@@ -25,12 +25,12 @@ except ImportError as e:
     '`pip install google-ads-api-report-fetcher[sheet]`'
   ) from e
 
-import logging
 import datetime
+import logging
 
 from gaarf.io import formatter
-from gaarf.report import GaarfReport
 from gaarf.io.writers.abs_writer import AbsWriter
+from gaarf.report import GaarfReport
 
 
 class SheetWriter(AbsWriter):

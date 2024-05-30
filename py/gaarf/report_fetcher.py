@@ -24,20 +24,21 @@ import importlib
 import itertools
 import logging
 import warnings
-from collections.abc import MutableSequence
-from collections.abc import Sequence
+from collections.abc import MutableSequence, Sequence
 from concurrent import futures
-from typing import Any
-from typing import Generator
+from typing import Any, Generator
 
-from gaarf import api_clients
-from gaarf import builtin_queries
-from gaarf import exceptions
-from gaarf import parsers
-from gaarf import query_editor
-from gaarf import report
 from google.ads.googleads import errors as googleads_exceptions
 from google.api_core import exceptions as google_exceptions
+
+from gaarf import (
+  api_clients,
+  builtin_queries,
+  exceptions,
+  parsers,
+  query_editor,
+  report,
+)
 
 google_ads_service = importlib.import_module(
   f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}.'

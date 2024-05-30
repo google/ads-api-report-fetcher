@@ -18,11 +18,9 @@ import logging
 
 import pytest
 import tenacity
-from gaarf import api_clients
-from gaarf import parsers
-from gaarf import query_editor
-from gaarf import report_fetcher
 from google.api_core import exceptions as google_exceptions
+
+from gaarf import api_clients, parsers, query_editor, report_fetcher
 
 _QUERY = 'SELECT customer.id AS customer_id FROM customer'
 _EXPECTED_RESULTS = [

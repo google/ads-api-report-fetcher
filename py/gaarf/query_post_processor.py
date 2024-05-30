@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
-from jinja2 import Template, Environment, FileSystemLoader
 import logging
+from typing import Any, Dict, Optional
+
+from jinja2 import Environment, FileSystemLoader, Template
 
 logger = logging.getLogger(__name__)
 

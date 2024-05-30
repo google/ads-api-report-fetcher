@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from gaarf.io import formatter
 from gaarf.report import GaarfReport
 

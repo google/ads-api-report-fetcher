@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import pytest
 import tenacity
-from gaarf import api_clients
 from google.api_core import exceptions as google_exceptions
+
+from gaarf import api_clients
 
 
 class TestBaseClient:

@@ -28,6 +28,7 @@ import re
 from typing import Any
 
 import pandas as pd
+
 from gaarf import query_post_processor
 
 

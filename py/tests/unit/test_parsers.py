@@ -18,11 +18,12 @@ import json
 
 import proto
 import pytest
-from gaarf import exceptions
-from gaarf import parsers
-from gaarf import query_editor
-from google.ads.googleads.v16.resources.types import ad_group_ad_asset_view
-from google.ads.googleads.v16.resources.types import change_event
+from google.ads.googleads.v16.resources.types import (
+  ad_group_ad_asset_view,
+  change_event,
+)
+
+from gaarf import exceptions, parsers, query_editor
 
 
 @dataclasses.dataclass

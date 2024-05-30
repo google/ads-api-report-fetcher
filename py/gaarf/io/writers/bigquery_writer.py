@@ -23,16 +23,17 @@ except ImportError as e:
     '- `pip install google-ads-api-report-fetcher[bq]`'
   ) from e
 
-import logging
 import datetime
-import proto  # type: ignore
-import pandas as pd
+import logging
+
 import numpy as np
+import pandas as pd
+import proto  # type: ignore
 from google.cloud.exceptions import NotFound  # type: ignore
 
-from gaarf.report import GaarfReport
 from gaarf.io import formatter
 from gaarf.io.writers.abs_writer import AbsWriter
+from gaarf.report import GaarfReport
 
 
 class BigQueryWriter(AbsWriter):

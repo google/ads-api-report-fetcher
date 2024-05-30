@@ -20,6 +20,7 @@ import logging
 from typing import Literal
 
 import proto  # type: ignore
+
 from gaarf.io import formatter
 from gaarf.report import GaarfReport
 

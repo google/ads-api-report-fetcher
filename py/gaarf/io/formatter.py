@@ -17,13 +17,12 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import Callable
-from typing import get_args
-from typing import Union
+from typing import Callable, Union, get_args
 
 import proto  # type: ignore
-from gaarf.report import GaarfReport
 from typing_extensions import TypeAlias
+
+from gaarf.report import GaarfReport
 
 _NESTED_FIELD: TypeAlias = Union[
   list,

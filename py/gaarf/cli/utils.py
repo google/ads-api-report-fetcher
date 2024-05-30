@@ -21,20 +21,17 @@ import logging
 import os
 import sys
 import traceback
-from collections.abc import MutableSequence
-from collections.abc import Sequence
-from typing import Any
-from typing import Callable
-from typing import TypedDict
+from collections.abc import MutableSequence, Sequence
+from typing import Any, Callable, TypedDict
 
 import smart_open
 import yaml
 from dateutil import relativedelta
-from gaarf import api_clients
-from gaarf import query_editor
-from gaarf.io import writer
 from google.ads.googleads import errors as google_ads_errors
 from rich import logging as rich_logging
+
+from gaarf import api_clients, query_editor
+from gaarf.io import writer
 
 
 class GaarfQueryParameters(TypedDict):

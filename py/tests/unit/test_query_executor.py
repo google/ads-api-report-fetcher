@@ -13,8 +13,8 @@
 from __future__ import annotations
 
 import pytest
-from gaarf import api_clients
-from gaarf import query_executor
+
+from gaarf import api_clients, query_executor
 
 
 @pytest.fixture

@@ -25,8 +25,9 @@ except ImportError as e:
 
 import logging
 
-from google.cloud import exceptions as google_cloud_exceptions
 import pandas as pd
+from google.cloud import exceptions as google_cloud_exceptions
+
 from gaarf import query_post_processor
 
 logger = logging.getLogger(__name__)

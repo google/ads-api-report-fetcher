@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from gaarf.io.writers import json_writer
 
 _TMP_FILENAME = 'test.json'

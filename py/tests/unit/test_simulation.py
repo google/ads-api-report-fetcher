@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import pytest
+
 from gaarf.api_clients import GOOGLE_ADS_API_VERSION
 from gaarf.query_editor import QuerySpecification
-from gaarf.simulation import simulate_data
-from gaarf.simulation import SimulatorSpecification
+from gaarf.simulation import SimulatorSpecification, simulate_data
 
 
 @pytest.fixture

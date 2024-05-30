@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from gaarf import api_clients
-from gaarf import builtin_queries
-from gaarf import report
-from gaarf import report_fetcher
+
+from gaarf import api_clients, builtin_queries, report, report_fetcher
 
 
 class TestBuiltInQueries:

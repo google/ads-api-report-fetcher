@@ -22,11 +22,8 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableSequence
 
-from gaarf import api_clients
-from gaarf import query_editor
-from gaarf import report_fetcher
-from gaarf.io.writers import abs_writer
-from gaarf.io.writers import console_writer
+from gaarf import api_clients, query_editor, report_fetcher
+from gaarf.io.writers import abs_writer, console_writer
 
 logger = logging.getLogger(__name__)
 

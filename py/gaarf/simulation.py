@@ -22,8 +22,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from faker import Faker
-from gaarf.api_clients import BaseClient
-from gaarf.api_clients import GOOGLE_ADS_API_VERSION
+
+from gaarf.api_clients import GOOGLE_ADS_API_VERSION, BaseClient
 from gaarf.query_editor import QuerySpecification
 from gaarf.query_executor import AdsReportFetcher
 from gaarf.report import GaarfReport

@@ -3,12 +3,11 @@ from __future__ import annotations
 import argparse
 
 import yaml
+
 from gaarf import simulation
 from gaarf.api_clients import GOOGLE_ADS_API_VERSION
-from gaarf.cli.utils import GaarfConfigBuilder
-from gaarf.cli.utils import init_logging
-from gaarf.io import reader
-from gaarf.io import writer
+from gaarf.cli.utils import GaarfConfigBuilder, init_logging
+from gaarf.io import reader, writer
 
 
 def main():

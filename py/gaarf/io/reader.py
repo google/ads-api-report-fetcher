@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
 import abc
+from typing import Dict
+
 from smart_open import open  # type: ignore
 
 

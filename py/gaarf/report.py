@@ -17,14 +17,12 @@ import itertools
 import operator
 import warnings
 from collections import defaultdict
-from collections.abc import MutableSequence
-from collections.abc import Sequence
-from typing import Any
-from typing import Literal
+from collections.abc import MutableSequence, Sequence
+from typing import Any, Literal
 
 import pandas as pd
-from gaarf import exceptions
-from gaarf import query_editor
+
+from gaarf import exceptions, query_editor
 
 
 class GaarfReport:
