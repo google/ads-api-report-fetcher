@@ -18,7 +18,7 @@ from __future__ import annotations
 import warnings
 
 import sqlalchemy
-from gaarf import executors
+from gaarf.executors import sql_executor
 
 
 class SqlAlchemyQueryExecutor:
@@ -26,7 +26,7 @@ class SqlAlchemyQueryExecutor:
 
   def __new__(
     cls, engine: sqlalchemy.engine.base.Engine
-  ) -> executors.sql_executor.SqlAlchemyQueryExecutor:
+  ) -> sql_executor.SqlAlchemyQueryExecutor:
     warnings.warn(
       'Loading SqlAlchemyQueryExecutor from `gaarf.sql_executor` is '
       'deprecated; Import SqlAlchemyQueryExecutor from '
@@ -34,4 +34,4 @@ class SqlAlchemyQueryExecutor:
       category=DeprecationWarning,
       stacklevel=2,
     )
-    return executors.sql_executor.SqlAlchemyQueryExecutor(engine)
+    return sql_executor.SqlAlchemyQueryExecutor(engine)
