@@ -55,7 +55,11 @@ class BigQueryExecutor(query_post_processor.PostProcessorMixin):
     """
     self.project_id = project_id
     self.location = location
-    self.client = bigquery.Client(project_id)
+
+  @property
+  def client(self) -> bigquery.Client:
+    """Instantiates bigquery client."""
+    return bigquery.Client(self.project_id)
 
   def execute(
     self, script_name: str, query_text: str, params: dict | None = None
