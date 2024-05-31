@@ -952,6 +952,9 @@ cd ./gcp/workflow
 ./setup.sh --name ${workflow_name} --region ${gcp_region}
 cd ./../functions
 ./setup.sh --name ${function_name} --memory ${cf_memory} --region ${gcp_region}
+
+# to enable debug logging
+#gcloud functions deploy ${function_name} --update-env-vars LOG_LEVEL=debug --region ${gcp_region}
 `
   );
 

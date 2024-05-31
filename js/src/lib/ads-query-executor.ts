@@ -99,8 +99,19 @@ export class AdsQueryExecutor {
     let sync = options?.parallelAccounts === false || customers.length === 1;
     let threshold =
       options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
-    if (sync)
-      this.logger.verbose(`Running in synchronous mode`, { scriptName });
+    if (customers.length > 1) {
+      this.logger.verbose(
+        `Executing (API ${AdsApiVersion}) '${scriptName}' query for ${
+          customers.length
+        } accounts in ${sync ? "synchronous" : "parallel"} mode`,
+        { scriptName }
+      );
+    } else {
+      this.logger.verbose(
+        `Executing (API ${AdsApiVersion}) '${scriptName}' query for single account (${customers[0]})`
+      );
+    }
+
     let query = this.parseQuery(queryText, scriptName, macros);
     let isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
