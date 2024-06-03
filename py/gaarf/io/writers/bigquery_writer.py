@@ -73,7 +73,9 @@ class BigQueryWriter(AbsWriter):
       f'{self.dataset_id}.{destination}', schema
     )
     job_config = bigquery.LoadJobConfig(
-      write_disposition=self.write_disposition, schema=schema
+      write_disposition=self.write_disposition,
+      schema=schema,
+      source_format='CSV',
     )
 
     if not report:
