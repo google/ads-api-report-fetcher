@@ -1,3 +1,16 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
 
 from collections import abc
@@ -37,8 +50,7 @@ def test_single_column_report_returns_sequence(single_column_report):
 
 
 def test_multi_column_report_returns_gaarf_row(multi_column_report):
-  results = [row for row in multi_column_report]
-  assert isinstance(results[0], report.GaarfRow)
+  assert isinstance(list(multi_column_report)[0], report.GaarfRow)
 
 
 def test_multi_column_report_support_iteration_with_gaarf_iterator(
@@ -361,9 +373,7 @@ def test_empty_report_converted_to_dict_with_key_column(multi_column_report):
   assert output_dict == {key_column: None}
 
 
-def test_report_with_different_columns_not_equal(
-  single_column_report, multi_column_report
-):
+def test_report_with_different_columns_not_equal(multi_column_report):
   assert single_element_report != multi_column_report
 
 
