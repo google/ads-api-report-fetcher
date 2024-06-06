@@ -28,6 +28,7 @@ pip install google-ads-api-report-fetcher
 #### Versions of the library
 
 *  `google-ads-api-report-fetcher[bq]` - version with BigQuery support
+*  `google-ads-api-report-fetcher[pandas]` - version with Pandas support
 *  `google-ads-api-report-fetcher[sqlalchemy]` - version with SQLalchemy support
 * `google-ads-api-report-fetcher[simulator]` - version with support for [simulating
     query results](../docs/simulating-data-with-gaarf.md) instead of calling Google Ads API.
@@ -53,7 +54,7 @@ Once `google-ads-api-report-fetcher` is installed you can use it as a library.
 `GoogleAdsApiClient` is responsible for connecting to Google Ads API and provides several methods for authentication.
 
 ```python
-from gaarf.api_clients import GoogleAdsApiClient
+from gaarf import GoogleAdsApiClient
 
 
 # initialize from local file
@@ -77,8 +78,7 @@ client = GoogleAdsApiClient(config_dict=google_ads_config_dict)
 ### initialize `AdsReportFetcher` to get reports
 
 ```python
-from gaarf.query_executor import AdsReportFetcher, AdsQueryExecutor
-
+from gaarf.report_fetcher import AdsReportFetcher
 
 report_fetcher = AdsReportFetcher(client)
 
@@ -320,15 +320,15 @@ sheet_writer.write(campaigns, destination="my_table_name")
 If your job is to execute query and write it to local/remote storage you can use `AdsQueryExecutor` to do it easily.
 > When reading query from file `AdsQueryExecutor` will use query file name as a name for output file/table.
 ```python
-from gaarf.io import reader, writer
-from gaarf.query_executor import AdsQueryExecutor
+from gaarf.io import reader, writers
+from gaarf.executors import AdsQueryExecutor
 
 
 # initialize query_executor to fetch report and store them in local/remote storage
 query_executor = AdsQueryExecutor(client)
 
 # initialize writer
-csv_writer = writer.CsvWriter(destination_folder="/tmp")
+csv_writer = writers.csv_writer.CsvWriter(destination_folder="/tmp")
 reader_client = reader.FileReader()
 
 query_text = """
