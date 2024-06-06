@@ -189,6 +189,7 @@ This will return all campaign budgets and attach current date (i.e. 2023-06-01) 
 `gaarf` by default has several common macros:
 
 * `date_iso` - current date in YYYYMMDD format (i.e. *19700101*)
+* `yesterday_iso` - previous day date in YYYY-MM-DD format (i.e. *19700101*)
 * `current_date` - current_date in YYYY-MM-DD format (i.e. *1970-01-01*)
 * `current_datetime` - current datetime in YYYY-MM-DD HH:mm-ss format (i.e. *1970-01-01 00:00:00*)
 

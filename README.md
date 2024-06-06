@@ -102,12 +102,12 @@ Options:
 
 * `parallel-accounts` - how one query is processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel (*NodeJS version only*, for Python - always sequentially)
 * `parallel-queries` - how to process queries files: all in parallel (true) or sequentially (false). By default - in parallel (*Python version only*, for NodeJS - always sequentially)
-* `parallel-threshold` - a number, maximum number of parallel queries (*NodeJS version only*)
+* `parallel-threshold` - a number, maximum number of parallel queries.
 
 
 Options specific for CSV writer:
 * `csv.destination-folder` - output folder where csv files will be created
-* `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
+* `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|'.
 * `csv.file-per-customer` - create a CSV file per customer (default: false) (*NodeJS version only*)
 
 Options specific for BigQuery writer:
@@ -117,14 +117,14 @@ Options specific for BigQuery writer:
 * `bq.table-template`  - template for tables names, `{script}` references script base name, plus you can use [expressions](#expressions-and-macros) (*NodeJS version only*)
 * `bq.dump-schema` - flag that enable dumping json files with schemas for tables (*NodeJS version only*)
 * `bq.no-union-view` - flag that disables creation of "union" view that combines all customer tables (*NodeJS version only*)
-* `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2") (*NodeJS version only*)
-* `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|' (*NodeJS version only*)
+* `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2").
+* `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|'.
 * `bq.key-file-path` - a SA key file path for BigQuery authentication (by default application default credentials will be used) (*NodeJS version only*)
 
-Options specific for Console writer (*NodeJS version only*):
+Options specific for Console writer:
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:
-`auto` (default) - transpose only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose
-* `console.page_size` - maximum rows count to output per each script (aliases: `page-size`, `maxrows` in *NodeJS version only*)
+`auto` (default) - transpose only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose (*NodeJS version only*)j
+* `console.page_size` - maximum rows count to output per each script (aliases: `page-size`, `maxrows`)
 
 Options specific for SqlAlchemy writer (*Python version only*):
 * `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
@@ -339,7 +339,7 @@ Python version creates one table per script. While NodeJS creates a table per sc
 For example, you have a query campaign.sql. As a result you'll get a querable source 'campaign' in BigQuery in any way. But for Python version it'll be a table.
 For NodeJS it'll be a view like `create view dataset.campaign as select * from campaign_* when _TABLE_PREFIX in (cid1,cid2)`, where cid1, cid2 are customer ids you supplied.
 
-From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degrated to string with "|" separator.
+From Ads API we can get arrays, structs and arrays of arrays or structs. In Python version all arrays will be degraded to string with "|" separator.
 In NodeJS version the result by default will be a repeated field (array) but can be degrated to string with separator via the `bq.array-handling` option.
 If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
 
