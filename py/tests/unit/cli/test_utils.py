@@ -20,6 +20,7 @@ import pytest
 import yaml
 from dateutil.relativedelta import relativedelta
 
+from gaarf import api_clients
 from gaarf.cli import utils
 from gaarf.query_editor import CommonParametersMixin
 
@@ -50,14 +51,16 @@ class TestGaarfConfig:
     self, input_account, output_account
   ):
     config = utils.GaarfConfig(
-      output='console', api_version='v16', account=input_account
+      output='console',
+      api_version=api_clients.GOOGLE_ADS_API_VERSION,
+      account=input_account,
     )
     assert config.account == output_account
 
   def test_post_init_returns_correctly_formatted_writer_params(self):
     config = utils.GaarfConfig(
       output='console',
-      api_version='v16',
+      api_version=api_clients.GOOGLE_ADS_API_VERSION,
       account=None,
       writer_params={
         'page-size': 10,
@@ -474,7 +477,7 @@ class TestConfigBuilder:
     def test_build_create_valid_config_from_cli(self):
       expected_config = utils.GaarfConfig(
         output='csv',
-        api_version='v16',
+        api_version=api_clients.GOOGLE_ADS_API_VERSION,
         account='123456789',
         params={
           'macro': {
@@ -502,7 +505,7 @@ class TestConfigBuilder:
     ):
       expected_config = utils.GaarfConfig(
         output='csv',
-        api_version='v16',
+        api_version=api_clients.GOOGLE_ADS_API_VERSION,
         account='123456789',
         params={
           'macro': {
