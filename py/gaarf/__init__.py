@@ -21,8 +21,10 @@ from __future__ import annotations
 
 from gaarf.api_clients import GoogleAdsApiClient
 from gaarf.report import GaarfReport
+from gaarf.report_fetcher import AdsReportFetcher
 
 __all__ = [
   'GaarfReport',
   'GoogleAdsApiClient',
+  'AdsReportFetcher',
 ]

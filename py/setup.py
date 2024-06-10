@@ -40,14 +40,14 @@ EXTRAS_REQUIRE = {
   'bq': [
     'google-cloud-bigquery',
     'pandas>=1.3.4',
-    'smart_open[gcp]',
+    'smart_open[gcs]',
   ],
 }
 EXTRAS_REQUIRE['full'] = list(set(itertools.chain(*EXTRAS_REQUIRE.values())))
 
 setuptools.setup(
   name='google-ads-api-report-fetcher',
-  version='1.14.0',
+  version='1.14.1',
   python_requires='>3.8',
   description=(
     'Library for fetching reports from Google Ads API '
@@ -73,7 +73,7 @@ setuptools.setup(
   ],
   packages=setuptools.find_packages(),
   install_requires=[
-    'google-ads>=24.0.0',
+    'google-ads>=24.1.0',
     'smart_open',
     'jinja2',
     'python-dateutil',
