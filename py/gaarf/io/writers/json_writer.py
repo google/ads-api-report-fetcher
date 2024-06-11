@@ -19,45 +19,47 @@ import json
 import logging
 import os
 
+import smart_open
+
 import gaarf
 from gaarf.io import formatter
-from gaarf.io.writers import abs_writer
+from gaarf.io.writers import file_writer
 
 
-class JsonWriter(abs_writer.AbsWriter):
+class JsonWriter(file_writer.FileWriter):
   """Writes Gaarf Report to JSON.
 
   Attributes:
-      destination_folder: A local folder where JSON files are stored.
+      destination_folder: Destination where JSON files are stored.
   """
 
   def __init__(
-    self, destination_folder: str = os.getcwd(), **kwargs: str
+    self, destination_folder: str | os.PathLike = os.getcwd(), **kwargs: str
   ) -> None:
     """Initializes JsonWriter based on a destination_folder.
 
     Args:
-        destination_folder: A local folder where JSON files are stored.
-    Returns: Description of return.
+      destination_folder: A local folder where JSON files are stored.
+      kwargs: Optional keyword arguments to initialize writer.
     """
-    super().__init__(**kwargs)
-    self.destination_folder = destination_folder
+    super().__init__(destination_folder=destination_folder, **kwargs)
 
   def write(self, report: gaarf.report.GaarfReport, destination: str) -> str:
     """Writes Gaarf report to a JSON file.
 
     Args:
-        report: Gaarf report.
-        destination: Base file name report should be written to.
+      report: Gaarf report.
+      destination: Base file name report should be written to.
+
+    Returns:
+      Base filename where data are written.
     """
     report = self.format_for_write(report)
     destination = formatter.format_extension(destination, new_extension='.json')
-    if not os.path.isdir(self.destination_folder):
-      os.makedirs(self.destination_folder)
+    self.create_dir()
     logging.debug('Writing %d rows of data to %s', len(report), destination)
-    with open(
-      os.path.join(self.destination_folder, destination), 'w', encoding='utf-8'
-    ) as f:
+    output_path = os.path.join(self.destination_folder, destination)
+    with smart_open.open(output_path, 'w', encoding='utf-8') as f:
       json.dump(report.to_list(row_type='dict'), f)
-    logging.debug('Writing to %s is completed', destination)
-    return f'[JSON] - at {destination}'
+    logging.debug('Writing to %s is completed', output_path)
+    return f'[JSON] - at {output_path}'
