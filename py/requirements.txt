@@ -104,20 +104,20 @@ charset-normalizer==3.3.2 \
     --hash=sha256:fd1abc0d89e30cc4e02e4064dc67fcc51bd941eb395c502aac3ec19fab46b519 \
     --hash=sha256:ff8fa367d09b717b2a17a052544193ad76cd49979c805768879cb63d9ca50561
     # via requests
-google-ads==24.0.0 \
-    --hash=sha256:53892ded2a8ede15c1f6af014774a8fdfd7c249ee0800eeab666240ef81c03bd \
-    --hash=sha256:c4db87e6011519d52eb49b7261a7eb8dd29202274efc26cb998d54273d0afc14
+google-ads==24.1.0 \
+    --hash=sha256:617ef1ab55f942238348435c6caf11aababac100fdc11fb883ea1ee63ffe6b9d \
+    --hash=sha256:b77f0169e1e3f075f2482ee9b4a8b6a5acb8565ec4c35b8550a752d0cd557bc9
     # via google-ads-api-report-fetcher
-google-ads-api-report-fetcher==1.14.0 \
-    --hash=sha256:30423163d218290de3c152f143c21d782f7c34e438463a8d704c930d8231de33
+google-ads-api-report-fetcher==1.14.1 \
+    --hash=sha256:271a0c6a0c23a798dd5bdb5d20911c6abac32a337ee8f3662a1cd8c1b96147d8
     # via -r requirements.in
 google-api-core==2.19.0 \
     --hash=sha256:8661eec4078c35428fd3f69a2c7ee29e342896b70f01d1a1cbcb334372dd6251 \
     --hash=sha256:cf1b7c2694047886d2af1128a03ae99e391108a08804f87cfd35970e49c9cd10
     # via google-ads
-google-auth==2.29.0 \
-    --hash=sha256:672dff332d073227550ffc7457868ac4218d6c500b155fe6cc17d2b13602c360 \
-    --hash=sha256:d452ad095688cd52bae0ad6fafe027f6a6d6f560e810fec20914e17a09526415
+google-auth==2.30.0 \
+    --hash=sha256:8df7da660f62757388b8a7f249df13549b3373f24388cb5d2f1dd91cc18180b5 \
+    --hash=sha256:ab630a1320f6720909ad76a7dbdb6841cdf5c66b328d690027e4867bdfb16688
     # via
     #   google-api-core
     #   google-auth-oauthlib
@@ -393,9 +393,9 @@ tenacity==8.3.0 \
     --hash=sha256:3649f6443dbc0d9b01b9d8020a9c4ec7a1ff5f6f3c6c8a036ef371f573fe9185 \
     --hash=sha256:953d4e6ad24357bceffbc9707bc74349aca9d245f68eb65419cf0c249a1949a2
     # via google-ads-api-report-fetcher
-typing-extensions==4.12.1 \
-    --hash=sha256:6024b58b69089e5a89c347397254e35f1bf02a907728ec7fee9bf0fe837d203a \
-    --hash=sha256:915f5e35ff76f56588223f15fdd5938f9a1cf9195c0de25130c627e4d597f6d1
+typing-extensions==4.12.2 \
+    --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d \
+    --hash=sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8
     # via google-ads-api-report-fetcher
 urllib3==2.2.1 \
     --hash=sha256:450b20ec296a467077128bff42b73080516e71b56ff59a60a02bef2232c4fa9d \
