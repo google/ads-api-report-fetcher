@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/async": "^3.2.20",
+    "@types/async": "^3.2.24",
     "@types/mocha": "^10.0.1",
     "@types/nunjucks": "^3.2.3",
     "mocha": "^10.2.0",

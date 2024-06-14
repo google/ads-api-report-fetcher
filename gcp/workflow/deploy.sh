@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #------------------------------------------------------------------------------
+SCRIPT_PATH=$(readlink -f "$0" | xargs dirname)
+pushd $SCRIPT_PATH > /dev/null
 
 WORKFLOW_NAME=gaarf-wf
-REGION=us-central1
+REGION=
+SERVICE_ACCOUNT=
 
 while :; do
     case $1 in
@@ -26,7 +29,11 @@ while :; do
       ;;
   -r|--region)
       shift
-      REGION=$1
+      REGION=--location=$1
+      ;;
+  -sa|--service-account)
+      shift
+      SERVICE_ACCOUNT=--service-account=$1
       ;;
   *)
       break
@@ -34,7 +41,8 @@ while :; do
   shift
 done
 
-gcloud workflows deploy ${WORKFLOW_NAME}-ads --source=workflow-ads.yaml --location=$REGION
+gcloud workflows deploy ${WORKFLOW_NAME}-ads --source=workflow-ads.yaml $REGION $SERVICE_ACCOUNT
 
-gcloud workflows deploy ${WORKFLOW_NAME} --source=workflow.yaml --location=$REGION
+gcloud workflows deploy ${WORKFLOW_NAME} --source=workflow.yaml $REGION $SERVICE_ACCOUNT
 
+popd > /dev/null

@@ -24,10 +24,13 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+SCRIPT_PATH=$(readlink -f "$0" | xargs dirname)
+pushd $SCRIPT_PATH > /dev/null
+
 FUNCTION_NAME=gaarf
-REGION=us-central1
+REGION=
 MEMORY=1024MB
-RETRIES=5
+RETRIES=10
 MAX_INSTANCES=
 
 while :; do
@@ -38,7 +41,7 @@ while :; do
       ;;
   -r|--region)
       shift
-      REGION=$1
+      REGION=--region=$1
       ;;
   -m|--memory)
       shift
@@ -59,6 +62,10 @@ while :; do
       shift
       MAX_INSTANCES=--max-instances=$1
       ;;
+  --service-account)
+      shift
+      SERVICE_ACCOUNT=--service-account=$1
+      ;;
   *)
       break
     esac
@@ -78,10 +85,11 @@ function execute_deploy() {
       --runtime=nodejs18 \
       --timeout=3600s \
       --memory=$memory \
-      --region=$REGION \
+      $REGION \
       --quiet \
       --gen2 \
       $MAX_INSTANCES \
+      $SERVICE_ACCOUNT \
       --source=.
   echo $? > $statusfile
 }
@@ -94,7 +102,7 @@ function redeploy_cf() {
     memory='512MB' # default memory for CF Gen2 usually not enough to build them, with 512 it works fine
   fi
   # it's ok if it fails:
-  gcloud functions delete $deployable_function --gen2 --region=$REGION --quiet 2> /dev/null
+  gcloud functions delete $deployable_function --gen2 $REGION --quiet 2> /dev/null
 
   echo -e "${CYAN}Deploying $deployable_function Cloud Function${NC}"
   if [[ $NO_RETRY ]]; then
@@ -117,6 +125,10 @@ function redeploy_cf() {
         break
       else
         if [[ $output == *"OperationError: code=7, message=Unable to retrieve the repository metadata"* ]]; then
+          if [[ $i -eq $RETRIES ]]; then
+            echo -e "${RED}Breaking script as maximum number of retries ($RETRIES) exceeded${NC}"
+            exit $exitcode
+          fi
           echo -e "${CAYN}Retrying the deployment ($i)...${NC}"
           continue
         else
@@ -140,3 +152,5 @@ redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS
 redeploy_cf $FUNCTION_NAME-bq main_bq
 
 redeploy_cf $FUNCTION_NAME-bq-view main_bq_view
+
+popd > /dev/null

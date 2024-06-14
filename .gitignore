@@ -12,8 +12,6 @@ tags
 .idea/
 *eggs
 *egg-info
-build
-dist
 .tox
 .coverage
 .python-version

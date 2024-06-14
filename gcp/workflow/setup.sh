@@ -18,6 +18,7 @@
 # causes the shell to exit if any subcommand or pipeline returns a non-zero status
 # (free us of checking exitcode after every command)
 set -e
+echo -e "\033[0;31mWARNING: this script is obsolete, please use gcp/setup.sh.\033[0m"
 
 enable_api() {
   gcloud services enable compute.googleapis.com
