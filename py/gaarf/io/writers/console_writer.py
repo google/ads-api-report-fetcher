@@ -16,29 +16,57 @@
 from __future__ import annotations
 
 import rich
-from rich.console import Console
-from rich.table import Table
+from rich import console, table
+from rich import json as rich_json
 
-from gaarf.io.writers.abs_writer import AbsWriter
-from gaarf.report import GaarfReport
+from gaarf import report as gaarf_report
+from gaarf.io.writers import abs_writer
 
 
-class ConsoleWriter(AbsWriter):
-  def __init__(self, page_size: int = 10, **kwargs):
+class ConsoleWriter(abs_writer.AbsWriter):
+  """Writes reports to standard output.
+
+  Attributes:
+    page_size: How many row of report should be written
+    type: Type of output ('table', 'json').
+  """
+
+  def __init__(
+    self, page_size: int = 10, format: str = 'table', **kwargs: str
+  ) -> None:
+    """Initializes ConsoleWriter.
+
+    Args:
+        page_size: How many row of report should be written
+        format: Type of output ('table', 'json').
+        kwargs: Optional parameter to initialize writer.
+    """
     super().__init__(**kwargs)
     self.page_size = int(page_size)
+    self.format = format
 
-  def write(self, report: GaarfReport, destination: str) -> None:
+  def write(self, report: gaarf_report.GaarfReport, destination: str) -> None:
+    """Writes Gaarf report to standard output.
+
+    Args:
+      report: Gaarf report.
+      destination: Base file name report should be written to.
+    """
     report = self.format_for_write(report)
-    console = Console()
-    table = Table(
-      title=f"showing results for query <{destination.split('/')[-1]}>",
-      caption=f'showing rows 1-{min(self.page_size, len(report))} out of total {len(report)}',
-      box=rich.box.MARKDOWN,
-    )
-    for header in report.column_names:
-      table.add_column(header)
-    for i, row in enumerate(report):
-      if i < self.page_size:
-        table.add_row(*[str(field) for field in row])
-    console.print(table)
+    if self.format == 'table':
+      output_table = table.Table(
+        title=f"showing results for query <{destination.split('/')[-1]}>",
+        caption=(
+          f'showing rows 1-{min(self.page_size, len(report))} '
+          f'out of total {len(report)}'
+        ),
+        box=rich.box.MARKDOWN,
+      )
+      for header in report.column_names:
+        output_table.add_column(header)
+      for i, row in enumerate(report):
+        if i < self.page_size:
+          output_table.add_row(*[str(field) for field in row])
+    elif self.format == 'json':
+      output_table = rich_json.JSON(report.to_json())
+    console.Console().print(output_table)
