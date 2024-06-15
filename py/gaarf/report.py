@@ -23,6 +23,7 @@ Module exposes two classes:
 from __future__ import annotations
 
 import itertools
+import json
 import operator
 import warnings
 from collections import defaultdict
@@ -186,6 +187,14 @@ class GaarfReport:
         '- `pip install google-ads-api-report-fetcher[pandas]`'
       ) from e
     return pd.DataFrame(data=self.results, columns=self.column_names)
+
+  def to_json(self) -> str:
+    """Converts report to JSON.
+
+    Returns:
+        JSON from report results and column_names.
+    """
+    return json.dumps(self.to_list(row_type='dict'))
 
   def __len__(self):
     """Returns number of rows in the report."""
