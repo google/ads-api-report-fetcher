@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import itertools
 import json
-import operator
 import warnings
 from collections import defaultdict
 from collections.abc import MutableSequence, Sequence
@@ -41,6 +40,7 @@ class GaarfReport:
       column_names: Maps in each element in sublist of results to name.
       results_placeholder: Optional placeholder values for missing results.
       query_specification: Specification used to get data from Ads API.
+      auto_convert_to_scalars: Whether to simplify slicing operations.
   """
 
   def __init__(
@@ -50,6 +50,7 @@ class GaarfReport:
     results_placeholder: Sequence[Sequence[parsers.GoogleAdsRowElement]]
     | None = None,
     query_specification: query_editor.QuerySpecification | None = None,
+    auto_convert_to_scalars: bool = True,
   ) -> None:
     """Initializes GaarfReport from API response.
 
@@ -58,6 +59,7 @@ class GaarfReport:
         column_names: Maps in each element in sublist of results to name.
         results_placeholder: Optional placeholder values for missing results.
         query_specification: Specification used to get data from Ads API.
+        auto_convert_to_scalars: Whether to simplify slicing operations.
     """
     self.results = results
     self.column_names = column_names
@@ -67,6 +69,23 @@ class GaarfReport:
     else:
       self.results_placeholder = []
     self.query_specification = query_specification
+    self.auto_convert_to_scalars = auto_convert_to_scalars
+
+  def disable_scalar_conversions(self):
+    """Disables auto conversions of scalars of reports slices.
+
+    Ensures that slicing and indexing operations always return GaarfReport or
+    GaarfRow instead of underlying sequences and scalars
+    """
+    self.auto_convert_to_scalars = False
+
+  def enable_scalar_conversions(self):
+    """Enables auto conversions of scalars of reports slices.
+
+    Ensures that slicing and indexing operations might return underlying
+    sequences and scalars whenever possible.
+    """
+    self.auto_convert_to_scalars = True
 
   def to_list(
     self,
@@ -243,50 +262,95 @@ class GaarfReport:
   def __str__(self):
     return self.to_pandas().to_string()
 
-  def __getitem__(self, key: str) -> GaarfReport | GaarfRow:
-    """Simplified getting data from the report.
+  def __getitem__(
+    self, key: str | int | slice | MutableSequence[str]
+  ) -> GaarfReport | GaarfRow:
+    """Gets data from report based on a key.
+
+    Data can be extract from report by rows and columns.
+    For single column extraction use `report['column_name']` syntax;
+    for multiple columns extract use `report[['column_1', 'column_2']]`.
+    For single row extraction use `report[0]` syntax;
+    for multiple rows extraction use `report[0:2]` syntax.
 
     Args:
-        key: element to get from report. Could be index, slice or column_name.
+      key:
+        element to get from report. Could be index, slice or column_name(s).
+
+    Returns:
+      New GaarfReport or GaarfRow.
 
     Raises:
         GaarfReportException: When incorrect column_name specified.
     """
-    cls = type(self)
-    if isinstance(key, MutableSequence):
-      if set(key).issubset(set(self.column_names)):
-        indices = []
-        for k in key:
-          indices.append(self.column_names.index(k))
-        results = []
-        for row in self.results:
-          rows = []
-          for index in indices:
-            rows.append(row[index])
-          results.append(rows)
-        return cls(results, key)
-      non_existing_keys = set(key).intersection(set(self.column_names))
-      if len(non_existing_keys) > 1:
-        message = (
-          f"Columns '{', '.join(list(non_existing_keys))}' "
-          'cannot be found in the report'
-        )
-      message = (
-        f"Column '{non_existing_keys.pop()}' " 'cannot be found in the report'
+    if isinstance(key, (MutableSequence, str)):
+      return self._get_columns_slice(key)
+    return self._get_rows_slice(key)
+
+  def _get_rows_slice(
+    self, key: slice | int
+  ) -> GaarfReport | GaarfRow | parsers.GoogleAdsRowElement:
+    """Gets one or several rows from the report.
+
+    Args:
+        key: Row(s) to get from report. Could be index or slice.
+
+    Returns:
+      New GaarfReport or GaarfRow.
+    """
+    if not self._multi_column_report and self.auto_convert_to_scalars:
+      warnings.warn(
+        'Getting scalars from single column `GaarfReport` is discouraged and '
+        'will be deprecated in future releases of gaarf. To get scalar value '
+        'use `get_value()` method instead. '
+        'Call `.disable_scalar_conversions()` to return GaarfRow '
+        'or GaarfReport.',
+        category=FutureWarning,
+        stacklevel=3,
       )
-      raise exceptions.GaarfReportException(message)
-    if key in self.column_names:
-      index = self.column_names.index(key)
-      results = [[row[index]] for row in self.results]
-      return cls(results, [key])
-    if self._multi_column_report:
       if isinstance(key, slice):
-        return cls(self.results[key], self.column_names)
-      return GaarfRow(self.results[key], self.column_names)
+        return [element[0] for element in self.results[key]]
+      return self.results[key]
     if isinstance(key, slice):
-      return [element[0] for element in self.results[key]]
-    index = operator.index(key)
-    return self.results[key]
+      return GaarfReport(self.results[key], self.column_names)
+    return GaarfRow(self.results[key], self.column_names)
+
+  def _get_columns_slice(self, key: str | MutableSequence[str]) -> GaarfReport:
+    """Gets one or several columns from the report.
+
+    Args:
+      key: Column(s) to get from the report.
+
+    Returns:
+      New GaarfReport or GaarfRow.
+
+    Raises:
+        GaarfReportException: When incorrect column_name specified.
+    """
+    if isinstance(key, str):
+      key = [key]
+    if set(key).issubset(set(self.column_names)):
+      indices = []
+      for k in key:
+        indices.append(self.column_names.index(k))
+      results = []
+      for row in self.results:
+        rows = []
+        for index in indices:
+          rows.append(row[index])
+        results.append(rows)
+      # TODO: propagate placeholders and query specification to new report
+      return GaarfReport(results, key)
+    non_existing_keys = set(key).intersection(set(self.column_names))
+    if len(non_existing_keys) > 1:
+      message = (
+        f"Columns '{', '.join(list(non_existing_keys))}' "
+        'cannot be found in the report'
+      )
+    message = (
+      f"Column '{non_existing_keys.pop()}' " 'cannot be found in the report'
+    )
+    raise exceptions.GaarfReportException(message)
 
   def __eq__(self, other) -> bool:
     if not isinstance(other, self.__class__):
@@ -358,8 +422,8 @@ class GaarfRow:
   """
 
   def __init__(
-    self, data: Sequence[int | float | str], column_names: Sequence[str]
-  ):
+    self, data: parsers.GoogleAdsRowElement, column_names: Sequence[str]
+  ) -> None:
     """Initializes new GaarfRow.
 
     data: ...
@@ -371,6 +435,20 @@ class GaarfRow:
   def to_dict(self) -> dict[str, parsers.GoogleAdsRowElement]:
     """Maps column names to corresponding data point."""
     return {x[1]: x[0] for x in zip(self.data, self.column_names)}
+
+  def get_value(self, column_index: int = 0) -> parsers.GoogleAdsRowElement:
+    """Extracts data from row as a scalar.
+
+    Raises:
+      GaarfReportException: If column index is out of bounds.
+    """
+    if column_index >= len(self.column_names):
+      raise exceptions.GaarfReportException(
+        'Column %d of report is not found; report contains only %d columns.',
+        column_index,
+        len(self.column_names) + 1,
+      )
+    return self.data[column_index]
 
   def __getattr__(self, element: str) -> parsers.GoogleAdsRowElement:
     """Gets element from row as an attribute.

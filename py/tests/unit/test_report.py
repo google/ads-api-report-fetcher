@@ -198,19 +198,57 @@ class TestGaarfReport:
       with pytest.raises(exceptions.GaarfReportException):
         multi_column_report[['campaign_id', 'ad_group']]
 
-    def test_slicing_multi_column_gaarf_report_returns_slice(
+    def test_slicing_single_column_gaarf_report_returns_report(
       self,
       single_column_report,
     ):
+      single_column_report.disable_scalar_conversions()
       new_report = single_column_report[0:2]
-      assert new_report == [1, 1]
+      expected_report = report.GaarfReport(
+        results=[[1], [1]], column_names=['campaign_id']
+      )
+      assert new_report == expected_report
 
-    def test_slicing_multi_column_gaarf_report_returns_element(
+    def test_slicing_single_column_gaarf_report_returns_row(
       self,
       single_column_report,
     ):
-      new_report = single_column_report[0]
-      assert new_report == [1]
+      single_column_report.disable_scalar_conversions()
+      row = single_column_report[0]
+      expected_row = report.GaarfRow(data=[1], column_names=['campaign_id'])
+      assert row == expected_row
+
+    def test_slicing_single_column_gaarf_report_returns_slice(
+      self,
+      single_column_report,
+    ):
+      with pytest.warns(FutureWarning) as w:
+        result = single_column_report[0:2]
+        assert result == [1, 1]
+        assert len(w) == 1
+        assert str(w[0].message) == (
+          'Getting scalars from single column `GaarfReport` is discouraged and '
+          'will be deprecated in future releases of gaarf. To get scalar value '
+          'use `get_value()` method instead. '
+          'Call `.disable_scalar_conversions()` to return GaarfRow '
+          'or GaarfReport.'
+        )
+
+    def test_slicing_single_column_gaarf_report_returns_element(
+      self,
+      single_column_report,
+    ):
+      with pytest.warns(FutureWarning) as w:
+        result = single_column_report[0]
+        assert result == [1]
+        assert len(w) == 1
+        assert str(w[0].message) == (
+          'Getting scalars from single column `GaarfReport` is discouraged and '
+          'will be deprecated in future releases of gaarf. To get scalar value '
+          'use `get_value()` method instead. '
+          'Call `.disable_scalar_conversions()` to return GaarfRow '
+          'or GaarfReport.'
+        )
 
     def test_set_existing_attribute_gaarf_multiple_rows_updates_columns(
       self,
