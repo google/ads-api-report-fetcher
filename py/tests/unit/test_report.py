@@ -366,6 +366,35 @@ class TestGaarfReport:
       )
       assert multi_column_report.to_pandas().equals(expected)
 
+    def test_get_value_single_element_report_returns_correct_value(
+      self,
+      single_element_report,
+    ):
+      assert single_element_report.get_value() == 1
+
+    def test_get_value_multi_column_report_returns_index_position(
+      self,
+      multi_column_report,
+    ):
+      assert (
+        multi_column_report.get_value(column_index=1, row_index=1)
+        == multi_column_report[1][1]
+      )
+
+    def test_get_value_raises_exception_when_column_index_out_of_bound(
+      self,
+      single_element_report,
+    ):
+      with pytest.raises(exceptions.GaarfReportException):
+        single_element_report.get_value(column_index=1)
+
+    def test_get_value_raises_exception_when_row_index_out_of_bound(
+      self,
+      single_element_report,
+    ):
+      with pytest.raises(exceptions.GaarfReportException):
+        single_element_report.get_value(row_index=1)
+
   class TestGaarfReportEquality:
     def test_report_with_different_columns_not_equal(
       self, single_element_report, multi_column_report

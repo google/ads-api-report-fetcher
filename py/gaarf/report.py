@@ -196,6 +196,28 @@ class GaarfReport:
     """
     return json.dumps(self.to_list(row_type='dict'))
 
+  def get_value(
+    self, column_index: int = 0, row_index: int = 0
+  ) -> parsers.GoogleAdsRowElement:
+    """Extracts data from report as a scalar.
+
+    Raises:
+      GaarfReportException: If row or column index are out of bounds.
+    """
+    if column_index >= len(self.column_names):
+      raise exceptions.GaarfReportException(
+        'Column %d of report is not found; report contains only %d columns.',
+        column_index,
+        len(self.column_names) + 1,
+      )
+    if row_index >= len(self):
+      raise exceptions.GaarfReportException(
+        'Row %d of report is not found; report contains only %d rows.',
+        row_index,
+        len(self) + 1,
+      )
+    return self.results[column_index][row_index]
+
   def __len__(self):
     """Returns number of rows in the report."""
     return len(self.results)
