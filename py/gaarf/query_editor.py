@@ -16,10 +16,12 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import dataclasses
 import datetime
 import operator
 import re
+from typing import Generator
 
 from dateutil import relativedelta
 
@@ -36,6 +38,19 @@ VALID_VIRTUAL_COLUMN_OPERATORS = (
 
 @dataclasses.dataclass(frozen=True)
 class VirtualColumn:
+  """Represents element in Gaarf query that either calculated or plugged-in.
+
+  Virtual columns allow performing basic manipulation with metrics and
+  dimensions (i.e. division or multiplication) as well as adding raw text
+  values directly into report.
+
+  Attributes:
+    type: Type of virtual column, either build-in or expression.
+    value: Value of the field after macro expansion.
+    fields: Possible fields participating in calculations.
+    substitute_expression: Formatted expression.
+  """
+
   type: str
   value: str
   fields: list[str] | None = None
@@ -44,16 +59,34 @@ class VirtualColumn:
 
 @dataclasses.dataclass
 class ExtractedLineElements:
-  fields: list[str] | None
+  """Helper class for parsing query lines.
+
+  Attributes:
+    fields: All fields extracted from the line.
+    alias: Optional alias assign to a field.
+    virtual_column: Optional virtual column extracted from query line.
+    customizer: Optional values for customizers associated with a field.
+  """
+
+  field: str | None
   alias: str | None
   virtual_column: VirtualColumn | None
+  customizer: dict[str, str | int]
 
 
 @dataclasses.dataclass
 class ProcessedField:
+  """Helper class to store fields with its customizers.
+
+  Attributes:
+    field: Extractable field.
+    customizer_type: Type of customizer to be applied to the field.
+    customizer_value: Value to be used in customizer.
+  """
+
   field: str
   customizer_type: str | None = None
-  customizer_value: str | None = None
+  customizer_value: int | str | None = None
 
 
 @dataclasses.dataclass
@@ -64,7 +97,7 @@ class QueryElements:
       query_title: Title of the query that needs to be parsed.
       query_text: Text of the query that needs to be parsed.
       resource_name: Name of Google Ads API reporting resource.
-      fields: Ads API fields that need to be feched.
+      fields: Ads API fields that need to be fetched.
       column_names: Friendly names for fields which are used when saving data
       customizers: Attributes of fields that need to be be extracted.
       virtual_columns: Attributes of fields that need to be be calculated.
@@ -84,6 +117,8 @@ class QueryElements:
 
 
 class CommonParametersMixin:
+  """Helper mixin to inject set of common parameters to all queries."""
+
   _common_params = {
     'date_iso': lambda: datetime.date.today().strftime('%Y%m%d'),
     'yesterday_iso': lambda: (
@@ -104,6 +139,15 @@ class CommonParametersMixin:
 class QuerySpecification(
   CommonParametersMixin, query_post_processor.PostProcessorMixin
 ):
+  """Simplifies fetching data from API and it's further parsing..
+
+  Attributes:
+    text: Query text.
+    title: Query title.
+    args: Optional parameters to be dynamically injected into query text.
+    api_version: Version of Google Ads API.
+  """
+
   def __init__(
     self,
     text: str,
@@ -111,10 +155,23 @@ class QuerySpecification(
     args: dict | None = None,
     api_version: str = api_clients.GOOGLE_ADS_API_VERSION,
   ) -> None:
+    """Instantiates QuerySpecification based on text, title and optional args.
+
+    Args:
+      text: Query text.
+      title: Query title.
+      args: Optional parameters to be dynamically injected into query text.
+      api_version: Version of Google Ads API.
+    """
     self.text = text
     self.title = title
     self.args = args or {}
-    self.base_client = api_clients.BaseClient(api_version)
+    self._api_version = api_version
+
+  @property
+  def base_client(self):
+    """Helper for validating identified query fields."""
+    return api_clients.BaseClient(self._api_version)
 
   @property
   def macros(self) -> dict[str, str]:
@@ -124,20 +181,35 @@ class QuerySpecification(
       common_params.update(macros)
     return common_params
 
+  @property
+  def expanded_query(self) -> str:
+    """Applies necessary transformations to query."""
+    query_text = self.expand_jinja(self.text, self.args.get('template'))
+    query_lines = self._remove_comments_from_query(query_text)
+    query_text = ' '.join(query_lines)
+    try:
+      return query_text.format(**self.macros).strip()
+    except KeyError as e:
+      raise exceptions.GaarfMacroException(
+        f'No value provided for macro {str(e)}.'
+      ) from e
+
   def generate(self) -> QueryElements:
     """Generates necessary query elements based on query text and arguments.
 
     Returns:
         Various elements parsed from a query (text, fields,
         column_names, etc).
-    """
 
-    query_text = self.expand_jinja(self.text, self.args.get('template'))
-    resource_name = self.extract_resource_from_query(query_text)
+    Raises:
+        GaarfResourceException: If query contains invalid resource_name.
+        GaarfMacroException: If missing values for one of the query macros.
+    """
+    resource_name = self._extract_resource_from_query()
     if is_builtin_query := bool(resource_name.startswith('builtin')):
       return QueryElements(
         query_title=resource_name.replace('builtin.', ''),
-        query_text=query_text,
+        query_text=self.expanded_query,
         fields=None,
         column_names=None,
         customizers=None,
@@ -153,58 +225,25 @@ class QuerySpecification(
         f'Invalid resource specified in the query: {resource_name}'
       )
     is_constant_resource = bool(resource_name.endswith('_constant'))
-    query_lines = self.cleanup_query_text(query_text)
-    query_text = ' '.join(query_lines)
-    try:
-      query_text = query_text.format(**self.macros)
-    except KeyError as e:
-      raise exceptions.GaarfMacroException(
-        f'No value provided for macro {str(e)}.'
-      ) from e
     fields = []
     column_names = []
     customizers = {}
     virtual_columns = {}
 
-    query_lines = self.extract_query_lines(' '.join(query_lines))
-    for line in query_lines:
-      if not line:
-        continue
-      field_name = None
-      customizer_type = None
-      line_elements = self._extract_line_elements(line, self.macros)
-      if field_elements := line_elements.fields:
-        for field_element in field_elements:
-          processed_field = self._process_field(field_element)
-          field_name = processed_field.field.strip().replace(',', '')
-          fields.append(self.format_type_field_name(field_name))
-          customizer_type = processed_field.customizer_type
-      if not line_elements.alias and not field_name and not is_builtin_query:
-        raise exceptions.GaarfVirtualColumnException(
-          'Virtual attributes should be aliased'
-        )
-      column_name = (
-        line_elements.alias.strip().replace(',', '')
-        if line_elements.alias
-        else field_name
-      )
-      if column_name:
-        column_names.append(self.normalize_column_name(column_name))
+    for line in self._extract_query_lines():
+      line_elements = self._extract_line_elements(line)
+      column_name = line_elements.alias
+      if field := line_elements.field:
+        fields.append(field)
+      column_names.append(column_name)
 
       if virtual_column := line_elements.virtual_column:
         virtual_columns[column_name] = virtual_column
-      if customizer_type:
-        customizers[column_name] = {
-          'type': customizer_type,
-          'value': processed_field.customizer_value,
-        }
-    query_text = self.create_query_text(fields, virtual_columns, query_text)
-    for _, column in virtual_columns.items():
-      if not isinstance(column.value, (int, float)):
-        column.value.format(**self.macros)
+      if customizer := line_elements.customizer:
+        customizers[column_name] = customizer
     return QueryElements(
       query_title=self.title,
-      query_text=query_text,
+      query_text=self._create_gaql_query(fields, virtual_columns),
       fields=fields,
       column_names=column_names,
       customizers=customizers,
@@ -214,11 +253,10 @@ class QuerySpecification(
       is_builtin_query=is_builtin_query,
     )
 
-  def create_query_text(
+  def _create_gaql_query(
     self,
     fields: list[str],
     virtual_columns: dict[str, VirtualColumn],
-    query_text: str,
   ) -> str:
     """Generate valid GAQL query.
 
@@ -230,9 +268,9 @@ class QuerySpecification(
             All fields that need to be fetched from API.
         virtual_columns:
             Virtual columns that might contain extra fields for fetching.
-        query_text: Original Gaarf query text.
+
     Returns:
-        Description of return.
+        Valid GAQL query.
     """
     virtual_fields = [
       field
@@ -243,19 +281,18 @@ class QuerySpecification(
     if virtual_fields:
       fields = fields + virtual_fields
     query_text = (
-      f"SELECT {', '.join(fields)} "
-      f'{self.extract_from_statement(query_text)}'
+      f'SELECT {", ".join(fields)} '
+      f'FROM {self._extract_resource_from_query()} '
+      f'{self._extract_filters()}'
     )
-    query_text = self._remove_traling_comma(query_text)
+    query_text = self._remove_trailing_comma(query_text)
     query_text = self._unformat_type_field_name(query_text)
-    query_text = re.sub(r'\s+', ' ', query_text).strip()
-    return query_text
+    return re.sub(r'\s+', ' ', query_text).strip()
 
-  def cleanup_query_text(self, query_text: str) -> list[str]:
+  def _remove_comments_from_query(self, query_text: str) -> list[str]:
     """Removes comments and converts text to lines."""
-    query_lines = query_text.split('\n')
     result: list[str] = []
-    for line in query_lines:
+    for line in query_text.split('\n'):
       if re.match('^(#|--|//)', line):
         continue
       cleaned_query_line = re.sub(
@@ -264,90 +301,94 @@ class QuerySpecification(
       result.append(cleaned_query_line)
     return result
 
-  def extract_resource_from_query(self, query: str) -> str:
-    return str(
-      re.findall(r'FROM\s+([\w.]+)', query, flags=re.IGNORECASE)[0]
-    ).strip()
+  def _extract_resource_from_query(self) -> str:
+    """Finds resource_name in query_text.
 
-  def extract_query_lines(self, query_text: str) -> list[str]:
-    selected_fields = re.sub(
-      r'\bSELECT\b|FROM .*', '', query_text, flags=re.IGNORECASE
+    Returns:
+      Found resource.
+
+    Raises:
+      GaarfResourceException: If resource_name isn't found.
+    """
+    if resource_name := re.findall(
+      r'FROM\s+([\w.]+)', self.expanded_query, flags=re.IGNORECASE
+    ):
+      return str(resource_name[0]).strip()
+    raise exceptions.GaarfResourceException(
+      f'No resource found in query: {self.expanded_query}'
+    )
+
+  def _extract_query_lines(self) -> Generator[str, None, None]:
+    """Helper for extracting fields with aliases from query text.
+
+    Yields:
+      Line in query between SELECT and FROM statements.
+    """
+    selected_rows = re.sub(
+      r'\bSELECT\b|FROM .*', '', self.expanded_query, flags=re.IGNORECASE
     ).split(',')
-    return [field.strip() for field in selected_fields if field != ' ']
+    for row in selected_rows:
+      if non_empty_row := row.strip():
+        yield non_empty_row
 
-  def extract_from_statement(self, query_text: str) -> str:
-    return re.search(' FROM .+', query_text, re.IGNORECASE).group(0)
+  def _extract_filters(self) -> str:
+    if where_statement := re.search(
+      ' (WHERE|LIMIT|ORDER BY|PARAMETERS) .+',
+      self.expanded_query,
+      re.IGNORECASE,
+    ):
+      return where_statement.group(0)
+    return ''
 
-  def _extract_line_elements(
-    self, query_line: str, macros: dict
-  ) -> ExtractedLineElements:
-    fields: list[str] = []
-    virtual_column = None
-    field_raw, *alias = re.split(' [Aa][Ss] ', query_line)
-    field_raw = field_raw.replace(r'\s+', '').strip()
-    processed_field = self._process_field(field_raw)
-    virtual_field = processed_field.field
-    try:
-      operator.attrgetter(virtual_field)(self.base_client.google_ads_row)
-    except AttributeError:
-      if virtual_field.isdigit():
-        virtual_field = int(virtual_field)
-      else:
-        try:
-          virtual_field = float(virtual_field)
-        except ValueError:
-          pass
+  def _extract_line_elements(self, query_line: str) -> ExtractedLineElements:
+    """Parses query line into elements.
 
-      operators = ('/', r'\*', r'\+', ' - ')
-      if len(expressions := re.split('|'.join(operators), field_raw)) > 1:
-        virtual_column_fields = []
-        substitute_expression = virtual_field
-        for element in expressions:
-          element = element.strip()
-          try:
-            operator.attrgetter(element)(self.base_client.google_ads_row)
-            virtual_column_fields.append(element)
-            substitute_expression = substitute_expression.replace(
-              element, f'{{{element}}}'
-            )
-          except AttributeError:
-            pass
-        virtual_column = VirtualColumn(
-          type='expression',
-          value=virtual_field.format(**macros) if macros else virtual_field,
-          fields=virtual_column_fields,
-          substitute_expression=substitute_expression.replace('.', '_'),
-        )
-      else:
-        if not isinstance(virtual_field, (int, float)):
-          if not self._not_a_quoted_string(virtual_field):
-            raise exceptions.GaarfFieldException(
-              f"Incorrect field '{virtual_field}' in the query '{self.text}'."
-            )
-          virtual_field = virtual_field.replace("'", '').replace('"', '')
-          virtual_field = (
-            virtual_field.format(**macros) if macros else virtual_field
-          )
-        virtual_column = VirtualColumn(type='built-in', value=virtual_field)
-    if not virtual_column and field_raw:
-      fields = [field_raw]
+    Args:
+      query_line: Field name with optional alias.
+
+    Returns:
+      Parsed elements (field, alias, virtual_column).
+    """
+    field, *alias = re.split(' [Aa][Ss] ', query_line)
+    processed_field = self._process_field(field)
+    field = processed_field.field
+    if self._is_valid_google_ads_field(field):
+      virtual_column = None
     else:
-      fields = None
+      virtual_column = self._convert_to_virtual_column(field)
+    if alias and processed_field.customizer_type:
+      customizer = {
+        'type': processed_field.customizer_type,
+        'value': processed_field.customizer_value,
+      }
+    else:
+      customizer = {}
+    if virtual_column and not alias:
+      raise exceptions.GaarfVirtualColumnException(
+        'Virtual attributes should be aliased'
+      )
     return ExtractedLineElements(
-      fields=fields,
-      alias=alias[0] if alias else None,
+      field=self._format_type_field_name(field)
+      if not virtual_column and field
+      else None,
+      alias=self._normalize_column_name(alias[0] if alias else field),
       virtual_column=virtual_column,
+      customizer=customizer,
     )
 
   def _process_field(self, raw_field: str) -> ProcessedField:
     """Process field to extract possible customizers.
 
     Args:
-        field: Unformatted field string value.
+        raw_field: Unformatted field string value.
+
     Returns:
         ProcessedField that contains formatted field with customizers.
     """
-    if len(resources := self.extract_resource_element(raw_field)) > 1:
+    raw_field = raw_field.replace(r'\s+', '').strip()
+    if self._is_quoted_string(raw_field):
+      return ProcessedField(field=raw_field)
+    if len(resources := self._extract_resource_element(raw_field)) > 1:
       field_name, resource_index = resources
       return ProcessedField(
         field=field_name,
@@ -355,42 +396,85 @@ class QuerySpecification(
         customizer_value=int(resource_index),
       )
 
-    if len(nested_fields := self.extract_nested_resource(raw_field)) > 1:
+    if len(nested_fields := self._extract_nested_resource(raw_field)) > 1:
       field_name, nested_field = nested_fields
       return ProcessedField(
         field=field_name,
         customizer_type='nested_field',
         customizer_value=nested_field,
       )
-    if len(pointers := self.extract_pointer(raw_field)) > 1:
+    if len(pointers := self._extract_pointer(raw_field)) > 1:
       field_name, pointer = pointers
       return ProcessedField(
         field=field_name, customizer_type='pointer', customizer_value=pointer
       )
     return ProcessedField(field=raw_field)
 
-  def extract_resource_element(self, line_elements: str) -> list[str]:
+  def _convert_to_virtual_column(self, field: str) -> VirtualColumn:
+    """Converts a field to virtual column."""
+    if field.isdigit():
+      field = int(field)
+    else:
+      with contextlib.suppress(ValueError):
+        field = float(field)
+    if isinstance(field, (int, float)):
+      return VirtualColumn(type='built-in', value=field)
+
+    operators = ('/', r'\*', r'\+', ' - ')
+    if len(expressions := re.split('|'.join(operators), field)) > 1:
+      virtual_column_fields = []
+      substitute_expression = field
+      for expression in expressions:
+        element = expression.strip()
+        if self._is_valid_google_ads_field(element):
+          virtual_column_fields.append(element)
+          substitute_expression = substitute_expression.replace(
+            element, f'{{{element}}}'
+          )
+      return VirtualColumn(
+        type='expression',
+        value=field.format(**self.macros) if self.macros else field,
+        fields=virtual_column_fields,
+        substitute_expression=substitute_expression.replace('.', '_'),
+      )
+    if not self._is_quoted_string(field):
+      raise exceptions.GaarfFieldException(
+        f"Incorrect field '{field}' in the query '{self.text}'."
+      )
+    field = field.replace("'", '').replace('"', '')
+    field = field.format(**self.macros) if self.macros else field
+    return VirtualColumn(type='built-in', value=field)
+
+  def _is_valid_google_ads_field(self, field: str) -> bool:
+    """Checks whether field is is a valid Google Ads field."""
+    try:
+      operator.attrgetter(field)(self.base_client.google_ads_row)
+      return True
+    except AttributeError:
+      return False
+
+  def _extract_resource_element(self, line_elements: str) -> list[str]:
     return re.split('~', line_elements)
 
-  def extract_pointer(self, line_elements: str) -> list[str]:
+  def _extract_pointer(self, line_elements: str) -> list[str]:
     return re.split('->', line_elements)
 
-  def extract_nested_resource(self, line_elements: str) -> list[str]:
+  def _extract_nested_resource(self, line_elements: str) -> list[str]:
     return re.split(':', line_elements)
 
-  def format_type_field_name(self, field_name: str) -> str:
+  def _format_type_field_name(self, field_name: str) -> str:
     return re.sub(r'\.type', '.type_', field_name)
 
-  def normalize_column_name(self, column_name: str) -> str:
+  def _normalize_column_name(self, column_name: str) -> str:
     return re.sub(r'\.', '_', column_name)
 
-  def _remove_traling_comma(self, query: str) -> str:
+  def _remove_trailing_comma(self, query: str) -> str:
     return re.sub(r',\s+from', ' FROM', query, re.IGNORECASE)
 
   def _unformat_type_field_name(self, query: str) -> str:
     return re.sub(r'\.type_', '.type', query)
 
-  def _not_a_quoted_string(self, field_name: str) -> bool:
+  def _is_quoted_string(self, field_name: str) -> bool:
     if (field_name.startswith("'") and field_name.endswith("'")) or (
       field_name.startswith('"') and field_name.endswith('"')
     ):
