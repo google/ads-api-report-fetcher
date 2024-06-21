@@ -353,12 +353,13 @@ class GoogleAdsRowParser:
 
   def _get_resource_index(
     self, extracted_attribute: GoogleAdsRowElement, caller: dict[str, str]
-  ) -> str:
+  ) -> int | str:
     """Extracts additional info from resource_name.
 
     Some GoogleAdsRow objects resource_names
     (i.e. customers/1/conversionActions/2~3); with resource_index we can
     access only the last element of this expression ('3').
+    Whenever possible result is converted to integer.
 
     Args:
         extracted_attribute: A single element from GoogleAdsRow.
@@ -379,7 +380,11 @@ class GoogleAdsRowParser:
     extracted_attribute = re.split('~', extracted_attribute)[
       caller.get('value')
     ]
-    return re.split('/', extracted_attribute)[-1]
+    result = re.split('/', extracted_attribute)[-1]
+    try:
+      return int(result)
+    except ValueError:
+      return result
 
   def _get_attributes_from_row(
     self, row: google_ads_service.GoogleAdsRow, getter: operator.attrgetter

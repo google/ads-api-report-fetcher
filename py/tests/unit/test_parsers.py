@@ -324,7 +324,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
       'SEARCH',
       1,
-      '2',
+      2,
       1,
       'nested_value',
       1,
@@ -355,7 +355,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
       'SEARCH',
       1,
-      ['1', '2'],
+      [1, 2],
       1,
       'nested_value',
       1,
@@ -386,7 +386,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
       'SEARCH',
       1,
-      ['1', '2'],
+      [1, 2],
       1,
       'nested_value',
       1,
@@ -464,7 +464,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
       'SEARCH',
       1,
-      '2',
+      2,
       1,
       'nested_value',
       1,
