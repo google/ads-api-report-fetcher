@@ -137,6 +137,7 @@ def format_report_for_writing(
   """
   for strategy in formatting_strategies:
     report = strategy.apply_transformations(report)
+  report.disable_scalar_conversions()
   return report
 
 
