@@ -25,18 +25,29 @@ except ImportError as e:
 
 import datetime
 import logging
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
 import proto  # type: ignore
-from google.cloud.exceptions import NotFound  # type: ignore
+from google.cloud import exceptions as google_cloud_exceptions
 
+import gaarf
+from gaarf import parsers
 from gaarf.io import formatter
-from gaarf.io.writers.abs_writer import AbsWriter
-from gaarf.report import GaarfReport
+from gaarf.io.writers import abs_writer
 
 
-class BigQueryWriter(AbsWriter):
+class BigQueryWriter(abs_writer.AbsWriter):
+  """Writes Gaarf Report to BigQuery.
+
+  Attributes:
+    project: Id of Google Cloud Project.
+    dataset: BigQuery dataset to write data to.
+    location: Location of a newly created dataset.
+    write_disposition: Option for overwriting data.
+  """
+
   def __init__(
     self,
     project: str,
@@ -45,29 +56,51 @@ class BigQueryWriter(AbsWriter):
     write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE,
     **kwargs,
   ):
+    """Initializes BigQueryWriter.
+
+    Args:
+      project: Id of Google Cloud Project.
+      dataset: BigQuery dataset to write data to.
+      location: Location of a newly created dataset.
+      write_disposition: Option for overwriting data.
+      kwargs: Optional keywords arguments.
+    """
     super().__init__(**kwargs)
     self.project = project
     self.dataset_id = f'{project}.{dataset}'
     self.location = location
     self.write_disposition = write_disposition
-    self.client = None
 
   def __str__(self) -> str:
     return f'[BigQuery] - {self.dataset_id} at {self.location} location.'
 
+  @property
+  def client(self) -> bigquery.Client:
+    """Instantiated BigQuery client."""
+    return bigquery.Client(self.project)
+
   def create_or_get_dataset(self) -> bigquery.Dataset:
-    self._init_client()
+    """Gets existing dataset or create a new one."""
     try:
       bq_dataset = self.client.get_dataset(self.dataset_id)
-    except NotFound:
+    except google_cloud_exceptions.NotFound:
       bq_dataset = bigquery.Dataset(self.dataset_id)
       bq_dataset.location = self.location
       bq_dataset = self.client.create_dataset(bq_dataset, timeout=30)
     return bq_dataset
 
-  def write(self, report: GaarfReport, destination: str) -> str:
+  def write(self, report: gaarf.report.GaarfReport, destination: str) -> str:
+    """Writes Gaarf report to a BigQuery table.
+
+    Args:
+      report: Gaarf report.
+      destination: Name of the table report should be written to.
+
+    Returns:
+      Name of the table in `dataset.table` format.
+    """
     report = self.format_for_write(report)
-    schema = self._define_schema(report)
+    schema = _define_schema(report)
     destination = formatter.format_extension(destination)
     table = self._create_or_get_table(
       f'{self.dataset_id}.{destination}', schema
@@ -95,77 +128,116 @@ class BigQueryWriter(AbsWriter):
       raise ValueError(f'Unable to save data to BigQuery! {str(e)}') from e
     return f'[BigQuery] - at {self.dataset_id}.{destination}'
 
-  @staticmethod
-  def _define_schema(report: GaarfReport) -> list[bigquery.SchemaField]:
-    result_types = BigQueryWriter._get_result_types(report)
-    return BigQueryWriter._get_bq_schema(result_types)
+  def _create_or_get_table(
+    self, table_name: str, schema: Sequence[bigquery.SchemaField]
+  ) -> bigquery.Table:
+    """Gets existing table or create a new one.
 
-  @staticmethod
-  def _get_result_types(report: GaarfReport) -> dict[str, dict]:
-    result_types: dict[str, dict] = {}
-    column_names = report.column_names
-    for row in report.results or report.results_placeholder:
-      if set(column_names) == set(result_types.keys()):
-        break
-      for i, field in enumerate(row):
-        if field is None or column_names[i] in result_types:
-          continue
-        field_type = type(field)
-        if field_type in [
-          list,
-          proto.marshal.collections.repeated.RepeatedComposite,
-          proto.marshal.collections.repeated.Repeated,
-        ]:
-          repeated = True
-          if len(field) == 0:
-            field_type = str
-          else:
-            field_type = type(field[0])
-        else:
-          field_type = type(field)
-          repeated = False
-        result_types[column_names[i]] = {
-          'field_type': field_type,
-          'repeated': repeated,
-        }
-    return result_types
+    Args:
+      table_name: Name of the table in BigQuery.
+      schema: Schema of the table if one should be created.
 
-  @staticmethod
-  def _get_bq_schema(types) -> list[bigquery.SchemaField]:
-    type_mapping = {
-      list: 'REPEATED',
-      str: 'STRING',
-      datetime.datetime: 'DATETIME',
-      datetime.date: 'DATE',
-      int: 'INT64',
-      float: 'FLOAT64',
-      bool: 'BOOL',
-      proto.marshal.collections.repeated.RepeatedComposite: 'REPEATED',
-      proto.marshal.collections.repeated.Repeated: 'REPEATED',
-    }
-
-    schema: list[bigquery.SchemaField] = []
-    for key, value in types.items():
-      field_type = type_mapping.get(value.get('field_type'))
-      schema.append(
-        bigquery.SchemaField(
-          name=key,
-          field_type='STRING' if not field_type else field_type,
-          mode='REPEATED' if value.get('repeated') else 'NULLABLE',
-        )
-      )
-    return schema
-
-  def _init_client(self) -> None:
-    if not self.client:
-      self.client = bigquery.Client(self.project)
-
-  def _create_or_get_table(self, table_name: str, schema) -> bigquery.Table:
-    self._init_client()
+    Returns:
+      BigQuery table object.
+    """
     try:
       table = self.client.get_table(table_name)
-    except NotFound:
+    except google_cloud_exceptions.NotFound:
       table_ref = bigquery.Table(table_name, schema=schema)
       table = self.client.create_table(table_ref)
       table = self.client.get_table(table_name)
     return table
+
+
+def _define_schema(
+  report: gaarf.report.GaarfReport,
+) -> list[bigquery.SchemaField]:
+  """Infers schema from GaarfReport.
+
+  Args:
+    report: GaarfReport to infer schema from.
+
+  Returns:
+    Schema fields for a given report.
+
+  """
+  result_types = _get_result_types(report)
+  return _get_bq_schema(result_types)
+
+
+def _get_result_types(
+  report: gaarf.report.GaarfReport,
+) -> dict[str, dict[str, parsers.GoogleAdsRowElement]]:
+  """Maps each column of report to BigQuery field type and repeated status.
+
+  Fields types are inferred based on report resuls or results placeholder.
+
+  Args:
+    report: GaarfReport to infer field types from.
+
+  Returns:
+    Mapping between each column of report and its field type.
+  """
+  result_types: dict[str, dict[str, parsers.GoogleAdsRowElement]] = {}
+  column_names = report.column_names
+  for row in report.results or report.results_placeholder:
+    if set(column_names) == set(result_types.keys()):
+      break
+    for i, field in enumerate(row):
+      if field is None or column_names[i] in result_types:
+        continue
+      field_type = type(field)
+      if field_type in [
+        list,
+        proto.marshal.collections.repeated.RepeatedComposite,
+        proto.marshal.collections.repeated.Repeated,
+      ]:
+        repeated = True
+        if len(field) == 0:
+          field_type = str
+        else:
+          field_type = type(field[0])
+      else:
+        field_type = type(field)
+        repeated = False
+      result_types[column_names[i]] = {
+        'field_type': field_type,
+        'repeated': repeated,
+      }
+  return result_types
+
+
+def _get_bq_schema(
+  types: dict[str, dict[str, parsers.GoogleAdsRowElement]],
+) -> list[bigquery.SchemaField]:
+  """Converts GoogleAds fields types to BigQuery schema fields.
+
+  Args:
+    types: Mapping between column names and its field type.
+
+  Returns:
+     BigQuery schema fields corresponding to GaarfReport.
+  """
+  type_mapping = {
+    list: 'REPEATED',
+    str: 'STRING',
+    datetime.datetime: 'DATETIME',
+    datetime.date: 'DATE',
+    int: 'INT64',
+    float: 'FLOAT64',
+    bool: 'BOOL',
+    proto.marshal.collections.repeated.RepeatedComposite: 'REPEATED',
+    proto.marshal.collections.repeated.Repeated: 'REPEATED',
+  }
+
+  schema: list[bigquery.SchemaField] = []
+  for key, value in types.items():
+    field_type = type_mapping.get(value.get('field_type'))
+    schema.append(
+      bigquery.SchemaField(
+        name=key,
+        field_type=field_type if field_type else 'STRING',
+        mode='REPEATED' if value.get('repeated') else 'NULLABLE',
+      )
+    )
+  return schema
