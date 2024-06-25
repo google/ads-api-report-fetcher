@@ -382,8 +382,6 @@ class ConfigSaver:
       if not isinstance(gaarf_config.account, MutableSequence):
         gaarf['account'] = gaarf_config.account.split(',')
       del gaarf['writer_params']
-      if gaarf_config.writer_params:
-        del gaarf['params'][gaarf_config.output]
       gaarf = _remove_empty_values(gaarf)
       config.update({'gaarf': gaarf})
     if isinstance(gaarf_config, GaarfBqConfig):
