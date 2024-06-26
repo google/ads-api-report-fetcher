@@ -1,12 +1,29 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Module for defining `gaarf-simulator` CLI utility.
+
+`gaarf-simulator` allows to simulate API resonse based on GAQL queries
+and store results in local/remote storage.
+"""
+
 from __future__ import annotations
 
 import argparse
 
 import yaml
 
-from gaarf import simulation
-from gaarf.api_clients import GOOGLE_ADS_API_VERSION
-from gaarf.cli.utils import GaarfConfigBuilder, init_logging
+from gaarf import api_clients, simulation
+from gaarf.cli import utils
 from gaarf.io import reader, writer
 
 
@@ -21,7 +38,9 @@ def main():
   parser.add_argument('--output', dest='save', default='console')
   parser.add_argument('--input', dest='input', default='file')
   parser.add_argument(
-    '--api-version', dest='api_version', default=GOOGLE_ADS_API_VERSION
+    '--api-version',
+    dest='api_version',
+    default=api_clients.GOOGLE_ADS_API_VERSION,
   )
   parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
   parser.add_argument('--logger', dest='logger', default='local')
@@ -42,11 +61,11 @@ def main():
   args = parser.parse_known_args()
   main_args = args[0]
 
-  logger = init_logging(
+  logger = utils.init_logging(
     loglevel=main_args.loglevel.upper(), logger_type=main_args.logger
   )
 
-  config = GaarfConfigBuilder(args).build()
+  config = utils.ConfigBuilder('gaarf').build(vars(args[0]), args[1])
   logger.debug('config: %s', config)
 
   writer_client = writer.WriterFactory().create_writer(
