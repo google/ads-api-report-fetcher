@@ -109,6 +109,7 @@ class BigQueryWriter(abs_writer.AbsWriter):
       write_disposition=self.write_disposition,
       schema=schema,
       source_format='CSV',
+      max_bad_records=len(report),
     )
 
     if not report:
@@ -119,12 +120,13 @@ class BigQueryWriter(abs_writer.AbsWriter):
       df = report.to_pandas()
     df = df.replace({np.nan: None})
     logging.debug('Writing %d rows of data to %s', len(df), destination)
+    job = self.client.load_table_from_dataframe(
+      dataframe=df, destination=table, job_config=job_config
+    )
     try:
-      self.client.load_table_from_dataframe(
-        dataframe=df, destination=table, job_config=job_config
-      )
+      job.result()
       logging.debug('Writing to %s is completed', destination)
-    except Exception as e:
+    except google_cloud_exceptions.BadRequest as e:
       raise ValueError(f'Unable to save data to BigQuery! {str(e)}') from e
     return f'[BigQuery] - at {self.dataset_id}.{destination}'
 
