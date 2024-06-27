@@ -17,21 +17,8 @@ import dataclasses
 
 import pytest
 
-from gaarf import api_clients, parsers, report_fetcher, utils
-
-
-@dataclasses.dataclass
-class FakeResponse:
-  data: list[list[parsers.GoogleAdsRowElement]]
-
-  def __iter__(self):
-    for result in self.data:
-      yield FakeBatch(result)
-
-
-@dataclasses.dataclass
-class FakeBatch:
-  results: list[list]
+from gaarf import api_clients, report_fetcher, utils
+from tests.unit import helpers
 
 
 @dataclasses.dataclass
@@ -51,7 +38,7 @@ def test_client(mocker, config_path):
       FakeGoogleAdsRowElement(CustomerClient(1)),
     ],
   ]
-  fake_response = FakeResponse(data=fake_results)
+  fake_response = helpers.FakeResponse(data=fake_results)
   mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
   mocker.patch(
     'gaarf.api_clients.GoogleAdsApiClient.get_response',
