@@ -38,9 +38,11 @@ class FakeBatch:
 
   Attributes:
     results: Data from API response.
+    query_resource_consumption: Resources consumed to serve the query.
   """
 
   results: list[parsers.GoogleAdsRowElement]
+  query_resource_consumption: int = 0
 
 
 @dataclasses.dataclass

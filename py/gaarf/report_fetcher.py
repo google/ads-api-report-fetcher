@@ -349,6 +349,7 @@ class AdsReportFetcher:
     Returns:
         Parsed rows for the whole response.
     """
+    query_resource_consumption = 0
     total_results: list[list] = []
     logger.debug(
       'Iterating over response for query %s for customer_id %s',
@@ -356,6 +357,7 @@ class AdsReportFetcher:
       customer_id,
     )
     for batch in response:
+      query_resource_consumption += batch.query_resource_consumption
       logger.debug(
         'Parsing batch for query %s for customer_id %s',
         query_specification.query_title,
@@ -364,6 +366,12 @@ class AdsReportFetcher:
 
       results = self._parse_batch(parser, batch.results)
       total_results.extend(list(results))
+    logging.debug(
+      'query resource consumption for query [%s] for account [%s]: %d',
+      query_specification.query_title,
+      customer_id,
+      query_resource_consumption,
+    )
     return total_results
 
   def _parse_batch(
