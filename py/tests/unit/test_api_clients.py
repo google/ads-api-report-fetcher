@@ -12,8 +12,11 @@
 # limitations under the License.
 from __future__ import annotations
 
+import logging
+
 import pytest
 import tenacity
+from google.ads.googleads import client as googleads_client
 from google.api_core import exceptions as google_exceptions
 
 from gaarf import api_clients
@@ -215,6 +218,16 @@ class TestBaseClient:
 
 class TestGoogleAdsApiClient:
   @pytest.fixture
+  def fake_googleads_client(self, mocker):
+    mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
+    return googleads_client.GoogleAdsClient(
+      credentials=None,
+      developer_token=None,
+      version='v15',
+      use_proto_plus=True,
+    )
+
+  @pytest.fixture
   def test_client(self, mocker, config_path):
     mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
     mocker.patch(
@@ -230,12 +243,45 @@ class TestGoogleAdsApiClient:
     return api_clients.GoogleAdsApiClient(path_to_config=config_path)
 
   def test_get_response_raises_internal_service_error_after_3_failed_retries(
-    self, test_client, mocker
+    self, test_client
   ):
     test_client.get_response.retry.wait = tenacity.wait_none()
     with pytest.raises(google_exceptions.InternalServerError):
       test_client.get_response(
         entity_id='1',
         query_text='SELECT customer.id FROM customer',
-        query_title='test',
       )
+
+  def test_from_googleads_client_returns_new_instance(
+    self, fake_googleads_client, caplog
+  ):
+    caplog.set_level(logging.WARNING)
+
+    client = api_clients.GoogleAdsApiClient.from_googleads_client(
+      fake_googleads_client
+    )
+
+    assert isinstance(client.client, googleads_client.GoogleAdsClient)
+    assert client.client.use_proto_plus
+    assert client.api_version == fake_googleads_client.version
+    assert (
+      'Mismatch between values of "use_proto_plus" in '
+      'GoogleAdsClient and GoogleAdsApiClient, setting '
+      '"use_proto_plus=False"'
+    ) not in caplog.text
+
+  def test_from_googleads_client_generates_warning_for_use_proto_plus(
+    self, fake_googleads_client, caplog
+  ):
+    caplog.set_level(logging.WARNING)
+
+    client = api_clients.GoogleAdsApiClient.from_googleads_client(
+      fake_googleads_client, use_proto_plus=False
+    )
+
+    assert not client.client.use_proto_plus
+    assert (
+      'Mismatch between values of "use_proto_plus" in '
+      'GoogleAdsClient and GoogleAdsApiClient, setting '
+      '"use_proto_plus=False"'
+    ) in caplog.text
