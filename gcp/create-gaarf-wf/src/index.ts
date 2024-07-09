@@ -1089,6 +1089,8 @@ cd ..
 `
   );
 
+  fs.writeFileSync(settings_file, dump_settings(settings));
+
   // now execute some scripts
   // deploying queries and ads config to GCS
   if (

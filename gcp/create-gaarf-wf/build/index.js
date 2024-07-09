@@ -705,13 +705,11 @@ async function init() {
     }
     const custom_ids_query_path = answers1.custom_ids_query_path;
     const path_to_googleads_config = await initialize_googleads_config(answers);
-    const has_ads_queries = !!fs.readdirSync(path_to_ads_queries).length;
-    const has_adsconfig = fs.existsSync(path_to_googleads_config);
-    // TODO:
-    if (!has_ads_queries) {
+    // some warnings to users if queries and ads config don't exist
+    if (!fs.readdirSync(path_to_ads_queries).length) {
         console.log(chalk.red(`Please place your ads scripts into '${path_to_ads_queries}' folder`));
     }
-    if (!has_adsconfig) {
+    if (!fs.existsSync(path_to_googleads_config)) {
         console.log(chalk.red(`Please put your Ads API config into '${path_to_googleads_config}' file`));
     }
     gcs_bucket = (gcs_bucket || gcp_project_id).trim();
@@ -852,6 +850,7 @@ cd ..
     deploy_shell_script('run-wf.sh', `set -e
 ./ads-api-fetcher/gcp/setup.sh run_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
 `);
+    fs.writeFileSync(settings_file, dump_settings(settings));
     // now execute some scripts
     // deploying queries and ads config to GCS
     if ((await prompt({
