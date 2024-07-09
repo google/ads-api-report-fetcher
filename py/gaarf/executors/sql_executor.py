@@ -52,7 +52,7 @@ class SqlAlchemyQueryExecutor(query_post_processor.PostProcessorMixin):
     script_name: str | None,
     query_text: str,
     params: dict[str, Any] | None = None,
-  ) -> pd.DataFrame | None:
+  ) -> pd.DataFrame:
     """Executes query in a given database via SqlAlchemy.
 
     Args:
@@ -61,14 +61,14 @@ class SqlAlchemyQueryExecutor(query_post_processor.PostProcessorMixin):
         params: Optional parameters to be replaced in query text.
 
     Returns:
-        DataFrame if query returns some data, None if data are saved to DB.
+        DataFrame if query returns some data otherwise empty DataFrame.
     """
     logging.info('Executing script: %s', script_name)
     query_text = self.replace_params_template(query_text, params)
     with self.engine.begin() as conn:
       if re.findall(r'(create|update) ', query_text.lower()):
         conn.connection.executescript(query_text)
-        return None
+        return pd.DataFrame()
       temp_table_name = f'temp_{script_name}'.replace('.', '_')
       query_text = f'CREATE TABLE {temp_table_name} AS {query_text}'
       conn.connection.executescript(query_text)
