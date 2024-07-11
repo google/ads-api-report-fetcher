@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import importlib
+import logging
 import os
 import re
 from collections.abc import Sequence
@@ -72,7 +73,7 @@ class BaseClient:
     self.api_version = (
       str(version) if str(version).startswith('v') else f'v{version}'
     )
-    self.google_ads_row = self._get_google_ads_row(self.api_version)
+    self.google_ads_row = self._get_google_ads_row()
 
   @property
   def _base_module(self) -> str:
@@ -94,17 +95,8 @@ class BaseClient:
     """Module containing segments."""
     return importlib.import_module(f'{self._common_types_module}.segments')
 
-  def _get_google_ads_row(
-    self, api_version: str
-  ) -> google_ads_service.GoogleAdsRow:
-    """Gets GoogleAdsRow for a given API version.
-
-    Args:
-        version: Version of Google Ads API to use.
-
-    Returns:
-        GoogleAdsRow proto message for a given API version.
-    """
+  def _get_google_ads_row(self) -> google_ads_service.GoogleAdsRow:
+    """Gets GoogleAdsRow proto message for a given API version."""
     google_ads_service = importlib.import_module(
       f'{self._base_module}.services.types.google_ads_service'
     )
@@ -121,7 +113,6 @@ class BaseClient:
     Returns:
         Possible values for each field.
     """
-
     output = []
     for field_name in field_names:
       try:
@@ -268,6 +259,7 @@ class GoogleAdsApiClient(BaseClient):
     yaml_str: str | None = None,
     version: str = GOOGLE_ADS_API_VERSION,
     use_proto_plus: bool = True,
+    ads_client: googleads_client.GoogleAdsClient | None = None,
   ) -> None:
     """Initializes GoogleAdsApiClient based on one of the methods.
 
@@ -277,6 +269,7 @@ class GoogleAdsApiClient(BaseClient):
         yaml_str: Strings representation of google-ads.yaml.
         version: Ads API version.
         use_proto_plus: Whether to convert Enums to names in response.
+        ads_client: Instantiated GoogleAdsClient.
 
     Raises:
         ValueError:
@@ -284,7 +277,7 @@ class GoogleAdsApiClient(BaseClient):
             credentials.
     """
     super().__init__(version)
-    self.client = self._init_client(
+    self.client = ads_client or self._init_client(
       path=path_to_config, config_dict=config_dict, yaml_str=yaml_str
     )
     self.client.use_proto_plus = use_proto_plus
@@ -299,14 +292,13 @@ class GoogleAdsApiClient(BaseClient):
     reraise=True,
   )
   def get_response(
-    self, entity_id: int, query_text: str, query_title: str | None = None
+    self, entity_id: int, query_text: str
   ) -> google_ads_service.SearchGoogleAdsStreamResponse:
     """Executes query for a given entity_id (customer_id).
 
     Args:
         entity_id: Google Ads customer_id.
         query_text: GAQL query text.
-        query_title: Optional name of the query.
 
     Returns:
         SearchGoogleAdsStreamResponse for a given API version.
@@ -315,7 +307,6 @@ class GoogleAdsApiClient(BaseClient):
         google_exceptions.InternalServerError:
             When data cannot be fetched from Ads API.
     """
-
     return self.ads_service.search_stream(
       customer_id=entity_id, query=query_text
     )
@@ -326,17 +317,16 @@ class GoogleAdsApiClient(BaseClient):
     """Initializes GoogleAdsClient based on one of the methods.
 
     Args:
-        path: Path to google-ads.yaml file.
-        config_dict: A dictionary containing authentication details.
-        yaml_str: Strings representation of google-ads.yaml.
+      path: Path to google-ads.yaml file.
+      config_dict: A dictionary containing authentication details.
+      yaml_str: Strings representation of google-ads.yaml.
 
     Returns:
-        Instantiated GoogleAdsClient;
-        None if instantiation hasn't been done.
+      Instantiated GoogleAdsClient;
+      None if instantiation hasn't been done.
 
     Raises:
-        ValueError:
-            if google-ads.yaml wasn't found or environment does not
+      ValueError: if google-ads.yaml wasn't found.
     """
     if config_dict:
       return googleads_client.GoogleAdsClient.load_from_dict(
@@ -347,22 +337,41 @@ class GoogleAdsApiClient(BaseClient):
         yaml_str, self.api_version
       )
     if path:
-      if os.path.isfile(path):
-        return googleads_client.GoogleAdsClient.load_from_storage(
-          path, self.api_version
-        )
-      try:
-        with smart_open.open(path, 'r', encoding='utf-8') as f:
-          google_ads_config_dict = yaml.safe_load(f)
-        return googleads_client.GoogleAdsClient.load_from_dict(
-          google_ads_config_dict, self.api_version
-        )
-      except google_exceptions.NotFound:
-        raise ValueError(f'File {path} not found')
+      with smart_open.open(path, 'r', encoding='utf-8') as f:
+        google_ads_config_dict = yaml.safe_load(f)
+      return googleads_client.GoogleAdsClient.load_from_dict(
+        google_ads_config_dict, self.api_version
+      )
     try:
       return googleads_client.GoogleAdsClient.load_from_env(self.api_version)
-    except ValueError:
-      raise ValueError('Cannot instantiate GoogleAdsClient')
+    except ValueError as e:
+      raise ValueError('Cannot instantiate GoogleAdsClient') from e
+
+  @classmethod
+  def from_googleads_client(
+    cls,
+    ads_client: googleads_client.GoogleAdsClient,
+    use_proto_plus: bool = True,
+  ) -> GoogleAdsApiClient:
+    """Builds GoogleAdsApiClient from instantiated GoogleAdsClient.
+
+    ads_client: Instantiated GoogleAdsClient.
+    use_proto_plus: Whether to convert Enums to names in response.
+
+    Returns:
+      Instantiated GoogleAdsApiClient.
+    """
+    if use_proto_plus != ads_client.use_proto_plus:
+      logging.warning(
+        'Mismatch between values of "use_proto_plus" in '
+        'GoogleAdsClient and GoogleAdsApiClient, setting '
+        f'"use_proto_plus={use_proto_plus}"'
+      )
+    return cls(
+      ads_client=ads_client,
+      version=ads_client.version,
+      use_proto_plus=use_proto_plus,
+    )
 
 
 def clean_resource(resource: str) -> str:

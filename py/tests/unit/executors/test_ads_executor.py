@@ -1,38 +1,27 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
 from __future__ import annotations
 
-import dataclasses
 import json
 import os
 
 import pytest
 
-from gaarf import api_clients, parsers
+from gaarf import api_clients
 from gaarf.executors import ads_executor
 from gaarf.io.writers import json_writer
-
-
-@dataclasses.dataclass
-class FakeResponse:
-  data: list[list[parsers.GoogleAdsRowElement]]
-
-  def __iter__(self):
-    for result in self.data:
-      yield FakeBatch(result)
-
-
-@dataclasses.dataclass
-class FakeBatch:
-  results: list[list]
-
-
-@dataclasses.dataclass
-class Customer:
-  id: int
-
-
-@dataclasses.dataclass
-class FakeGoogleAdsRowElement:
-  customer: Customer
+from tests.unit import helpers
 
 
 class TestAdsQueryExecutor:
@@ -45,16 +34,16 @@ class TestAdsQueryExecutor:
   def fake_response(self):
     fake_results = [
       [
-        FakeGoogleAdsRowElement(Customer(1)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(1)),
       ],
       [
-        FakeGoogleAdsRowElement(Customer(2)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(2)),
       ],
       [
-        FakeGoogleAdsRowElement(Customer(3)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(3)),
       ],
     ]
-    return FakeResponse(data=fake_results)
+    return helpers.FakeResponse(data=fake_results)
 
   @pytest.fixture
   def executor(self, mocker, test_client, fake_response):

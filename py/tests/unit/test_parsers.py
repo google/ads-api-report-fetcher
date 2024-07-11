@@ -159,23 +159,33 @@ class FakeMessage(proto.Message):
 
 
 class TestResourceFormatter:
-  def test_resource_formatter_get_resource(self):
-    resource = parsers.ResourceFormatter.get_resource('name: id')
-    assert resource == 'id'
+  def test_get_resource_returns_correct_resource(self):
+    resource = parsers.ResourceFormatter('name: id').get_nested_resource()
+    assert resource.element == 'id'
 
-  def test_resource_formatter_get_resource_id(self):
-    resource = parsers.ResourceFormatter.get_resource_id(
+  def test_get_resource_id_returns_correct_resource_id(self):
+    resource = parsers.ResourceFormatter(
       'customers/1/resource/2'
+    ).get_resource_id()
+    assert resource.element == '2'
+
+  def test_clear_resource_id_returns_integer_if_possible(self):
+    resource = parsers.ResourceFormatter('"1"').clean_resource_id()
+    assert resource.element == 1
+
+  def test_clear_resource_id_returns_str_as_default(self):
+    resource = parsers.ResourceFormatter('"value"').clean_resource_id()
+    assert resource.element == 'value'
+
+  def test_format_returns_correct_result(self):
+    resource = (
+      parsers.ResourceFormatter('name: id')
+      .get_nested_resource()
+      .get_resource_id()
+      .clean_resource_id()
+      .format()
     )
-    assert resource == '2'
-
-  def test_resource_formatter_clear_resource_id_int(self):
-    resource = parsers.ResourceFormatter.clean_resource_id('"1"')
-    assert resource == 1
-
-  def test_resource_formatter_clear_resource_id_str(self):
-    resource = parsers.ResourceFormatter.clean_resource_id('"value"')
-    assert resource == 'value'
+    assert resource == 'id'
 
 
 class TestParser:
@@ -324,7 +334,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
       'SEARCH',
       1,
-      '2',
+      2,
       1,
       'nested_value',
       1,
@@ -355,7 +365,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
       'SEARCH',
       1,
-      ['1', '2'],
+      [1, 2],
       1,
       'nested_value',
       1,
@@ -386,7 +396,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row_with_array) == [
       'SEARCH',
       1,
-      ['1', '2'],
+      [1, 2],
       1,
       'nested_value',
       1,
@@ -464,7 +474,7 @@ class TestGoogleAdsRowParser:
     assert google_ads_row_parser.parse_ads_row(fake_ads_row) == [
       'SEARCH',
       1,
-      '2',
+      2,
       1,
       'nested_value',
       1,

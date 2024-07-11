@@ -12,7 +12,6 @@
 # limitations under the License.
 from __future__ import annotations
 
-import dataclasses
 import itertools
 import logging
 
@@ -21,6 +20,7 @@ import tenacity
 from google.api_core import exceptions as google_exceptions
 
 from gaarf import api_clients, parsers, query_editor, report_fetcher
+from tests.unit import helpers
 
 _QUERY = 'SELECT customer.id AS customer_id FROM customer'
 _EXPECTED_RESULTS = [
@@ -30,45 +30,21 @@ _EXPECTED_RESULTS = [
 ]
 
 
-@dataclasses.dataclass
-class FakeResponse:
-  data: list[list[parsers.GoogleAdsRowElement]]
-
-  def __iter__(self):
-    for result in self.data:
-      yield FakeBatch(result)
-
-
-@dataclasses.dataclass
-class FakeBatch:
-  results: list[list]
-
-
-@dataclasses.dataclass
-class Customer:
-  id: int
-
-
-@dataclasses.dataclass
-class FakeGoogleAdsRowElement:
-  customer: Customer
-
-
 class TestAdsReportFetcher:
   @pytest.fixture
   def fake_response(self):
     fake_results = [
       [
-        FakeGoogleAdsRowElement(Customer(1)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(1)),
       ],
       [
-        FakeGoogleAdsRowElement(Customer(2)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(2)),
       ],
       [
-        FakeGoogleAdsRowElement(Customer(3)),
+        helpers.FakeGoogleAdsRowElement(helpers.Customer(3)),
       ],
     ]
-    return FakeResponse(data=fake_results)
+    return helpers.FakeResponse(data=fake_results)
 
   @pytest.fixture
   def test_client(self, mocker, config_path):

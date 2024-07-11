@@ -22,6 +22,8 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableSequence
 
+from google.ads.googleads import client as googleads_client
+
 from gaarf import api_clients, query_editor, report_fetcher
 from gaarf.io.writers import abs_writer, console_writer
 
@@ -29,14 +31,17 @@ logger = logging.getLogger(__name__)
 
 
 class AdsQueryExecutor:
-  """Class responsible for getting data from Ads API and writing it to
-      local/remote storage.
+  """Gets data from Ads API and writes them to local/remote storage.
 
   Attributes:
       api_client: a client used for connecting to Ads API.
   """
 
-  def __init__(self, api_client: api_clients.BaseClient) -> None:
+  def __init__(
+    self,
+    api_client: api_clients.GoogleAdsApiClient
+    | googleads_client.GoogleAdsClient,
+  ) -> None:
     """Initializes QueryExecutor.
 
     Args:

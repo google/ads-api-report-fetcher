@@ -20,6 +20,7 @@ strategies to each element of the row.
 from __future__ import annotations
 
 import ast
+import contextlib
 import importlib
 import operator
 import re
@@ -71,6 +72,7 @@ class BaseParser:
 
     Args:
         element: An element of a GoogleAdsRow.
+
     Returns:
         Parsed GoogleAdsRow element.
     """
@@ -91,14 +93,16 @@ class RepeatedParser(BaseParser):
 
     Args:
         element: An element of a GoogleAdsRow.
+
     Returns:
         Parsed GoogleAdsRow element.
     """
     if isinstance(element, get_args(_REPEATED)) and 'customer' in str(element):
       items: list[GoogleAdsRowElement] = []
       for item in element:
-        item = ResourceFormatter.get_resource_id(item)
-        items.append(ResourceFormatter.clean_resource_id(item))
+        items.append(
+          ResourceFormatter(item).get_resource_id().clean_resource_id().format()
+        )
       return items
     return super().parse(element)
 
@@ -115,15 +119,20 @@ class RepeatedCompositeParser(BaseParser):
 
     Args:
         element: An element of a GoogleAdsRow.
+
     Returns:
         Parsed GoogleAdsRow element.
     """
     if isinstance(element, get_args(_REPEATED_COMPOSITE)):
       items = []
       for item in element:
-        item = ResourceFormatter.get_resource(item)
-        item = ResourceFormatter.get_resource_id(item)
-        items.append(ResourceFormatter.clean_resource_id(item))
+        items.append(
+          ResourceFormatter(item)
+          .get_nested_resource()
+          .get_resource_id()
+          .clean_resource_id()
+          .format()
+        )
       return items
     return super().parse(element)
 
@@ -353,12 +362,13 @@ class GoogleAdsRowParser:
 
   def _get_resource_index(
     self, extracted_attribute: GoogleAdsRowElement, caller: dict[str, str]
-  ) -> str:
+  ) -> int | str:
     """Extracts additional info from resource_name.
 
     Some GoogleAdsRow objects resource_names
     (i.e. customers/1/conversionActions/2~3); with resource_index we can
     access only the last element of this expression ('3').
+    Whenever possible result is converted to integer.
 
     Args:
         extracted_attribute: A single element from GoogleAdsRow.
@@ -379,7 +389,11 @@ class GoogleAdsRowParser:
     extracted_attribute = re.split('~', extracted_attribute)[
       caller.get('value')
     ]
-    return re.split('/', extracted_attribute)[-1]
+    result = re.split('/', extracted_attribute)[-1]
+    try:
+      return int(result)
+    except ValueError:
+      return result
 
   def _get_attributes_from_row(
     self, row: google_ads_service.GoogleAdsRow, getter: operator.attrgetter
@@ -433,56 +447,72 @@ class GoogleAdsRowParser:
       )
     if virtual_column.type == 'built-in':
       return virtual_column.value
-    if virtual_column.type == 'expression':
-      virtual_column_getter = operator.attrgetter(*virtual_column.fields)
-      virtual_column_values = virtual_column_getter(row)
-      try:
-        iter(virtual_column_values)
-      except TypeError:
-        virtual_column_values = (virtual_column_values,)
-      virtual_column_replacements = {
-        field.replace('.', '_'): value
-        for field, value in zip(virtual_column.fields, virtual_column_values)
-      }
-      try:
-        virtual_column_expression = virtual_column.substitute_expression.format(
-          **virtual_column_replacements
+    virtual_column_getter = operator.attrgetter(*virtual_column.fields)
+    virtual_column_values = virtual_column_getter(row)
+    try:
+      iter(virtual_column_values)
+    except TypeError:
+      virtual_column_values = (virtual_column_values,)
+    virtual_column_replacements = {
+      field.replace('.', '_'): value
+      for field, value in zip(virtual_column.fields, virtual_column_values)
+    }
+    try:
+      virtual_column_expression = virtual_column.substitute_expression.format(
+        **virtual_column_replacements
+      )
+      tree = ast.parse(virtual_column_expression, mode='eval')
+      valid = all(
+        isinstance(node, query_editor.VALID_VIRTUAL_COLUMN_OPERATORS)
+        for node in ast.walk(tree)
+      )
+      if valid:
+        result = eval(
+          compile(tree, filename='', mode='eval'), {'__builtins__': None}
         )
-        tree = ast.parse(virtual_column_expression, mode='eval')
-        valid = all(
-          isinstance(node, query_editor.VALID_VIRTUAL_COLUMN_OPERATORS)
-          for node in ast.walk(tree)
-        )
-        if valid:
-          result = eval(
-            compile(tree, filename='', mode='eval'), {'__builtins__': None}
-          )
-      except TypeError as e:
-        raise exceptions.GaarfVirtualColumnException(
-          f'cannot parse virtual_column {virtual_column.value}'
-        ) from e
-      except ZeroDivisionError:
-        return 0
-      except SyntaxError:
-        return virtual_column.value
-      return result
+    except TypeError as e:
+      raise exceptions.GaarfVirtualColumnException(
+        f'cannot parse virtual_column {virtual_column.value}'
+      ) from e
+    except ZeroDivisionError:
+      return 0
+    except SyntaxError:
+      return virtual_column.value
+    return result
 
 
 class ResourceFormatter:
   """Helper class for formatting resources strings."""
 
-  @staticmethod
-  def get_resource(element: str) -> str:
-    return re.split(': ', str(element).strip())[1]
+  def __init__(self, element: str) -> None:
+    """Initializes ResourceFormatter based on element."""
+    self.element = str(element).strip()
 
-  @staticmethod
-  def get_resource_id(element: str) -> str:
-    return re.split('/', str(element))[-1]
+  def get_nested_resource(self) -> Self:
+    """Extract nested resources from the API response field."""
+    self.element = re.split(': ', self.element)[1]
+    return self
 
-  @staticmethod
-  def clean_resource_id(element: str) -> int | str:
-    element = re.sub('"', '', str(element))
-    try:
-      return int(element)
-    except ValueError:
-      return element
+  def get_resource_id(self) -> Self:
+    """Extracts last id of resource_name.
+
+    Resource name looks like `customer/123/campaigns/321`.
+    `get_resource_id` returns `321`.
+    """
+    self.element = re.split('/', self.element)[-1]
+    return self
+
+  def clean_resource_id(self) -> Self:
+    """Ensures that resource_id is cleaned up and converted to int."""
+    self.element = re.sub('"', '', self.element)
+    with contextlib.suppress(ValueError):
+      self.element = int(self.element)
+    return self
+
+  def format(self) -> str | int:
+    """Final method to return formatted resource.
+
+    Returns:
+      Formatted resource.
+    """
+    return self.element

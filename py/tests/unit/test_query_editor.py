@@ -1,3 +1,16 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
 
 import datetime
@@ -77,6 +90,14 @@ class TestRegularQuery:
   def test_correct_title(self, sample_query):
     assert sample_query.query_title == 'sample_query'
 
+  def test_extract_resource_form_query_returns_found_resource(
+    self, query_specification
+  ):
+    resource_name = query_specification._extract_resource_from_query()
+    expected_resource_name = 'ad_group_ad'
+
+    assert resource_name == expected_resource_name
+
   def test_extract_correct_fields(self, sample_query):
     assert sample_query.fields == [
       'customer.id',
@@ -101,10 +122,39 @@ class TestRegularQuery:
     ]
 
   def test_extract_correct_text(self, sample_query):
-    assert (
-      sample_query.query_text.lower()
-      == 'select customer.id, campaign.bidding_strategy_type, campaign.id, ad_group.id, ad_group_ad.ad.id, metrics.clicks, metrics.impressions, metrics.cost_micros from ad_group_ad'
+    assert sample_query.query_text.lower() == (
+      'select customer.id, campaign.bidding_strategy_type, campaign.id, '
+      'ad_group.id, ad_group_ad.ad.id, metrics.clicks, '
+      'metrics.impressions, metrics.cost_micros from ad_group_ad'
     )
+
+  def test_extract_filters_returns_correct_match(self):
+    query = query_editor.QuerySpecification(
+      text='SELECT campaign.id FROM campaign WHERE campaign.status = ENABLED'
+    )
+    where_statement = query._extract_filters()
+    assert 'WHERE campaign.status = ENABLED' in where_statement
+
+  def test_extract_filters_returns_limit(self):
+    query = query_editor.QuerySpecification(
+      text='SELECT campaign.id FROM campaign LIMIT 10'
+    )
+    where_statement = query._extract_filters()
+    assert 'LIMIT 10' in where_statement
+
+  def test_extract_filters_returns_order_by(self):
+    query = query_editor.QuerySpecification(
+      text='SELECT campaign.id FROM campaign ORDER BY 1'
+    )
+    where_statement = query._extract_filters()
+    assert 'ORDER BY 1' in where_statement
+
+  def test_extract_filters_returns_nothing(self):
+    query = query_editor.QuerySpecification(
+      text='SELECT campaign.id FROM campaign'
+    )
+    where_statement = query._extract_filters()
+    assert where_statement == ''
 
   def test_extract_custom_callers(self, sample_query):
     assert sample_query.customizers == {
@@ -113,26 +163,11 @@ class TestRegularQuery:
       'ad': {'type': 'pointer', 'value': 'asset'},
     }
 
-  def test_extract_query_lines(self, query_specification, sample_query):
-    extracted_lines = query_specification.extract_query_lines(
-      sample_query.query_text
-    )
-    assert extracted_lines == [
-      'customer.id',
-      'campaign.bidding_strategy_type',
-      'campaign.id',
-      'ad_group.id',
-      'ad_group_ad.ad.id',
-      'metrics.clicks',
-      'metrics.impressions',
-      'metrics.cost_micros',
-    ]
-
   def test_extract_correct_resource(self, sample_query):
     assert sample_query.resource_name == 'ad_group_ad'
 
   def test_is_constant_resource(self, sample_query):
-    assert sample_query.is_constant_resource == False
+    assert not sample_query.is_constant_resource
 
   def test_has_virtual_columns(self, sample_query):
     assert sample_query.virtual_columns == {
@@ -162,6 +197,15 @@ class TestRegularQuery:
     )
     with pytest.raises(exceptions.GaarfResourceException):
       spec.generate()
+
+  def test_generate_works_with_virtual_column(self):
+    query = (
+      'SELECT "something:anything" AS virtual, metrics.clicks FROM ad_group'
+    )
+    spec = query_editor.QuerySpecification(
+      title='sample_query', text=query, args=None
+    )
+    spec.generate()
 
   def test_incorrect_specification_raises_macro_error(self):
     query = "SELECT '${custom_field}', ad_group.id FROM ad_group"
@@ -215,23 +259,9 @@ class TestTemplatedQuery:
     ]
 
   def test_extract_correct_text(self, templated_query):
-    assert (
-      templated_query.query_text.lower()
-      == 'select customer.id, campaign.bidding_strategy_type, campaign.id, ad_group.id, ad_group_ad.ad.id, campaign.selective_optimization, metrics.clicks, metrics.impressions, metrics.cost_micros from ad_group_ad'
+    assert templated_query.query_text.lower() == (
+      'select customer.id, campaign.bidding_strategy_type, campaign.id, '
+      'ad_group.id, ad_group_ad.ad.id, campaign.selective_optimization, '
+      'metrics.clicks, metrics.impressions, metrics.cost_micros '
+      'from ad_group_ad'
     )
-
-  def test_extract_query_lines(self, query_specification, templated_query):
-    extracted_lines = query_specification.extract_query_lines(
-      templated_query.query_text
-    )
-    assert extracted_lines == [
-      'customer.id',
-      'campaign.bidding_strategy_type',
-      'campaign.id',
-      'ad_group.id',
-      'ad_group_ad.ad.id',
-      'campaign.selective_optimization',
-      'metrics.clicks',
-      'metrics.impressions',
-      'metrics.cost_micros',
-    ]

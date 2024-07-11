@@ -19,7 +19,7 @@ try:
   from google.cloud import bigquery  # type: ignore
 except ImportError as e:
   raise ImportError(
-    'Please install google-ads-api-report-fetcher with sqlalchemy support '
+    'Please install google-ads-api-report-fetcher with BigQuery support '
     '- `pip install google-ads-api-report-fetcher[bq]`'
   ) from e
 
@@ -63,7 +63,7 @@ class BigQueryExecutor(query_post_processor.PostProcessorMixin):
 
   def execute(
     self, script_name: str, query_text: str, params: dict | None = None
-  ) -> pd.DataFrame | None:
+  ) -> pd.DataFrame:
     """Executes query in BigQuery.
 
     Args:
@@ -72,7 +72,7 @@ class BigQueryExecutor(query_post_processor.PostProcessorMixin):
         params: Optional parameters to be replaced in query text.
 
     Returns:
-        DataFrame if query returns some data, None if it creates data in BQ.
+        DataFrame if query returns some data otherwise empty DataFrame.
     """
     query_text = self.replace_params_template(query_text, params)
     job = self.client.query(query_text)
@@ -81,8 +81,8 @@ class BigQueryExecutor(query_post_processor.PostProcessorMixin):
       logger.debug('%s launched successfully', script_name)
       if result.total_rows:
         return result.to_dataframe()
-      return None
-    except Exception as e:
+      return pd.DataFrame()
+    except google_cloud_exceptions.GoogleCloudError as e:
       raise BigQueryExecutorException(e) from e
 
   def create_datasets(self, macros: dict | None) -> None:
