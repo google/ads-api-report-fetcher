@@ -355,9 +355,12 @@ class GaarfReport:
   def __eq__(self, other) -> bool:
     if not isinstance(other, self.__class__):
       return False
-    if self.column_names != other.column_names:
+    if sorted(self.column_names) != sorted(other.column_names):
       return False
-    return self.results == other.results
+    for self_row, other_row in zip(self, other):
+      if self_row.to_dict() != other_row.to_dict():
+        return False
+    return True
 
   def __add__(self, other: GaarfReport) -> GaarfReport:
     """Combines two reports into one.

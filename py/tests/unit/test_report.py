@@ -456,6 +456,15 @@ class TestGaarfReport:
       )
       assert new_multi_column_report == multi_column_report
 
+    def test_report_with_same_data_different_order_are_equal(
+      self, multi_column_report
+    ):
+      new_multi_column_report = report.GaarfReport(
+        results=[[2, 1], [3, 2], [4, 3]],
+        column_names=['ad_group_id', 'campaign_id'],
+      )
+      assert new_multi_column_report == multi_column_report
+
 
 class TestGaarfRow:
   @pytest.fixture
