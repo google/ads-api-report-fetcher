@@ -19,7 +19,7 @@ exports.main_getcids = void 0;
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const utils_1 = require("./utils");
 const logger_1 = require("./logger");
-const DEFAULT_BATCH_SIZE = 1000;
+const DEFAULT_BATCH_SIZE = 500;
 async function main_getcids_unsafe(req, res, logger) {
     // prepare Ads API parameters
     const adsConfig = await (0, utils_1.getAdsConfig)(req);
@@ -46,20 +46,21 @@ async function main_getcids_unsafe(req, res, logger) {
         await logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
         const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(adsClient);
         customerIds = await executor.getCustomerIds(customerIds, customer_ids_query);
+        await logger.info(`Loaded ${customerIds.length} accounts`);
     }
     customerIds = customerIds || [];
     customerIds.sort();
     // now we have a final list of accounts (customerIds)
     let batchSize = DEFAULT_BATCH_SIZE;
     if (req.query.customer_ids_batchsize) {
-        batchSize = parseInt(req.query.customer_ids_batchsize);
+        batchSize = Number(req.query.customer_ids_batchsize);
         if (isNaN(batchSize)) {
             throw new Error('customer_ids_batchsize should be a number');
         }
     }
     if (req.query.customer_ids_offset) {
         // extract a subset of CIDs if offset is specified
-        const offset = parseInt(req.query.customer_ids_offset);
+        const offset = Number(req.query.customer_ids_offset);
         if (isNaN(offset)) {
             throw new Error('customer_ids_offset should be a number');
         }

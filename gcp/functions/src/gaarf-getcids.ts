@@ -25,7 +25,7 @@ import express from 'express';
 import {getAdsConfig, getProject, splitIntoChunks} from './utils';
 import {createLogger, ILogger} from './logger';
 
-const DEFAULT_BATCH_SIZE = 1_000;
+const DEFAULT_BATCH_SIZE = 500;
 
 async function main_getcids_unsafe(
   req: express.Request,
@@ -67,6 +67,9 @@ async function main_getcids_unsafe(
       customerIds,
       customer_ids_query
     );
+    await logger.info(
+      `Loaded ${customerIds.length} accounts`
+    );
   }
   customerIds = customerIds || [];
   customerIds.sort();
@@ -74,14 +77,14 @@ async function main_getcids_unsafe(
   // now we have a final list of accounts (customerIds)
   let batchSize = DEFAULT_BATCH_SIZE;
   if (req.query.customer_ids_batchsize) {
-    batchSize = parseInt(<string>req.query.customer_ids_batchsize);
+    batchSize = Number(<string>req.query.customer_ids_batchsize);
     if (isNaN(batchSize)) {
       throw new Error('customer_ids_batchsize should be a number');
     }
   }
   if (req.query.customer_ids_offset) {
     // extract a subset of CIDs if offset is specified
-    const offset = parseInt(<string>req.query.customer_ids_offset);
+    const offset = Number(<string>req.query.customer_ids_offset);
     if (isNaN(offset)) {
       throw new Error('customer_ids_offset should be a number');
     }

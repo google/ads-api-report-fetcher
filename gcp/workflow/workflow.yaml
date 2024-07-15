@@ -159,6 +159,8 @@ runAdsQueries:
               call: googleapis.workflowexecutions.v1.projects.locations.workflows.executions.run
               args:
                 workflow_id: ${workflow_ads_id}
+                connector_params:
+                  timeout: 86400 # 24h=60*60*24 seconds
                 argument:
                   location: ${location}
                   scripts: ${scripts}

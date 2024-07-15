@@ -140,6 +140,7 @@ schedule_wf() {
   SCHEDULE_TZ=$(git config -f $SETTING_FILE scheduler.schedule-timezone|| echo "Etc/UTC")
 
   data=$(_get_data $@)
+  escaped_data="$(echo "$data" | sed 's/"/\\"/g')"
 
   JOB_EXISTS=$(gcloud scheduler jobs list --location=$REGION --format="value(ID)" --filter="ID:'$JOB_NAME'")
   if [[ -n $JOB_EXISTS ]]; then
@@ -150,7 +151,7 @@ schedule_wf() {
   gcloud scheduler jobs create http $JOB_NAME \
     --schedule="$SCHEDULE" \
     --uri="https://workflowexecutions.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/workflows/$WORKFLOW_NAME/executions"   --location=$REGION \
-    --message-body="{\"argument\": \"$data\"}" \
+    --message-body="{\"argument\": \"$escaped_data\"}" \
     --oauth-service-account-email="$SERVICE_ACCOUNT" \
     --time-zone="$SCHEDULE_TZ"
 }
