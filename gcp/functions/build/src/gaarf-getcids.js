@@ -29,12 +29,12 @@ async function main_getcids_unsafe(req, res, logger) {
     let customerIds = (0, google_ads_api_report_fetcher_1.parseCustomerIds)(req.query.customer_id, adsConfig);
     let customerIdsIgnore = [];
     if (req.query.customer_ids_ignore) {
-        const customer_ids_ignore = req.query.customer_ids_ignore;
-        if (customer_ids_ignore.includes(',')) {
-            customerIdsIgnore = customer_ids_ignore.split(',');
+        const customerIdsIgnoreQS = req.query.customer_ids_ignore;
+        if (customerIdsIgnoreQS.includes(',')) {
+            customerIdsIgnore = customerIdsIgnoreQS.split(',');
         }
         else {
-            customerIdsIgnore = [customer_ids_ignore];
+            customerIdsIgnore = [customerIdsIgnoreQS];
         }
     }
     if (!customerIds || customerIds.length === 0) {

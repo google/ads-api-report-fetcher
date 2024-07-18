@@ -39,13 +39,13 @@ async function main_getcids_unsafe(
   await logger.info('Ads API config', ads_config_wo_token);
 
   let customerIds = parseCustomerIds(<string>req.query.customer_id, adsConfig);
-  let customerIdsIgnore: Array<string> = [];
+  let customerIdsIgnore: string[] = [];
   if (req.query.customer_ids_ignore) {
-    const customer_ids_ignore = <string>req.query.customer_ids_ignore;
-    if (customer_ids_ignore.includes(',')) {
-      customerIdsIgnore = customer_ids_ignore.split(',');
+    const customerIdsIgnoreQS = <string>req.query.customer_ids_ignore;
+    if (customerIdsIgnoreQS.includes(',')) {
+      customerIdsIgnore = customerIdsIgnoreQS.split(',');
     } else {
-      customerIdsIgnore = [customer_ids_ignore];
+      customerIdsIgnore = [customerIdsIgnoreQS];
     }
   }
   if (!customerIds || customerIds.length === 0) {
