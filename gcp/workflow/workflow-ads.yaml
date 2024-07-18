@@ -14,7 +14,6 @@ main:
           - macros: ${map.get(args, "macros")}
           - bq_writer_options: ${map.get(args, "bq_writer_options")}
           - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
-          - disable_strict_views: ${default(map.get(args,"disable_strict_views"), false)}
 
     # get CF 'gaarf' function's URL
     - get_function:
@@ -29,18 +28,9 @@ main:
         #args:
         #  name: ${"projects/" + project + "/locations/" + location + "/functions/" + cloud_function}
         #result: function
-    # get CF 'gaarf-bq-view' function's URL
-    - get_function_view:
-        call: http.get
-        args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + cloud_function + "-bq-view"}
-          auth:
-            type: OAuth2
-        result: function_view
     - initialize_functions_uris:
         assign:
           - gaarf_main_cf_uri: ${function.body.serviceConfig.uri}
-          - gaarf_bqview_cf_uri: ${function_view.body.serviceConfig.uri}
 
     - iterate_over_scripts:
         parallel:
@@ -91,22 +81,6 @@ main:
                               bq_dataset_location: ${bq_dataset_location}
                               ads_config_path: ${ads_config_path}
                               bq_writer_options: ${bq_writer_options}
-              # create a view in BQ to combine all account tables into a single view
-              - call_create_view_cf:
-                  call: http.post
-                  args:
-                    url: ${gaarf_bqview_cf_uri}
-                    timeout: 1800
-                    query:
-                      project_id: ${project}
-                      dataset: ${bq_dataset}
-                      dataset_location: ${bq_dataset_location}
-                      script_path: ${script_item}
-                    body:
-                      accounts: ${if(disable_strict_views, [], accounts)}
-                    auth:
-                      type: OIDC
-                  result: create_view_response
 
 executeAdsQuery:
   params: [cf_uri, script_path, account, macros, project, bq_dataset, bq_dataset_location, ads_config_path, bq_writer_options, is_constant: false]

@@ -39,7 +39,15 @@ async function main_getcids_unsafe(
   await logger.info('Ads API config', ads_config_wo_token);
 
   let customerIds = parseCustomerIds(<string>req.query.customer_id, adsConfig);
-
+  let customerIdsIgnore: Array<string> = [];
+  if (req.query.customer_ids_ignore) {
+    const customer_ids_ignore = <string>req.query.customer_ids_ignore;
+    if (customer_ids_ignore.includes(',')) {
+      customerIdsIgnore = customer_ids_ignore.split(',');
+    } else {
+      customerIdsIgnore = [customer_ids_ignore];
+    }
+  }
   if (!customerIds || customerIds.length === 0) {
     throw new Error(
       "Customer id is not specified in either 'customer_id' query argument or google-ads.yaml"
@@ -67,9 +75,7 @@ async function main_getcids_unsafe(
       customerIds,
       customer_ids_query
     );
-    await logger.info(
-      `Loaded ${customerIds.length} accounts`
-    );
+    await logger.info(`Loaded ${customerIds.length} accounts`);
   }
   customerIds = customerIds || [];
   customerIds.sort();
@@ -96,6 +102,8 @@ async function main_getcids_unsafe(
       );
     }
   }
+
+  customerIds = customerIds.filter(cid => customerIdsIgnore.indexOf(cid) < 0);
 
   if (req.query.flatten) {
     res.json(customerIds);

@@ -88,6 +88,7 @@ Please notice the escaping of quotes for job's argument.
 * `dataset` - BigQuery dataset id for writing results of ads queries (required)
 * `bq_dataset_location` - BigQuery dataset location, e.g. "europe", by default "us" (optional)
 * `cid` - Ads customer id, can be either a MCC or child account, without dashes (required), or a list of CIDs comma separated (required)
+* `cid_ignore` - Ads customer id (or a comma separated list) to exclude from the resulting list
 * `customer_ids_query` - a path to a file with GAQL query that refines for which accounts to execute scripts (optional)
 * `customer_ids_batchsize` - a batch size for customer ids (cids), if not specified accounts will be processed by 1000 accounts (see gaarf-getids CF)
 * `customer_ids_offset` - an offset in resulting list of accounts if you need to implemented an external batching - i.e. execute workflow only for a subset of accounts from specified seed account(s). It differs from internal batching where accounts processed by batches to workaround the maximum steps limitation of Cloud Workflows (100K runtime steps).

@@ -30,6 +30,7 @@ main:
           queries_path: ${args.ads_queries_path}
           ads_config_path: ${args.ads_config_path}
           cid: ${args.cid}
+          cid_ignore: ${map.get(args, "cid_ignore")}
           customer_ids_query: ${map.get(args, "customer_ids_query")}
           customer_ids_offset: ${map.get(args, "customer_ids_offset")}
           customer_ids_batchsize: ${map.get(args, "customer_ids_batchsize")}
@@ -69,7 +70,7 @@ main:
         return: ${accounts}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit, workflow_ads_id, disable_strict_views]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, cid_ignore, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit, workflow_ads_id, disable_strict_views]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf-getcids' function's URL
@@ -80,6 +81,14 @@ runAdsQueries:
           auth:
             type: OAuth2
         result: function_cids
+    # get CF 'gaarf-bq-view' function's URL
+    - get_function_view:
+        call: http.get
+        args:
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name + "-bq-view"}
+          auth:
+            type: OAuth2
+        result: function_view
 
     #call 'gaarf-getcids' CF to get a list of customer ids for further processing
     - call_gaarf_cids_cf:
@@ -90,6 +99,7 @@ runAdsQueries:
           query:
             ads_config_path: ${ads_config_path}
             customer_id: ${cid}
+            customer_ids_ignore: ${default(cid_ignore, "")}
             customer_ids_query: ${default(customer_ids_query, "")}
             customer_ids_offset: ${default(customer_ids_offset, "")}
             customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
@@ -172,8 +182,52 @@ runAdsQueries:
                   macros: ${macros}
                   bq_writer_options: ${bq_writer_options}
                   concurrency_limit: ${concurrency_limit}
-                  disable_strict_views: ${disable_strict_views}
               result: execution_result
+
+    # collection account ids from `accounts` where they are slit into batched into a flatten list
+    - initialize_accounts_flatten:
+        assign:
+          - accounts_flatten: []
+    - flatten_accounts:
+        for:
+          value: accounts_batch
+          in: ${accounts}
+          steps:
+            - loop_over_batch:
+                for:
+                  value: account
+                  in: ${accounts_batch}
+                  steps:
+                    - append:
+                        assign:
+                          - accounts_flatten: ${list.concat(accounts_flatten, account)}
+
+    # for each script (excluding constants) create a unified view
+    - create_views:
+        for:
+          value: script_item
+          in: ${scripts}
+          steps:
+            - check_for_constant:
+                switch:
+                  - condition: ${text.match_regex(script_item, "_constant")}
+                    next: continue
+                next: call_create_view_cf
+            - call_create_view_cf:
+                call: http.post
+                args:
+                  url: ${function_view.body.serviceConfig.uri}
+                  timeout: 1800
+                  query:
+                    project_id: ${project}
+                    dataset: ${bq_dataset}
+                    dataset_location: ${bq_dataset_location}
+                    script_path: ${script_item}
+                  body:
+                    accounts: ${if(disable_strict_views, [], accounts_flatten)}
+                  auth:
+                    type: OIDC
+                result: create_view_response
 
     - return_result:
         return: ${accounts}
