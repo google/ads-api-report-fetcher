@@ -182,7 +182,8 @@ class AdsReportFetcher:
         )
       ):
         raise exceptions.GaarfBuiltInQueryException(
-          'Cannot find the built-in query ' f'"{query_specification.title}"'
+          'Cannot find the built-in query '
+          f'"{query_specification.query_title}"'
         )
       return builtin_report(self, accounts=customer_ids)
     optimize_strategy = OptimizeStrategy[optimize_strategy]
@@ -300,7 +301,7 @@ class AdsReportFetcher:
     query_specification: query_editor.QueryElements,
     customer_id: str,
     parser: parsers.GoogleAdsRowParser,
-  ) -> list[list]:
+  ) -> list[list[parsers.GoogleAdsRowElement]]:
     """Parses response returned from Ads API request in parallel batches.
 
     Args:
@@ -317,7 +318,7 @@ class AdsReportFetcher:
     Returns:
         Parsed rows for the whole response.
     """
-    parsed_batches = []
+    parsed_batches: list[list[parsers.GoogleAdsRowElement]] = []
     with futures.ThreadPoolExecutor() as executor:
       future_to_batch = {}
       for batch in response:
@@ -343,7 +344,7 @@ class AdsReportFetcher:
     query_specification: query_editor.QueryElements,
     customer_id: str,
     parser: parsers.GoogleAdsRowParser,
-  ) -> list[list]:
+  ) -> list[list[parsers.GoogleAdsRowElement]]:
     """Parses response returned from Ads API request sequentially.
 
     Args:
@@ -361,7 +362,7 @@ class AdsReportFetcher:
         Parsed rows for the whole response.
     """
     query_resource_consumption = 0
-    total_results: list[list] = []
+    total_results: list[list[parsers.GoogleAdsRowElement]] = []
     logger.debug(
       'Iterating over response for query %s for customer_id %s',
       query_specification.query_title,
