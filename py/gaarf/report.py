@@ -357,6 +357,8 @@ class GaarfReport:
       return False
     if sorted(self.column_names) != sorted(other.column_names):
       return False
+    if len(self.results) != len(other.results):
+      return False
     for self_row, other_row in zip(self, other):
       if self_row.to_dict() != other_row.to_dict():
         return False
