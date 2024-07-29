@@ -38,6 +38,7 @@ main:
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
           bq_writer_options: ${map.get(args, "bq_writer_options")}
+          output_path: ${map.get(args, "output_path")}
           concurrency_limit: ${concurrency_limit}
           workflow_ads_id: ${workflow_ads_id}
           disable_strict_views: ${disable_strict_views}
@@ -70,7 +71,7 @@ main:
         return: ${accounts}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, cid_ignore, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, concurrency_limit, workflow_ads_id, disable_strict_views]
+  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, cid_ignore, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, output_path, concurrency_limit, workflow_ads_id, disable_strict_views]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf-getcids' function's URL
@@ -181,6 +182,7 @@ runAdsQueries:
                   bq_dataset_location: ${bq_dataset_location}
                   macros: ${macros}
                   bq_writer_options: ${bq_writer_options}
+                  output_path: ${output_path}
                   concurrency_limit: ${concurrency_limit}
               result: execution_result
 
