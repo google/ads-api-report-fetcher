@@ -13,13 +13,15 @@ class FileQueryReader {
     constructor(scripts) {
         this.scripts = [];
         if (scripts && scripts.length) {
-            for (const script of scripts) {
+            for (let script of scripts) {
                 if (script.includes("*") || script.includes("**")) {
                     const expanded_files = (0, glob_1.globSync)(script);
                     this.scripts.push(...expanded_files);
                 }
                 else {
-                    this.scripts.push(script);
+                    script = script.trim();
+                    if (script)
+                        this.scripts.push(script);
                 }
             }
         }

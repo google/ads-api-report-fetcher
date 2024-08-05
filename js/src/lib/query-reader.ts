@@ -12,12 +12,13 @@ export class FileQueryReader implements IQueryReader {
   constructor(scripts: string[] | undefined) {
     this.scripts = [];
     if (scripts && scripts.length) {
-      for (const script of scripts) {
+      for (let script of scripts) {
         if (script.includes("*") || script.includes("**")) {
           const expanded_files = globSync(script);
           this.scripts.push(...expanded_files);
         } else {
-          this.scripts.push(script);
+          script = script.trim();
+          if (script) this.scripts.push(script);
         }
       }
     }
