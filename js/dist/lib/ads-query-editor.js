@@ -255,7 +255,7 @@ class AdsQueryEditor {
                     }
                     else {
                         let raw_expr_fields = [];
-                        parsed_expression.traverse((node, path, parent) => {
+                        parsed_expression.forEach((node, path, parent) => {
                             if (node.isAccessorNode) {
                                 raw_expr_fields.push(node.toString());
                             }
