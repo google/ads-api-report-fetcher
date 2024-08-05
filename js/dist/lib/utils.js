@@ -1,4 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.delay = exports.executeWithRetry = exports.getMemoryUsage = exports.getDirectorySize = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 /**
  * Copyright 2023 Google LLC
  *
@@ -14,11 +19,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.executeWithRetry = exports.dumpMemory = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
+const node_fs_1 = __importDefault(require("node:fs"));
 const add_1 = __importDefault(require("date-fns/add"));
 const format_1 = __importDefault(require("date-fns/format"));
 const lodash_1 = __importDefault(require("lodash"));
@@ -230,15 +231,46 @@ function getElapsed(started, now) {
         prepend(ms, 3));
 }
 exports.getElapsed = getElapsed;
-function dumpMemory() {
-    const used = process.memoryUsage();
-    let output = "";
-    for (let key in used) {
-        output += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
+/**
+ * Return a directory size.
+ * @param path a local path
+ * @returns size in megabytes
+ */
+function getDirectorySize(path) {
+    let totalSize = 0;
+    if (node_fs_1.default.existsSync(path)) {
+        const files = node_fs_1.default.readdirSync(path);
+        for (const file of files) {
+            const stats = node_fs_1.default.statSync(`${path}/${file}`);
+            totalSize += stats.size;
+        }
+        return Math.round(totalSize / 1024 / 1024); // Convert to MB
     }
-    return output;
+    return undefined;
 }
-exports.dumpMemory = dumpMemory;
+exports.getDirectorySize = getDirectorySize;
+/**
+ * Construct a string with memory usage dump.
+ * @param phase arbitrar string to describe a moment
+ * @returns formatted info
+ */
+function getMemoryUsage(phase) {
+    const used = process.memoryUsage();
+    // NOTE: Additionally v8.getHeapStatistics() can be used
+    let memUsage = "";
+    for (let key in used) {
+        memUsage += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
+    }
+    let extra = "";
+    if (process.env.K_SERVICE) {
+        const tmpSize = getDirectorySize("/tmp");
+        if (Number.isInteger(tmpSize)) {
+            extra = `/tmp Directory Size: ${tmpSize} MB`;
+        }
+    }
+    return `${phase} - Memory Usage: ${memUsage}\n${extra}`;
+}
+exports.getMemoryUsage = getMemoryUsage;
 /**
  *
  * @param fn Any operation to execute
@@ -284,4 +316,12 @@ function executeWithRetry(fn, checkToRetry, options) {
     return execute();
 }
 exports.executeWithRetry = executeWithRetry;
+/**
+ * Return a waitable Promise for a delay.
+ * @param ms number of milliseconds to wait
+ */
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+exports.delay = delay;
 //# sourceMappingURL=utils.js.map

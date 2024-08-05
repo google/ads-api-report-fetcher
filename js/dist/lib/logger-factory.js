@@ -26,7 +26,9 @@ const { format } = winston_1.default;
 /** Default log level */
 // NOTE: as we use argv directly (before parsing) we have to manually check all aliases for the option log-level
 exports.LOG_LEVEL = argv.logLevel ||
-    argv.loglevel || argv.ll || argv.log_level ||
+    argv.loglevel ||
+    argv.ll ||
+    argv.log_level ||
     process.env.LOG_LEVEL ||
     (process.env.NODE_ENV === "dev" ? "verbose" : "info");
 const colors = {
@@ -51,12 +53,9 @@ exports.defaultTransports.push(new winston_1.default.transports.Console({
 }));
 function createConsoleLogger() {
     const logger = winston_1.default.createLogger({
-        silent: exports.LOG_LEVEL === 'off',
+        silent: exports.LOG_LEVEL === "off",
         level: exports.LOG_LEVEL,
         format: format.combine(format.errors({ stack: true }), format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })),
-        // format: format.combine(
-        //   format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })
-        // ),
         transports: exports.defaultTransports,
     });
     return logger;

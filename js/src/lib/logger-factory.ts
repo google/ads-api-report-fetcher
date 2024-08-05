@@ -26,8 +26,11 @@ const { format } = winston;
 
 /** Default log level */
 // NOTE: as we use argv directly (before parsing) we have to manually check all aliases for the option log-level
-export const LOG_LEVEL = argv.logLevel ||
-  argv.loglevel || argv.ll || argv.log_level ||
+export let LOG_LEVEL =
+  argv.logLevel ||
+  argv.loglevel ||
+  argv.ll ||
+  argv.log_level ||
   process.env.LOG_LEVEL ||
   (process.env.NODE_ENV === "dev" ? "verbose" : "info");
 
@@ -62,24 +65,20 @@ defaultTransports.push(
   })
 );
 
-export function createConsoleLogger() {
+export function createConsoleLogger(): winston.Logger {
   const logger = winston.createLogger({
-    silent: LOG_LEVEL === 'off',
+    silent: LOG_LEVEL === "off",
     level: LOG_LEVEL, // NOTE: we use same log level for all transports
     format: format.combine(
       format.errors({ stack: true }),
-      format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" }),
-      //format.json()
+      format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })
     ),
-    // format: format.combine(
-    //   format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })
-    // ),
     transports: defaultTransports,
   });
   return logger;
 }
 
-export function createCloudLogger() {
+export function createCloudLogger(): winston.Logger {
   const cloudLogger = winston.createLogger({
     level: LOG_LEVEL,
     format: format.combine(
@@ -88,8 +87,7 @@ export function createCloudLogger() {
         info.trace = process.env.TRACE_ID;
         info[LOGGING_TRACE_KEY] = process.env.TRACE_ID;
         return info;
-      })(),
-      //format.json()
+      })()
     ),
     defaultMeta: getDefaultMetadataForTracing(),
     transports: [
@@ -113,7 +111,7 @@ export function createCloudLogger() {
   return cloudLogger;
 }
 
-export function createLogger() {
+export function createLogger(): winston.Logger {
   if (process.env.K_SERVICE) {
     // we're in Google Cloud (Run/Functions)
     return createCloudLogger();
@@ -121,4 +119,3 @@ export function createLogger() {
     return createConsoleLogger();
   }
 }
-

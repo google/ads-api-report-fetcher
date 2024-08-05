@@ -21,7 +21,7 @@ import { AdsQueryEditor, AdsApiVersion } from "./ads-query-editor";
 import { AdsRowParser } from "./ads-row-parser";
 import { getLogger } from "./logger";
 import { IResultWriter, QueryElements, QueryResult } from "./types";
-import { executeWithRetry, dumpMemory, getElapsed } from "./utils";
+import { executeWithRetry, getElapsed, getMemoryUsage } from "./utils";
 import { mapLimit } from "async";
 export { AdsApiVersion };
 
@@ -46,7 +46,7 @@ export interface AdsQueryExecutorOptions {
  */
 export class AdsQueryExecutor {
   static DEFAULT_PARALLEL_THRESHOLD = 16;
-  static DEFAULT_RETRY_COUNT = 3;
+  static DEFAULT_RETRY_COUNT = 5;
 
   client: IGoogleAdsApiClient;
   editor: AdsQueryEditor;
@@ -145,7 +145,7 @@ export class AdsQueryExecutor {
       if (!sync) {
         // parallel mode - we're limiting the level of concurrency with limit
         this.logger.debug(
-          `Concurrently processing (${customers}) customers (throttle: ${threshold})`
+          `Concurrently processing customers (throttle: ${threshold}): ${customers}`
         );
         let results = await mapLimit(
           customers,
@@ -171,11 +171,8 @@ export class AdsQueryExecutor {
     }
 
     if (writer) await writer.endScript();
-    if (this.logger.isDebugEnabled()) {
-      // TODO: introduce a special option for memory dumping (e.g. --logger.dump-memory)
-      this.logger.debug(
-        `[${scriptName}] Memory (script completed):\n` + dumpMemory()
-      );
+    if (process.env.DUMP_MEMORY) {
+      this.logger.debug(getMemoryUsage("Script completed"));
     }
 
     return result_map;
@@ -257,10 +254,8 @@ export class AdsQueryExecutor {
       scriptName,
       customerId,
     });
-    if (this.logger.isLevelEnabled("debug")) {
-      this.logger.debug(
-        `[${customerId}] Memory (before customer):\n` + dumpMemory()
-      );
+    if (process.env.DUMP_MEMORY) {
+      this.logger.debug(getMemoryUsage("Begin customer"));
     }
     let started = new Date();
     try {
@@ -280,10 +275,8 @@ export class AdsQueryExecutor {
         }
       );
       if (writer) await writer.endCustomer(customerId);
-      if (this.logger.isDebugEnabled()) {
-        this.logger.debug(
-          `[${customerId}] Memory (customer completed):\n` + dumpMemory()
-        );
+      if (process.env.DUMP_MEMORY) {
+        this.logger.debug(getMemoryUsage("Customer completed"));
       }
       this.logger.info(
         `Customer processing completed. Elapsed: ${getElapsed(started)}`,
@@ -294,14 +287,19 @@ export class AdsQueryExecutor {
       );
       return result;
     } catch (e) {
-      this.logger.error(
-        `An error occured during executing script '${scriptName}':`,
-        {
-          scriptName,
-          customerId,
-          error: e,
-        }
-      );
+      if (!e.logged) {
+        console.error(e);
+        this.logger.error(
+          `An error occured during executing script '${scriptName}':${
+            e.message || e
+          }`,
+          {
+            scriptName,
+            customerId,
+            error: e,
+          }
+        );
+      }
       e.customerId = customerId;
       // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
       // but swalling the exception here will possible cause other issue in writer,
@@ -320,15 +318,37 @@ export class AdsQueryExecutor {
       return stream;
     }
   }
-
+  protected async execute2(
+    query: QueryElements,
+    customerId: string,
+    writer?: IResultWriter
+  ) {
+    let rows = await this.client.executeQuery(query.queryText, customerId);
+    let rowCount = 0;
+    let rawRows: any[] = [];
+    let parsedRows: any[] = [];
+    // NOTE: as we're iterating over an AsyncGenerator any error if happens
+    // will be thrown on iterating not on creating of the generator
+    for (const row of rows) {
+      //let parsedRow = this.parser.parseRow(row, query);
+      rowCount++;
+      // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+      if (writer) await writer.addRow(customerId, <any[]>row, <any[]>row);
+    }
+    return { rawRows, rows: parsedRows, query, customerId, rowCount };
+  }
   protected async executeQueryAndParse(
     query: QueryElements,
     customerId: string,
     writer?: IResultWriter | undefined
   ) {
+    //return this.execute2(query, customerId, writer);
     return executeWithRetry(
       async () => {
         let stream = this.executeAdsQuery(query, customerId);
+        if (process.env.DUMP_MEMORY) {
+          this.logger.debug(getMemoryUsage("Query executed"));
+        }
         let rowCount = 0;
         let rawRows: any[] = [];
         let parsedRows: any[] = [];
@@ -340,6 +360,9 @@ export class AdsQueryExecutor {
           // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
           if (writer) {
             await writer.addRow(customerId, parsedRow, <any[]>row);
+            if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
+              this.logger.debug(getMemoryUsage("10 rows processed"));
+            }
           } else {
             rawRows.push(row);
             parsedRows.push(parsedRow);

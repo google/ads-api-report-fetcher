@@ -91,7 +91,7 @@ class AdsQueryExecutor {
             // non-constant
             if (!sync) {
                 // parallel mode - we're limiting the level of concurrency with limit
-                this.logger.debug(`Concurrently processing (${customers}) customers (throttle: ${threshold})`);
+                this.logger.debug(`Concurrently processing customers (throttle: ${threshold}): ${customers}`);
                 let results = await (0, async_1.mapLimit)(customers, threshold, async (customerId) => {
                     return this.executeOne(query, customerId, writer, scriptName);
                 });
@@ -108,9 +108,8 @@ class AdsQueryExecutor {
         }
         if (writer)
             await writer.endScript();
-        if (this.logger.isDebugEnabled()) {
-            // TODO: introduce a special option for memory dumping (e.g. --logger.dump-memory)
-            this.logger.debug(`[${scriptName}] Memory (script completed):\n` + (0, utils_1.dumpMemory)());
+        if (process.env.DUMP_MEMORY) {
+            this.logger.debug((0, utils_1.getMemoryUsage)("Script completed"));
         }
         return result_map;
     }
@@ -168,8 +167,8 @@ class AdsQueryExecutor {
             scriptName,
             customerId,
         });
-        if (this.logger.isLevelEnabled("debug")) {
-            this.logger.debug(`[${customerId}] Memory (before customer):\n` + (0, utils_1.dumpMemory)());
+        if (process.env.DUMP_MEMORY) {
+            this.logger.debug((0, utils_1.getMemoryUsage)("Begin customer"));
         }
         let started = new Date();
         try {
@@ -186,8 +185,8 @@ class AdsQueryExecutor {
             });
             if (writer)
                 await writer.endCustomer(customerId);
-            if (this.logger.isDebugEnabled()) {
-                this.logger.debug(`[${customerId}] Memory (customer completed):\n` + (0, utils_1.dumpMemory)());
+            if (process.env.DUMP_MEMORY) {
+                this.logger.debug((0, utils_1.getMemoryUsage)("Customer completed"));
             }
             this.logger.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
                 scriptName,
@@ -196,11 +195,14 @@ class AdsQueryExecutor {
             return result;
         }
         catch (e) {
-            this.logger.error(`An error occured during executing script '${scriptName}':`, {
-                scriptName,
-                customerId,
-                error: e,
-            });
+            if (!e.logged) {
+                console.error(e);
+                this.logger.error(`An error occured during executing script '${scriptName}':${e.message || e}`, {
+                    scriptName,
+                    customerId,
+                    error: e,
+                });
+            }
             e.customerId = customerId;
             // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
             // but swalling the exception here will possible cause other issue in writer,
@@ -222,6 +224,9 @@ class AdsQueryExecutor {
     async executeQueryAndParse(query, customerId, writer) {
         return (0, utils_1.executeWithRetry)(async () => {
             let stream = this.executeAdsQuery(query, customerId);
+            if (process.env.DUMP_MEMORY) {
+                this.logger.debug((0, utils_1.getMemoryUsage)("Query executed"));
+            }
             let rowCount = 0;
             let rawRows = [];
             let parsedRows = [];
@@ -233,6 +238,9 @@ class AdsQueryExecutor {
                 // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
                 if (writer) {
                     await writer.addRow(customerId, parsedRow, row);
+                    if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
+                        this.logger.debug((0, utils_1.getMemoryUsage)("10 rows processed"));
+                    }
                 }
                 else {
                     rawRows.push(row);
@@ -267,5 +275,5 @@ class AdsQueryExecutor {
 }
 exports.AdsQueryExecutor = AdsQueryExecutor;
 AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD = 16;
-AdsQueryExecutor.DEFAULT_RETRY_COUNT = 3;
+AdsQueryExecutor.DEFAULT_RETRY_COUNT = 5;
 //# sourceMappingURL=ads-query-executor.js.map

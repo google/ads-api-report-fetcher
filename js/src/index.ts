@@ -17,15 +17,16 @@ export * from "./lib/ads-api-client";
 export {
   loadAdsConfigFromFile as loadAdsConfigYaml, // for backward-compatibility
 } from "./lib/ads-api-client";
-export * from './lib/ads-query-editor';
-export * from './lib/ads-query-executor';
-export * from './lib/bq-executor';
-export * from './lib/bq-writer';
-export * from './lib/file-writers';
+export * from "./lib/ads-query-editor";
+export * from "./lib/ads-query-executor";
+export * from "./lib/bq-executor";
+export * from "./lib/bq-writer";
+export * from "./lib/file-writers";
 
-export * from './lib/file-utils';
-export * from './lib/google-cloud';
+export * from "./lib/file-utils";
+export * from "./lib/google-cloud";
 
-export * from './lib/types';
-export * from './lib/logger';
-export * from './lib/logger-factory';
+export * from "./lib/types";
+export * from "./lib/logger";
+export * from "./lib/logger-factory";
+export * from "./lib/utils";

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import fs from "node:fs";
 import date_add from "date-fns/add";
 import format from "date-fns/format";
 import _ from "lodash";
@@ -241,21 +241,59 @@ export function getElapsed(started: Date, now?: Date): string {
   );
 }
 
-export function dumpMemory() {
+/**
+ * Return a directory size.
+ * @param path a local path
+ * @returns size in megabytes
+ */
+export function getDirectorySize(path: string): number | undefined {
+  let totalSize = 0;
+  if (fs.existsSync(path)) {
+    const files = fs.readdirSync(path);
+    for (const file of files) {
+      const stats = fs.statSync(`${path}/${file}`);
+      totalSize += stats.size;
+    }
+    return Math.round(totalSize / 1024 / 1024); // Convert to MB
+  }
+  return undefined;
+}
+
+/**
+ * Construct a string with memory usage dump.
+ * @param phase arbitrar string to describe a moment
+ * @returns formatted info
+ */
+export function getMemoryUsage(phase: string): string {
   const used: any = process.memoryUsage();
-  let output = "";
+  // NOTE: Additionally v8.getHeapStatistics() can be used
+  let memUsage = "";
   for (let key in used) {
-    output += `${key} ${
+    memUsage += `${key} ${
       Math.round((used[key] / 1024 / 1024) * 100) / 100
     } MB\n`;
   }
-  return output;
+  let extra = "";
+  if (process.env.K_SERVICE) {
+    const tmpSize = getDirectorySize("/tmp");
+    if (Number.isInteger(tmpSize)) {
+      extra = `/tmp Directory Size: ${tmpSize} MB`;
+    }
+  }
+  return `${phase} - Memory Usage: ${memUsage}\n${extra}`;
 }
 
 export interface RetryOptions {
   baseDelayMs?: number;
-  delayStrategy?: null | undefined | false | "constant" | "linear" | "exponential";
+  delayStrategy?:
+    | null
+    | undefined
+    | false
+    | "constant"
+    | "linear"
+    | "exponential";
 }
+
 /**
  *
  * @param fn Any operation to execute
@@ -290,10 +328,10 @@ export function executeWithRetry<T>(
             delayMs = baseDelayMs * attempt;
             break;
           case "exponential":
-             delayMs = baseDelayMs * 2 ** attempt;
+            delayMs = baseDelayMs * 2 ** attempt;
             break;
           default:
-            throw new Error("Unknown delayStrategy ")
+            throw new Error("Unknown delayStrategy ");
         }
         console.log(`Retry attempt ${attempt} after ${delayMs}ms`);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -305,4 +343,12 @@ export function executeWithRetry<T>(
   };
 
   return execute();
+}
+
+/**
+ * Return a waitable Promise for a delay.
+ * @param ms number of milliseconds to wait
+ */
+export function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
