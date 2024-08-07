@@ -14,97 +14,372 @@
  * limitations under the License.
  */
 
-import csvStringify from 'csv-stringify';
-import {stringify} from 'csv-stringify/sync';
-import fs from 'fs';
-import path from 'path';
+import csvStringify from "csv-stringify";
+import { stringify } from "csv-stringify/sync";
+import fs from "fs";
+import * as fs_async from "node:fs/promises";
+import * as stream from "node:stream";
+import path from "path";
+import { Storage, File } from "@google-cloud/storage";
 
-import {getLogger} from './logger';
-import {ArrayHandling, IResultWriter, QueryElements, QueryResult} from './types';
+import { getLogger } from "./logger";
+import {
+  ArrayHandling,
+  IResultWriter,
+  QueryElements,
+  QueryResult,
+} from "./types";
 
+/**
+ * Base options for all file-based writers.
+ */
 export interface FileWriterOptions {
+  /**
+   * @deprecated use outputPath.
+   */
   destinationFolder?: string | undefined;
+  /**
+   * Folder or GCS path for output files.
+   */
+  outputPath?: string | undefined;
+  /**
+   * Create file per customer (true) or put all customers into one file (false).
+   */
   filePerCustomer?: boolean | undefined;
 }
+/**
+ * Options for CsvWriter.
+ */
 export interface CsvWriterOptions extends FileWriterOptions {
+  /**
+   * Separator symbol for arrays' values. By default it's "|".
+   */
   arraySeparator?: string | undefined;
+  /**
+   * Wrap values in quotes.
+   */
   quoted?: boolean;
 }
+/**
+ * File format mode for JSON
+ */
 export enum JsonOutputFormat {
-  json = 'json',
-  jsonl = 'jsonl',
+  /**
+   * Array at the root with all rows as items.
+   */
+  json = "json",
+  /**
+   * Every row is a line
+   */
+  jsonl = "jsonl",
 }
+/**
+ * Formatting modes for values.
+ */
 export enum JsonValueFormat {
+  /**
+   * Output rows as they received from the API (hierarchical objects)
+   */
   raw = "raw",
+  /**
+   * Output rows as arrays (every query's column is an array's value).
+   */
   arrays = "arrays",
+  /**
+   * Output rows as objects (compared to raw an object is flatten
+   * where each query's column correspondes to a field).
+   */
   objects = "objects",
 }
+/**
+ * Options for JsonWriter.
+ */
 export interface JsonWriterOptions extends FileWriterOptions {
+  /**
+   * File formats: json or json new line
+   */
   format?: JsonOutputFormat;
+  /**
+   * How to format values.
+   */
   valueFormat?: JsonValueFormat;
+  /**
+   * True to do nice formatting with indents if format is json
+   * (i.e. it's not applicable for jsonl).
+   */
   formatted?: boolean;
 }
+/**
+ * Output destination for writing serialized data.
+ */
+export interface IOutput {
+  /**
+   * Output stream to write to.
+   */
+  stream: stream.Writable;
+  /**
+   * Full output path (local file or GCS path)
+   */
+  path: string;
+  /**
+   * True if the output is a GCS destination.
+   */
+  isGCS: boolean;
+  /**
+   * Return a GCS File descriptor.
+   */
+  getStorageFile: (() => File) | undefined;
+  /**
+   * Delete the file regardless of destination.
+   */
+  deleteFile(): Promise<void>;
+}
 
-abstract class FileWriterBase implements IResultWriter {
+class Output implements IOutput {
+  stream: stream.Writable;
+  path: string;
+  isGCS: boolean;
+  getStorageFile: (() => File) | undefined;
+
+  constructor(
+    path: string,
+    stream: stream.Writable,
+    getStorageFile: (() => File) | undefined
+  ) {
+    this.path = path;
+    this.stream = stream;
+    this.isGCS = this.path.startsWith("gs://");
+    this.getStorageFile = getStorageFile;
+  }
+
+  async deleteFile() {
+    if (this.isGCS) {
+      await this.getStorageFile!().delete({ ignoreNotFound: true });
+    } else if (fs.existsSync(this.path)) {
+      await fs_async.rm(this.path);
+    }
+  }
+}
+
+/**
+ * Base class for all file-based writers.
+ */
+export abstract class FileWriterBase implements IResultWriter {
   destination: string | undefined;
   filePerCustomer: boolean;
   logger;
-  abstract fileExtension: string;
+  fileExtension: string = "";
   scriptName: string | undefined;
-  appending = false;
-  customerRows = 0;
-  rowsByCustomer: Record<string, any[][]> = {};
+  streamsByCustomer: Record<string, IOutput>;
   query: QueryElements | undefined;
+  rowCountsByCustomer: Record<string, number>;
+  rowWritten = false;
 
   constructor(options?: FileWriterOptions) {
-    this.destination = options?.destinationFolder;
+    this.destination = options?.outputPath || options?.destinationFolder;
     this.filePerCustomer = !!options?.filePerCustomer;
+    this.streamsByCustomer = {};
+    this.rowCountsByCustomer = {};
     this.logger = getLogger();
   }
 
   beginScript(scriptName: string, query: QueryElements) {
-    this.appending = false;
     this.query = query;
     this.scriptName = scriptName;
-
+    this.streamsByCustomer = {};
     if (this.destination) {
       if (!fs.existsSync(this.destination)) {
         fs.mkdirSync(this.destination, { recursive: true });
       }
     }
+    this.onBeginScript(scriptName, query);
   }
 
-  beginCustomer(customerId: string) {
-    this.rowsByCustomer[customerId] = [];
+  protected onBeginScript(scriptName: string, query: QueryElements): void {}
+
+  async beginCustomer(customerId: string) {
+    this.rowCountsByCustomer[customerId] = 0;
+    const filePath = this.getDataFilePath(this.getDataFileName(customerId));
+    let output: Output | undefined;
+    if (this.useFilePerCustomer()) {
+      output = this.createOutput(filePath);
+      this.streamsByCustomer[customerId] = output;
+    } else {
+      // all customers into one file
+      if (!this.streamsByCustomer[""]) {
+        output = this.createOutput(filePath);
+        this.streamsByCustomer[""] = output;
+      }
+    }
+    if (!output) {
+      output = this.streamsByCustomer[""];
+    }
+    await this.onBeginCustomer(customerId, output);
   }
 
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]) {
-    if (!parsedRow || parsedRow.length == 0) return;
-    this.rowsByCustomer[customerId].push(parsedRow);
+  protected onBeginCustomer(customerId: string, output: Output): void {}
+
+  protected useFilePerCustomer() {
+    if (this.query?.resource.isConstant) return false;
+    return this.filePerCustomer;
   }
 
-  abstract endCustomer(customerId: string): void | Promise<void>;
-
-  endScript() {
-    this.scriptName = undefined;
-  }
-
-  _getFileName(customerId: string) {
+  protected getDataFileName(customerId: string) {
     let filename = "";
-    if (this.filePerCustomer) {
+    if (this.useFilePerCustomer()) {
       filename = `${this.scriptName}_${customerId}.${this.fileExtension}`;
     } else {
       filename = `${this.scriptName}.${this.fileExtension}`;
     }
-    if (this.destination) {
-      filename = path.join(this.destination, filename);
-    }
     return filename;
+  }
+
+  protected getDataFilePath(filename: string) {
+    let filepath = filename;
+    if (this.destination) {
+      filepath = this.destination;
+      if (!this.destination.endsWith("/")) filepath += "/";
+      filepath += filename;
+    } else if (process.env.K_SERVICE) {
+      // we're in GCloud - file system is readonly, the only writable place is /tmp
+      filepath = path.join("/tmp", filepath);
+    }
+    return filepath;
+  }
+
+  protected createOutput(filePath: string) {
+    let writeStream: stream.Writable;
+    let getStorageFile;
+    if (filePath.startsWith("gs://")) {
+      let parsed = new URL(filePath);
+      let bucketName = parsed.hostname;
+      let destFileName = parsed.pathname.substring(1);
+      const storage = new Storage();
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(destFileName);
+      writeStream = file.createWriteStream({
+        // surprisingly setting highWaterMark is crucial,
+        // w/ o it we'll get unlimited memory growth
+        highWaterMark: 1024 * 1024,
+      });
+      getStorageFile = () => {
+        const storage = new Storage();
+        return storage.bucket(bucketName).file(destFileName);
+      };
+    } else {
+      // local files
+      writeStream = fs.createWriteStream(filePath);
+    }
+    return new Output(filePath, writeStream, getStorageFile);
+  }
+
+  protected getOutput(customerId: string) {
+    let output;
+    if (this.useFilePerCustomer()) {
+      output = this.streamsByCustomer[customerId];
+    } else {
+      // all customers into one file
+      output = this.streamsByCustomer[""];
+    }
+    return output;
+  }
+
+  async addRow(
+    customerId: string,
+    parsedRow: any[],
+    rawRow: any[]
+  ): Promise<void> {
+    let firstRow;
+    if (!parsedRow || parsedRow.length == 0) return;
+    if (this.useFilePerCustomer()) {
+      const count = this.rowCountsByCustomer[customerId];
+      firstRow = count === 0;
+    } else {
+      firstRow = !this.rowWritten;
+    }
+    this.rowWritten = true;
+    await this.onAddRow(customerId, parsedRow, rawRow, firstRow);
+    this.rowCountsByCustomer[customerId] += 1;
+  }
+
+  protected async onAddRow(
+    customerId: string,
+    parsedRow: any[],
+    rawRow: any[],
+    firstRow: boolean
+  ): Promise<void> {}
+
+  async endCustomer(customerId: string): Promise<void> {
+    let output = this.getOutput(customerId);
+    await this.onEndCustomer(customerId, output);
+    // finalize the output stream
+    if (this.useFilePerCustomer()) {
+      await this.closeStream(output);
+      delete this.streamsByCustomer[customerId];
+    }
+  }
+
+  protected onEndCustomer(customerId: string, output: Output): void {}
+
+  async endScript() {
+    if (!this.useFilePerCustomer()) {
+      // single file for all customer
+      const output = this.streamsByCustomer[""];
+      await this.closeStream(output);
+    }
+    this.streamsByCustomer = {};
+    this.scriptName = undefined;
+    this.rowWritten = false;
+  }
+
+  protected async closeStream(output: Output) {
+    await this.onClosingStream(output);
+    const stream = output.stream;
+    this.logger.debug(`Closing stream ${output.path}`);
+    await new Promise((resolve, reject) => {
+      stream.once("close", () => {
+        this.logger.debug(
+          `Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`
+        );
+        resolve(null);
+      });
+      stream.once("error", reject);
+      stream.end((err: any) => {
+        if (err) {
+          reject(err);
+        }
+      });
+    });
+  }
+
+  protected async onClosingStream(output: Output): Promise<void> {}
+
+  protected async writeToStream(output: Output, content: string) {
+    const writeStream = output.stream;
+    await new Promise((resolve, reject) => {
+      const cb = (error: Error | null | undefined) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(null);
+        }
+      };
+      const success = writeStream.write(content, cb);
+      if (!success) {
+        writeStream.once("drain", cb);
+      } else {
+        process.nextTick(cb);
+      }
+    });
+  }
+
+  protected async writeContent(customerId: string, content: string) {
+    let output = this.getOutput(customerId);
+    await this.writeToStream(output, content);
   }
 }
 
 export class JsonWriter extends FileWriterBase {
-  fileExtension: string;
   format: JsonOutputFormat;
   formatted: boolean;
   valueFormat: JsonValueFormat;
@@ -112,117 +387,111 @@ export class JsonWriter extends FileWriterBase {
   constructor(options?: JsonWriterOptions) {
     super(options);
     this.fileExtension = "json";
-    this.format = options?.format || JsonOutputFormat.json;
+    this.format = options?.format || JsonOutputFormat.jsonl;
     this.formatted =
       this.format === JsonOutputFormat.json ? !!options?.formatted : false;
     this.valueFormat = options?.valueFormat || JsonValueFormat.objects;
   }
 
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]) {
-    if (!parsedRow || parsedRow.length == 0) return;
+  // override async onBeginCustomer(
+  //   customerId: string,
+  //   output: Output
+  // ): Promise<void> {
+  //   let content = "";
+  //   if (!this.appending) {
+  //     // starting a new file
+  //     if (this.format === JsonOutputFormat.json) {
+  //       content = "[\n";
+  //       await this.writeToStream(output, content);
+  //     }
+  //     if (this.valueFormat === JsonValueFormat.arrays) {
+  //       let content = JSON.stringify(this.query!.columnNames);
+  //       if (this.format === JsonOutputFormat.json) {
+  //         content += ",\n";
+  //       } else {
+  //         content += "\n";
+  //       }
+  //       await this.writeToStream(output, content);
+  //     }
+  //   }
+  // }
+
+  protected serializeRow(parsedRow: any[], rawRow: any[]) {
+    let rowObj: any;
     if (this.valueFormat === JsonValueFormat.raw) {
-      this.rowsByCustomer[customerId].push(rawRow);
+      rowObj = rawRow;
     } else if (this.valueFormat === JsonValueFormat.objects) {
       let obj = this.query!.columnNames.reduce(
         (obj, key, index) => ({ ...obj, [key]: parsedRow[index] }),
         {}
       );
-      this.rowsByCustomer[customerId].push(<any>obj);
+      rowObj = <any>obj;
     } else {
       // i.e. JsonValueFormat.arrays
-      this.rowsByCustomer[customerId].push(parsedRow);
+      rowObj = parsedRow;
     }
+    let content = JSON.stringify(rowObj, null, this.formatted ? 2 : undefined);
+    return content;
   }
 
-  endCustomer(customerId: string) {
-    let rows = this.rowsByCustomer[customerId];
-    if (!rows.length) {
-      return;
-    }
-    let appending = this.appending && !this.filePerCustomer;
-    let filename = this._getFileName(customerId);
-
+  override async onAddRow(
+    customerId: string,
+    parsedRow: any[],
+    rawRow: any[],
+    firstRow: boolean
+  ) {
     let content = "";
-    if (this.valueFormat === JsonValueFormat.arrays && !appending) {
-      rows.unshift(this.query!.columnNames);
-    }
-    if (this.format === JsonOutputFormat.jsonl) {
-      if (appending) {
-        content += "\n";
+    if (firstRow) {
+      // starting a new file
+      if (this.format === JsonOutputFormat.json) {
+        content += "[\n";
       }
-      content += rows.map((val) => JSON.stringify(val)).join("\n");
+      if (this.valueFormat === JsonValueFormat.arrays) {
+        content += JSON.stringify(this.query!.columnNames);
+        if (this.format === JsonOutputFormat.json) {
+          content += ",\n";
+        } else {
+          content += "\n";
+        }
+      }
+    }
+    content += this.serializeRow(parsedRow, rawRow);
+    if (this.format === JsonOutputFormat.json) {
+      if (!firstRow) {
+        content = ",\n" + content;
+      }
     } else {
-      if (!appending) {
-        content = "[\n";
-      } else {
-        content += ",\n";
-      }
-      content += rows
-        .map((val) => JSON.stringify(val, null, this.formatted ? 2 : undefined))
-        .join(",\n");
-      if (this.filePerCustomer) {
-        content += "\n]";
-      }
+      content += "\n";
     }
-
-    fs.writeFileSync(filename, content, {
-      encoding: "utf-8",
-      flag: appending ? "a" : "w",
-    });
-
-    if (rows.length > 0) {
-      this.logger.info(
-        (appending ? "Updated " : "Created ") +
-          filename +
-          ` with ${rows.length} rows`,
-        { customerId: customerId, scriptName: filename }
-      );
-    }
-
-    this.appending = true;
-    this.rowsByCustomer[customerId] = [];
+    await this.writeContent(customerId, content);
+    this.rowCountsByCustomer[customerId] += 1;
   }
 
-  endScript() {
-    if (
-      this.format === JsonOutputFormat.json && this.appending &&
-      !this.filePerCustomer
-    ) {
-      let filename = this._getFileName("");
-      fs.writeFileSync(filename, "\n]", {
-        encoding: "utf-8",
-        flag: "a",
-      });
+  override async onClosingStream(output: Output): Promise<void> {
+    if (this.format === JsonOutputFormat.json) {
+      const content = "\n]";
+      await this.writeToStream(output, content);
     }
-    this.appending = false;
-    this.scriptName = undefined;
   }
 }
 
 export class CsvWriter extends FileWriterBase {
   quoted: boolean;
   arraySeparator: string;
-  fileExtension: string;
+  csvOptions: csvStringify.Options | undefined;
 
   constructor(options?: CsvWriterOptions) {
     super(options);
+    this.fileExtension = "csv";
     this.quoted = !!options?.quoted;
     this.arraySeparator = options?.arraySeparator || "|";
-    this.fileExtension = "csv";
   }
 
-  endCustomer(customerId: string) {
-    let rows = this.rowsByCustomer[customerId];
-    if (!rows.length) {
-      return;
-    }
-    let appending = this.appending && !this.filePerCustomer;
-    let filename = this._getFileName(customerId);
-
-    let csvOptions: csvStringify.Options = {
-      header: !appending,
+  protected onBeginScript(scriptName: string, query: QueryElements): void {
+    this.csvOptions = {
+      header: false,
       quoted: this.quoted,
-      columns: this.query!.columns.map((col) => col.name),
+      columns: query!.columns.map((col) => col.name),
       cast: {
         boolean: (value: boolean, context: csvStringify.CastingContext) =>
           value ? "true" : "false",
@@ -232,29 +501,28 @@ export class CsvWriter extends FileWriterBase {
             : JSON.stringify(value),
       },
     };
-    let csvText = stringify(rows, csvOptions);
-    fs.writeFileSync(filename, csvText, {
-      encoding: "utf-8",
-      flag: appending ? "a" : "w",
-    });
+  }
 
-    if (rows.length > 0) {
-      this.logger.info(
-        (appending ? "Updated " : "Created ") +
-          filename +
-          ` with ${rows.length} rows`,
-        { customerId: customerId, scriptName: filename }
-      );
+  override async onAddRow(
+    customerId: string,
+    parsedRow: any[],
+    rawRow: any[],
+    firstRow: boolean
+  ) {
+    let opts = this.csvOptions;
+    if (firstRow) {
+      opts = Object.assign({}, this.csvOptions, { header: true });
     }
-    this.appending = true;
-    this.rowsByCustomer[customerId] = [];
+    let csvText = stringify([parsedRow], opts);
+    await this.writeContent(customerId, csvText);
+    this.rowCountsByCustomer[customerId] += 1;
   }
 }
 
 export class NullWriter implements IResultWriter {
-  beginScript(scriptName: string, query: QueryElements): void|Promise<void> {}
-  beginCustomer(customerId: string): void|Promise<void> {}
+  beginScript(scriptName: string, query: QueryElements): void | Promise<void> {}
+  beginCustomer(customerId: string): void | Promise<void> {}
   addRow(customerId: string, parsedRow: any[], rawRow: any[]): void {}
-  endCustomer(customerId: string): void|Promise<void> {}
-  endScript(): void|Promise<void> {}
+  endCustomer(customerId: string): void | Promise<void> {}
+  endScript(): void | Promise<void> {}
 }

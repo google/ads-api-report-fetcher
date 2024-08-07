@@ -76,7 +76,8 @@ const argv = yargs(hideBin(process.argv))
   .positional("files", {
     array: true,
     type: "string",
-    description: "List of files (or wildcards) with Ads queries (can be gs:// resources)",
+    description:
+      "List of files (or wildcards) with Ads queries (can be gs:// resources)",
   })
   // .command(
   //     'bigquery <files>', 'Execute BigQuery queries',
@@ -160,17 +161,21 @@ const argv = yargs(hideBin(process.argv))
     type: "number",
     description: "The maximum number of parallel queries",
   })
-  .option("csv.destination-folder", {
+  .option("csv.output-path", {
     type: "string",
-    alias: "csv.destination",
-    description: "Output folder for generated CSV files",
+    alias: ["csv.destination", "csv.destination-folder"],
+    description: "Output folder for generated CSV files (can be gs://)",
+  })
+  .option("csv.file-per-customer", {
+    type: "boolean",
   })
   .option("csv.array-separator", {
     type: "string",
     description: "Arrays separator symbol",
   })
-  .option("csv.file-per-customer", {
+  .option("csv.quoted", {
     type: "boolean",
+    description: "Wrap values in quotes",
   })
   .option("json.format", {
     type: "string",
@@ -178,7 +183,13 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("json.value-format", {
     type: "string",
-    description: "value format: arrays (values as arrays), objects (values as objects), raw (raw output)",
+    description:
+      "value format: arrays (values as arrays), objects (values as objects), raw (raw output)",
+  })
+  .option("json.output-path", {
+    type: "string",
+    alias: ["json.destination", "json.destination-folder"],
+    description: "Output folder for generated JSON files (can be gs://)",
   })
   .option("json.file-per-customer", {
     type: "boolean",
@@ -191,7 +202,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option("console.page-size", {
     type: "number",
-    alias: ["maxrows", "page_size"],
+    alias: ["maxrows", "max-rows", "page_size"],
     description: "Maximum rows count to output per each script",
   })
   .option("bq", { hidden: true })
@@ -270,8 +281,22 @@ const argv = yargs(hideBin(process.argv))
     "BigQuery writer options:"
   )
   .group(
-    ["csv.destination-folder", "csv.array-separator"],
+    [
+      "csv.output-path",
+      "csv.file-per-customer",
+      "csv.array-separator",
+      "csv.quoted",
+    ],
     "CSV writer options:"
+  )
+  .group(
+    [
+      "json.output-path",
+      "json.file-per-customer",
+      "json.format",
+      "json.value-format",
+    ],
+    "JSON writer options:"
   )
   .group(["console.transpose", "console.page_size"], "Console writer options:")
   .env("GAARF")
@@ -325,9 +350,10 @@ function getWriter(): IResultWriter {
   if (output === "bq" || output === "bigquery") {
     // TODO: move all options to BigQueryWriterOptions
     if (!argv.bq) {
-      throw new Error(
-        `For BigQuery writer (---output=bq) we should specify at least a dataset id`
+      console.warn(
+        `For BigQuery writer (---output=bq) you should specify at least a dataset id (--bq.dataset)`
       );
+      process.exit(-1);
     }
     const dataset = (<any>argv.bq).dataset;
     if (!dataset) {
@@ -356,6 +382,7 @@ function getWriter(): IResultWriter {
     opts.arrayHandling = bq_opts["array-handling"];
     opts.arraySeparator = bq_opts["array-separator"];
     opts.keyFilePath = bq_opts["key-file-path"];
+    opts.outputPath = bq_opts["output-path"];
     logger.debug("BigQueryWriterOptions:");
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);

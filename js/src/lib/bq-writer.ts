@@ -16,46 +16,68 @@
 
 import { BigQuery, Dataset, Table, TableOptions } from "@google-cloud/bigquery";
 import bigquery from "@google-cloud/bigquery/build/src/types";
+import fs_async from "node:fs/promises";
 import fs from "node:fs";
-import fs_async from 'node:fs/promises';
-import path from "node:path";
+import * as stream from "node:stream";
 import _ from "lodash";
 
-import {getLogger} from "./logger";
 import {
   ArrayHandling,
   FieldType,
   FieldTypeKind,
-  IResultWriter,
   isEnumType,
   QueryElements,
-  QueryResult,
 } from "./types";
-import { substituteMacros } from "./utils";
+import { delay, substituteMacros } from "./utils";
 import { getDataset, OAUTH_SCOPES } from "./bq-common";
 import { BigQueryExecutor, BigQueryExecutorOptions } from "./bq-executor";
-
+import { FileWriterBase } from "./file-writers";
 
 const MAX_ROWS = 50000;
 
+/**
+ * Options for BigQueryWriter.
+ */
 export interface BigQueryWriterOptions {
+  outputPath?: string | undefined;
   datasetLocation?: string | undefined;
   noUnionView?: boolean;
   tableTemplate?: string | undefined;
   dumpSchema?: boolean;
   dumpData?: boolean;
-  keepData?: boolean;
   keyFilePath?: string;
+  /**
+   * Insert method. Be default using `load` from json files.
+   */
   insertMethod?: BigQueryInsertMethod;
+  /**
+   * How to process arrys (as is or convert to strings).
+   */
   arrayHandling?: ArrayHandling;
+  /**
+   * String separator for arrays' values if arrayHandlings=strings.
+   */
   arraySeparator?: string | undefined;
 }
+
+/**
+ * Modes how to insert rows into a table.
+ */
 export enum BigQueryInsertMethod {
+  /**
+   * Using `insert` with rows in memory.
+   */
   insertAll,
+  /**
+   * Using `load` with rows in json files.
+   */
   loadTable,
 }
 
-export class BigQueryWriter implements IResultWriter {
+/**
+ * Writer to BigQuery.
+ */
+export class BigQueryWriter extends FileWriterBase {
   bigquery: BigQuery;
   bqExecutor: BigQueryExecutor;
   datasetId: string;
@@ -65,16 +87,11 @@ export class BigQueryWriter implements IResultWriter {
   tableId: string | undefined;
   dataset: Dataset | undefined;
   rowsByCustomer: Record<string, any[][]>;
-  rowCountsByCustomer: Record<string, number>;
-  streamsByCustomer: Record<string, fs.WriteStream>;
-  query: QueryElements | undefined;
   tableTemplate: string | undefined;
   dumpSchema: boolean;
   dumpData: boolean;
-  keepData: boolean;
   noUnionView: boolean;
   insertMethod: BigQueryInsertMethod;
-  logger;
   arrayHandling: ArrayHandling;
   arraySeparator: string;
 
@@ -83,6 +100,7 @@ export class BigQueryWriter implements IResultWriter {
     dataset: string,
     options?: BigQueryWriterOptions
   ) {
+    super({ filePerCustomer: true, outputPath: options?.outputPath });
     const datasetLocation = options?.datasetLocation || "us";
     this.bigquery = new BigQuery({
       projectId: projectId,
@@ -95,16 +113,12 @@ export class BigQueryWriter implements IResultWriter {
     this.tableTemplate = options?.tableTemplate;
     this.dumpSchema = options?.dumpSchema || false;
     this.dumpData = options?.dumpData || false;
-    this.keepData = options?.keepData || false;
     this.noUnionView = options?.noUnionView || false;
     this.insertMethod = options?.insertMethod || BigQueryInsertMethod.loadTable;
     this.arrayHandling = options?.arrayHandling || ArrayHandling.arrays;
     this.arraySeparator = options?.arraySeparator || "|";
     this.customers = [];
     this.rowsByCustomer = {};
-    this.rowCountsByCustomer = {};
-    this.streamsByCustomer = {};
-    this.logger = getLogger();
 
     let bqExecutorOptions: BigQueryExecutorOptions = {
       datasetLocation: datasetLocation,
@@ -133,29 +147,34 @@ export class BigQueryWriter implements IResultWriter {
     if (this.dumpSchema) {
       this.logger.debug(JSON.stringify(schema, null, 2));
       let schemaJson = JSON.stringify(schema, undefined, 2);
-      await fs_async.writeFile(scriptName + ".json", schemaJson);
+      await fs_async.writeFile(scriptName + "_schema.json", schemaJson);
     }
   }
 
-  beginCustomer(customerId: string): Promise<void> | void {
-    if (this.rowsByCustomer[customerId]) {
+  async beginCustomer(customerId: string): Promise<void> {
+    if (this.rowCountsByCustomer[customerId] !== undefined) {
       throw new Error(`Customer id ${customerId} already exist`);
     }
     this.customers.push(customerId);
-    this.rowsByCustomer[customerId] = [];
     this.rowCountsByCustomer[customerId] = 0;
 
     if (this.insertMethod === BigQueryInsertMethod.loadTable) {
       let tableFullName = this.getTableFullname(customerId);
-      let filepath = this.getDataFilepath(tableFullName);
-      if (fs.existsSync(filepath)) {
-        fs.rmSync(filepath);
+      let filepath = this.getDataFilePath(`.${tableFullName}.json`);
+      const stream = this.createOutput(filepath);
+      if (this.useFilePerCustomer()) {
+        this.streamsByCustomer[customerId] = stream;
+      } else {
+        this.streamsByCustomer[""] = stream;
       }
-      this.streamsByCustomer[customerId] = fs.createWriteStream(filepath);
+      this.logger.verbose(`Temp output is ${stream.path}`);
+      await stream.deleteFile();
+    } else {
+      this.rowsByCustomer[customerId] = [];
     }
   }
 
-  protected getTableFullname(customerId: string): string {
+  private getTableFullname(customerId: string): string {
     if (!this.tableId)
       throw new Error(
         `tableId is not set (probably beginScript method was not called)`
@@ -166,18 +185,7 @@ export class BigQueryWriter implements IResultWriter {
     return tableFullName;
   }
 
-  protected getDataFilepath(tableFullName: string) {
-    let filepath = `.${tableFullName}.json`;
-    if (process.env.K_SERVICE) {
-      // we're in GCloud - file system is readonly, the only writable place is /tmp
-      // TODO: use streaming uploads (https://cloud.google.com/storage/docs/streaming-uploads)
-      filepath = path.join("/tmp", filepath);
-    }
-    return filepath;
-  }
-
-  async loadRows(customerId: string, tableFullName: string) {
-    let filepath = this.getDataFilepath(tableFullName);
+  private async loadRows(customerId: string, tableFullName: string) {
     let rowCount = this.rowCountsByCustomer[customerId];
     this.logger.verbose(
       `Loading ${rowCount} rows into '${this.datasetId}.${tableFullName}' table`,
@@ -187,11 +195,20 @@ export class BigQueryWriter implements IResultWriter {
       }
     );
     let table = this.dataset!.table(tableFullName);
-    await table.load(filepath, {
-      schema: this.schema,
-      sourceFormat: "NEWLINE_DELIMITED_JSON",
-      writeDisposition: "WRITE_TRUNCATE",
-    });
+    const output = this.getOutput(customerId);
+    const [job] = await table.load(
+      output.isGCS ? output.getStorageFile!() : output.path,
+      {
+        schema: this.schema,
+        sourceFormat: "NEWLINE_DELIMITED_JSON",
+        writeDisposition: "WRITE_TRUNCATE",
+      }
+    );
+    const errors = job.status?.errors;
+    if (errors && errors.length > 0) {
+      throw errors;
+    }
+
     this.logger.info(
       `${rowCount} rows loaded into '${this.datasetId}.${tableFullName}' table`,
       {
@@ -201,7 +218,7 @@ export class BigQueryWriter implements IResultWriter {
     );
   }
 
-  prepareRow(row: any[]) {
+  private serializeRow(row: any[]) {
     let rowObj: Record<string, any> = {};
     for (let i = 0; i < row.length; i++) {
       let colName = this.query!.columnNames[i];
@@ -235,14 +252,17 @@ export class BigQueryWriter implements IResultWriter {
     return rowObj;
   }
 
-  async insertRows(rows: any[][], customerId: string, tableFullName: string) {
+  private async insertRows(
+    rows: any[][],
+    customerId: string,
+    tableFullName: string
+  ) {
     const tableId = this.tableId!;
     try {
       // insert rows by chunks (there's a limit for insert)
       let table = this.dataset!.table(tableId);
       for (let i = 0, j = rows.length; i < j; i += MAX_ROWS) {
         let rowsChunk = rows.slice(i, i + MAX_ROWS);
-        let rows2insert = rowsChunk.map((row) => this.prepareRow(row));
         let templateSuffix = undefined;
         if (!this.query?.resource.isConstant) {
           templateSuffix = "_" + customerId;
@@ -250,7 +270,7 @@ export class BigQueryWriter implements IResultWriter {
         this.logger.verbose(`Inserting ${rowsChunk.length} rows`, {
           customerId: customerId,
         });
-        await table!.insert(rows2insert, {
+        await table!.insert(rowsChunk, {
           templateSuffix: templateSuffix,
           schema: this.schema,
         });
@@ -282,7 +302,8 @@ export class BigQueryWriter implements IResultWriter {
         }
       } else if (e.code === 404) {
         // ApiError: "Table 162551664177:dataset.table not found"
-        // This is unexpected but theriotically can happen (and did) due to eventually consistency of BigQuery
+        // This is unexpected but theriotically can happen (and did)
+        // due to eventually consistency of BigQuery
         console.error(`Table ${tableFullName} not found.`, {
           customerId: customerId,
         });
@@ -325,17 +346,34 @@ export class BigQueryWriter implements IResultWriter {
       });
       throw e;
     }
-    if (this.insertMethod === BigQueryInsertMethod.loadTable) {
-      let stream = this.streamsByCustomer[customerId];
-      stream.end();
-    }
     let rowCount = this.rowCountsByCustomer[customerId];
+    if (this.insertMethod === BigQueryInsertMethod.loadTable) {
+      // finalize the output stream
+      const output = this.getOutput(customerId);
+      await this.closeStream(output);
+      if (rowCount > 0) {
+        this.logger.debug(
+          `Data prepared in '${output.path}', closed: ${output.stream.closed}`,
+          {
+            customerId: customerId,
+            scriptName: this.tableId,
+          }
+        );
+        if (!fs.existsSync(output.path)) {
+          console.log(
+            `File ${output.path} exists: ${fs.existsSync(output.path)}`
+          );
+        }
+      }
+    }
+
     if (rowCount > 0) {
       // upload data to BQ: we support two methods: via insertAll and loadTable,
       // the later is default one as much more faster (but it requires dumping data on the disk)
       if (this.insertMethod === BigQueryInsertMethod.insertAll) {
         let rows = this.rowsByCustomer[customerId];
         await this.insertRows(rows, customerId, tableFullName);
+        this.rowsByCustomer[customerId] = [];
       } else {
         await this.loadRows(customerId, tableFullName);
       }
@@ -343,14 +381,16 @@ export class BigQueryWriter implements IResultWriter {
       // no rows found for the customer, as so no table was created,
       // create an empty one, so we could use it for a union view
       try {
-        await this.dataset!.createTable(tableFullName, { schema: this.schema });
+        // it might a case when creatTables fails because the previous delete
+        // hasn't been propagated
+        await this.ensureTableCreated(tableFullName);
         this.logger.verbose(`Created empty table '${tableFullName}'`, {
           customerId: customerId,
           scriptName: this.tableId,
         });
       } catch (e) {
         this.logger.error(
-          `\tCreation of empty table '${tableFullName}' failed: ${e}`
+          `Creation of empty table '${tableFullName}' failed: ${e}`
         );
         throw e;
       }
@@ -359,16 +399,9 @@ export class BigQueryWriter implements IResultWriter {
       !this.dumpData &&
       this.insertMethod === BigQueryInsertMethod.loadTable
     ) {
-      let filepath = this.getDataFilepath(tableFullName);
-      if (fs.existsSync(filepath)) {
-        this.logger.verbose(
-          `Removing data file ${filepath}, dumpData=${this.dumpData}`
-        );
-        fs.rmSync(filepath);
-      }
-    }
-    if (!this.keepData) {
-      this.rowsByCustomer[customerId] = [];
+      const output = this.getOutput(customerId);
+      this.logger.verbose(`Removing data file ${output.path}`);
+      await output.deleteFile();
     }
   }
 
@@ -397,20 +430,18 @@ export class BigQueryWriter implements IResultWriter {
     }
     this.tableId = undefined;
     this.query = undefined;
-    if (!this.keepData) {
-      this.customers = [];
-      this.rowsByCustomer = {};
-    }
-    this.streamsByCustomer = {};
+    this.customers = [];
+    if (this.rowsByCustomer) this.rowsByCustomer = {};
+    if (this.streamsByCustomer) this.streamsByCustomer = {};
+    this.rowCountsByCustomer = {};
   }
 
-  createSchema(query: QueryElements): bigquery.ITableSchema {
+  private createSchema(query: QueryElements): bigquery.ITableSchema {
     let schema: bigquery.ITableSchema = { fields: [] };
     for (let column of query.columns) {
       let field: bigquery.ITableFieldSchema = {
         mode:
-          column.type.repeated &&
-          this.arrayHandling === ArrayHandling.arrays
+          column.type.repeated && this.arrayHandling === ArrayHandling.arrays
             ? "REPEATED"
             : "NULLABLE",
         name: column.name.replace(/\./g, "_"),
@@ -427,10 +458,7 @@ export class BigQueryWriter implements IResultWriter {
   }
 
   private getBigQueryFieldType(colType: FieldType): string | undefined {
-    if (
-      this.arrayHandling === ArrayHandling.strings &&
-      colType.repeated
-    )
+    if (this.arrayHandling === ArrayHandling.strings && colType.repeated)
       return "STRING";
     if (_.isString(colType.type)) {
       switch (colType.type.toLowerCase()) {
@@ -450,17 +478,36 @@ export class BigQueryWriter implements IResultWriter {
     return "STRING";
   }
 
-  addRow(customerId: string, parsedRow: any[]): void {
+  async addRow(customerId: string, parsedRow: any[]): Promise<void> {
     if (!parsedRow || parsedRow.length == 0) return;
+    let rowObj: any = this.serializeRow(parsedRow);
     if (this.insertMethod === BigQueryInsertMethod.loadTable) {
       // dump the row object to a file
-      let row_obj: any = this.prepareRow(parsedRow);
-      let fsStream = this.streamsByCustomer[customerId];
-      fsStream.write(JSON.stringify(row_obj));
-      fsStream.write("\n");
+      const content = JSON.stringify(rowObj) + "\n";
+      await this.writeContent(customerId, content);
     } else {
-      this.rowsByCustomer[customerId].push(parsedRow);
+      this.rowsByCustomer[customerId].push(rowObj);
     }
     this.rowCountsByCustomer[customerId] += 1;
+  }
+
+  private async ensureTableCreated(tableFullName: string, maxRetries = 5) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await this.dataset!.createTable(tableFullName, { schema: this.schema });
+        return;
+      } catch (e) {
+        if (e.code === 409) {
+          // 409 - ApiError: Already Exists
+          // probably the table still hasn't been deleted, wait a bit
+          await delay(200);
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new Error(
+      `Failed to create a table ${tableFullName} after ${maxRetries} attempts`
+    );
   }
 }

@@ -19,7 +19,11 @@ import fs from "fs";
 import path from "path";
 
 import { AdsQueryExecutor } from "../lib/ads-query-executor";
-import { JsonValueFormat, JsonWriter } from "../lib/file-writers";
+import {
+  JsonOutputFormat,
+  JsonValueFormat,
+  JsonWriter,
+} from "../lib/file-writers";
 
 import { MockGoogleAdsApiClient } from "./helpers";
 
@@ -67,6 +71,34 @@ suite("JsonWriter", () => {
           "customers/9489090398/adGroupAds/132594495320~563386468726",
       },
     },
+    // 2
+    {
+      campaign: {
+        id: 2222222222,
+        resource_name: "customers/9489090398/campaigns/2222222222",
+      },
+      ad_group_ad: {
+        ad: {
+          id: 123456789012,
+          final_urls: ["url1", "url2"],
+          type: 7,
+          resource_name: "customers/9489090398/ads/123456789012",
+        },
+        ad_group: "customers/9489090398/adGroups/132594495320",
+        policy_summary: {
+          policy_topic_entries: [
+            {
+              evidences: [],
+              constraints: [{}],
+              topic: "COPYRIGHTED_CONTENT",
+              type: 8,
+            },
+          ],
+        },
+        resource_name:
+          "customers/9489090398/adGroupAds/132594495320~123456789012",
+      },
+    },
   ];
 
   setup(() => {
@@ -80,16 +112,18 @@ suite("JsonWriter", () => {
       path.join(OUTPUT_DIR, SCRIPT_NAME + ".json"),
       "utf-8"
     );
+    console.log(jsonText);
     let json = JSON.parse(jsonText);
     console.log(json);
     assert(json);
     return json;
   }
 
-  test("writing in json with valueFormat=object", async function () {
+  test("writing in json (format=json) with valueFormat=object", async function () {
     // arrange
     let writer = new JsonWriter({
-      destinationFolder: OUTPUT_DIR,
+      outputPath: OUTPUT_DIR,
+      format: JsonOutputFormat.json,
       valueFormat: JsonValueFormat.objects,
     });
 
@@ -98,7 +132,7 @@ suite("JsonWriter", () => {
 
     // assert
     const json = getJson();
-    assert.equal(json.length, 1);
+    assert.equal(json.length, 2);
     let row = json[0];
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
@@ -107,10 +141,11 @@ suite("JsonWriter", () => {
     );
   });
 
-  test("writing in json with valueFormat=arrays", async function () {
+  test("writing in json (format=json) with valueFormat=arrays", async function () {
     // arrange
     let writer = new JsonWriter({
-      destinationFolder: OUTPUT_DIR,
+      outputPath: OUTPUT_DIR,
+      format: JsonOutputFormat.json,
       valueFormat: JsonValueFormat.arrays,
     });
 
@@ -119,36 +154,65 @@ suite("JsonWriter", () => {
 
     // assert
     const json = getJson();
-    assert.equal(json.length, 2);
-    assert.deepEqual(
-      json[0],
-      ["ad_id", "final_urls", "ad_type", "ad_group", "policy_topic_entries"]);
+    assert.equal(json.length, 3);
+    assert.deepEqual(json[0], [
+      "ad_id",
+      "final_urls",
+      "ad_type",
+      "ad_group",
+      "policy_topic_entries",
+    ]);
     let row = json[1];
     assert.equal(row[0], mock_result[0].ad_group_ad.ad.id);
+    assert.deepStrictEqual(row[1], mock_result[0].ad_group_ad.ad.final_urls);
+  });
+
+  test("writing in json (format=json) with valueFormat=raw", async function () {
+    // arrange
+    let writer = new JsonWriter({
+      outputPath: OUTPUT_DIR,
+      format: JsonOutputFormat.json,
+      valueFormat: JsonValueFormat.raw,
+    });
+
+    // act
+    await executor.execute(SCRIPT_NAME, queryText, customers, {}, writer);
+
+    // assert
+    const json = getJson();
+    assert.equal(json.length, 2);
+    let row = json[0];
+    assert.equal(row.ad_group_ad.ad.id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
-      row[1],
+      row.ad_group_ad.ad.final_urls,
       mock_result[0].ad_group_ad.ad.final_urls
     );
   });
 
-    test("writing in json with valueFormat=raw", async function () {
-      // arrange
-      let writer = new JsonWriter({
-        destinationFolder: OUTPUT_DIR,
-        valueFormat: JsonValueFormat.raw,
-      });
-
-      // act
-      await executor.execute(SCRIPT_NAME, queryText, customers, {}, writer);
-
-      // assert
-      const json = getJson();
-      assert.equal(json.length, 1);
-      let row = json[0];
-      assert.equal(row.ad_group_ad.ad.id, mock_result[0].ad_group_ad.ad.id);
-      assert.deepStrictEqual(
-        row.ad_group_ad.ad.final_urls,
-        mock_result[0].ad_group_ad.ad.final_urls
-      );
+  test("writing in jsonl with valueFormat=object", async function () {
+    // arrange
+    let writer = new JsonWriter({
+      outputPath: OUTPUT_DIR,
+      format: JsonOutputFormat.jsonl,
+      valueFormat: JsonValueFormat.objects,
     });
+
+    // act
+    await executor.execute(SCRIPT_NAME, queryText, customers, {}, writer);
+
+    // assert
+    let jsonText = fs.readFileSync(
+      path.join(OUTPUT_DIR, SCRIPT_NAME + ".json"),
+      "utf-8"
+    );
+    console.log(jsonText);
+    const lines = jsonText.split("\n").filter((s) => s.length > 0);
+    assert.equal(lines.length, 2);
+    let row = JSON.parse(lines[0]);
+    assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
+    assert.deepStrictEqual(
+      row.final_urls,
+      mock_result[0].ad_group_ad.ad.final_urls
+    );
+  });
 });
