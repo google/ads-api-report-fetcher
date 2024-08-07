@@ -68,10 +68,8 @@ export class GoogleAdsError extends Error {
     super(message || "Unknow error on calling Google Ads API occurred");
     this.failure = failure;
     this.retryable = false;
-    if (failure.errors[0].error_code?.internal_error) {
-      this.retryable = true;
-    }
   }
+}
 }
 
 export class GoogleAdsApiClient implements IGoogleAdsApiClient {
@@ -117,9 +115,10 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
     query?: string
   ) {
     try {
+      console.error(error);
       this.logger.error(
-        `An error occured on executing query: ${query}\nRaw error: ` +
-        JSON.stringify(error, null, 2)
+        `An error occured on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
+          JSON.stringify(error, null, 2)
       );
     } catch (e) {
       // a very unfortunate situation
@@ -129,11 +128,21 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
       );
     }
     if (error instanceof errors.GoogleAdsFailure && error.errors) {
-      let ex = new GoogleAdsError(error.errors[0].message, error);
+      const message = error.errors.length
+        ? error.errors[0].message
+        : (<any>error).message || "Unknow GoogleAdsFailure error";
+      let ex = new GoogleAdsError(message, error);
+      if (error.errors.length) {
+        if (
+          error.errors[0].error_code?.internal_error ||
+          error.errors[0].error_code?.quota_error
+        ) {
+          ex.retryable = true;
+        }
+      }
       ex.account = customerId;
       ex.query = query;
       ex.logged = true;
-
       return ex;
     } else {
       // it could be an error from gRPC
@@ -143,7 +152,8 @@ export class GoogleAdsApiClient implements IGoogleAdsApiClient {
         (<any>error).code === 14 /* UNAVAILABLE */ ||
         (<any>error).details === "The service is currently unavailable" ||
         (<any>error).code === 8 /* RESOURCE_EXHAUSTED */ ||
-        (<any>error).code === 4 /* DEADLINE_EXCEEDED */
+        (<any>error).code === 4 /* DEADLINE_EXCEEDED */ ||
+        (<any>error).code === 13 /* INTERNAL */
       ) {
         (<any>error).retryable = true;
       }
@@ -299,7 +309,7 @@ export function parseCustomerIds(customerId: string|undefined, adsConfig: Google
 
   if (customerIds && customerIds.length) {
     for (let i = 0; i < customerIds.length; i++) {
-      customerIds[i] = customerIds[i].toString().replaceAll('-', '');
+      customerIds[i] = customerIds[i].toString().replaceAll("-", "");
     }
   }
   return customerIds;
@@ -317,7 +327,7 @@ export async function loadAdsConfigFromFile(configFilepath: string): Promise<Goo
       client_id: doc["client_id"],
       client_secret: doc["client_secret"],
       refresh_token: doc["refresh_token"],
-      login_customer_id: (doc["login_customer_id"])?.toString(),
+      login_customer_id: doc["login_customer_id"]?.toString(),
       customer_id: doc["customer_id"]?.toString(),
     };
   } catch (e) {
