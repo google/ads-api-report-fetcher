@@ -81,24 +81,25 @@ class BuiltinQueryProcessor {
         throw new Error(`Could not find a builtin resource '${name}'`);
     }
     async *execute(query, customerId, executor) {
-        var _a, _b;
         if (query.resource.name === "ocid") {
-            let queryReal = "SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1";
+            let queryRealText = "SELECT customer.id, metrics.optimization_score_url as url FROM customer LIMIT 1";
             // we need to parse result so we wrap generator
-            let stream = executor.client.executeQueryStream(queryReal, customerId);
-            for await (const row of stream) {
-                let new_row = {
-                    customer_id: (_a = row.customer) === null || _a === void 0 ? void 0 : _a.id,
-                    ocid: (_b = row.metrics) === null || _b === void 0 ? void 0 : _b.optimization_score_url,
-                };
-                if (new_row.ocid) {
-                    let ocid = new_row.ocid.match("ocid=(\\w+)");
-                    if (ocid === null || ocid === void 0 ? void 0 : ocid.length) {
-                        new_row.ocid = ocid[1];
+            const queryReal = executor.editor.parseQuery(queryRealText);
+            const result = await executor.executeQueryAndParseToObjects(queryReal, customerId);
+            if (result.rows)
+                for (let row of result.rows) {
+                    let new_row = {
+                        customer_id: row["id"],
+                        ocid: row["url"],
+                    };
+                    if (new_row.ocid) {
+                        let ocid = new_row.ocid.match("ocid=(\\w+)");
+                        if (ocid === null || ocid === void 0 ? void 0 : ocid.length) {
+                            new_row.ocid = ocid[1];
+                        }
                     }
+                    yield new_row;
                 }
-                yield new_row;
-            }
             return;
         }
         /*

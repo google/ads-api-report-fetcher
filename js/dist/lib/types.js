@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArrayHandling = exports.QueryElements = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
+exports.ArrayHandling = exports.QueryElements = exports.ApiType = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
 var CustomizerType;
 (function (CustomizerType) {
     CustomizerType["ResourceIndex"] = "ResourceIndex";
@@ -18,6 +18,11 @@ function isEnumType(type) {
     return !!type.values;
 }
 exports.isEnumType = isEnumType;
+var ApiType;
+(function (ApiType) {
+    ApiType["gRPC"] = "gRPC";
+    ApiType["REST"] = "REST";
+})(ApiType = exports.ApiType || (exports.ApiType = {}));
 class QueryElements {
     constructor(query, columns, resource, functions) {
         this.queryText = "";

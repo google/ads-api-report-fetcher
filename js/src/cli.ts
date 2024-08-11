@@ -23,11 +23,10 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import {
-  CustomerInfo,
-  GoogleAdsApiClient,
+  GoogleAdsRpcApiClient,
   GoogleAdsApiConfig,
-  loadAdsConfigFromFile,
-  parseCustomerIds,
+  GoogleAdsRestApiClient,
+  IGoogleAdsApiClient,
 } from "./lib/ads-api-client";
 import {
   AdsQueryExecutor,
@@ -57,6 +56,14 @@ import {
 } from "./lib/types";
 import { getElapsed } from "./lib/utils";
 import { ConsoleQueryReader, FileQueryReader } from "./lib/query-reader";
+import {
+  CustomerInfo,
+  filterCustomerIds,
+  getCustomerIds,
+  getCustomerInfo,
+  loadAdsConfigFromFile,
+  parseCustomerIds,
+} from "./lib/ads-utils";
 
 const configPath = findUp.sync([".gaarfrc", ".gaarfrc.json"]);
 const configObj = configPath
@@ -264,6 +271,15 @@ const argv = yargs(hideBin(process.argv))
     type: "boolean",
     description: "Output GAQL quesries to console before execution",
   })
+  .option("api", {
+    type: "string",
+    choices: ["grpc", "rest"],
+    description: "API to use: gRPC or REST",
+  })
+  .option("api-version", {
+    type: "string",
+    description: "API versin (supported only for REST API)",
+  })
   .group(
     [
       "bq.project",
@@ -400,9 +416,21 @@ function getReader(): IQueryReader {
   return new FileQueryReader(argv.files);
 }
 
+function getApiClient(adsConfig: GoogleAdsApiConfig): IGoogleAdsApiClient {
+  let client;
+  if (argv.api === "rest") {
+    client = new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
+  } else {
+    client = new GoogleAdsRpcApiClient(adsConfig);
+    if (argv.apiVersion) {
+      console.warn(`api-version is not supported for gRPC API (api=grpc)`);
+    }
+  }
+  return client;
+}
+
 async function main() {
   logger.verbose(JSON.stringify(argv, null, 2));
-
   let adsConfig: GoogleAdsApiConfig | undefined = undefined;
   let adConfigFilePath = <string>argv.adsConfig;
   if (adConfigFilePath) {
@@ -459,12 +487,14 @@ async function main() {
     adsConfig.login_customer_id = customerIds[0];
   }
 
-  let client = new GoogleAdsApiClient(adsConfig);
-  let executor = new AdsQueryExecutor(client);
+  const client = getApiClient(adsConfig);
+  logger.info(`Using ${client.apiType} API (${client.apiVersion})`);
+
+  const executor = new AdsQueryExecutor(client);
 
   if (argv._ && argv._[0] === "validate") {
     try {
-      await client.getCustomerIds(customerIds);
+      await getCustomerIds(client, customerIds);
       if (argv.loglevel !== "off") {
         console.log(chalk.green("Ads configuration has been validated"));
       }
@@ -478,23 +508,15 @@ async function main() {
     }
   } else if (argv._ && argv._[0] === "account-tree") {
     for (const cid of customerIds) {
-      const info = await client.getCustomerInfo(cid);
+      const info = await getCustomerInfo(client, cid);
       dumpCustomerInfo(info);
     }
     process.exit(0);
   }
 
-  // NOTE: a note regarding the 'files' argument
-  // normaly on *nix OSes (at least in bash and zsh) passing an argument
-  // with mask like *.sql will expand it to a list of files (see
-  // https://zsh.sourceforge.io/Doc/Release/Expansion.html, 14.8 Filename
-  // Generation,
-  // https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html)
-  // So, actually the tool accepts already expanding list of files, and
-  // if we want to support glob patterns as parameter (for example for calling
-  // from outside zsh/bash) then we have to handle items in `files` argument and
-  // expand them using glob rules
-  if ((!argv.files || !argv.files.length) && (argv._[0] !== "customer")) {
+  if (!argv.files || !argv.files.length) {
+    // Besides two commands ("validate" and "account-tree") we treat all
+    // positional args as file names
     if (argv.loglevel !== "off") {
       console.log(
         chalk.redBright(
@@ -537,7 +559,7 @@ async function main() {
         customer_ids_query ? "(using custom query)" : ""
       }`
     );
-    customers = await client.getCustomerIds(customerIds);
+    customers = await getCustomerIds(client, customerIds);
     logger.verbose(
       `Customer ids from the root account(s) ${customerIds.join(",")} (${
         customers.length
@@ -548,7 +570,8 @@ async function main() {
       logger.verbose(`Filtering customer ids with custom query`);
       logger.debug(customer_ids_query);
       try {
-        customers = await executor.getCustomerIds(
+        customers = await filterCustomerIds(
+          client,
           customers,
           customer_ids_query
         );
@@ -620,7 +643,7 @@ async function loadAdsConfig(configFilepath: string) {
 }
 
 function dumpCustomerInfo(info: CustomerInfo, level: number = 0) {
-  let txt = `${info.id} - ${info.name} ${info.is_mcc ? " - MCC" : ""}`
+  let txt = `${info.id} - ${info.name} ${info.is_mcc ? " - MCC" : ""}`;
   console.log("  ".repeat(level) + txt);
   if (info.children && info.children.length) {
     level += 1;

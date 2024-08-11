@@ -175,15 +175,6 @@ use `executeGen` method (it's a async generator):
   }
 ```
 
-Alternatively you can incorporate `keepData` option of the `BigQueryWriter`:
-```ts
-  let writer =
-      new BigQueryWriter(projectId, dataset, {keepData: true});
-  await executor.execute(scriptName, queryText, customers, macroParams, writer);
-```
-thanks to keepData you will be able access the `writer.rowsByCustomer` property
-with a map of customer id to rows with data.
-
 
 To execute a single query for a single customer use `executeOne` method:
 ```ts

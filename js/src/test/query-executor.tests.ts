@@ -39,7 +39,7 @@ suite('AdsQueryExecutor', () => {
       FROM campaign_criterion
     `;
     let customerId = '1';
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
 
@@ -89,7 +89,7 @@ suite('AdsQueryExecutor', () => {
       FROM campaign
     `;
     let customerId = '1';
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
 
@@ -123,7 +123,7 @@ suite('AdsQueryExecutor', () => {
       }
     `;
     let customerId = '1';
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mock_result);
     let executor = new AdsQueryExecutor(client);
 
@@ -150,7 +150,7 @@ suite('AdsQueryExecutor', () => {
     `;
 
     let customerId = "1";
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
 
@@ -166,18 +166,30 @@ suite('AdsQueryExecutor', () => {
   test('virtual columns', async function () {
     let queryText = `
       SELECT
-        '$\{today()\}' as date,
-        1 AS counter,
-        metrics.clicks / metrics.impressions AS ctr,
-        metrics.cost_micros * 1000 AS cost,
+        '$\{today()\}' as date, -- #1
+        1 AS counter,           -- #2
+        metrics.clicks / metrics.impressions AS ctr, -- #3
+        metrics.cost_micros * 1000 AS cost,          -- #4
+        campaign.target_cpa.target_cpa_micros / 1000000 AS target_cpa, -- #5
         campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type
       FROM campaign
     `;
+    // NOTE for the query:
+    //  #1: virtual column with a constant string (value executed as expression)
+    //  #2: virtual column with a constant number
+    //  #3: virtual column with a ariphmetic operation against real columns
+    //      (they will be fetched automatically)
+    //  #4: virtual column with a ariphmetic operation between a column and const
+    //  #5: virtual column with a ariphmetic operation between a column and const
+    //      but the column is 2 level nested
     let mockResult = [
       {
         campaign: {
           app_campaign_setting: {
             bidding_strategy_goal_type: 2, // OPTIMIZE_INSTALLS_TARGET_INSTALL_COST
+          },
+          target_cpa: {
+            target_cpa_micros: 1000000,
           },
         },
         metrics: {
@@ -188,18 +200,19 @@ suite('AdsQueryExecutor', () => {
       },
     ];
     let customerId = "1";
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
     let query = executor.parseQuery(queryText);
     let res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [
-      LocalDate.now().toString(),
-      1,
-      10 / 2,
-      3 * 1000,
-      "OPTIMIZE_INSTALLS_TARGET_INSTALL_COST",
+      LocalDate.now().toString(), // date
+      1,        // counter
+      10 / 2,   // ctr
+      3 * 1000, // cost
+      1,        //target_cpa
+      "OPTIMIZE_INSTALLS_TARGET_INSTALL_COST", // bidding_type
     ]);
   });
 
@@ -218,7 +231,7 @@ suite('AdsQueryExecutor', () => {
         },
       },
     ];
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
     let query = executor.parseQuery(queryText);
@@ -256,7 +269,7 @@ suite('AdsQueryExecutor', () => {
       FROM customer_client
     `;
 
-    let client = new MockGoogleAdsApiClient([customerId]);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     let executor = new AdsQueryExecutor(client);
 

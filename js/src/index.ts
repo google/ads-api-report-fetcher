@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 export * from "./lib/ads-api-client";
-export {
-  loadAdsConfigFromFile as loadAdsConfigYaml, // for backward-compatibility
-} from "./lib/ads-api-client";
 export * from "./lib/ads-query-editor";
 export * from "./lib/ads-query-executor";
 export * from "./lib/bq-executor";
@@ -30,3 +27,8 @@ export * from "./lib/types";
 export * from "./lib/logger";
 export * from "./lib/logger-factory";
 export * from "./lib/utils";
+export * from "./lib/ads-utils";
+
+// for backward-compatibility
+export { GoogleAdsRpcApiClient as GoogleAdsApiClient } from "./lib/ads-api-client";
+export { loadAdsConfigFromFile as loadAdsConfigYaml } from "./lib/ads-utils";

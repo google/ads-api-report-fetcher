@@ -20,7 +20,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdsQueryEditor = exports.AdsApiVersion = void 0;
 const lodash_1 = __importDefault(require("lodash"));
-const ads_protos = require('google-ads-node/build/protos/protos.json');
+const ads_protos = require("google-ads-node/build/protos/protos.json");
 const logger_1 = require("./logger");
 const types_1 = require("./types");
 const utils_1 = require("./utils");
@@ -36,10 +36,12 @@ const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
 class InvalidQuerySyntax extends Error {
 }
 class AdsQueryEditor {
-    constructor() {
+    constructor(apiType, apiVersion) {
         this.logger = (0, logger_1.getLogger)();
         this.resourcesMap = {};
         this.primitiveTypes = ["string", "int64", "int32", "float", "double", "bool"];
+        this.apiType = apiType;
+        this.apiVersion = apiVersion;
         this.builtinQueryProcessor = new builtins_1.BuiltinQueryProcessor(this);
     }
     /**
@@ -64,7 +66,7 @@ class AdsQueryEditor {
         // remove non-single whitespaces
         query = "" + query.replace(/\s{2,}/g, " ");
         // remove trailing semicolon
-        query = query.trim().replace(/;$/gm, '');
+        query = query.trim().replace(/;$/gm, "");
         return query;
     }
     parseFunctions(query) {
@@ -135,7 +137,7 @@ class AdsQueryEditor {
             name: resourceName,
             typeName: resourceTypeFrom.name,
             typeMeta: resourceTypeFrom,
-            isConstant: resourceName.endsWith("_constant")
+            isConstant: resourceName.endsWith("_constant"),
         };
         let selectFields = query
             .replace(/(^\s*SELECT)|(\s*FROM .*)/gi, "")
@@ -170,7 +172,7 @@ class AdsQueryEditor {
             // now decide on how the current column should be mapped to native query
             const select_expr_parsed = parsedExpr.field.trim();
             let fieldType;
-            if (select_expr_parsed === '*') {
+            if (select_expr_parsed === "*") {
                 if (expandWildcardAt > -1) {
                     throw new InvalidQuerySyntax(`duplicating wildcard '*' expression encountered at index ${field_index}`);
                 }
@@ -365,13 +367,23 @@ class AdsQueryEditor {
             throw new Error("ArgumentException: type was not specified");
         const rootType = type.name;
         for (let i = 0; i < nameParts.length; i++) {
+            const isLastPart = i === nameParts.length - 1;
             let fieldType;
             let field = type.fields[nameParts[i]];
             if (!field) {
+                if (isLastPart) {
+                    // it's an unknown field (probably from a next version)
+                    fieldType = {
+                        repeated: false,
+                        type: "string",
+                        typeName: "string",
+                        kind: types_1.FieldTypeKind.primitive,
+                    };
+                    return fieldType;
+                }
                 throw new Error(`Resource or type '${type.name}' does not have field '${nameParts[i]}' (initial property chain is ${nameParts.join(".")} and resource is '${rootType}')`);
             }
             let repeated = field.rule === "repeated";
-            let isLastPart = i === nameParts.length - 1;
             if (repeated && !isLastPart) {
                 throw new Error(`InternalError: repeated field '${nameParts[i]}' in the middle of prop chain '${nameParts.join(".")}'`);
             }

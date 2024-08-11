@@ -14,29 +14,48 @@
  * limitations under the License.
  */
 
-import _ from 'lodash';
-const ads_protos = require('google-ads-node/build/protos/protos.json');
-import {getLogger} from './logger';
-import {Customizer, CustomizerType, Column, FieldType, FieldTypeKind, isEnumType, ProtoTypeMeta, QueryElements, ResourceInfo} from './types';
-import {substituteMacros} from './utils';
-import {math_parse} from "./math-engine";
-import { BuiltinQueryProcessor } from './builtins';
+import _ from "lodash";
+const ads_protos = require("google-ads-node/build/protos/protos.json");
+import { getLogger } from "./logger";
+import {
+  Customizer,
+  CustomizerType,
+  Column,
+  FieldType,
+  FieldTypeKind,
+  isEnumType,
+  ProtoTypeMeta,
+  QueryElements,
+  ResourceInfo,
+  ApiType,
+} from "./types";
+import { substituteMacros } from "./utils";
+import { math_parse } from "./math-engine";
+import { BuiltinQueryProcessor } from "./builtins";
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
-const protoVer = Object.keys(protoRoot)[0];  // e.g. "v9"
+const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
 export const AdsApiVersion = protoVer;
 const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
 const protoResources = protoRoot[protoVer].nested.resources.nested;
 const protoEnums = protoRoot[protoVer].nested.enums.nested;
 const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
 
-class InvalidQuerySyntax extends Error { }
+class InvalidQuerySyntax extends Error {}
 
-export class AdsQueryEditor {
+export interface IAdsQueryEditor {
+  parseQuery(query: string, macros?: Record<string, any>): QueryElements;
+}
+
+export class AdsQueryEditor implements IAdsQueryEditor {
   logger = getLogger();
   builtinQueryProcessor: BuiltinQueryProcessor;
+  apiType: ApiType;
+  apiVersion: string;
 
-  constructor() {
+  constructor(apiType: ApiType, apiVersion: string) {
+    this.apiType = apiType;
+    this.apiVersion = apiVersion;
     this.builtinQueryProcessor = new BuiltinQueryProcessor(this);
   }
 
@@ -61,7 +80,7 @@ export class AdsQueryEditor {
     // remove non-single whitespaces
     query = "" + query.replace(/\s{2,}/g, " ");
     // remove trailing semicolon
-    query = query.trim().replace(/;$/gm, '')
+    query = query.trim().replace(/;$/gm, "");
     return query;
   }
 
@@ -137,7 +156,7 @@ export class AdsQueryEditor {
       name: resourceName,
       typeName: resourceTypeFrom.name,
       typeMeta: resourceTypeFrom,
-      isConstant: resourceName.endsWith("_constant")
+      isConstant: resourceName.endsWith("_constant"),
     };
 
     let selectFields = query
@@ -157,7 +176,9 @@ export class AdsQueryEditor {
       let alias = pair[1]; // can be undefined
       let parsedExpr = this.parseExpression(select_expr);
       if (!parsedExpr.field || !parsedExpr.field.trim()) {
-        throw new InvalidQuerySyntax(`empty select field at index ${field_index}`);
+        throw new InvalidQuerySyntax(
+          `empty select field at index ${field_index}`
+        );
       }
 
       // initialize column alias
@@ -178,14 +199,15 @@ export class AdsQueryEditor {
       // now decide on how the current column should be mapped to native query
       const select_expr_parsed = parsedExpr.field.trim();
       let fieldType: FieldType;
-      if (select_expr_parsed === '*') {
+      if (select_expr_parsed === "*") {
         if (expandWildcardAt > -1) {
-          throw new InvalidQuerySyntax(`duplicating wildcard '*' expression encountered at index ${field_index}`);
+          throw new InvalidQuerySyntax(
+            `duplicating wildcard '*' expression encountered at index ${field_index}`
+          );
         }
         expandWildcardAt = field_index;
         continue;
-      }
-      else if (parsedExpr.customizer) {
+      } else if (parsedExpr.customizer) {
         raw_select_fields.push(select_expr_parsed);
         let nameParts = select_expr_parsed.split(".");
         let curType = this.getResource(nameParts[0]);
@@ -252,8 +274,8 @@ export class AdsQueryEditor {
             const value_type = _.isInteger(value)
               ? "int64"
               : _.isNumber(value)
-                ? "double"
-                : "string";
+              ? "double"
+              : "string";
             field = {
               name: column_name,
               customizer: {
@@ -318,10 +340,8 @@ export class AdsQueryEditor {
         if (
           field.rule !== "repeated" &&
           !column_names.includes(fieldName) &&
-          (
-            this.primitiveTypes.includes(field.type) ||
-            field.type.match("google\\.ads.googleads.\\w+.enums")
-          )
+          (this.primitiveTypes.includes(field.type) ||
+            field.type.match("google\\.ads.googleads.\\w+.enums"))
         ) {
           //"google.ads.googleads.v14.enums.CustomerStatusEnum.CustomerStatus"
           raw_select_fields.push(resourceInfo.name + "." + fieldName);
@@ -348,7 +368,12 @@ export class AdsQueryEditor {
       "$COLUMNS$",
       raw_select_fields.join(", ")
     );
-    return new QueryElements(queryNative, fields, resourceInfo, functions);
+    return new QueryElements(
+      queryNative,
+      fields,
+      resourceInfo,
+      functions
+    );
   }
 
   resourcesMap: Record<string, any> = {};
@@ -409,9 +434,20 @@ export class AdsQueryEditor {
     if (!type) throw new Error("ArgumentException: type was not specified");
     const rootType = type.name;
     for (let i = 0; i < nameParts.length; i++) {
+      const isLastPart = i === nameParts.length - 1;
       let fieldType: FieldType;
       let field = type.fields[nameParts[i]];
       if (!field) {
+        if (isLastPart) {
+          // it's an unknown field (probably from a next version)
+          fieldType = {
+            repeated: false,
+            type: "string",
+            typeName: "string",
+            kind: FieldTypeKind.primitive,
+          };
+          return fieldType;
+        }
         throw new Error(
           `Resource or type '${type.name}' does not have field '${
             nameParts[i]
@@ -421,7 +457,6 @@ export class AdsQueryEditor {
         );
       }
       let repeated = field.rule === "repeated";
-      let isLastPart = i === nameParts.length - 1;
       if (repeated && !isLastPart) {
         throw new Error(
           `InternalError: repeated field '${

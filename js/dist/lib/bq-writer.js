@@ -101,7 +101,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         this.rowCountsByCustomer[customerId] = 0;
         if (this.insertMethod === BigQueryInsertMethod.loadTable) {
             let tableFullName = this.getTableFullname(customerId);
-            let filepath = this.getDataFilepath(`.${tableFullName}.json`);
+            let filepath = this.getDataFilePath(`.${tableFullName}.json`);
             const stream = this.createOutput(filepath);
             if (this.useFilePerCustomer()) {
                 this.streamsByCustomer[customerId] = stream;

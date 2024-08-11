@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadAdsConfigYaml = void 0;
+exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
 /**
  * Copyright 2023 Google LLC
  *
@@ -31,8 +31,6 @@ exports.loadAdsConfigYaml = void 0;
  * limitations under the License.
  */
 __exportStar(require("./lib/ads-api-client"), exports);
-var ads_api_client_1 = require("./lib/ads-api-client");
-Object.defineProperty(exports, "loadAdsConfigYaml", { enumerable: true, get: function () { return ads_api_client_1.loadAdsConfigFromFile; } });
 __exportStar(require("./lib/ads-query-editor"), exports);
 __exportStar(require("./lib/ads-query-executor"), exports);
 __exportStar(require("./lib/bq-executor"), exports);
@@ -43,4 +41,11 @@ __exportStar(require("./lib/google-cloud"), exports);
 __exportStar(require("./lib/types"), exports);
 __exportStar(require("./lib/logger"), exports);
 __exportStar(require("./lib/logger-factory"), exports);
+__exportStar(require("./lib/utils"), exports);
+__exportStar(require("./lib/ads-utils"), exports);
+// for backward-compatibility
+var ads_api_client_1 = require("./lib/ads-api-client");
+Object.defineProperty(exports, "GoogleAdsApiClient", { enumerable: true, get: function () { return ads_api_client_1.GoogleAdsRpcApiClient; } });
+var ads_utils_1 = require("./lib/ads-utils");
+Object.defineProperty(exports, "loadAdsConfigYaml", { enumerable: true, get: function () { return ads_utils_1.loadAdsConfigFromFile; } });
 //# sourceMappingURL=index.js.map

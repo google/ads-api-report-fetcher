@@ -86,7 +86,7 @@ suite("CsvWriter", () => {
       ],
     };
     let customers = ["customer1", "customer2"];
-    let client = new MockGoogleAdsApiClient(customers);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult(mock_result);
     let executor = new AdsQueryExecutor(client);
     let queryText = `
@@ -179,7 +179,7 @@ suite("CsvWriter", () => {
       FROM ad_group_ad
     `;
     let customers = ["cust_with_no_data", "cust_with_data"];
-    let client = new MockGoogleAdsApiClient(customers);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult({ cust_with_data: mock_result });
 
     let writer = new CsvWriter({

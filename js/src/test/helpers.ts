@@ -14,22 +14,16 @@
  * limitations under the License.
  */
 
-import _ from 'lodash';
+import _ from "lodash";
 
-import {IGoogleAdsApiClient} from '../lib/ads-api-client';
+import { GoogleAdsApiClientBase } from "../lib/ads-api-client";
+import { ApiType } from "../lib/types";
 
-export class MockGoogleAdsApiClient implements IGoogleAdsApiClient {
-  customerIds: string[];
+export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
 
-  constructor(customerIds: string[]) {
-    this.customerIds = customerIds;
-  }
-
-  async getCustomerIds(): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      resolve(this.customerIds);
-    });
+  constructor() {
+    super(ApiType.gRPC);
   }
 
   setupResult(result: any[] | Record<string, any[]>) {
@@ -47,10 +41,7 @@ export class MockGoogleAdsApiClient implements IGoogleAdsApiClient {
     });
   }
 
-  async *executeQueryStream(
-    query: string,
-    customerId: string
-  ) {
+  async *executeQueryStream(query: string, customerId: string) {
     let result = this.results[customerId] || this.results[""] || [];
     for (const row of result) {
       yield row;

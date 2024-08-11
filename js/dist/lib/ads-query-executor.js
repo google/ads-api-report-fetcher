@@ -18,7 +18,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdsQueryExecutor = exports.AdsApiVersion = void 0;
 const ads_query_editor_1 = require("./ads-query-editor");
 Object.defineProperty(exports, "AdsApiVersion", { enumerable: true, get: function () { return ads_query_editor_1.AdsApiVersion; } });
-const ads_row_parser_1 = require("./ads-row-parser");
 const logger_1 = require("./logger");
 const utils_1 = require("./utils");
 const async_1 = require("async");
@@ -28,8 +27,8 @@ const async_1 = require("async");
 class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
-        this.editor = new ads_query_editor_1.AdsQueryEditor();
-        this.parser = new ads_row_parser_1.AdsRowParser();
+        this.editor = client.getQueryEditor();
+        this.parser = client.getRowParser();
         this.logger = (0, logger_1.getLogger)();
         this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
@@ -212,7 +211,7 @@ class AdsQueryExecutor {
             throw e;
         }
     }
-    executeAdsQuery(query, customerId) {
+    executeNativeQuery(query, customerId) {
         if (query.executor) {
             return query.executor.execute(query, customerId, this);
         }
@@ -221,9 +220,31 @@ class AdsQueryExecutor {
             return stream;
         }
     }
+    async executeQueryAndParseToObjects(query, customerId) {
+        let rows = await this.client.executeQuery(query.queryText, customerId);
+        let rowCount = 0;
+        let parsedRows = [];
+        // NOTE: as we're iterating over an AsyncGenerator any error if happens
+        // will be thrown on iterating not on creating of the generator
+        for (const row of rows) {
+            let parsedRow = (this.parser.parseRow(row, query, true));
+            parsedRows.push(parsedRow);
+            rowCount++;
+        }
+        return { rows: parsedRows, query, customerId, rowCount };
+    }
+    /**
+     * Execute a query (via QueryStream) and process each rows with AdsRowParsed.
+     * If a writer provided it will be call for each row.
+     * @param query A parsed query (by AdsQueryEditor)
+     * @param customerId customer id
+     * @param writer optional writer
+     * @returns if no writer provided a results with rows and parsed rows,
+     *          otherwise only rowCount returned
+     */
     async executeQueryAndParse(query, customerId, writer) {
         return (0, utils_1.executeWithRetry)(async () => {
-            let stream = this.executeAdsQuery(query, customerId);
+            let stream = this.executeNativeQuery(query, customerId);
             if (process.env.DUMP_MEMORY) {
                 this.logger.debug((0, utils_1.getMemoryUsage)("Query executed"));
             }
@@ -233,7 +254,7 @@ class AdsQueryExecutor {
             // NOTE: as we're iterating over an AsyncGenerator any error if happens
             // will be thrown on iterating not on creating of the generator
             for await (const row of stream) {
-                let parsedRow = this.parser.parseRow(row, query);
+                let parsedRow = this.parser.parseRow(row, query, false);
                 rowCount++;
                 // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
                 if (writer) {
@@ -254,23 +275,6 @@ class AdsQueryExecutor {
             baseDelayMs: 100,
             delayStrategy: "linear",
         });
-    }
-    async getCustomerIds(ids, customer_ids_query) {
-        let query = this.parseQuery(customer_ids_query);
-        let accounts = new Set();
-        let idx = 0;
-        for (let id of ids) {
-            let result = await this.executeQueryAndParse(query, id);
-            this.logger.verbose(`#${idx}: Fetched ${result.rowCount} rows for ${id} account`);
-            if (result.rowCount > 0) {
-                for (let row of result.rows) {
-                    accounts.add(row[0]);
-                }
-            }
-            idx++;
-            // TODO: purge Customer objects in IGoogleAdsApiClient
-        }
-        return Array.from(accounts);
     }
 }
 exports.AdsQueryExecutor = AdsQueryExecutor;

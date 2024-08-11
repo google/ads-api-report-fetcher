@@ -18,70 +18,116 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdsRowParser = void 0;
+exports.AdsRowParser = exports.ParseResultMode = void 0;
 const google_ads_api_1 = require("google-ads-api");
 const lodash_1 = __importDefault(require("lodash"));
 const types_1 = require("./types");
 const utils_1 = require("./utils");
+const CAMEL_TO_SNAKE_REGEX = /[A-Z]/g;
+/**
+ * How to parse results from Ads API in `IAdsRowParser.parseRowz`.
+ */
+var ParseResultMode;
+(function (ParseResultMode) {
+    /**
+     * Return results as an array.
+     */
+    ParseResultMode[ParseResultMode["Array"] = 1] = "Array";
+    /**
+     * Return results as an object.
+     */
+    ParseResultMode[ParseResultMode["Object"] = 2] = "Object";
+})(ParseResultMode = exports.ParseResultMode || (exports.ParseResultMode = {}));
 class AdsRowParser {
-    parseRow(row, query) {
+    constructor(apiType) {
+        this.apiType = apiType;
+    }
+    normalizeName(name) {
+        if (this.apiType === types_1.ApiType.REST) {
+            return name.replace(CAMEL_TO_SNAKE_REGEX, (letter) => `_${letter.toLowerCase()}`);
+        }
+        return name;
+    }
+    parseRow(row, query, objectMode = false) {
         // flatten the tree of object into a flat obejct with all properties
-        let row_values = {};
+        let rowValues = {};
         for (let field of Object.keys(row)) {
             let item = row[field];
-            row_values[field] = item;
+            rowValues[this.normalizeName(field)] = item;
             (0, utils_1.traverseObject)(item, (name, value, path, object) => {
                 let field_full = path.join(".");
-                row_values[field_full] = value;
+                rowValues[this.normalizeName(field_full)] = value;
             }, [field]);
         }
         // process customizers and flatten row object into array
-        let row_values_arr = [];
+        let rowValuesArr = [];
         for (let i = 0; i < query.columns.length; i++) {
             let column = query.columns[i];
             let value;
             if (column.customizer) {
-                value = this.getValueWithCustomizer(row_values, column, column.customizer, query);
+                value = this.getValueWithCustomizer(rowValues, column, column.customizer, query);
             }
             else {
-                value = row_values[column.expression];
+                value = rowValues[column.expression];
             }
-            row_values_arr.push(value);
+            if (objectMode) {
+                rowValues[column.name] = value;
+            }
+            else {
+                rowValuesArr.push(value);
+            }
         }
         // post process enum (convert number to enum field names) and structs
-        for (let i = 0; i < query.columns.length; i++) {
-            let column = query.columns[i];
-            let value = row_values_arr[i];
-            //let colType = query.columnTypes[i];
-            let colType = column.type;
-            if (colType.kind === types_1.FieldTypeKind.enum &&
-                colType.repeated &&
-                lodash_1.default.isArray(value)) {
-                for (let j = 0; j < value.length; j++) {
-                    let subval = value[j];
-                    if (lodash_1.default.isNumber(subval)) {
+        if (this.apiType === types_1.ApiType.gRPC) {
+            // NOTE: gRPC API returns enums as numbers, while REST API returns strings
+            for (let i = 0; i < query.columns.length; i++) {
+                let column = query.columns[i];
+                let value = objectMode ? rowValues[column.name] : rowValuesArr[i];
+                let colType = column.type;
+                if (colType.kind === types_1.FieldTypeKind.enum &&
+                    colType.repeated &&
+                    lodash_1.default.isArray(value)) {
+                    for (let j = 0; j < value.length; j++) {
+                        let subval = value[j];
+                        if (lodash_1.default.isNumber(subval)) {
+                            let enumType = google_ads_api_1.enums[colType.typeName];
+                            if (enumType) {
+                                value[j] = enumType[subval];
+                            }
+                        }
+                    }
+                }
+                else if (colType.kind === types_1.FieldTypeKind.enum) {
+                    if (lodash_1.default.isNumber(value)) {
                         let enumType = google_ads_api_1.enums[colType.typeName];
                         if (enumType) {
-                            value[j] = enumType[subval];
+                            if (objectMode) {
+                                rowValues[column.name] = enumType[value];
+                            }
+                            else {
+                                rowValuesArr[i] = enumType[value];
+                            }
+                        }
+                    }
+                }
+                else if (colType.kind === types_1.FieldTypeKind.struct) {
+                    if (value && value.toJSON) {
+                        if (objectMode) {
+                            rowValues[column.name] = value.toJSON();
+                        }
+                        else {
+                            rowValuesArr[i] = value.toJSON();
                         }
                     }
                 }
             }
-            else if (colType.kind === types_1.FieldTypeKind.enum) {
-                if (lodash_1.default.isNumber(value)) {
-                    let enumType = google_ads_api_1.enums[colType.typeName];
-                    if (enumType) {
-                        row_values_arr[i] = enumType[value];
-                    }
-                }
-            }
-            else if (colType.kind === types_1.FieldTypeKind.struct) {
-                if (value && value.toJSON) {
-                    row_values_arr[i] = value.toJSON();
-                }
-            }
         }
-        return row_values_arr;
+        if (objectMode) {
+            return rowValues;
+        }
+        else {
+            return rowValuesArr;
+        }
     }
     getValueWithCustomizer(row, column, customizer, query) {
         let value;
@@ -127,6 +173,9 @@ class AdsRowParser {
             value = value.split("~")[customizer.index];
             if (value) {
                 if (customizer.index === 0) {
+                    // e.g. customers/{customer_id}/adGroupAds/{ad_group_id}~{ad_id}
+                    // here index=0 ("~0") corresponds ad_group_id
+                    // and index=1 ("~1") - ad_id
                     value = value.match(/[^/]+\/(\d+)$/)[1];
                 }
                 value = (0, utils_1.tryParseNumber)(value);

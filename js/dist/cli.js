@@ -33,6 +33,7 @@ const file_utils_1 = require("./lib/file-utils");
 const logger_1 = require("./lib/logger");
 const utils_1 = require("./lib/utils");
 const query_reader_1 = require("./lib/query-reader");
+const ads_utils_1 = require("./lib/ads-utils");
 const configPath = find_up_1.default.sync([".gaarfrc", ".gaarfrc.json"]);
 const configObj = configPath
     ? JSON.parse(fs_1.default.readFileSync(configPath, "utf-8"))
@@ -228,6 +229,15 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     type: "boolean",
     description: "Output GAQL quesries to console before execution",
 })
+    .option("api", {
+    type: "string",
+    choices: ["grpc", "rest"],
+    description: "API to use: gRPC or REST",
+})
+    .option("api-version", {
+    type: "string",
+    description: "API versin (supported only for REST API)",
+})
     .group([
     "bq.project",
     "bq.dataset",
@@ -287,7 +297,8 @@ function getWriter() {
     if (output === "bq" || output === "bigquery") {
         // TODO: move all options to BigQueryWriterOptions
         if (!argv.bq) {
-            throw new Error(`For BigQuery writer (---output=bq) we should specify at least a dataset id`);
+            console.warn(`For BigQuery writer (---output=bq) you should specify at least a dataset id (--bq.dataset)`);
+            process.exit(-1);
         }
         const dataset = argv.bq.dataset;
         if (!dataset) {
@@ -327,6 +338,19 @@ function getReader() {
     }
     return new query_reader_1.FileQueryReader(argv.files);
 }
+function getApiClient(adsConfig) {
+    let client;
+    if (argv.api === "rest") {
+        client = new ads_api_client_1.GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
+    }
+    else {
+        client = new ads_api_client_1.GoogleAdsRpcApiClient(adsConfig);
+        if (argv.apiVersion) {
+            console.warn(`api-version is not supported for gRPC API (api=grpc)`);
+        }
+    }
+    return client;
+}
 async function main() {
     logger.verbose(JSON.stringify(argv, null, 2));
     let adsConfig = undefined;
@@ -362,7 +386,7 @@ async function main() {
         refresh_token: "<hidden>",
         developer_token: "<hidden>",
     }), null, 2));
-    let customerIds = (0, ads_api_client_1.parseCustomerIds)(argv.account, adsConfig);
+    let customerIds = (0, ads_utils_1.parseCustomerIds)(argv.account, adsConfig);
     if (!customerIds || customerIds.length === 0) {
         if (argv.loglevel !== "off") {
             console.log(chalk_1.default.red(`No customer id/ids were provided. Exiting`));
@@ -372,11 +396,12 @@ async function main() {
     if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
         adsConfig.login_customer_id = customerIds[0];
     }
-    let client = new ads_api_client_1.GoogleAdsApiClient(adsConfig);
-    let executor = new ads_query_executor_1.AdsQueryExecutor(client);
+    const client = getApiClient(adsConfig);
+    logger.info(`Using ${client.apiType} API (${client.apiVersion})`);
+    const executor = new ads_query_executor_1.AdsQueryExecutor(client);
     if (argv._ && argv._[0] === "validate") {
         try {
-            await client.getCustomerIds(customerIds);
+            await (0, ads_utils_1.getCustomerIds)(client, customerIds);
             if (argv.loglevel !== "off") {
                 console.log(chalk_1.default.green("Ads configuration has been validated"));
             }
@@ -392,22 +417,14 @@ async function main() {
     }
     else if (argv._ && argv._[0] === "account-tree") {
         for (const cid of customerIds) {
-            const info = await client.getCustomerInfo(cid);
+            const info = await (0, ads_utils_1.getCustomerInfo)(client, cid);
             dumpCustomerInfo(info);
         }
         process.exit(0);
     }
-    // NOTE: a note regarding the 'files' argument
-    // normaly on *nix OSes (at least in bash and zsh) passing an argument
-    // with mask like *.sql will expand it to a list of files (see
-    // https://zsh.sourceforge.io/Doc/Release/Expansion.html, 14.8 Filename
-    // Generation,
-    // https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html)
-    // So, actually the tool accepts already expanding list of files, and
-    // if we want to support glob patterns as parameter (for example for calling
-    // from outside zsh/bash) then we have to handle items in `files` argument and
-    // expand them using glob rules
-    if ((!argv.files || !argv.files.length) && (argv._[0] !== "customer")) {
+    if (!argv.files || !argv.files.length) {
+        // Besides two commands ("validate" and "account-tree") we treat all
+        // positional args as file names
         if (argv.loglevel !== "off") {
             console.log(chalk_1.default.redBright(`Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)`));
         }
@@ -437,14 +454,14 @@ async function main() {
     else {
         // expand the provided accounts to leaf ones as they could be MMC accounts
         logger.info(`Expanding customer ids ${customer_ids_query ? "(using custom query)" : ""}`);
-        customers = await client.getCustomerIds(customerIds);
+        customers = await (0, ads_utils_1.getCustomerIds)(client, customerIds);
         logger.verbose(`Customer ids from the root account(s) ${customerIds.join(",")} (${customers.length}):`);
         logger.verbose(customers);
         if (customer_ids_query) {
             logger.verbose(`Filtering customer ids with custom query`);
             logger.debug(customer_ids_query);
             try {
-                customers = await executor.getCustomerIds(customers, customer_ids_query);
+                customers = await (0, ads_utils_1.filterCustomerIds)(client, customers, customer_ids_query);
             }
             catch (e) {
                 logger.error(`Fetching customer ids using customer_ids_query failed: ` + e);
@@ -481,7 +498,7 @@ async function main() {
 }
 async function loadAdsConfig(configFilepath) {
     try {
-        return (0, ads_api_client_1.loadAdsConfigFromFile)(configFilepath);
+        return (0, ads_utils_1.loadAdsConfigFromFile)(configFilepath);
     }
     catch (e) {
         if (argv.loglevel !== "off") {

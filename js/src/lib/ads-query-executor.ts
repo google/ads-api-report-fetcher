@@ -17,10 +17,10 @@
 import _ from "lodash";
 
 import { IGoogleAdsApiClient } from "./ads-api-client";
-import { AdsQueryEditor, AdsApiVersion } from "./ads-query-editor";
-import { AdsRowParser } from "./ads-row-parser";
+import { AdsApiVersion, IAdsQueryEditor } from "./ads-query-editor";
+import { IAdsRowParser } from "./ads-row-parser";
 import { getLogger } from "./logger";
-import { IResultWriter, QueryElements, QueryResult } from "./types";
+import { IResultWriter, QueryElements, QueryObjectResult, QueryResult } from "./types";
 import { executeWithRetry, getElapsed, getMemoryUsage } from "./utils";
 import { mapLimit } from "async";
 export { AdsApiVersion };
@@ -49,15 +49,15 @@ export class AdsQueryExecutor {
   static DEFAULT_RETRY_COUNT = 5;
 
   client: IGoogleAdsApiClient;
-  editor: AdsQueryEditor;
-  parser: AdsRowParser;
+  editor: IAdsQueryEditor;
+  parser: IAdsRowParser;
   logger;
   maxRetryCount;
 
   constructor(client: IGoogleAdsApiClient) {
     this.client = client;
-    this.editor = new AdsQueryEditor();
-    this.parser = new AdsRowParser();
+    this.editor = client.getQueryEditor();
+    this.parser = client.getRowParser();
     this.logger = getLogger();
     this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
   }
@@ -310,7 +310,7 @@ export class AdsQueryExecutor {
     }
   }
 
-  protected executeAdsQuery(query: QueryElements, customerId: string) {
+  protected executeNativeQuery(query: QueryElements, customerId: string) {
     if (query.executor) {
       return query.executor.execute(query, customerId, this);
     } else {
@@ -318,44 +318,53 @@ export class AdsQueryExecutor {
       return stream;
     }
   }
-  protected async execute2(
+
+  async executeQueryAndParseToObjects(
     query: QueryElements,
-    customerId: string,
-    writer?: IResultWriter
-  ) {
+    customerId: string
+  ): Promise<QueryObjectResult> {
     let rows = await this.client.executeQuery(query.queryText, customerId);
     let rowCount = 0;
-    let rawRows: any[] = [];
-    let parsedRows: any[] = [];
+    let parsedRows: Record<string,any>[] = [];
     // NOTE: as we're iterating over an AsyncGenerator any error if happens
     // will be thrown on iterating not on creating of the generator
     for (const row of rows) {
-      //let parsedRow = this.parser.parseRow(row, query);
+      let parsedRow = <Record<string, any>>(
+        this.parser.parseRow(row, query, true)
+      );
+      parsedRows.push(parsedRow);
       rowCount++;
-      // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
-      if (writer) await writer.addRow(customerId, <any[]>row, <any[]>row);
     }
-    return { rawRows, rows: parsedRows, query, customerId, rowCount };
+    return { rows: parsedRows, query, customerId, rowCount };
   }
-  protected async executeQueryAndParse(
+
+  /**
+   * Execute a query (via QueryStream) and process each rows with AdsRowParsed.
+   * If a writer provided it will be call for each row.
+   * @param query A parsed query (by AdsQueryEditor)
+   * @param customerId customer id
+   * @param writer optional writer
+   * @returns if no writer provided a results with rows and parsed rows,
+   *          otherwise only rowCount returned
+   */
+  async executeQueryAndParse(
     query: QueryElements,
     customerId: string,
     writer?: IResultWriter | undefined
-  ) {
-    //return this.execute2(query, customerId, writer);
+  ): Promise<QueryResult> {
     return executeWithRetry(
       async () => {
-        let stream = this.executeAdsQuery(query, customerId);
+        let stream = this.executeNativeQuery(query, customerId);
         if (process.env.DUMP_MEMORY) {
           this.logger.debug(getMemoryUsage("Query executed"));
         }
         let rowCount = 0;
         let rawRows: any[] = [];
-        let parsedRows: any[] = [];
+        let parsedRows: any[][] = [];
         // NOTE: as we're iterating over an AsyncGenerator any error if happens
         // will be thrown on iterating not on creating of the generator
         for await (const row of stream) {
-          let parsedRow = this.parser.parseRow(row, query);
+          let parsedRow = <any[]>this.parser.parseRow(row, query, false);
           rowCount++;
           // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
           if (writer) {
@@ -378,28 +387,5 @@ export class AdsQueryExecutor {
         delayStrategy: "linear",
       }
     );
-  }
-
-  async getCustomerIds(
-    ids: string[],
-    customer_ids_query: string
-  ): Promise<string[]> {
-    let query = this.parseQuery(customer_ids_query);
-    let accounts: Set<string> = new Set();
-    let idx = 0;
-    for (let id of ids) {
-      let result = await this.executeQueryAndParse(query, id);
-      this.logger.verbose(
-        `#${idx}: Fetched ${result.rowCount} rows for ${id} account`
-      );
-      if (result.rowCount > 0) {
-        for (let row of result.rows!) {
-          accounts.add(row[0]);
-        }
-      }
-      idx++;
-      // TODO: purge Customer objects in IGoogleAdsApiClient
-    }
-    return Array.from(accounts);
   }
 }

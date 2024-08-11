@@ -32,7 +32,7 @@ export interface CustomizerFunction {
 }
 export interface CustomizerVirtualColumn {
   type: CustomizerType.VirtualColumn;
-  evaluator: EvalFunction
+  evaluator: EvalFunction;
 }
 
 export type Customizer =
@@ -42,19 +42,19 @@ export type Customizer =
   | CustomizerVirtualColumn;
 
 export enum CustomizerType {
-  ResourceIndex = 'ResourceIndex',
-  NestedField = 'NestedField',
+  ResourceIndex = "ResourceIndex",
+  NestedField = "NestedField",
   Function = "Function",
-  VirtualColumn = "VirtualColumn"
+  VirtualColumn = "VirtualColumn",
 }
 
 export enum FieldTypeKind {
   primitive,
   enum,
-  struct
+  struct,
 }
 export interface ProtoFieldMeta {
-  rule?: 'repeated';
+  rule?: "repeated";
   /**
    * field's type can be:
    *  - a primitive type (string, int64, float, bool)
@@ -75,7 +75,7 @@ export interface ProtoFieldMeta {
   options?: Record<string, string>;
 }
 export interface ProtoTypeMeta {
-  name?: string;  // extension
+  name?: string; // extension
   options?: any;
   /**
    * Type fields
@@ -88,7 +88,7 @@ export interface ProtoTypeMeta {
 }
 export interface ProtoEnumMeta {
   values: Record<string, number>;
-  name?: string;  // extension
+  name?: string; // extension
 }
 export function isEnumType(type: any): type is ProtoEnumMeta {
   return !!type.values;
@@ -97,14 +97,14 @@ export interface ResourceInfo {
   name: string; // "campaign_criterion"
   typeName: string; // "CampaignCriterion"
   //fullName: string;  // "google.ads.googleads.v9.resources.CampaignCriterion"
-  typeMeta: ProtoTypeMeta;  // resource type description
+  typeMeta: ProtoTypeMeta; // resource type description
   isConstant: boolean;
 }
 export interface FieldType {
   repeated?: boolean;
   kind: FieldTypeKind;
   typeName: string;
-  type: string|ProtoTypeMeta|ProtoEnumMeta
+  type: string | ProtoTypeMeta | ProtoEnumMeta;
 }
 
 export interface Column {
@@ -120,6 +120,10 @@ export interface IQueryExecutor {
     executor: AdsQueryExecutor
   ): AsyncGenerator<any>;
 }
+export enum ApiType {
+  gRPC = "gRPC",
+  REST = "REST",
+}
 
 export class QueryElements {
   queryText: string = "";
@@ -132,7 +136,7 @@ export class QueryElements {
     query: string,
     columns: Column[],
     resource: ResourceInfo,
-    functions: Record<string, Function>
+    functions: Record<string, Function>,
   ) {
     this.queryText = query;
     this.columns = columns;
@@ -156,13 +160,23 @@ export interface QueryResult {
   query: QueryElements;
   customerId: string;
 }
+export interface QueryObjectResult {
+  rows: Record<string, any>[];
+  rowCount: number;
+  query: QueryElements;
+  customerId: string;
+}
 
 export interface IResultWriter {
-  beginScript(scriptName: string, query: QueryElements): Promise<void>|void;
-  beginCustomer(customerId: string): Promise<void>|void;
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]): Promise<void>|void;
-  endCustomer(customerId: string): Promise<void>|void;
-  endScript(): Promise<void>|void;
+  beginScript(scriptName: string, query: QueryElements): Promise<void> | void;
+  beginCustomer(customerId: string): Promise<void> | void;
+  addRow(
+    customerId: string,
+    parsedRow: any[],
+    rawRow: any[]
+  ): Promise<void> | void;
+  endCustomer(customerId: string): Promise<void> | void;
+  endScript(): Promise<void> | void;
 }
 
 export interface InputQuery {

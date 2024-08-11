@@ -102,7 +102,7 @@ suite("JsonWriter", () => {
   ];
 
   setup(() => {
-    let client = new MockGoogleAdsApiClient(customers);
+    let client = new MockGoogleAdsApiClient();
     client.setupResult({ cust_with_data: mock_result });
     executor = new AdsQueryExecutor(client);
   });

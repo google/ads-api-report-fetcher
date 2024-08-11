@@ -103,7 +103,6 @@ class Output {
 class FileWriterBase {
     constructor(options) {
         this.fileExtension = "";
-        this.appending = false;
         this.rowWritten = false;
         this.destination = (options === null || options === void 0 ? void 0 : options.outputPath) || (options === null || options === void 0 ? void 0 : options.destinationFolder);
         this.filePerCustomer = !!(options === null || options === void 0 ? void 0 : options.filePerCustomer);
@@ -112,7 +111,6 @@ class FileWriterBase {
         this.logger = (0, logger_1.getLogger)();
     }
     beginScript(scriptName, query) {
-        this.appending = false;
         this.query = query;
         this.scriptName = scriptName;
         this.streamsByCustomer = {};
@@ -126,7 +124,7 @@ class FileWriterBase {
     onBeginScript(scriptName, query) { }
     async beginCustomer(customerId) {
         this.rowCountsByCustomer[customerId] = 0;
-        const filePath = this.getDataFilepath(this.getFileName(customerId));
+        const filePath = this.getDataFilePath(this.getDataFileName(customerId));
         let output;
         if (this.useFilePerCustomer()) {
             output = this.createOutput(filePath);
@@ -143,9 +141,6 @@ class FileWriterBase {
             output = this.streamsByCustomer[""];
         }
         await this.onBeginCustomer(customerId, output);
-        if (!this.useFilePerCustomer()) {
-            this.appending = true;
-        }
     }
     onBeginCustomer(customerId, output) { }
     useFilePerCustomer() {
@@ -154,7 +149,7 @@ class FileWriterBase {
             return false;
         return this.filePerCustomer;
     }
-    getFileName(customerId) {
+    getDataFileName(customerId) {
         let filename = "";
         if (this.useFilePerCustomer()) {
             filename = `${this.scriptName}_${customerId}.${this.fileExtension}`;
@@ -164,7 +159,7 @@ class FileWriterBase {
         }
         return filename;
     }
-    getDataFilepath(filename) {
+    getDataFilePath(filename) {
         let filepath = filename;
         if (this.destination) {
             filepath = this.destination;
@@ -288,11 +283,6 @@ class FileWriterBase {
                 process.nextTick(cb);
             }
         });
-        // const success = writeStream.write(content);
-        // // Handle backpressure (if stream is overwhelmed)
-        // if (!success) {
-        //   await new Promise((resolve) => writeStream.once("drain", resolve));
-        // }
     }
     async writeContent(customerId, content) {
         let output = this.getOutput(customerId);
