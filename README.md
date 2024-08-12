@@ -71,6 +71,10 @@ Currently only the NodeJS version supports wildcards natively (without glob expa
 * `gaarf ads-queries/*.sql` - using OS wildcards expansion
 * `gaarf "ads-queries/*.sql"` - using native wildcards (i.e. passing wildcard into the tool)
 
+Instead of passing files you can pass commands (currently supported only by NodeJs versions):
+* `validate` - validate Ads credentials (supplied via `--ads-config`).
+* `account-tree` - print an account structure, given an account id (via `--account`) it outputs all children account as a hierarchy.
+
 Options:
 * `ads-config` - a path to yaml file with config for Google Ads,
                by default assuming 'google-ads.yaml' in the current folder
@@ -78,7 +82,7 @@ Options:
 * `input` - input type - where queries are coming from. Supports the following values:
   * `file` - (default) local or remote (GCS, S3, Azure, etc.) files
   * `console` - data are read from standard input
-* `output` - output type, Supports the following values:
+* `output` - output type, supports the following values:
   * `bq` or `bigquery` - write data to BigQuery
   * `console` - write data to standard output
   * `csv` - write data to CSV files
@@ -104,11 +108,11 @@ Options:
 * `parallel-queries` - how to process queries files: all in parallel (true) or sequentially (false). By default - in parallel (*Python version only*, for NodeJS - always sequentially)
 * `parallel-threshold` - a number, maximum number of parallel queries.
 
-
 Options specific for CSV writer:
-* `csv.destination-folder` - output folder where csv files will be created
+* `csv.output-path` - output folder where csv files will be created
 * `csv.array-separator` - a separator symbol for joining arrays as strings, by default '|'.
 * `csv.file-per-customer` - create a CSV file per customer (default: false) (*NodeJS version only*)
+* `csv.quote` - wrap values in quotes (default: false) (*NodeJS version only*)
 
 Options specific for BigQuery writer:
 * `bq.project` - GCP project id
@@ -120,6 +124,8 @@ Options specific for BigQuery writer:
 * `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2").
 * `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|'.
 * `bq.key-file-path` - a SA key file path for BigQuery authentication (by default application default credentials will be used) (*NodeJS version only*)
+* `bq.insert-method` - a method of loading data into tables: `load` - using loadTable method (default), `insert` - using insertAll method. loadTable loads tables from temp json files, while 'insertAll' accumulate rows in memory and insert them in batches. 
+* `bq.output-path` - a path to location where temporal json files will be created, used to load BQ tables (for insert-method=load). It can be GCS location (gs://).
 
 Options specific for Console writer:
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:
@@ -138,7 +144,7 @@ Options specific for Sheet writer (*Python version only*):
 * `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended.
 
 Options specific for JSON writer:
-* `json.destination-folder` - output folder where json files will be created
+* `json.output-path` - output folder where json files will be created
 * `json.file-per-customer` - create a CSV file per customer (default: false) (*NodeJS version only*)
 * `json.format` - output format: "json" (JSON) or "jsonl" (JSON Lines)
 * `json.value-format` - value format - representation of values: "arrays" (values as arrays), "objects" (values as objects), "raw" (raw output)

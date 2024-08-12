@@ -1,4 +1,15 @@
 # Changelog
+## 2.11 - 2024-08-12
+* `BigQueryWriter` and all file-based writers (`CsvWriter`/`JsonWriter`) support `outputPath` option with paths on GCS. Via cli it's passed as `--bq.output-path`, `--csv.output-path`, `--json.output-path`.
+* All writers implemented streaming to files (including paths on GCS). It's especially useful in Gaarf-WF where gaarf Cloud Function streams data to files on GCS.
+* added REST API support (along with existing gRPC). Now there're two clients: `GoogleAdsRpcClient` (renamed existing GoogleAdsClient) and `GoogleAdsRestClient` (new one). A client is chosen via `--api` option: `--api=rest` (REST) or `--api=rpc` (gRCP) - default. For the REST client a API verson can be provided via `--api-version`.
+* `AdsQueryExecutor`: introduced a new method executeQueryAndParseToObjects to returns values as objects, using a new mode for `AdsRowParser.parseRow`.
+* diag: support DUMP_MEMORY envvar to output current memory usage to log
+
+## 2.10 - 2024-05-09
+* added a new writer - JsonWirter (`--output=json`)
+* added `account-tree` cli command to show account info with subaccounts (`gaarf account-tree <options>`)
+
 ## 2.9 - 2024-03-04
 * support Google Ads API v16 (updated google-ads-api to v16)
 

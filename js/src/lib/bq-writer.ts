@@ -67,11 +67,11 @@ export enum BigQueryInsertMethod {
   /**
    * Using `insert` with rows in memory.
    */
-  insertAll,
+  insertAll = "insert",
   /**
    * Using `load` with rows in json files.
    */
-  loadTable,
+  loadTable = "load",
 }
 
 /**

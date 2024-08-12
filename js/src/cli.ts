@@ -392,7 +392,7 @@ function getWriter(): IResultWriter {
     opts.dumpData = bq_opts["dump-data"];
     opts.noUnionView = bq_opts["no-union-view"];
     opts.insertMethod =
-      (bq_opts["insert-method"] || "").toLowerCase() === "insert-all"
+      (bq_opts["insert-method"] || "").toLowerCase() === "insert"
         ? BigQueryInsertMethod.insertAll
         : BigQueryInsertMethod.loadTable;
     opts.arrayHandling = bq_opts["array-handling"];

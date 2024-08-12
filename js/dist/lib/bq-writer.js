@@ -37,11 +37,11 @@ var BigQueryInsertMethod;
     /**
      * Using `insert` with rows in memory.
      */
-    BigQueryInsertMethod[BigQueryInsertMethod["insertAll"] = 0] = "insertAll";
+    BigQueryInsertMethod["insertAll"] = "insert";
     /**
      * Using `load` with rows in json files.
      */
-    BigQueryInsertMethod[BigQueryInsertMethod["loadTable"] = 1] = "loadTable";
+    BigQueryInsertMethod["loadTable"] = "load";
 })(BigQueryInsertMethod = exports.BigQueryInsertMethod || (exports.BigQueryInsertMethod = {}));
 /**
  * Writer to BigQuery.
