@@ -1058,7 +1058,7 @@ cd ..
     answers,
     'bq_macro'
   );
-  const bq_writer_options = answers.bq_writer_options;
+  const writer_options = answers.writer_options;
   const bq_location =
     gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
   const output_dataset = answers2.output_dataset;
@@ -1074,7 +1074,7 @@ cd ..
     ads_config_path: `${gcs_base_path}/google-ads.yaml`,
     customer_ids_query: custom_query_gcs_path,
     bq_dataset_location: bq_location,
-    bq_writer_options: bq_writer_options,
+    writer_options: writer_options,
     ads_macro: macro_ads,
     bq_macro: macro_bq,
   };
@@ -1086,6 +1086,7 @@ cd ..
     'run-wf.sh',
     `set -e
 ./ads-api-fetcher/gcp/setup.sh run_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
+#./ads-api-fetcher/gcp/setup.sh run_job --settings $(readlink -f "./${settings_file}")
 `
   );
 

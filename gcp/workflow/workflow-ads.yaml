@@ -4,15 +4,16 @@ main:
     - init:
         assign:
           - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-          - location: ${default(map.get(args, "location"), "us-central1")}
           - scripts: ${args.scripts}
           - accounts: ${args.accounts}
-          - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
+          - function_name: ${default(map.get(args, "function_name"), "gaarf")}
+          - function_location: ${default(map.get(args, "function_location"), "us-central1")}
           - ads_config_path: ${args.ads_config_path}
-          - bq_dataset: ${args.bq_dataset}
-          - bq_dataset_location: ${map.get(args, "bq_dataset_location")}
+          - writer: ${default(map.get(args, "writer"), "bq")}
+          - bq_dataset: ${default(map.get(args, "bq_dataset"), "")}
+          - bq_dataset_location: ${default(map.get(args, "bq_dataset_location"), "")}
           - macros: ${map.get(args, "macros")}
-          - writer_options: ${map.get(args, "bq_writer_options")}
+          - writer_options: ${map.get(args, "writer_options")}
           - output_path: ${default(map.get(args, "output_path"), "")}
           - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
 
@@ -20,14 +21,14 @@ main:
     - get_function:
         call: http.get
         args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + cloud_function}
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name}
           auth:
             type: OAuth2
         result: function
         # TODO: move to using CF adapter when it's ready (currently only v1 supported):
         #call: googleapis.cloudfunctions.v2.projects.locations.functions.get
         #args:
-        #  name: ${"projects/" + project + "/locations/" + location + "/functions/" + cloud_function}
+        #  name: ${"projects/" + project + "/locations/" + function_location + "/functions/" + function_name}
         #result: function
     - initialize_functions_uris:
         assign:
@@ -63,6 +64,7 @@ main:
                     account: ${accounts[0]}
                     macros: ${macros}
                     project: ${project}
+                    writer: ${writer}
                     bq_dataset: ${bq_dataset}
                     bq_dataset_location: ${bq_dataset_location}
                     ads_config_path: ${ads_config_path}
@@ -93,6 +95,7 @@ main:
                                   account: ${account}
                                   macros: ${macros}
                                   project: ${project}
+                                  writer: ${writer}
                                   bq_dataset: ${bq_dataset}
                                   bq_dataset_location: ${bq_dataset_location}
                                   ads_config_path: ${ads_config_path}
@@ -149,6 +152,7 @@ executeAdsQuery:
       account,
       macros,
       project,
+      writer,
       bq_dataset,
       bq_dataset_location,
       ads_config_path,
@@ -170,11 +174,10 @@ executeAdsQuery:
               script_path: ${script_path}
               ads_config_path: ${ads_config_path}
               bq_project_id: ${project}
+              writer: ${writer}
               bq_dataset: ${bq_dataset}
               bq_dataset_location: ${bq_dataset_location}
               customer_id: ${account}
-              single_customer: true # it's important to prevent fetching child accounts for the supplied cid
-              writer: "bq"
               output_path: ${output_path}
             body:
               macro: ${macros}

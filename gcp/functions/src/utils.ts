@@ -4,6 +4,8 @@ import {
   getFileContent,
   GoogleAdsApiConfig,
   loadAdsConfigYaml,
+  getLogger,
+  getMemoryUsage,
 } from 'google-ads-api-report-fetcher';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -96,4 +98,25 @@ export function splitIntoChunks(array: Array<any>, max: number) {
     result.push(array.slice(i, i + max));
   }
   return result;
+}
+
+export function setLogLevel(req: express.Request) {
+  const logLevel = <string>req.query.log_level || process.env.LOG_LEVEL;
+  if (logLevel) {
+    process.env.LOG_LEVEL = logLevel;
+    getLogger().level = logLevel;
+  }
+}
+
+/**
+ * Start a periodic logging of memory usage in backgroung.
+ * @param logger logger to write to
+ * @param intervalMs interval in milliseconds
+ * @returns a callback to call for stopping logging
+ */
+export function startPeriodicMemoryLogging(logger: ILogger, intervalMs = 5000) {
+  const intervalId = setInterval(() => {
+    logger.info(getMemoryUsage('Periodic'));
+  }, intervalMs);
+  return () => clearInterval(intervalId); // Return function to stop logging
 }

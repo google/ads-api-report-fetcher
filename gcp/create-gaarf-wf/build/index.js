@@ -825,7 +825,7 @@ cd ..
     // now we detect macro used in queries and ask for their values
     const macro_ads = await get_macro_values(path.join(cwd, path_to_ads_queries), answers, 'ads_macro');
     const macro_bq = await get_macro_values(path.join(cwd, path_to_bq_queries), answers, 'bq_macro');
-    const bq_writer_options = answers.bq_writer_options;
+    const writer_options = answers.writer_options;
     const bq_location = gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
     const output_dataset = answers2.output_dataset;
     const customer_id = sanitizeCustomerId(answers2.customer_id);
@@ -840,7 +840,7 @@ cd ..
         ads_config_path: `${gcs_base_path}/google-ads.yaml`,
         customer_ids_query: custom_query_gcs_path,
         bq_dataset_location: bq_location,
-        bq_writer_options: bq_writer_options,
+        writer_options: writer_options,
         ads_macro: macro_ads,
         bq_macro: macro_bq,
     };
@@ -849,6 +849,7 @@ cd ..
     // Create run-wf.sh
     deploy_shell_script('run-wf.sh', `set -e
 ./ads-api-fetcher/gcp/setup.sh run_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
+#./ads-api-fetcher/gcp/setup.sh run_job --settings $(readlink -f "./${settings_file}")
 `);
     fs.writeFileSync(settings_file, dump_settings(settings));
     // now execute some scripts

@@ -3,18 +3,18 @@ main:
   steps:
     - init:
         assign:
-        - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-        - location: ${default(map.get(args, "location"), "us-central1")}
-        - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
-        - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
-        - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
-        - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
-        - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
-        # 20 is the default for "Concurrent branches and iterations" - https://cloud.google.com/workflows/quotas#parallel_steps
-        - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
-        - workflow_ads_id: ${default(map.get(args, "workflow_ads_id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID") + "-ads")}
-        #- recreate_dataset: ${default(map.get(args,"recreate_dataset"), false)}
-        - disable_strict_views: ${default(map.get(args,"disable_strict_views"), false)}
+          - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
+          - function_location: ${default(map.get(args, "location"), "us-central1")}
+          - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
+          - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
+          - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
+          - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
+          # 20 is the default for "Concurrent branches and iterations" - https://cloud.google.com/workflows/quotas#parallel_steps
+          - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
+          - workflow_ads_id: ${default(map.get(args, "workflow_ads_id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID") + "-ads")}
+          #- recreate_dataset: ${default(map.get(args,"recreate_dataset"), false)}
+          - disable_strict_views: ${default(map.get(args,"disable_strict_views"), false)}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -24,7 +24,7 @@ main:
         call: runAdsQueries
         args:
           project: ${project}
-          location: ${location}
+          function_location: ${function_location}
           function_name: ${cloud_function}
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.ads_queries_path}
@@ -34,10 +34,11 @@ main:
           customer_ids_query: ${map.get(args, "customer_ids_query")}
           customer_ids_offset: ${map.get(args, "customer_ids_offset")}
           customer_ids_batchsize: ${map.get(args, "customer_ids_batchsize")}
-          bq_dataset: ${args.dataset}
+          writer: ${default(map.get(args, "writer"), "bq")}
+          bq_dataset: ${default(map.get(args,"dataset"), "")}
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
-          bq_writer_options: ${map.get(args, "bq_writer_options")}
+          writer_options: ${default(map.get(args, "writer_options"), map.get(args, "bq_writer_options"))}
           output_path: ${map.get(args, "output_path")}
           concurrency_limit: ${concurrency_limit}
           workflow_ads_id: ${workflow_ads_id}
@@ -47,8 +48,8 @@ main:
         call: runBigQueryQueries
         args:
           project: ${project}
-          location: ${location}
           function_name: ${cloud_function + "-bq"}
+          function_location: ${function_location}
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.bq_queries_path}
           dataset_location: ${bq_dataset_location}
@@ -71,14 +72,36 @@ main:
         return: ${accounts}
 
 runAdsQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, ads_config_path, cid, cid_ignore, customer_ids_query, customer_ids_offset, customer_ids_batchsize, bq_dataset, bq_dataset_location, macros, bq_writer_options, output_path, concurrency_limit, workflow_ads_id, disable_strict_views]
+  params:
+    [
+      project,
+      function_name,
+      function_location,
+      gcs_bucket,
+      queries_path,
+      ads_config_path,
+      cid,
+      cid_ignore,
+      customer_ids_query,
+      customer_ids_offset,
+      customer_ids_batchsize,
+      writer,
+      bq_dataset,
+      bq_dataset_location,
+      macros,
+      writer_options,
+      output_path,
+      concurrency_limit,
+      workflow_ads_id,
+      disable_strict_views,
+    ]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
     # get CF 'gaarf-getcids' function's URL
     - get_function_cids:
         call: http.get
         args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name + "-getcids"}
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name + "-getcids"}
           auth:
             type: OAuth2
         result: function_cids
@@ -86,7 +109,7 @@ runAdsQueries:
     - get_function_view:
         call: http.get
         args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name + "-bq-view"}
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name + "-bq-view"}
           auth:
             type: OAuth2
         result: function_view
@@ -157,36 +180,37 @@ runAdsQueries:
           in: ${accounts}
           index: index
           steps:
-          - log_cids_batch:
-              call: sys.log
-              args:
-                json:
-                  text: "Executing Ads subworkflow"
-                  index: ${index}
-                  count: ${len(accounts_batch)}
-                  accounts: ${accounts_batch}
-                severity: "INFO"
-          - run_ads_workflow:
-              call: googleapis.workflowexecutions.v1.projects.locations.workflows.executions.run
-              args:
-                workflow_id: ${workflow_ads_id}
-                connector_params:
-                  timeout: 86400 # 24h=60*60*24 seconds
-                argument:
-                  location: ${location}
-                  scripts: ${scripts}
-                  accounts: ${accounts_batch}
-                  cloud_function: ${function_name}
-                  ads_config_path: ${ads_config_path}
-                  bq_dataset: ${bq_dataset}
-                  bq_dataset_location: ${bq_dataset_location}
-                  macros: ${macros}
-                  bq_writer_options: ${bq_writer_options}
-                  output_path: ${output_path}
-                  concurrency_limit: ${concurrency_limit}
-              result: execution_result
+            - log_cids_batch:
+                call: sys.log
+                args:
+                  json:
+                    text: "Executing Ads subworkflow"
+                    index: ${index}
+                    count: ${len(accounts_batch)}
+                    accounts: ${accounts_batch}
+                  severity: "INFO"
+            - run_ads_workflow:
+                call: googleapis.workflowexecutions.v1.projects.locations.workflows.executions.run
+                args:
+                  workflow_id: ${workflow_ads_id}
+                  connector_params:
+                    timeout: 86400 # 24h=60*60*24 seconds
+                  argument:
+                    scripts: ${scripts}
+                    accounts: ${accounts_batch}
+                    function_name: ${function_name}
+                    function_location: ${function_location}
+                    ads_config_path: ${ads_config_path}
+                    writer: ${writer}
+                    bq_dataset: ${bq_dataset}
+                    bq_dataset_location: ${bq_dataset_location}
+                    macros: ${macros}
+                    writer_options: ${writer_options}
+                    output_path: ${output_path}
+                    concurrency_limit: ${concurrency_limit}
+                result: execution_result
 
-    # collection account ids from `accounts` where they are slit into batched into a flatten list
+    # collecting account ids from `accounts` where they are slit into batched into a flatten list
     - initialize_accounts_flatten:
         assign:
           - accounts_flatten: []
@@ -203,6 +227,12 @@ runAdsQueries:
                     - append:
                         assign:
                           - accounts_flatten: ${list.concat(accounts_flatten, account)}
+
+    - check_for_bq_writer:
+        switch:
+          - condition: ${writer == "bq" or writer == "bigquery"}
+            next: create_views
+        next: return_result
 
     # for each script (excluding constants) create a unified view
     - create_views:
@@ -234,9 +264,18 @@ runAdsQueries:
     - return_result:
         return: ${accounts}
 
-
 runBigQueryQueries:
-  params: [project, location, function_name, gcs_bucket, queries_path, macros, sqlParams, dataset_location]
+  params:
+    [
+      project,
+      function_location,
+      function_name,
+      gcs_bucket,
+      queries_path,
+      macros,
+      sqlParams,
+      dataset_location,
+    ]
   steps:
     - get_bq_scripts_from_gcs:
         call: googleapis.storage.v1.objects.list
@@ -272,18 +311,26 @@ runBigQueryQueries:
         args:
           data: ${bq_scripts}
           severity: "INFO"
+
+    # check if there are any bq scripts on GCS
+    - check_scripts2:
+        switch:
+          - condition: ${len(bq_scripts) > 0}
+            next: get_function_bq
+        next: end
+
     # get clound function's uri
     - get_function_bq:
         call: http.get
         args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + location + "/functions/" + function_name}
+          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name}
           auth:
             type: OAuth2
         result: function_bq
         # TODO: move to using CF adapter when it's ready (currently only v1 supported):
         #call: googleapis.cloudfunctions.v2.projects.locations.functions.get
         #args:
-        #  name: ${"projects/" + project + "/locations/" + location + "/functions/" + function_name}
+        #  name: ${"projects/" + project + "/locations/" + function_location + "/functions/" + function_name}
         #result: function_bq
     - runBqQueries:
         for:

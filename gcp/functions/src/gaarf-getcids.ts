@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Cloud Function 'gaarf-getids' - executes Ads query (suplied either via body or as a GCS path) and writes data to BigQuery
+ * arguments:
+* `ads_config_path` - a path to Ads config, same as for gaarf
+* `customer_id` - a seed customer id (CID), without '-';
+   can be specified in google-ads.yaml as well, if so then can be omitted
+* `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`,
+   same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID).
+* `customer_ids_ignore` - a list of customer ids to exclude from the result
+* `customer_ids_batchsize` - a size of batches into which account ids list will be split.
+* `customer_ids_offset` - an offset in the customer ids list resulted from the seed CIDs and
+   optional query in `customer_ids_query`, it allows to implement an external batching.
+* `flatten` - flatten the list of customer ids. If `customer_ids_offset` is provided then
+   the list will be a subset of CIDs otherwise it will be the whole list of accounts,
+   ignoring batching (regadless of the customer_ids_batchsize's value).
+ **/
 import {
-  AdsQueryExecutor,
   getFileContent,
-  GoogleAdsApiClient,
+  GoogleAdsRestApiClient,
   GoogleAdsApiConfig,
   parseCustomerIds,
+  getMemoryUsage,
+  IGoogleAdsApiClient,
+  GoogleAdsRpcApiClient,
+  getCustomerIds,
+  filterCustomerIds,
 } from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import {getAdsConfig, getProject, splitIntoChunks} from './utils';
+import {
+  getAdsConfig,
+  getProject,
+  setLogLevel,
+  splitIntoChunks,
+  startPeriodicMemoryLogging,
+} from './utils';
 import {createLogger, ILogger} from './logger';
 
 const DEFAULT_BATCH_SIZE = 500;
@@ -47,6 +73,7 @@ async function main_getcids_unsafe(
     } else {
       customerIdsIgnore = [customerIdsIgnoreQS];
     }
+    customerIdsIgnore = customerIdsIgnore.map(v => v.trim());
   }
   if (!customerIds || customerIds.length === 0) {
     throw new Error(
@@ -56,8 +83,15 @@ async function main_getcids_unsafe(
   if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
     adsConfig.login_customer_id = customerIds[0];
   }
-  const adsClient = new GoogleAdsApiClient(adsConfig);
-  customerIds = await adsClient.getCustomerIds(customerIds);
+  let adsClient: IGoogleAdsApiClient;
+  if (req.query.api === 'rest') {
+    const apiVersion = <string>req.query.apiVersion;
+    adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
+  } else {
+    adsClient = new GoogleAdsRpcApiClient(adsConfig);
+  }
+
+  customerIds = await getCustomerIds(adsClient, customerIds);
   let customer_ids_query = '';
   if (req.body && req.body.customer_ids_query) {
     customer_ids_query = <string>req.body.customer_ids_query;
@@ -70,8 +104,8 @@ async function main_getcids_unsafe(
     await logger.info(
       `Fetching customer id using custom query: ${customer_ids_query}`
     );
-    const executor = new AdsQueryExecutor(adsClient);
-    customerIds = await executor.getCustomerIds(
+    customerIds = await filterCustomerIds(
+      adsClient,
       customerIds,
       customer_ids_query
     );
@@ -125,6 +159,8 @@ export const main_getcids: HttpFunction = async (
   req: express.Request,
   res: express.Response
 ) => {
+  setLogLevel(req);
+  const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
   const projectId = await getProject();
   const logger = createLogger(
     req,
@@ -132,11 +168,21 @@ export const main_getcids: HttpFunction = async (
     process.env.K_SERVICE || 'gaarf-getcids'
   );
   await logger.info('request', {body: req.body, query: req.query});
+  let dispose;
+  if (dumpMemory) {
+    logger.info(getMemoryUsage('Start'));
+    dispose = startPeriodicMemoryLogging(logger, 60_000);
+  }
 
   try {
     await main_getcids_unsafe(req, res, logger);
   } catch (e) {
     await logger.error(e.message, {error: e});
     res.status(500).send(e.message).end();
+  } finally {
+    if (dumpMemory) {
+      if (dispose) dispose();
+      logger.info(getMemoryUsage('End'));
+    }
   }
 };

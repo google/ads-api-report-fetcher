@@ -134,15 +134,18 @@ Alternatively you can provide all configuration values for Ads API via environme
 Body:
 * `script` - an object with two fields `query` and `name`, where `query` contains an Ads query text (as alternative to providing it via the `script_path` query argument) and `name` is a name (normally base file name would use) used for target table with data retuned by the script
 * `macro` - an object with macros for ads queries
+* `writer_options` - an object with additional options for a writer
 
 Query string:
 * `ads_config_path` - a path to Ads config, e.g. gs://bucket/path/to/google-ads.yaml, if not passed then a local file will be tried to used (should be deployed with the function)
 * `script_path` - a path to Ads query file, currently only GCS paths are supported, e.g. gs://bucket/path/to/file, it's mandatory if script/name were not provided via body
-* `single_customer` - true/false, pass true to prevent fetching child accounts for a given customer id (`customer_id`)
+* `writer` - writer to use: "bq", "json", "csv". By default - "bq" (BigQuery)
 * `customer_id` - customer id (CID), without '-', can be specified in google-ads.yaml as well, if so then can be omitted
+* `expand_mcc` - true to expand account in `customer_id` argument. By default (if false) it also disables creating union views
 * `bq_project_id` - BigQuery project id for output
 * `bq_dataset` - BiQuery dataset id for output
 * `bq_dataset_location` - BigQuery dataset location
+* `output_path` - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
 
 Returns:
 * A map of CID (customer account id) to row counts.
@@ -165,11 +168,12 @@ Query string:
 * `ads_config_path` - a path to Ads config, same as for gaarf
 * `customer_id` - customer id (CID), without '-', can be specified in google-ads.yaml as well, if so then can be omitted
 * `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`, same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID)
+* `customer_ids_ignore` - a list of customer ids to exclude from the result
 * `customer_ids_batchsize` - a size of batches into which account ids list will be split. 
 * `customer_ids_offset` - an offset in the customer ids list resulted from the seed CIDs and optional query in `customer_ids_query`, it allows to implement an external batching. 
 * `flatten` - flatten the list of customer ids. If `customer_ids_offset` is provided then the list will be a subset of CIDs otherwise it will be the whole list of accounts, ignoring batching (regadless of the customer_ids_batchsize's value)
 Body:
-* `customer_ids_query` - same as QueryString's argument as alternative
+* `customer_ids_query` - same as QueryString's argument as an alternative
 
 Returns:
 if no `flatten` specifiedd then the CF returns an object:

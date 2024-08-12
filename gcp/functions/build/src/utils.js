@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
+exports.startPeriodicMemoryLogging = exports.setLogLevel = exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
 const google_auth_library_1 = require("google-auth-library");
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const node_path_1 = __importDefault(require("node:path"));
@@ -89,4 +89,25 @@ function splitIntoChunks(array, max) {
     return result;
 }
 exports.splitIntoChunks = splitIntoChunks;
+function setLogLevel(req) {
+    const logLevel = req.query.log_level || process.env.LOG_LEVEL;
+    if (logLevel) {
+        process.env.LOG_LEVEL = logLevel;
+        (0, google_ads_api_report_fetcher_1.getLogger)().level = logLevel;
+    }
+}
+exports.setLogLevel = setLogLevel;
+/**
+ * Start a periodic logging of memory usage in backgroung.
+ * @param logger logger to write to
+ * @param intervalMs interval in milliseconds
+ * @returns a callback to call for stopping logging
+ */
+function startPeriodicMemoryLogging(logger, intervalMs = 5000) {
+    const intervalId = setInterval(() => {
+        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Periodic'));
+    }, intervalMs);
+    return () => clearInterval(intervalId); // Return function to stop logging
+}
+exports.startPeriodicMemoryLogging = startPeriodicMemoryLogging;
 //# sourceMappingURL=utils.js.map

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main_getcids = void 0;
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,22 @@ exports.main_getcids = void 0;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Cloud Function 'gaarf-getids' - executes Ads query (suplied either via body or as a GCS path) and writes data to BigQuery
+ * arguments:
+* `ads_config_path` - a path to Ads config, same as for gaarf
+* `customer_id` - a seed customer id (CID), without '-';
+   can be specified in google-ads.yaml as well, if so then can be omitted
+* `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`,
+   same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID).
+* `customer_ids_ignore` - a list of customer ids to exclude from the result
+* `customer_ids_batchsize` - a size of batches into which account ids list will be split.
+* `customer_ids_offset` - an offset in the customer ids list resulted from the seed CIDs and
+   optional query in `customer_ids_query`, it allows to implement an external batching.
+* `flatten` - flatten the list of customer ids. If `customer_ids_offset` is provided then
+   the list will be a subset of CIDs otherwise it will be the whole list of accounts,
+   ignoring batching (regadless of the customer_ids_batchsize's value).
+ **/
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const utils_1 = require("./utils");
 const logger_1 = require("./logger");
@@ -36,6 +52,7 @@ async function main_getcids_unsafe(req, res, logger) {
         else {
             customerIdsIgnore = [customerIdsIgnoreQS];
         }
+        customerIdsIgnore = customerIdsIgnore.map(v => v.trim());
     }
     if (!customerIds || customerIds.length === 0) {
         throw new Error("Customer id is not specified in either 'customer_id' query argument or google-ads.yaml");
@@ -43,8 +60,15 @@ async function main_getcids_unsafe(req, res, logger) {
     if (!adsConfig.login_customer_id && customerIds && customerIds.length === 1) {
         adsConfig.login_customer_id = customerIds[0];
     }
-    const adsClient = new google_ads_api_report_fetcher_1.GoogleAdsApiClient(adsConfig);
-    customerIds = await adsClient.getCustomerIds(customerIds);
+    let adsClient;
+    if (req.query.api === 'rest') {
+        const apiVersion = req.query.apiVersion;
+        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRestApiClient(adsConfig, apiVersion);
+    }
+    else {
+        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRpcApiClient(adsConfig);
+    }
+    customerIds = await (0, google_ads_api_report_fetcher_1.getCustomerIds)(adsClient, customerIds);
     let customer_ids_query = '';
     if (req.body && req.body.customer_ids_query) {
         customer_ids_query = req.body.customer_ids_query;
@@ -54,8 +78,7 @@ async function main_getcids_unsafe(req, res, logger) {
     }
     if (customer_ids_query) {
         await logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
-        const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(adsClient);
-        customerIds = await executor.getCustomerIds(customerIds, customer_ids_query);
+        customerIds = await (0, google_ads_api_report_fetcher_1.filterCustomerIds)(adsClient, customerIds, customer_ids_query);
         await logger.info(`Loaded ${customerIds.length} accounts`);
     }
     customerIds = customerIds || [];
@@ -98,15 +121,29 @@ async function main_getcids_unsafe(req, res, logger) {
     }
 }
 const main_getcids = async (req, res) => {
+    (0, utils_1.setLogLevel)(req);
+    const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
     const projectId = await (0, utils_1.getProject)();
     const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-getcids');
     await logger.info('request', { body: req.body, query: req.query });
+    let dispose;
+    if (dumpMemory) {
+        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
+        dispose = (0, utils_1.startPeriodicMemoryLogging)(logger, 60000);
+    }
     try {
         await main_getcids_unsafe(req, res, logger);
     }
     catch (e) {
         await logger.error(e.message, { error: e });
         res.status(500).send(e.message).end();
+    }
+    finally {
+        if (dumpMemory) {
+            if (dispose)
+                dispose();
+            logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('End'));
+        }
     }
 };
 exports.main_getcids = main_getcids;
