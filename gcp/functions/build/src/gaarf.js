@@ -138,7 +138,7 @@ const main = async (req, res) => {
         await main_unsafe(req, res, projectId, logger, functionName);
     }
     catch (e) {
-        console.log(e);
+        console.error(e);
         await logger.error(e.message, {
             error: e,
             body: req.body,
