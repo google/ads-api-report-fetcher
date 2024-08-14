@@ -363,7 +363,9 @@ runBigQueryQueries:
             - log_script_bq_result:
                 call: sys.log
                 args:
-                  data: ${script_results.body}
+                  data:
+                    script: ${bq_script_item}
+                    result: ${script_results.body}
                   severity: "INFO"
 
 custom_retry_predicate:

@@ -124,8 +124,8 @@ Options specific for BigQuery writer:
 * `bq.array-handling` - arrays handling method: "arrays" (default) - store arrays as arrays (repeated fields), "strings" - store arrays as strings (items combined via a separator, e.g. "item1|item2").
 * `bq.array-separator` - a separator symbol for joining arrays as strings, by default '|'.
 * `bq.key-file-path` - a SA key file path for BigQuery authentication (by default application default credentials will be used) (*NodeJS version only*)
-* `bq.insert-method` - a method of loading data into tables: `load` - using loadTable method (default), `insert` - using insertAll method. loadTable loads tables from temp json files, while 'insertAll' accumulate rows in memory and insert them in batches. 
-* `bq.output-path` - a path to location where temporal json files will be created, used to load BQ tables (for insert-method=load). It can be GCS location (gs://).
+* `bq.insert-method` - a method of loading data into tables: `load` - using loadTable method (default), `insert` - using insertAll method. loadTable loads tables from temp json files, while 'insertAll' accumulate rows in memory and insert them in batches. (*NodeJS version only*)
+* `bq.output-path` - a path to location where temporal json files will be created, used to load BQ tables (for insert-method=load). It can be GCS location (gs://) (*NodeJS version only*)
 
 Options specific for Console writer:
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:

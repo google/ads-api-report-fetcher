@@ -270,7 +270,11 @@ class AdsQueryExecutor {
             }
             return { rawRows, rows: parsedRows, query, customerId, rowCount };
         }, (error, attempt) => {
-            return attempt <= this.maxRetryCount && error.retryable;
+            const retry = attempt <= this.maxRetryCount && error.retryable;
+            this.logger.verbose(retry
+                ? `Retrying on transient error, attempt ${attempt}, error: ${error}`
+                : `Breaking on ${error.retryable ? "retriable" : "non-retriable"} error, attempt ${attempt}, error: ${error}`, { customerId, query });
+            return retry;
         }, {
             baseDelayMs: 100,
             delayStrategy: "linear",

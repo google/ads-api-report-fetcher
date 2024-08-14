@@ -20,7 +20,12 @@ import { IGoogleAdsApiClient } from "./ads-api-client";
 import { AdsApiVersion, IAdsQueryEditor } from "./ads-query-editor";
 import { IAdsRowParser } from "./ads-row-parser";
 import { getLogger } from "./logger";
-import { IResultWriter, QueryElements, QueryObjectResult, QueryResult } from "./types";
+import {
+  IResultWriter,
+  QueryElements,
+  QueryObjectResult,
+  QueryResult,
+} from "./types";
 import { executeWithRetry, getElapsed, getMemoryUsage } from "./utils";
 import { mapLimit } from "async";
 export { AdsApiVersion };
@@ -325,7 +330,7 @@ export class AdsQueryExecutor {
   ): Promise<QueryObjectResult> {
     let rows = await this.client.executeQuery(query.queryText, customerId);
     let rowCount = 0;
-    let parsedRows: Record<string,any>[] = [];
+    let parsedRows: Record<string, any>[] = [];
     // NOTE: as we're iterating over an AsyncGenerator any error if happens
     // will be thrown on iterating not on creating of the generator
     for (const row of rows) {
@@ -380,7 +385,16 @@ export class AdsQueryExecutor {
         return { rawRows, rows: parsedRows, query, customerId, rowCount };
       },
       (error, attempt) => {
-        return attempt <= this.maxRetryCount && error.retryable;
+        const retry = attempt <= this.maxRetryCount && error.retryable;
+        this.logger.verbose(
+          retry
+            ? `Retrying on transient error, attempt ${attempt}, error: ${error}`
+            : `Breaking on ${
+                error.retryable ? "retriable" : "non-retriable"
+              } error, attempt ${attempt}, error: ${error}`,
+          { customerId, query }
+        );
+        return retry;
       },
       {
         baseDelayMs: 100,

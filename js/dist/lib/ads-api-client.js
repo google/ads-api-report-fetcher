@@ -38,8 +38,15 @@ class GoogleAdsError extends Error {
     }
 }
 exports.GoogleAdsError = GoogleAdsError;
+/**
+ * Base class for Google Ads API clients.
+ */
 class GoogleAdsApiClientBase {
-    constructor(apiType, apiVersion) {
+    constructor(adsConfig, apiType, apiVersion) {
+        if (!adsConfig) {
+            throw new Error("GoogleAdsApiConfig instance was not passed");
+        }
+        this.adsConfig = adsConfig;
         this._apiType = apiType;
         this.logger = (0, logger_1.getLogger)();
         if (apiVersion && !apiVersion.startsWith("v")) {
@@ -63,11 +70,7 @@ exports.GoogleAdsApiClientBase = GoogleAdsApiClientBase;
  */
 class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
     constructor(adsConfig) {
-        super(types_1.ApiType.gRPC);
-        if (!adsConfig) {
-            throw new Error("GoogleAdsApiConfig instance was not passed");
-        }
-        this.adsConfig = adsConfig;
+        super(adsConfig, types_1.ApiType.gRPC);
         this.client = new google_ads_api_1.GoogleAdsApi({
             client_id: adsConfig.client_id,
             client_secret: adsConfig.client_secret,
@@ -92,16 +95,18 @@ class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
         return customer;
     }
     handleGoogleAdsError(error, customerId, query) {
-        var _a, _b;
+        var _a, _b, _c;
         try {
             console.error(error);
             this.logger.error(`An error occured on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
-                JSON.stringify(error, null, 2));
+                JSON.stringify(error.toJSON
+                    ? error.toJSON()
+                    : error, null, 2), { customerId, query });
         }
         catch (e) {
             // a very unfortunate situation
-            console.log(e);
-            this.logger.error(`An error occured on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`);
+            console.error(e);
+            this.logger.error(`An error occured on executing query and on logging it afterwards: ${query}\n.Logging error: ${e}`, { customerId, query, originalError: error });
         }
         if (error instanceof google_ads_api_1.errors.GoogleAdsFailure && error.errors) {
             const message = error.errors.length
@@ -114,9 +119,15 @@ class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
                     ex.retryable = true;
                 }
             }
+            else {
+                // it's an unknown error (no `errors` collection), it happens sometime
+                // we'll treat such errors as retyable
+                ex.retryable = true;
+            }
             ex.account = customerId;
             ex.query = query;
             ex.logged = true;
+            this.logger.debug(`API error parsed into GoogleAdsFailure: ${message}, error_code: ${error.errors ? (_c = error.errors[0]) === null || _c === void 0 ? void 0 : _c.error_code : ""})`, { customerId, query });
             return ex;
         }
         else {
@@ -142,7 +153,11 @@ class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
                 throw (this.handleGoogleAdsError(e, customerId, query) || e);
             }
         }, (error, attempt) => {
-            return attempt <= 3 && error.retryable;
+            const retry = attempt <= 3 && error.retryable;
+            this.logger.verbose(retry
+                ? `Retrying on transient error, attempt ${attempt}, error: ${error}`
+                : `Breaking on ${error.retryable ? "retriable" : "non-retriable"} error, attempt ${attempt}, error: ${error}`, { customerId, query });
+            return retry;
         }, {
             baseDelayMs: 100,
             delayStrategy: "linear",
@@ -171,13 +186,9 @@ exports.GoogleAdsRpcApiClient = GoogleAdsRpcApiClient;
  */
 class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
     constructor(adsConfig, apiVersion) {
-        super(types_1.ApiType.REST, apiVersion);
+        super(adsConfig, types_1.ApiType.REST, apiVersion);
         this.currentToken = null;
         this.tokenExpiration = 0;
-        if (!adsConfig) {
-            throw new Error("GoogleAdsApiConfig instance was not passed");
-        }
-        this.adsConfig = adsConfig;
         this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
     }
     async refreshAccessToken(clientId, clientSecret, refreshToken) {
@@ -230,7 +241,11 @@ class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
                     throw this.handleGoogleAdsError(e, customerId, query) || e;
                 }
             }, (error, attempt) => {
-                return attempt <= 3 && error.retryable;
+                const retry = attempt <= 3 && error.retryable;
+                this.logger.verbose(retry
+                    ? `Retrying on transient error, attempt ${attempt}, error: ${error}`
+                    : `Breaking on ${error.retryable ? "retriable" : "non-retriable"} error, attempt ${attempt}, error: ${error}`, { customerId, query });
+                return retry;
             }, {
                 baseDelayMs: 100,
                 delayStrategy: "linear",
@@ -322,68 +337,49 @@ class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
         }
     }
     handleGoogleAdsError(error, customerId, query) {
+        var _a, _b, _c;
         try {
             console.error(error);
             this.logger.error(`An error occured on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
-                JSON.stringify(error, null, 2));
+                JSON.stringify(error, null, 2), { customerId, query });
         }
         catch (e) {
             // a very unfortunate situation
-            console.log(e);
+            console.error(e);
             this.logger.error(`An error occured on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`);
         }
-        /*
-          code: 400
-          details: (2) [{…}, {…}]
-          message: 'Request contains an invalid argument.'
-          status: 'INVALID_ARGUMENT'
-         */
+        const failure = error.details && error.details.length ? error.details[0] : null;
+        if (!failure) {
+            return;
+        }
         let message = error.message || "Unknown Google Ads API error";
         if (error.status) {
             message = error.status + ": " + message;
         }
-        if (error.details && error.details.length && error.details[0].errors) {
-            message +=
-                ": " + error.details.length && error.details[0].errors[0].message;
+        if (failure.errors && failure.errors.length) {
+            message += ": " + failure.errors[0].message;
         }
-        let ex = new GoogleAdsError(message, error);
-        // TODO: detect generic errors like internal_error/quota_error
-        const transientStatusCodes = [429, 500, 502, 503, 504];
+        let ex = new GoogleAdsError(message, failure);
+        const transientStatusCodes = [408, 429, 500, 502, 503, 504];
         if (error.code && transientStatusCodes.includes(error.code)) {
             ex.retryable = true;
         }
+        if (failure.errors.length) {
+            if (((_a = failure.errors[0].errorCode) === null || _a === void 0 ? void 0 : _a.internalError) ||
+                ((_b = failure.errors[0].errorCode) === null || _b === void 0 ? void 0 : _b.quotaError)) {
+                ex.retryable = true;
+            }
+        }
+        else {
+            // it's an unknown error (no `errors` collection), it happens sometimes
+            // we'll treat such errors as retyable
+            ex.retryable = true;
+        }
+        ex.account = customerId;
+        ex.query = query;
+        ex.logged = true;
+        this.logger.debug(`API error parsed into GoogleAdsFailure: ${ex.message}, error_code: ${error.errors ? (_c = error.errors[0]) === null || _c === void 0 ? void 0 : _c.errorCode : ""})`, { customerId, query });
         return ex;
-        // if (error && error.errors) {
-        //   const message = error.errors.length
-        //     ? error.errors[0].message
-        //     : (<any>error).message || "Unknown GoogleAdsFailure error";
-        //   let ex = new GoogleAdsError(message, error);
-        //   if (error.errors.length) {
-        //     if (
-        //       error.errors[0].error_code?.internal_error ||
-        //       error.errors[0].error_code?.quota_error
-        //     ) {
-        //       ex.retryable = true;
-        //     }
-        //   }
-        //   ex.account = customerId;
-        //   ex.query = query;
-        //   ex.logged = true;
-        //   return ex;
-        // } else {
-        //   // it could be an error from gRPC
-        //   // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
-        //   // see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
-        //   if (
-        //     (<any>error).code === 14 /* UNAVAILABLE */ ||
-        //     (<any>error).details === "The service is currently unavailable" ||
-        //     (<any>error).code === 8 /* RESOURCE_EXHAUSTED */ ||
-        //     (<any>error).code === 4 /* DEADLINE_EXCEEDED */ ||
-        //     (<any>error).code === 13 /* INTERNAL */
-        //   ) {
-        //     (<any>error).retryable = true;
-        //   }
-        // }
     }
 }
 exports.GoogleAdsRestApiClient = GoogleAdsRestApiClient;

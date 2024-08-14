@@ -225,7 +225,7 @@ custom_retry_predicate:
           #   504 - Gateway Timeout
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
-          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
+          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or "SystemError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
             next: log_call_gaarf_cf_rety
     - otherwise:
         steps:

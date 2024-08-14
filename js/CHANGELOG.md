@@ -1,4 +1,7 @@
 # Changelog
+## 2.11.1 - 2024-08-14
+* Fix: `FileWriterBase`: disabled resumable upload for streaming to GCS, increased maxRetries - to overcome sporadic failures of GCS API on high load
+
 ## 2.11 - 2024-08-12
 * `BigQueryWriter` and all file-based writers (`CsvWriter`/`JsonWriter`) support `outputPath` option with paths on GCS. Via cli it's passed as `--bq.output-path`, `--csv.output-path`, `--json.output-path`.
 * All writers implemented streaming to files (including paths on GCS). It's especially useful in Gaarf-WF where gaarf Cloud Function streams data to files on GCS.

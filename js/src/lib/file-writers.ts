@@ -177,6 +177,10 @@ export abstract class FileWriterBase implements IResultWriter {
 
   constructor(options?: FileWriterOptions) {
     this.destination = options?.outputPath || options?.destinationFolder;
+    if (this.destination && !URL.canParse(this.destination)) {
+      // it's a folder
+      this.destination = path.resolve(this.destination);
+    }
     this.filePerCustomer = !!options?.filePerCustomer;
     this.streamsByCustomer = {};
     this.rowCountsByCustomer = {};
@@ -187,7 +191,7 @@ export abstract class FileWriterBase implements IResultWriter {
     this.query = query;
     this.scriptName = scriptName;
     this.streamsByCustomer = {};
-    if (this.destination) {
+    if (this.destination && !URL.canParse(this.destination)) {
       if (!fs.existsSync(this.destination)) {
         fs.mkdirSync(this.destination, { recursive: true });
       }
@@ -254,18 +258,27 @@ export abstract class FileWriterBase implements IResultWriter {
       let parsed = new URL(filePath);
       let bucketName = parsed.hostname;
       let destFileName = parsed.pathname.substring(1);
-      const storage = new Storage();
+      const storage = new Storage({
+        retryOptions: { autoRetry: true, maxRetries: 10 },
+      });
       const bucket = storage.bucket(bucketName);
       const file = bucket.file(destFileName);
       writeStream = file.createWriteStream({
         // surprisingly setting highWaterMark is crucial,
         // w/ o it we'll get unlimited memory growth
         highWaterMark: 1024 * 1024,
+        // setting for preventing sparodic errors 'Retry limit exceeded'
+        resumable: false,
       });
       getStorageFile = () => {
         const storage = new Storage();
         return storage.bucket(bucketName).file(destFileName);
       };
+      writeStream.on("error", (e) => {
+        this.logger.error(
+          `Error on writing to remote stream ${filePath}: ${e}`
+        );
+      });
     } else {
       // local files
       writeStream = fs.createWriteStream(filePath);
@@ -341,6 +354,7 @@ export abstract class FileWriterBase implements IResultWriter {
         this.logger.debug(
           `Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`
         );
+        stream.removeAllListeners("error");
         resolve(null);
       });
       stream.once("error", reject);
@@ -392,29 +406,6 @@ export class JsonWriter extends FileWriterBase {
       this.format === JsonOutputFormat.json ? !!options?.formatted : false;
     this.valueFormat = options?.valueFormat || JsonValueFormat.objects;
   }
-
-  // override async onBeginCustomer(
-  //   customerId: string,
-  //   output: Output
-  // ): Promise<void> {
-  //   let content = "";
-  //   if (!this.appending) {
-  //     // starting a new file
-  //     if (this.format === JsonOutputFormat.json) {
-  //       content = "[\n";
-  //       await this.writeToStream(output, content);
-  //     }
-  //     if (this.valueFormat === JsonValueFormat.arrays) {
-  //       let content = JSON.stringify(this.query!.columnNames);
-  //       if (this.format === JsonOutputFormat.json) {
-  //         content += ",\n";
-  //       } else {
-  //         content += "\n";
-  //       }
-  //       await this.writeToStream(output, content);
-  //     }
-  //   }
-  // }
 
   protected serializeRow(parsedRow: any[], rawRow: any[]) {
     let rowObj: any;

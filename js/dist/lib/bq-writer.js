@@ -21,7 +21,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigQueryWriter = exports.BigQueryInsertMethod = void 0;
 const bigquery_1 = require("@google-cloud/bigquery");
 const promises_1 = __importDefault(require("node:fs/promises"));
-const node_fs_1 = __importDefault(require("node:fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const types_1 = require("./types");
 const utils_1 = require("./utils");
@@ -276,9 +275,6 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
                     customerId: customerId,
                     scriptName: this.tableId,
                 });
-                if (!node_fs_1.default.existsSync(output.path)) {
-                    console.log(`File ${output.path} exists: ${node_fs_1.default.existsSync(output.path)}`);
-                }
             }
         }
         if (rowCount > 0) {

@@ -359,11 +359,6 @@ export class BigQueryWriter extends FileWriterBase {
             scriptName: this.tableId,
           }
         );
-        if (!fs.existsSync(output.path)) {
-          console.log(
-            `File ${output.path} exists: ${fs.existsSync(output.path)}`
-          );
-        }
       }
     }
 

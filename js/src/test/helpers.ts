@@ -23,7 +23,15 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
 
   constructor() {
-    super(ApiType.gRPC);
+    super(
+      {
+        client_id: "",
+        client_secret: "",
+        developer_token: "",
+        refresh_token: "",
+      },
+      ApiType.gRPC
+    );
   }
 
   setupResult(result: any[] | Record<string, any[]>) {

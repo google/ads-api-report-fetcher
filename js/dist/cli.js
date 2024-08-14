@@ -205,7 +205,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .option("bq.insert-method", {
     type: "string",
-    choices: ["insert-all", "load-table"],
+    choices: ["insert", "load"],
     hidden: true,
 })
     .option("bq.array-handling", {
