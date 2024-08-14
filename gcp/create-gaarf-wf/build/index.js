@@ -838,6 +838,7 @@ cd ..
         dataset: output_dataset,
         cid: customer_id,
         ads_config_path: `${gcs_base_path}/google-ads.yaml`,
+        output_path: `${gcs_base_path}/tmp`,
         customer_ids_query: custom_query_gcs_path,
         bq_dataset_location: bq_location,
         writer_options: writer_options,

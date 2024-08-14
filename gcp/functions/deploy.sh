@@ -82,7 +82,7 @@ function execute_deploy() {
   gcloud functions deploy $deployable_function \
       --trigger-http \
       --entry-point=$entry_point \
-      --runtime=nodejs18 \
+      --runtime=nodejs20 \
       --timeout=3600s \
       --memory=$memory \
       $REGION \
@@ -140,10 +140,6 @@ function redeploy_cf() {
     done
   fi
 }
-
-# NOTE:
-#For GCF 1st gen functions, cannot be more than 540s.
-#For GCF 2nd gen functions, cannot be more than 3600s.
 
 redeploy_cf $FUNCTION_NAME main $MEMORY
 

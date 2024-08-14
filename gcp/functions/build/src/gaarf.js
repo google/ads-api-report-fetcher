@@ -39,7 +39,7 @@ function getQueryWriter(req, projectId) {
             datasetLocation: req.query.bq_dataset_location,
             arrayHandling: (_a = body.writer_options) === null || _a === void 0 ? void 0 : _a.array_handling,
             arraySeparator: (_b = body.writer_options) === null || _b === void 0 ? void 0 : _b.array_separator,
-            outputPath: req.query.output_path || `gs://${projectId}/tmp`,
+            outputPath: req.query.output_path,
             noUnionView: true,
         };
         if (req.query.expand_mcc) {

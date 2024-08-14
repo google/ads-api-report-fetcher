@@ -60,7 +60,7 @@ function getQueryWriter(req: express.Request, projectId: string) {
       datasetLocation: <string>req.query.bq_dataset_location,
       arrayHandling: body.writer_options?.array_handling,
       arraySeparator: body.writer_options?.array_separator,
-      outputPath: <string>req.query.output_path || `gs://${projectId}/tmp`,
+      outputPath: <string>req.query.output_path,
       noUnionView: true,
     };
     if (req.query.expand_mcc) {
