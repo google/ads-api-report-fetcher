@@ -86,6 +86,16 @@ function createCloudLogger() {
                     type: "cloud_function",
                 },
                 useMessageField: false,
+                // setting redirectToStdout:true actually disables using Logging API,
+                // and simply dumps entries to stdout where the logger agent
+                // parses them and redirect to Logging.
+                // It's the only way to overcome sparodic errors
+                // during calling Logging API:
+                // "GoogleError: Total timeout of API google.logging.v2.LoggingServiceV2
+                // exceeded 60000 milliseconds before any response was received"
+                // See https://github.com/googleapis/nodejs-logging/issues/1185
+                // And even recommended in
+                // https://cloud.google.com/nodejs/docs/reference/logging-winston/latest#alternative-way-to-ingest-logs-in-google-cloud-managed-environments
                 redirectToStdout: true,
                 handleRejections: exports.LOG_LEVEL === "debug",
             }),

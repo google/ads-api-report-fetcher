@@ -133,14 +133,15 @@ class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
         else {
             // it could be an error from gRPC
             // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
-            // see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
-            if (error.code === 14 /* UNAVAILABLE */ ||
-                error.details === "The service is currently unavailable" ||
-                error.code === 8 /* RESOURCE_EXHAUSTED */ ||
-                error.code === 4 /* DEADLINE_EXCEEDED */ ||
-                error.code === 13 /* INTERNAL */) {
-                error.retryable = true;
-            }
+            // We used to handle only a subset of error by error code
+            // (see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html)
+            // particularly 14 (unavailble), 13 (internal server error),
+            // 8(RESOURCE_EXHAUSTED), 4 (DEADLINE_EXCEEDED)
+            // But there was always something new that we didn't expect, so
+            // in the end it seems much safer to treat any error not from the API
+            // server as transient and allow retrying.
+            error.retryable = true;
+            return error;
         }
     }
     async executeQuery(query, customerId) {
@@ -164,13 +165,17 @@ class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
         });
     }
     async *executeQueryStream(query, customerId) {
-        const customer = this.getCustomer(customerId);
         try {
+            const customer = this.getCustomer(customerId);
             // As we return an AsyncGenerator here we can't use executeWithRetry,
             // instead usages of the method should be wrapped with executeWithRetry
             // NOTE: we're iterating over the stream instead of returning it
             // for the sake of error handling
             const stream = customer.queryStream(query);
+            this.logger.debug(`Created AsyncGenerator from queryStream`, {
+                customerId,
+                query,
+            });
             for await (const row of stream) {
                 yield row;
             }
