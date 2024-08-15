@@ -62,28 +62,34 @@ enable_apis() {
 
 
 set_iam_permissions() {
-  # Permissions for Workflow:
-  # grant the default service account with read permissions on Cloud Storage
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
-  # grant the default service account with execute permissions on Cloud Functions gen2 (CF)
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/run.invoker
-  # grant the default service account with write permissions on Cloud Logging
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/logging.logWriter
-  # grant the default service account with view permissions (cloudfunctions.functions.get) on CF
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.viewer
-  # grant the default service account with execute permissions on Cloud Workflow (this is for Scheduler which also runs under the default GCE SA)
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role roles/workflows.invoker
-  # grant the default service account with permissions on to publish pubsub messages
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role roles/pubsub.admin #topics.publish
-  # Permissions for Cloud Functions:
-  # Required for calling Cloud Function Gen2
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/cloudfunctions.serviceAgent
-  # Grant the default service account with read permissions on Cloud Storage
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/storage.objectViewer
-  # Grant the default service account with admin permissions in BigQuery
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
-  # For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/artifactregistry.repoAdmin
+  echo -e "${COLOR}Setting up IAM permissions...${NC}"
+  declare -ar ROLES=(
+    # Permissions for Workflow:
+    # Cloud Storage
+    roles/storage.admin
+    # Cloud Functions gen2 (CF)
+    roles/run.invoker
+    # Cloud Logging
+    roles/logging.logWriter
+    # view permissions (cloudfunctions.functions.get) on CF
+    roles/cloudfunctions.viewer
+    #execute permissions on Cloud Workflow (this is for Scheduler which also runs under the default GCE SA)
+    roles/workflows.invoker
+    # to publish pubsub messages
+    roles/pubsub.admin
+    roles/cloudfunctions.serviceAgent
+    roles/bigquery.admin
+    # For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
+    roles/artifactregistry.repoAdmin
+    roles/iam.serviceAccountUser
+  )
+  for role in "${ROLES[@]}"
+  do
+    gcloud projects add-iam-policy-binding $PROJECT_ID \
+      --member=serviceAccount:$SERVICE_ACCOUNT \
+      --role=$role \
+      --condition=None
+  done
 }
 
 
@@ -103,20 +109,26 @@ deploy_functions() {
     CF_MEMORY="--memory $CF_MEMORY"
   fi
 
-  ./functions/deploy.sh --name $NAME $CF_MEMORY --region $REGION --service-account $SERVICE_ACCOUNT
+  MEMORY_GETCIDS=$(git config -f $SETTING_FILE functions.memory-getcids)
+  if [[ -n $MEMORY_GETCIDS ]]; then
+    MEMORY_GETCIDS="--memory-getcids $MEMORY_GETCIDS"
+  fi
+  ./functions/deploy.sh --name $NAME $CF_MEMORY $MEMORY_GETCIDS --region $REGION --service-account $SERVICE_ACCOUNT
+  return $?
 }
 
 
 enable_debug_logging() {
-  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION
-  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION 
-  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION 
-  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION
+  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
+  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
+  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
+  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
 }
 
 
 deploy_wf() {
   ./workflow/deploy.sh --name $WORKFLOW_NAME --region $REGION --service-account $SERVICE_ACCOUNT
+  return $?
 }
 
 
@@ -154,6 +166,7 @@ schedule_wf() {
     --message-body="{\"argument\": \"$escaped_data\"}" \
     --oauth-service-account-email="$SERVICE_ACCOUNT" \
     --time-zone="$SCHEDULE_TZ"
+  return $?
 }
 
 
@@ -169,6 +182,9 @@ run_wf() {
   fi
 }
 
+run_job() {
+  gcloud scheduler jobs run $WORKFLOW_NAME --location=$REGION
+}
 
 delete_all() {
   echo "Deleting Functions"
@@ -188,11 +204,11 @@ delete_all() {
 
 
 deploy_all() {
-  enable_apis
-  set_iam_permissions
-  deploy_functions
-  create_wf_completion_topic
-  deploy_wf
+  enable_apis || return $?
+  set_iam_permissions || return $?
+  deploy_functions || return $?
+  create_wf_completion_topic || return $?
+  deploy_wf || return $?
 }
 
 
