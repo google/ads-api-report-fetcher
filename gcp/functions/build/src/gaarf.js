@@ -91,7 +91,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     const { refresh_token, developer_token, ...ads_config_wo_token } = (adsConfig);
     ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;
-    await logger.info(`Running Cloud Function ${functionName}, Ads API ${adsClient.apiType} ${adsClient.apiVersion}, ${req.query.expand_mcc
+    logger.info(`Running Cloud Function ${functionName}, Ads API ${adsClient.apiType} ${adsClient.apiVersion}, ${req.query.expand_mcc
         ? 'with MCC expansion (MCC=' + customerId + ')'
         : 'CID=' + customerId}, see Ads API config in metadata field`, {
         adsConfig: ads_config_wo_token,
@@ -102,7 +102,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     let customers;
     if (req.query.expand_mcc) {
         customers = await (0, google_ads_api_report_fetcher_1.getCustomerIds)(adsClient, customerId);
-        await logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
+        logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
             customerId,
             scriptName,
             customers,
@@ -114,7 +114,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(adsClient);
     const writer = getQueryWriter(req, projectId);
     const result = await executor.execute(scriptName, queryText, customers, req.body.macro, writer);
-    await logger.info(`Cloud Function ${functionName} compeleted`, {
+    logger.info(`Cloud Function ${functionName} compeleted`, {
         customerId,
         scriptName,
         result,
@@ -124,7 +124,6 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     res.end();
 }
 const main = async (req, res) => {
-    (0, utils_1.setLogLevel)(req);
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
     const projectId = await (0, utils_1.getProject)();
     const functionName = process.env.K_SERVICE || 'gaarf';
@@ -139,7 +138,7 @@ const main = async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        await logger.error(e.message, {
+        logger.error(e.message, {
             error: e,
             body: req.body,
             query: req.query,

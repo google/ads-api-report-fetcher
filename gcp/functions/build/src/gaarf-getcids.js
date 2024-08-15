@@ -41,7 +41,7 @@ async function main_getcids_unsafe(req, res, logger) {
     const adsConfig = await (0, utils_1.getAdsConfig)(req);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { refresh_token, ...ads_config_wo_token } = adsConfig;
-    await logger.info('Ads API config', ads_config_wo_token);
+    logger.info('Ads API config', ads_config_wo_token);
     let customerIds = (0, google_ads_api_report_fetcher_1.parseCustomerIds)(req.query.customer_id, adsConfig);
     let customerIdsIgnore = [];
     if (req.query.customer_ids_ignore) {
@@ -77,9 +77,9 @@ async function main_getcids_unsafe(req, res, logger) {
         customer_ids_query = await (0, google_ads_api_report_fetcher_1.getFileContent)(req.query.customer_ids_query);
     }
     if (customer_ids_query) {
-        await logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
+        logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
         customerIds = await (0, google_ads_api_report_fetcher_1.filterCustomerIds)(adsClient, customerIds, customer_ids_query);
-        await logger.info(`Loaded ${customerIds.length} accounts`);
+        logger.info(`Loaded ${customerIds.length} accounts`);
     }
     customerIds = customerIds || [];
     customerIds.sort();
@@ -100,7 +100,7 @@ async function main_getcids_unsafe(req, res, logger) {
         const cids_length = customerIds.length;
         customerIds = customerIds.slice(offset, offset + batchSize);
         if (cids_length !== customerIds.length) {
-            await logger.info(`Reshaped customer ids array from ${cids_length} to ${customerIds.length} items`);
+            logger.info(`Reshaped customer ids array from ${cids_length} to ${customerIds.length} items`);
         }
     }
     customerIds = customerIds.filter(cid => customerIdsIgnore.indexOf(cid) < 0);
@@ -121,11 +121,10 @@ async function main_getcids_unsafe(req, res, logger) {
     }
 }
 const main_getcids = async (req, res) => {
-    (0, utils_1.setLogLevel)(req);
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
     const projectId = await (0, utils_1.getProject)();
     const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-getcids');
-    await logger.info('request', { body: req.body, query: req.query });
+    logger.info('request', { body: req.body, query: req.query });
     let dispose;
     if (dumpMemory) {
         logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
@@ -135,7 +134,8 @@ const main_getcids = async (req, res) => {
         await main_getcids_unsafe(req, res, logger);
     }
     catch (e) {
-        await logger.error(e.message, { error: e });
+        console.error(e);
+        logger.error(e.message, { error: e });
         res.status(500).send(e.message).end();
     }
     finally {

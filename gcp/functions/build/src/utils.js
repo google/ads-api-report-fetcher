@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startPeriodicMemoryLogging = exports.setLogLevel = exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
+exports.startPeriodicMemoryLogging = exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
 const google_auth_library_1 = require("google-auth-library");
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const node_path_1 = __importDefault(require("node:path"));
@@ -16,12 +16,12 @@ async function getScript(req, logger) {
     if (body.script) {
         queryText = body.script.query;
         scriptName = body.script.name;
-        await logger.info('Executing inline query from request');
+        logger.info('Executing inline query from request');
     }
     else if (scriptPath) {
         queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
         scriptName = node_path_1.default.basename(scriptPath).split('.sql')[0];
-        await logger.info(`Executing query from '${scriptPath}'`);
+        logger.info(`Executing query from '${scriptPath}'`);
     }
     if (!queryText)
         throw new Error('Script was not specified in either script_path query argument or body.query');
@@ -89,14 +89,6 @@ function splitIntoChunks(array, max) {
     return result;
 }
 exports.splitIntoChunks = splitIntoChunks;
-function setLogLevel(req) {
-    const logLevel = req.query.log_level || process.env.LOG_LEVEL;
-    if (logLevel) {
-        process.env.LOG_LEVEL = logLevel;
-        (0, google_ads_api_report_fetcher_1.getLogger)().level = logLevel;
-    }
-}
-exports.setLogLevel = setLogLevel;
 /**
  * Start a periodic logging of memory usage in backgroung.
  * @param logger logger to write to

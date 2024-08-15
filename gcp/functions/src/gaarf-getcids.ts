@@ -45,7 +45,6 @@ import express from 'express';
 import {
   getAdsConfig,
   getProject,
-  setLogLevel,
   splitIntoChunks,
   startPeriodicMemoryLogging,
 } from './utils';
@@ -62,7 +61,7 @@ async function main_getcids_unsafe(
   const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {refresh_token, ...ads_config_wo_token} = adsConfig;
-  await logger.info('Ads API config', ads_config_wo_token);
+  logger.info('Ads API config', ads_config_wo_token);
 
   let customerIds = parseCustomerIds(<string>req.query.customer_id, adsConfig);
   let customerIdsIgnore: string[] = [];
@@ -101,7 +100,7 @@ async function main_getcids_unsafe(
     );
   }
   if (customer_ids_query) {
-    await logger.info(
+    logger.info(
       `Fetching customer id using custom query: ${customer_ids_query}`
     );
     customerIds = await filterCustomerIds(
@@ -109,7 +108,7 @@ async function main_getcids_unsafe(
       customerIds,
       customer_ids_query
     );
-    await logger.info(`Loaded ${customerIds.length} accounts`);
+    logger.info(`Loaded ${customerIds.length} accounts`);
   }
   customerIds = customerIds || [];
   customerIds.sort();
@@ -131,7 +130,7 @@ async function main_getcids_unsafe(
     const cids_length = customerIds.length;
     customerIds = customerIds.slice(offset, offset + batchSize);
     if (cids_length !== customerIds.length) {
-      await logger.info(
+      logger.info(
         `Reshaped customer ids array from ${cids_length} to ${customerIds.length} items`
       );
     }
@@ -159,7 +158,6 @@ export const main_getcids: HttpFunction = async (
   req: express.Request,
   res: express.Response
 ) => {
-  setLogLevel(req);
   const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
   const projectId = await getProject();
   const logger = createLogger(
@@ -167,7 +165,7 @@ export const main_getcids: HttpFunction = async (
     projectId,
     process.env.K_SERVICE || 'gaarf-getcids'
   );
-  await logger.info('request', {body: req.body, query: req.query});
+  logger.info('request', {body: req.body, query: req.query});
   let dispose;
   if (dumpMemory) {
     logger.info(getMemoryUsage('Start'));
@@ -177,7 +175,8 @@ export const main_getcids: HttpFunction = async (
   try {
     await main_getcids_unsafe(req, res, logger);
   } catch (e) {
-    await logger.error(e.message, {error: e});
+    console.error(e);
+    logger.error(e.message, {error: e});
     res.status(500).send(e.message).end();
   } finally {
     if (dumpMemory) {

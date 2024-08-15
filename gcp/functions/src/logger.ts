@@ -1,5 +1,5 @@
 /*
- Copyright 2023 Google LLC
+ Copyright 2024 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,72 +14,30 @@
  limitations under the License.
  */
 
-import {Log, Logging} from '@google-cloud/logging';
-import {LogEntry} from '@google-cloud/logging/build/src/entry';
 import express from 'express';
-
-export interface ILogger {
-  info(message: string, aux?: any): Promise<void>;
-  warn(message: string, aux?: any): Promise<void>;
-  error(message: string, aux?: any): Promise<void>;
-}
+import {getLogger, ILogger} from 'google-ads-api-report-fetcher';
+export {ILogger} from 'google-ads-api-report-fetcher';
 
 export function createLogger(
   req: express.Request,
   projectId: string,
   component: string
 ): ILogger {
-  const logging = new Logging({projectId: projectId});
-  const log = logging.log('gaarf');
-  const log_method = cloud_log.bind(null, log, req, projectId, component);
-  const logger = {
-    info: async (message: string, aux?: any) => {
-      return log_method('INFO', message, aux);
-    },
-    warn: async (message: string, aux?: any) => {
-      return log_method('WARN', message, aux);
-    },
-    error: async (message: string, aux?: any) => {
-      return log_method('ERROR', message, aux);
-    },
-  };
+  const logLevel = <string>req.query.log_level || process.env.LOG_LEVEL;
+  if (logLevel) {
+    process.env.LOG_LEVEL = logLevel;
+  }
+  const traceHeader = req.header('X-Cloud-Trace-Context');
+  if (traceHeader && projectId) {
+    const [trace] = traceHeader.split('/');
+    process.env.TRACE_ID = `projects/${projectId}/traces/${trace}`;
+  }
+  const logger = getLogger();
+  if (logLevel) {
+    logger.level = logLevel;
+  }
   // NOTE: here we're setting some environment variables for winston logger in gaarf library
   process.env.LOG_COMPONENT = component;
   process.env.GCP_PROJECT = projectId;
   return logger;
-}
-
-async function cloud_log(
-  log: Log,
-  req: express.Request,
-  project: string,
-  component: string,
-  severity: string,
-  message: string,
-  aux?: any
-) {
-  const metadata: LogEntry = {
-    severity: severity,
-    labels: {
-      component: component,
-    },
-    httpRequest: req,
-    resource: {
-      labels: {
-        function_name: component,
-      },
-      type: 'cloud_function',
-    },
-  };
-  const traceHeader = req.header('X-Cloud-Trace-Context');
-  if (traceHeader && project) {
-    const [trace] = traceHeader.split('/');
-    metadata.trace = `projects/${project}/traces/${trace}`;
-    process.env.TRACE_ID = metadata.trace;
-  }
-  const entry = log.entry(
-    metadata,
-    aux ? Object.assign(aux || {}, {text: message}) : message
-  );
-  await log.write(entry);
 }

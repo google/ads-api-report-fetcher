@@ -45,11 +45,10 @@ async function main_bq_view_unsafe(req, res, projectId, logger) {
     res.end();
 }
 const main_bq_view = async (req, res) => {
-    (0, utils_1.setLogLevel)(req);
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
     const projectId = await (0, utils_1.getProject)();
     const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-bq');
-    await logger.info('request', { body: req.body, query: req.query });
+    logger.info('request', { body: req.body, query: req.query });
     let dispose;
     if (dumpMemory) {
         logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
@@ -59,8 +58,8 @@ const main_bq_view = async (req, res) => {
         await main_bq_view_unsafe(req, res, projectId, logger);
     }
     catch (e) {
-        console.log(e);
-        await logger.error(e.message, { error: e });
+        console.error(e);
+        logger.error(e.message, { error: e });
         res.status(500).send(e.message).end();
     }
     finally {

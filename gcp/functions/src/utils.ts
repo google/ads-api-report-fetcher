@@ -6,10 +6,10 @@ import {
   loadAdsConfigYaml,
   getLogger,
   getMemoryUsage,
+  ILogger,
 } from 'google-ads-api-report-fetcher';
 import path from 'node:path';
 import fs from 'node:fs';
-import {ILogger} from './logger';
 
 export async function getScript(
   req: express.Request,
@@ -22,11 +22,11 @@ export async function getScript(
   if (body.script) {
     queryText = body.script.query;
     scriptName = body.script.name;
-    await logger.info('Executing inline query from request');
+    logger.info('Executing inline query from request');
   } else if (scriptPath) {
     queryText = await getFileContent(<string>scriptPath);
     scriptName = path.basename(<string>scriptPath).split('.sql')[0];
-    await logger.info(`Executing query from '${scriptPath}'`);
+    logger.info(`Executing query from '${scriptPath}'`);
   }
   if (!queryText)
     throw new Error(
@@ -98,14 +98,6 @@ export function splitIntoChunks(array: Array<any>, max: number) {
     result.push(array.slice(i, i + max));
   }
   return result;
-}
-
-export function setLogLevel(req: express.Request) {
-  const logLevel = <string>req.query.log_level || process.env.LOG_LEVEL;
-  if (logLevel) {
-    process.env.LOG_LEVEL = logLevel;
-    getLogger().level = logLevel;
-  }
 }
 
 /**

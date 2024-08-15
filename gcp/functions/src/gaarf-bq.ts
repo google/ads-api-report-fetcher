@@ -16,12 +16,7 @@
 import {BigQueryExecutor, getMemoryUsage} from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
 import express from 'express';
-import {
-  getProject,
-  getScript,
-  setLogLevel,
-  startPeriodicMemoryLogging,
-} from './utils';
+import {getProject, getScript, startPeriodicMemoryLogging} from './utils';
 import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
 import {createLogger, ILogger} from './logger';
 
@@ -56,7 +51,6 @@ export const main_bq: HttpFunction = async (
   req: express.Request,
   res: express.Response
 ) => {
-  setLogLevel(req);
   const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
   const projectId = await getProject();
   const logger = createLogger(
@@ -64,7 +58,7 @@ export const main_bq: HttpFunction = async (
     projectId,
     process.env.K_SERVICE || 'gaarf-bq'
   );
-  await logger.info('request', {body: req.body, query: req.query});
+  logger.info('request', {body: req.body, query: req.query});
   let dispose;
   if (dumpMemory) {
     logger.info(getMemoryUsage('Start'));
@@ -74,8 +68,8 @@ export const main_bq: HttpFunction = async (
   try {
     await main_bq_unsafe(req, res, projectId, logger);
   } catch (e) {
-    console.log(e);
-    await logger.error(e.message, {error: e});
+    console.error(e);
+    logger.error(e.message, {error: e});
     res.status(500).send(e.message).end();
   } finally {
     if (dumpMemory) {

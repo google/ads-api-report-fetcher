@@ -47,7 +47,6 @@ import {
   getAdsConfig,
   getProject,
   getScript,
-  setLogLevel,
   startPeriodicMemoryLogging,
 } from './utils';
 import {ILogger, createLogger} from './logger';
@@ -131,7 +130,7 @@ async function main_unsafe(
     adsConfig
   );
   ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;
-  await logger.info(
+  logger.info(
     `Running Cloud Function ${functionName}, Ads API ${adsClient.apiType} ${
       adsClient.apiVersion
     }, ${
@@ -150,14 +149,11 @@ async function main_unsafe(
   let customers: string[];
   if (req.query.expand_mcc) {
     customers = await getCustomerIds(adsClient, <string>customerId);
-    await logger.info(
-      `[${scriptName}] Customers to process (${customers.length})`,
-      {
-        customerId,
-        scriptName,
-        customers,
-      }
-    );
+    logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
+      customerId,
+      scriptName,
+      customers,
+    });
   } else {
     customers = [<string>customerId];
   }
@@ -173,7 +169,7 @@ async function main_unsafe(
     writer
   );
 
-  await logger.info(`Cloud Function ${functionName} compeleted`, {
+  logger.info(`Cloud Function ${functionName} compeleted`, {
     customerId,
     scriptName,
     result,
@@ -187,7 +183,6 @@ export const main: HttpFunction = async (
   req: express.Request,
   res: express.Response
 ) => {
-  setLogLevel(req);
   const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
   const projectId = await getProject();
   const functionName = process.env.K_SERVICE || 'gaarf';
@@ -202,7 +197,7 @@ export const main: HttpFunction = async (
     await main_unsafe(req, res, projectId, logger, functionName);
   } catch (e) {
     console.error(e);
-    await logger.error(e.message, {
+    logger.error(e.message, {
       error: e,
       body: req.body,
       query: req.query,
