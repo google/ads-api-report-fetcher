@@ -50,6 +50,7 @@ formats.push(format.printf((info) => `${info.timestamp}: ${wrap(info.scriptName)
 exports.defaultTransports = [];
 exports.defaultTransports.push(new winston_1.default.transports.Console({
     format: format.combine(...formats),
+    handleRejections: exports.LOG_LEVEL === "debug",
 }));
 function createConsoleLogger() {
     const logger = winston_1.default.createLogger({
@@ -57,6 +58,7 @@ function createConsoleLogger() {
         level: exports.LOG_LEVEL,
         format: format.combine(format.errors({ stack: true }), format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })),
         transports: exports.defaultTransports,
+        exitOnError: false,
     });
     return logger;
 }
@@ -85,20 +87,27 @@ function createCloudLogger() {
                 },
                 useMessageField: false,
                 redirectToStdout: true,
+                handleRejections: exports.LOG_LEVEL === "debug",
             }),
         ],
+        exitOnError: false,
     });
     return cloudLogger;
 }
 exports.createCloudLogger = createCloudLogger;
 function createLogger() {
+    let logger;
     if (process.env.K_SERVICE) {
         // we're in Google Cloud (Run/Functions)
-        return createCloudLogger();
+        logger = createCloudLogger();
     }
     else {
-        return createConsoleLogger();
+        logger = createConsoleLogger();
     }
+    logger.on("error", (e) => {
+        console.error(`Error on logging: ${e}`);
+    });
+    return logger;
 }
 exports.createLogger = createLogger;
 //# sourceMappingURL=logger-factory.js.map

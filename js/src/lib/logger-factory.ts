@@ -62,6 +62,7 @@ export const defaultTransports: winston.transport[] = [];
 defaultTransports.push(
   new winston.transports.Console({
     format: format.combine(...formats),
+    handleRejections: LOG_LEVEL === "debug",
   })
 );
 
@@ -74,6 +75,7 @@ export function createConsoleLogger(): winston.Logger {
       format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })
     ),
     transports: defaultTransports,
+    exitOnError: false,
   });
   return logger;
 }
@@ -105,17 +107,24 @@ export function createCloudLogger(): winston.Logger {
         },
         useMessageField: false,
         redirectToStdout: true,
+        handleRejections: LOG_LEVEL === "debug",
       }),
     ],
+    exitOnError: false,
   });
   return cloudLogger;
 }
 
 export function createLogger(): winston.Logger {
+  let logger;
   if (process.env.K_SERVICE) {
     // we're in Google Cloud (Run/Functions)
-    return createCloudLogger();
+    logger = createCloudLogger();
   } else {
-    return createConsoleLogger();
+    logger = createConsoleLogger();
   }
+  logger.on("error", (e) => {
+    console.error(`Error on logging: ${e}`);
+  });
+  return logger;
 }

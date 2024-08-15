@@ -18,7 +18,9 @@ import winston from "winston";
 
 let logger: winston.Logger | undefined;
 
-export function getLogger() {
+export type ILogger = winston.Logger;
+
+export function getLogger(): ILogger {
   if (!logger) {
     logger = createLogger();
   }
