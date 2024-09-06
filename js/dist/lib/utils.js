@@ -25,9 +25,14 @@ const format_1 = __importDefault(require("date-fns/format"));
 const lodash_1 = __importDefault(require("lodash"));
 const math_engine_1 = require("./math-engine");
 const nunjucks_1 = __importDefault(require("nunjucks"));
-function traverseObject(object, visitor, path) {
+function traverseObject(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+object, 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+visitor, path) {
     path = path || [];
-    return lodash_1.default.forIn(object, function (value, name) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return lodash_1.default.forIn(object, (value, name) => {
         path.push(name);
         if (lodash_1.default.isPlainObject(value)) {
             visitor(name, value, path, object);
@@ -64,9 +69,10 @@ exports.traverseObject = traverseObject;
  * @param path a chain of property/field path (e.g. field1.field2)
  * @returns a value from the chain
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function navigateObject(object, path) {
     let ctx = object;
-    for (let name of path.split(".")) {
+    for (const name of path.split('.')) {
         ctx = ctx[name];
         if (!ctx)
             return ctx;
@@ -79,11 +85,12 @@ exports.navigateObject = navigateObject;
  * @param str a string containing a number
  * @returns a finite number (never returns NaN) or undefined
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function tryParseNumber(str) {
     if (lodash_1.default.isFinite(str))
         return str;
     if (lodash_1.default.isString(str) && str.length > 0) {
-        let num = Number(str);
+        const num = Number(str);
         return isNaN(num) ? undefined : num;
     }
 }
@@ -92,43 +99,44 @@ exports.tryParseNumber = tryParseNumber;
  * Format a date in ISO format - YYYYMMDD or YYYY-MM-DD if delimiter is "-"
  * @deprecated use `format` from `date-fns` package instead
  */
-function formatDateISO(dt, delimiter = "") {
-    let month = dt.getMonth() + 1;
-    let day = dt.getDate();
-    let iso = dt.getFullYear() +
+function formatDateISO(dt, delimiter = '') {
+    const month = dt.getMonth() + 1;
+    const day = dt.getDate();
+    const iso = dt.getFullYear() +
         delimiter +
-        (month < 10 ? "0" + month.toString() : month.toString()) +
+        (month < 10 ? '0' + month.toString() : month.toString()) +
         delimiter +
-        (day < 10 ? "0" + day : day);
+        (day < 10 ? '0' + day : day);
     return iso;
 }
 exports.formatDateISO = formatDateISO;
 function convert_date(name, value) {
-    let [pattern, delta, ...other] = value.split("-");
+    // eslint-disable-next-line prefer-const
+    let [pattern, delta, ...other] = value.split('-');
     if (!pattern || other.length) {
         throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
     }
     if (!delta) {
         // simple case ":YYYYMMDD"
-        return (0, format_1.default)(new Date(), "yyyy-MM-dd");
+        return (0, format_1.default)(new Date(), 'yyyy-MM-dd');
     }
-    let ago = +delta;
+    const ago = +delta;
     pattern = pattern.trim().toUpperCase();
     let duration;
-    if (pattern === ":YYYYMMDD") {
+    if (pattern === ':YYYYMMDD') {
         duration = { days: -ago };
     }
-    else if (pattern === ":YYYYMM") {
+    else if (pattern === ':YYYYMM') {
         duration = { months: -ago };
     }
-    else if (pattern === ":YYYY") {
+    else if (pattern === ':YYYY') {
         duration = { years: -ago };
     }
     else {
         throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
     }
-    let dt = (0, add_1.default)(new Date(), duration);
-    return (0, format_1.default)(dt, "yyyy-MM-dd");
+    const dt = (0, add_1.default)(new Date(), duration);
+    return (0, format_1.default)(dt, 'yyyy-MM-dd');
 }
 /**
  * Substitute macros into the text, and evalutes expressions (in ${} blocks).
@@ -136,50 +144,54 @@ function convert_date(name, value) {
  * @param macros an object with key-values to substitute
  * @returns same text with substituted macros and executed expressions
  */
-function substituteMacros(text, macros) {
-    let unknown_params = {};
+function substituteMacros(text, 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+macros) {
+    const unknown_params = {};
     // Support for macro's values containing special syntax for dynamic dates:
     // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/year respectedly
     if (macros) {
-        Object.entries(macros).map((pair) => {
-            let value = pair[1];
-            if (value && lodash_1.default.isString(value) && value.startsWith(":YYYY")) {
-                let key = pair[0];
+        Object.entries(macros).map(pair => {
+            const value = pair[1];
+            if (value && lodash_1.default.isString(value) && value.startsWith(':YYYY')) {
+                const key = pair[0];
                 macros[key] = convert_date(key, value);
             }
         });
     }
     macros = macros || {};
     // add "magic" macros for Python version compatibility
-    if (!macros["date_iso"]) {
-        macros["date_iso"] = (0, format_1.default)(new Date(), "yyyyMMdd");
+    if (!macros['date_iso']) {
+        macros['date_iso'] = (0, format_1.default)(new Date(), 'yyyyMMdd');
     }
-    if (!macros["yesterday_iso"]) {
-        let date = new Date();
+    if (!macros['yesterday_iso']) {
+        const date = new Date();
         date.setDate(date.getDate() - 1);
-        macros["yesterday_iso"] = (0, format_1.default)(date, "yyyyMMdd");
+        macros['yesterday_iso'] = (0, format_1.default)(date, 'yyyyMMdd');
     }
-    if (!macros["current_date"]) {
-        macros["current_date"] = (0, format_1.default)(new Date(), "yyyy-MM-dd");
+    if (!macros['current_date']) {
+        macros['current_date'] = (0, format_1.default)(new Date(), 'yyyy-MM-dd');
     }
-    if (!macros["current_datetime"]) {
-        macros["current_datetime"] = (0, format_1.default)(new Date(), "yyyy-MM-dd HH:mm:ss");
+    if (!macros['current_datetime']) {
+        macros['current_datetime'] = (0, format_1.default)(new Date(), 'yyyy-MM-dd HH:mm:ss');
     }
     // notes on the regexp:
     //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
     //  not precended with '$'), with that we're capturing {smth} expressions
     //  and not ${smth} expressions
     text = text.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
-        if (!macros.hasOwnProperty(name)) {
+        if (!Object.prototype.hasOwnProperty.call(macros, name)) {
             unknown_params[name] = true;
             return ss;
         }
+        // NOTE: we don't care here about type, it'll degraded to string anyway
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return macros[name];
     });
     // now process expressions with built-in functions in ${..} blocks
     text = text.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
         if (!expr.trim())
-            return "";
+            return '';
         return (0, math_engine_1.math_parse)(expr).evaluate(macros);
     });
     return { text: text, unknown_params: Object.keys(unknown_params) };
@@ -188,9 +200,9 @@ exports.substituteMacros = substituteMacros;
 function renderTemplate(template, params) {
     //nunjucks.configure("views", { autoescape: true });
     if (params) {
-        for (let [key, value] of Object.entries(params)) {
-            if (value && typeof value === "string") {
-                params[key] = value.split(",");
+        for (const [key, value] of Object.entries(params)) {
+            if (value && typeof value === 'string') {
+                params[key] = value.split(',');
             }
         }
     }
@@ -202,7 +214,7 @@ function prepend(value, num) {
     num = num || 2;
     if (value_str.length < num) {
         while (value_str.length < num) {
-            value_str = "0" + value_str;
+            value_str = '0' + value_str;
         }
     }
     return value_str;
@@ -223,11 +235,11 @@ function getElapsed(started, now) {
     minutes = Math.floor(minutes % 60);
     hours = Math.floor(hours % 24);
     return (prepend(hours) +
-        ":" +
+        ':' +
         prepend(minutes) +
-        ":" +
+        ':' +
         prepend(seconds) +
-        "." +
+        '.' +
         prepend(ms, 3));
 }
 exports.getElapsed = getElapsed;
@@ -257,13 +269,13 @@ exports.getDirectorySize = getDirectorySize;
 function getMemoryUsage(phase) {
     const used = process.memoryUsage();
     // NOTE: Additionally v8.getHeapStatistics() can be used
-    let memUsage = "";
-    for (let key in used) {
+    let memUsage = '';
+    for (const key in used) {
         memUsage += `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB\n`;
     }
-    let extra = "";
+    let extra = '';
     if (process.env.K_SERVICE) {
-        const tmpSize = getDirectorySize("/tmp");
+        const tmpSize = getDirectorySize('/tmp');
         if (Number.isInteger(tmpSize)) {
             extra = `/tmp Directory Size: ${tmpSize} MB`;
         }
@@ -278,7 +290,9 @@ exports.getMemoryUsage = getMemoryUsage;
  * @param baseDelayMs Initial delay in milliseconds to wait before retrying the operation
  * @returns A result of the operation
  */
-function executeWithRetry(fn, checkToRetry, options) {
+function executeWithRetry(fn, 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+checkToRetry, options) {
     let attempt = 1;
     const execute = async () => {
         try {
@@ -292,22 +306,22 @@ function executeWithRetry(fn, checkToRetry, options) {
             options = options || {};
             if (options.delayStrategy) {
                 let delayMs = 0;
-                let baseDelayMs = options.baseDelayMs || 1000;
+                const baseDelayMs = options.baseDelayMs || 1000;
                 switch (options.delayStrategy) {
-                    case "constant":
+                    case 'constant':
                         delayMs = baseDelayMs;
                         break;
-                    case "linear":
+                    case 'linear':
                         delayMs = baseDelayMs * attempt;
                         break;
-                    case "exponential":
+                    case 'exponential':
                         delayMs = baseDelayMs * 2 ** attempt;
                         break;
                     default:
-                        throw new Error("Unknown delayStrategy ");
+                        throw new Error('Unknown delayStrategy ');
                 }
                 console.log(`Retry attempt ${attempt} after ${delayMs}ms`);
-                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                await new Promise(resolve => setTimeout(resolve, delayMs));
             }
             attempt++;
             return execute();
@@ -321,7 +335,7 @@ exports.executeWithRetry = executeWithRetry;
  * @param ms number of milliseconds to wait
  */
 function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 exports.delay = delay;
 //# sourceMappingURL=utils.js.map

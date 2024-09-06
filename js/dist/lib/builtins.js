@@ -1,4 +1,19 @@
 "use strict";
+/*
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuiltinQueryProcessor = void 0;
 const types_1 = require("./types");
@@ -6,37 +21,38 @@ class BuiltinQueryProcessor {
     constructor(queryEditor) {
         this.queryEditor = queryEditor;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     parse(name, query) {
-        if (name === "ocid_mapping" || name === "ocid") {
-            let queryNew = "SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1";
-            let fields = [
+        if (name === 'ocid_mapping' || name === 'ocid') {
+            const queryNew = 'SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1';
+            const fields = [
                 {
-                    name: "customer_id",
-                    expression: "customer_id",
+                    name: 'customer_id',
+                    expression: 'customer_id',
                     type: {
                         kind: types_1.FieldTypeKind.primitive,
-                        type: "int64",
-                        typeName: "int64",
+                        type: 'int64',
+                        typeName: 'int64',
                     },
                 },
                 {
-                    name: "ocid",
-                    expression: "ocid",
+                    name: 'ocid',
+                    expression: 'ocid',
                     type: {
                         kind: types_1.FieldTypeKind.primitive,
-                        type: "string",
-                        typeName: "string",
+                        type: 'string',
+                        typeName: 'string',
                     },
                 },
             ];
-            let resourceTypeFrom = this.queryEditor.getResource("customer");
-            let resourceInfo = {
-                name: "ocid",
+            const resourceTypeFrom = this.queryEditor.getResource('customer');
+            const resourceInfo = {
+                name: 'ocid',
                 typeName: resourceTypeFrom.name,
                 typeMeta: resourceTypeFrom,
                 isConstant: false,
             };
-            let query = new types_1.QueryElements(queryNew, fields, resourceInfo, {});
+            const query = new types_1.QueryElements(queryNew, fields, resourceInfo, {});
             query.executor = this;
             return query;
         }
@@ -81,19 +97,19 @@ class BuiltinQueryProcessor {
         throw new Error(`Could not find a builtin resource '${name}'`);
     }
     async *execute(query, customerId, executor) {
-        if (query.resource.name === "ocid") {
-            let queryRealText = "SELECT customer.id, metrics.optimization_score_url as url FROM customer LIMIT 1";
+        if (query.resource.name === 'ocid') {
+            const queryRealText = 'SELECT customer.id, metrics.optimization_score_url as url FROM customer LIMIT 1';
             // we need to parse result so we wrap generator
             const queryReal = executor.editor.parseQuery(queryRealText);
             const result = await executor.executeQueryAndParseToObjects(queryReal, customerId);
             if (result.rows)
-                for (let row of result.rows) {
-                    let new_row = {
-                        customer_id: row["id"],
-                        ocid: row["url"],
+                for (const row of result.rows) {
+                    const new_row = {
+                        customer_id: row['id'],
+                        ocid: row['url'],
                     };
                     if (new_row.ocid) {
-                        let ocid = new_row.ocid.match("ocid=(\\w+)");
+                        const ocid = new_row.ocid.match('ocid=(\\w+)');
                         if (ocid === null || ocid === void 0 ? void 0 : ocid.length) {
                             new_row.ocid = ocid[1];
                         }
@@ -156,7 +172,7 @@ class BuiltinQueryProcessor {
           return;
         }
         */
-        throw new Error("Unknown builtin query: " + query.resource.name);
+        throw new Error('Unknown builtin query: ' + query.resource.name);
     }
 }
 exports.BuiltinQueryProcessor = BuiltinQueryProcessor;

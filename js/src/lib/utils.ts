@@ -13,21 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import fs from "node:fs";
-import date_add from "date-fns/add";
-import format from "date-fns/format";
-import _ from "lodash";
+import fs from 'node:fs';
+import date_add from 'date-fns/add';
+import format from 'date-fns/format';
+import _ from 'lodash';
 
-import { math_parse } from "./math-engine";
-import nunjucks from "nunjucks";
+import {math_parse} from './math-engine';
+import nunjucks from 'nunjucks';
 
 export function traverseObject(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   object: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   visitor: (name: string, value: any, path: string[], object: Object) => void,
   path: string[]
 ): boolean {
   path = path || [];
-  return _.forIn(object, function (value: any, name: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return _.forIn(object, (value: any, name: string) => {
     path.push(name);
     if (_.isPlainObject(value)) {
       visitor(name, value, path, object);
@@ -63,9 +66,10 @@ export function traverseObject(
  * @param path a chain of property/field path (e.g. field1.field2)
  * @returns a value from the chain
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function navigateObject(object: any, path: string) {
   let ctx = object;
-  for (let name of path.split(".")) {
+  for (const name of path.split('.')) {
     ctx = ctx[name];
     if (!ctx) return ctx;
   }
@@ -77,10 +81,11 @@ export function navigateObject(object: any, path: string) {
  * @param str a string containing a number
  * @returns a finite number (never returns NaN) or undefined
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function tryParseNumber(str: any): number | undefined {
   if (_.isFinite(str)) return <number>str;
   if (_.isString(str) && str.length > 0) {
-    let num = Number(str);
+    const num = Number(str);
     return isNaN(num) ? undefined : num;
   }
 }
@@ -89,20 +94,21 @@ export function tryParseNumber(str: any): number | undefined {
  * Format a date in ISO format - YYYYMMDD or YYYY-MM-DD if delimiter is "-"
  * @deprecated use `format` from `date-fns` package instead
  */
-export function formatDateISO(dt: Date, delimiter: string = ""): string {
-  let month = dt.getMonth() + 1;
-  let day = dt.getDate();
-  let iso =
+export function formatDateISO(dt: Date, delimiter = ''): string {
+  const month = dt.getMonth() + 1;
+  const day = dt.getDate();
+  const iso =
     dt.getFullYear() +
     delimiter +
-    (month < 10 ? "0" + month.toString() : month.toString()) +
+    (month < 10 ? '0' + month.toString() : month.toString()) +
     delimiter +
-    (day < 10 ? "0" + day : day);
+    (day < 10 ? '0' + day : day);
   return iso;
 }
 
 function convert_date(name: string, value: string): string {
-  let [pattern, delta, ...other] = value.split("-");
+  // eslint-disable-next-line prefer-const
+  let [pattern, delta, ...other] = value.split('-');
   if (!pattern || other.length) {
     throw new Error(
       `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
@@ -110,24 +116,24 @@ function convert_date(name: string, value: string): string {
   }
   if (!delta) {
     // simple case ":YYYYMMDD"
-    return format(new Date(), "yyyy-MM-dd");
+    return format(new Date(), 'yyyy-MM-dd');
   }
-  let ago = +delta;
+  const ago = +delta;
   pattern = pattern.trim().toUpperCase();
   let duration: Duration;
-  if (pattern === ":YYYYMMDD") {
-    duration = { days: -ago };
-  } else if (pattern === ":YYYYMM") {
-    duration = { months: -ago };
-  } else if (pattern === ":YYYY") {
-    duration = { years: -ago };
+  if (pattern === ':YYYYMMDD') {
+    duration = {days: -ago};
+  } else if (pattern === ':YYYYMM') {
+    duration = {months: -ago};
+  } else if (pattern === ':YYYY') {
+    duration = {years: -ago};
   } else {
     throw new Error(
       `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
     );
   }
-  let dt = date_add(new Date(), duration);
-  return format(dt, "yyyy-MM-dd");
+  const dt = date_add(new Date(), duration);
+  return format(dt, 'yyyy-MM-dd');
 }
 
 /**
@@ -138,16 +144,17 @@ function convert_date(name: string, value: string): string {
  */
 export function substituteMacros(
   text: string,
-  macros?: Record<string, any>
-): { text: string; unknown_params: string[] } {
-  let unknown_params: Record<string, boolean> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  macros?: Record<string, string | number>
+): {text: string; unknown_params: string[]} {
+  const unknown_params: Record<string, boolean> = {};
   // Support for macro's values containing special syntax for dynamic dates:
   // ':YYYYMMDD-N', ':YYYYMM-N', ':YYYY-N', where N is a number of days/months/year respectedly
   if (macros) {
-    Object.entries(macros).map((pair) => {
-      let value = <string>pair[1];
-      if (value && _.isString(value) && value.startsWith(":YYYY")) {
-        let key = pair[0];
+    Object.entries(macros).map(pair => {
+      const value = <string>pair[1];
+      if (value && _.isString(value) && value.startsWith(':YYYY')) {
+        const key = pair[0];
         macros![key] = convert_date(key, value);
       }
     });
@@ -155,19 +162,19 @@ export function substituteMacros(
 
   macros = macros || {};
   // add "magic" macros for Python version compatibility
-  if (!macros["date_iso"]) {
-    macros["date_iso"] = format(new Date(), "yyyyMMdd");
+  if (!macros['date_iso']) {
+    macros['date_iso'] = format(new Date(), 'yyyyMMdd');
   }
-  if (!macros["yesterday_iso"]) {
-    let date = new Date();
+  if (!macros['yesterday_iso']) {
+    const date = new Date();
     date.setDate(date.getDate() - 1);
-    macros["yesterday_iso"] = format(date, "yyyyMMdd");
+    macros['yesterday_iso'] = format(date, 'yyyyMMdd');
   }
-  if (!macros["current_date"]) {
-    macros["current_date"] = format(new Date(), "yyyy-MM-dd");
+  if (!macros['current_date']) {
+    macros['current_date'] = format(new Date(), 'yyyy-MM-dd');
   }
-  if (!macros["current_datetime"]) {
-    macros["current_datetime"] = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+  if (!macros['current_datetime']) {
+    macros['current_datetime'] = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
   }
 
   // notes on the regexp:
@@ -175,27 +182,31 @@ export function substituteMacros(
   //  not precended with '$'), with that we're capturing {smth} expressions
   //  and not ${smth} expressions
   text = text.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
-    if (!macros!.hasOwnProperty(name)) {
+    if (!Object.prototype.hasOwnProperty.call(macros!, name)) {
       unknown_params[name] = true;
       return ss;
     }
-
-    return macros![name];
+    // NOTE: we don't care here about type, it'll degraded to string anyway
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return macros![name] as any;
   });
   // now process expressions with built-in functions in ${..} blocks
   text = text.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
-    if (!expr.trim()) return "";
+    if (!expr.trim()) return '';
     return math_parse(expr).evaluate(macros);
   });
-  return { text: text, unknown_params: Object.keys(unknown_params) };
+  return {text: text, unknown_params: Object.keys(unknown_params)};
 }
 
-export function renderTemplate(template: string, params: any) {
+export function renderTemplate(
+  template: string,
+  params: Record<string, unknown>
+) {
   //nunjucks.configure("views", { autoescape: true });
   if (params) {
-    for (let [key, value] of Object.entries(params)) {
-      if (value && typeof value === "string") {
-        params[key] = value.split(",");
+    for (const [key, value] of Object.entries(params)) {
+      if (value && typeof value === 'string') {
+        params[key] = value.split(',');
       }
     }
   }
@@ -207,7 +218,7 @@ function prepend(value: number, num?: number): string {
   num = num || 2;
   if (value_str.length < num) {
     while (value_str.length < num) {
-      value_str = "0" + value_str;
+      value_str = '0' + value_str;
     }
   }
   return value_str;
@@ -232,11 +243,11 @@ export function getElapsed(started: Date, now?: Date): string {
 
   return (
     prepend(hours) +
-    ":" +
+    ':' +
     prepend(minutes) +
-    ":" +
+    ':' +
     prepend(seconds) +
-    "." +
+    '.' +
     prepend(ms, 3)
   );
 }
@@ -265,17 +276,17 @@ export function getDirectorySize(path: string): number | undefined {
  * @returns formatted info
  */
 export function getMemoryUsage(phase: string): string {
-  const used: any = process.memoryUsage();
+  const used = process.memoryUsage();
   // NOTE: Additionally v8.getHeapStatistics() can be used
-  let memUsage = "";
-  for (let key in used) {
+  let memUsage = '';
+  for (const key in used) {
     memUsage += `${key} ${
-      Math.round((used[key] / 1024 / 1024) * 100) / 100
+      Math.round((used[<keyof typeof used>key] / 1024 / 1024) * 100) / 100
     } MB\n`;
   }
-  let extra = "";
+  let extra = '';
   if (process.env.K_SERVICE) {
-    const tmpSize = getDirectorySize("/tmp");
+    const tmpSize = getDirectorySize('/tmp');
     if (Number.isInteger(tmpSize)) {
       extra = `/tmp Directory Size: ${tmpSize} MB`;
     }
@@ -289,9 +300,9 @@ export interface RetryOptions {
     | null
     | undefined
     | false
-    | "constant"
-    | "linear"
-    | "exponential";
+    | 'constant'
+    | 'linear'
+    | 'exponential';
 }
 
 /**
@@ -303,6 +314,7 @@ export interface RetryOptions {
  */
 export function executeWithRetry<T>(
   fn: () => T,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   checkToRetry: (error: any, attempt: number) => boolean,
   options?: RetryOptions
 ): Promise<T> {
@@ -319,22 +331,22 @@ export function executeWithRetry<T>(
       options = options || {};
       if (options.delayStrategy) {
         let delayMs = 0;
-        let baseDelayMs = options.baseDelayMs || 1000;
+        const baseDelayMs = options.baseDelayMs || 1000;
         switch (options.delayStrategy) {
-          case "constant":
+          case 'constant':
             delayMs = baseDelayMs;
             break;
-          case "linear":
+          case 'linear':
             delayMs = baseDelayMs * attempt;
             break;
-          case "exponential":
+          case 'exponential':
             delayMs = baseDelayMs * 2 ** attempt;
             break;
           default:
-            throw new Error("Unknown delayStrategy ");
+            throw new Error('Unknown delayStrategy ');
         }
         console.log(`Retry attempt ${attempt} after ${delayMs}ms`);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
 
       attempt++;
@@ -350,5 +362,5 @@ export function executeWithRetry<T>(
  * @param ms number of milliseconds to wait
  */
 export function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

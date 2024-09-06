@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.math_parse = void 0;
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Copyright 2023 Google LLC
  *
@@ -24,110 +25,110 @@ const mathjs = (0, mathjs_1.create)(mathjs_1.all);
 //    Duration, Period)
 mathjs.import([
     // data types
-    (0, mathjs_1.factory)('LocalDateTime', ['typed'], function createLocalDateTime({ typed }) {
+    (0, mathjs_1.factory)('LocalDateTime', ['typed'], ({ typed }) => {
         typed.addType({
             name: 'LocalDateTime',
-            test: (x) => x && x.constructor.name === 'LocalDateTime'
+            test: (x) => x && x.constructor.name === 'LocalDateTime',
         });
         return core_1.LocalDateTime;
     }, { lazy: false }),
-    (0, mathjs_1.factory)('LocalDate', ['typed'], function createLocalDate({ typed }) {
+    (0, mathjs_1.factory)('LocalDate', ['typed'], ({ typed }) => {
         typed.addType({
             name: 'LocalDate',
-            test: (x) => x && x.constructor.name === 'LocalDate'
+            test: (x) => x && x.constructor.name === 'LocalDate',
         });
         return core_1.LocalDate;
     }, { lazy: false }),
-    (0, mathjs_1.factory)('Duration', ['typed'], function createDuration({ typed }) {
+    (0, mathjs_1.factory)('Duration', ['typed'], ({ typed }) => {
         typed.addType({
             name: 'Duration',
-            test: (x) => x && x.constructor.name === 'Duration'
+            test: (x) => x && x.constructor.name === 'Duration',
         });
         return core_1.Duration;
     }, { lazy: false }),
-    (0, mathjs_1.factory)('Period', ['typed'], function createPeriod({ typed }) {
+    (0, mathjs_1.factory)('Period', ['typed'], ({ typed }) => {
         typed.addType({
             name: 'Period',
-            test: (x) => x && x.constructor.name === 'Period'
+            test: (x) => x && x.constructor.name === 'Period',
         });
         return core_1.Period;
     }, { lazy: false }),
     // conversion functions and factory functions
-    (0, mathjs_1.factory)('datetime', ['typed'], function createLocalDateTime({ typed }) {
+    (0, mathjs_1.factory)('datetime', ['typed'], ({ typed }) => {
         return typed('datetime', {
             '': () => core_1.LocalDateTime.now(),
-            'null': () => core_1.LocalDateTime.now(),
-            'string': (x) => core_1.LocalDateTime.parse(x),
+            null: () => core_1.LocalDateTime.now(),
+            string: (x) => core_1.LocalDateTime.parse(x),
             'string, string': (x, format) => {
-                let formatter = core_1.DateTimeFormatter.ofPattern(format);
+                const formatter = core_1.DateTimeFormatter.ofPattern(format);
                 return core_1.LocalDateTime.parse(x, formatter);
-            }
+            },
         });
     }),
-    (0, mathjs_1.factory)('date', ['typed'], function createLocalDateTime({ typed }) {
+    (0, mathjs_1.factory)('date', ['typed'], ({ typed }) => {
         return typed('datetime', {
             '': () => core_1.LocalDate.now(),
-            'null': () => core_1.LocalDate.now(),
-            'string': (x) => core_1.LocalDate.parse(x),
+            null: () => core_1.LocalDate.now(),
+            string: (x) => core_1.LocalDate.parse(x),
             'string,string': (x, format) => {
-                let formatter = core_1.DateTimeFormatter.ofPattern(format);
+                const formatter = core_1.DateTimeFormatter.ofPattern(format);
                 return core_1.LocalDate.parse(x, formatter);
             },
-            'LocalDateTime': (x) => x.toLocalDate(),
-            'number, number, number': (a, b, c) => core_1.LocalDate.of(a, b, c)
+            LocalDateTime: (x) => x.toLocalDate(),
+            'number, number, number': (a, b, c) => core_1.LocalDate.of(a, b, c),
         });
     }),
-    (0, mathjs_1.factory)('duration', ['typed'], function createDuration({ typed }) {
-        return typed('duration', { 'string': (x) => core_1.Duration.parse(x) });
+    (0, mathjs_1.factory)('duration', ['typed'], ({ typed }) => {
+        return typed('duration', { string: (x) => core_1.Duration.parse(x) });
     }),
-    (0, mathjs_1.factory)('period', ['typed'], function createDuration({ typed }) {
-        return typed('period', { 'string': (x) => core_1.Period.parse(x) });
+    (0, mathjs_1.factory)('period', ['typed'], ({ typed }) => {
+        return typed('period', { string: (x) => core_1.Period.parse(x) });
     }),
     // operations with Date types
-    (0, mathjs_1.factory)('add', ['typed'], function createLocalDateTimeAdd({ typed }) {
+    (0, mathjs_1.factory)('add', ['typed'], ({ typed }) => {
         return typed('add', {
             'LocalDateTime, Duration': (a, b) => a.plus(b),
             'LocalDate, Period': (a, b) => a.plus(b),
             'LocalDate, any': (a, b) => a.plus(core_1.Period.parse('P' + b + 'D')),
-            'any, any': (a, b) => a + b
+            'any, any': (a, b) => a + b,
         });
     }),
-    (0, mathjs_1.factory)('subtract', ['typed'], function createLocalDateTimeSubtract({ typed }) {
+    (0, mathjs_1.factory)('subtract', ['typed'], ({ typed }) => {
         return typed('subtract', {
             'LocalDateTime, Duration': (a, b) => a.minus(b),
             'LocalDate, Period': (a, b) => a.minus(b),
             'LocalDate, any': (a, b) => a.minus(core_1.Period.parse('P' + b + 'D')),
             'LocalDateTime, LocalDateTime': (a, b) => core_1.Duration.between(b, a),
             'LocalDate, LocalDate': (a, b) => core_1.Period.between(b, a),
-            'any, any': (a, b) => a - b
+            'any, any': (a, b) => a - b,
         });
     }),
     // date format functions
-    (0, mathjs_1.factory)('format', ['typed'], function createDateTimeFormat({ typed }) {
+    (0, mathjs_1.factory)('format', ['typed'], ({ typed }) => {
         return typed('format', {
             'LocalDate, string': (a, format) => {
-                let formatter = core_1.DateTimeFormatter.ofPattern(format);
+                const formatter = core_1.DateTimeFormatter.ofPattern(format);
                 return a.format(formatter);
             },
             'LocalDateTime, string': (a, format) => {
-                let formatter = core_1.DateTimeFormatter.ofPattern(format);
+                const formatter = core_1.DateTimeFormatter.ofPattern(format);
                 return a.format(formatter);
-            }
+            },
         });
     }),
     // functions generators
-    (0, mathjs_1.factory)('today', [], function createToday() {
+    (0, mathjs_1.factory)('today', [], () => {
         return () => core_1.LocalDate.now();
     }),
-    (0, mathjs_1.factory)('yesterday', [], function createToday() {
+    (0, mathjs_1.factory)('yesterday', [], () => {
         return () => core_1.LocalDate.now().minusDays(1);
     }),
-    (0, mathjs_1.factory)('tomorrow', [], function createToday() {
+    (0, mathjs_1.factory)('tomorrow', [], () => {
         return () => core_1.LocalDate.now().plusDays(1);
     }),
-    (0, mathjs_1.factory)('now', [], function createNow() {
+    (0, mathjs_1.factory)('now', [], () => {
         return () => core_1.LocalDateTime.now();
-    })
+    }),
 ], { override: true });
 exports.math_parse = mathjs.parse;
 //# sourceMappingURL=math-engine.js.map

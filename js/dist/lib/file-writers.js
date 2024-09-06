@@ -85,7 +85,7 @@ class Output {
     constructor(path, stream, getStorageFile) {
         this.path = path;
         this.stream = stream;
-        this.isGCS = this.path.startsWith("gs://");
+        this.isGCS = this.path.startsWith('gs://');
         this.getStorageFile = getStorageFile;
     }
     async deleteFile() {
@@ -102,7 +102,7 @@ class Output {
  */
 class FileWriterBase {
     constructor(options) {
-        this.fileExtension = "";
+        this.fileExtension = '';
         this.rowWritten = false;
         this.destination = (options === null || options === void 0 ? void 0 : options.outputPath) || (options === null || options === void 0 ? void 0 : options.destinationFolder);
         if (this.destination && !URL.canParse(this.destination)) {
@@ -125,6 +125,7 @@ class FileWriterBase {
         }
         this.onBeginScript(scriptName, query);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onBeginScript(scriptName, query) { }
     async beginCustomer(customerId) {
         this.rowCountsByCustomer[customerId] = 0;
@@ -136,16 +137,17 @@ class FileWriterBase {
         }
         else {
             // all customers into one file
-            if (!this.streamsByCustomer[""]) {
+            if (!this.streamsByCustomer['']) {
                 output = this.createOutput(filePath);
-                this.streamsByCustomer[""] = output;
+                this.streamsByCustomer[''] = output;
             }
         }
         if (!output) {
-            output = this.streamsByCustomer[""];
+            output = this.streamsByCustomer[''];
         }
         await this.onBeginCustomer(customerId, output);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onBeginCustomer(customerId, output) { }
     useFilePerCustomer() {
         var _a;
@@ -154,7 +156,7 @@ class FileWriterBase {
         return this.filePerCustomer;
     }
     getDataFileName(customerId) {
-        let filename = "";
+        let filename = '';
         if (this.useFilePerCustomer()) {
             filename = `${this.scriptName}_${customerId}.${this.fileExtension}`;
         }
@@ -167,23 +169,23 @@ class FileWriterBase {
         let filepath = filename;
         if (this.destination) {
             filepath = this.destination;
-            if (!this.destination.endsWith("/"))
-                filepath += "/";
+            if (!this.destination.endsWith('/'))
+                filepath += '/';
             filepath += filename;
         }
         else if (process.env.K_SERVICE) {
             // we're in GCloud - file system is readonly, the only writable place is /tmp
-            filepath = path_1.default.join("/tmp", filepath);
+            filepath = path_1.default.join('/tmp', filepath);
         }
         return filepath;
     }
     createOutput(filePath) {
         let writeStream;
         let getStorageFile;
-        if (filePath.startsWith("gs://")) {
-            let parsed = new URL(filePath);
-            let bucketName = parsed.hostname;
-            let destFileName = parsed.pathname.substring(1);
+        if (filePath.startsWith('gs://')) {
+            const parsed = new URL(filePath);
+            const bucketName = parsed.hostname;
+            const destFileName = parsed.pathname.substring(1);
             const storage = new storage_1.Storage({
                 retryOptions: { autoRetry: true, maxRetries: 10 },
             });
@@ -200,7 +202,7 @@ class FileWriterBase {
                 const storage = new storage_1.Storage();
                 return storage.bucket(bucketName).file(destFileName);
             };
-            writeStream.on("error", (e) => {
+            writeStream.on('error', e => {
                 this.logger.error(`Error on writing to remote stream ${filePath}: ${e}`);
             });
         }
@@ -217,13 +219,13 @@ class FileWriterBase {
         }
         else {
             // all customers into one file
-            output = this.streamsByCustomer[""];
+            output = this.streamsByCustomer[''];
         }
         return output;
     }
     async addRow(customerId, parsedRow, rawRow) {
         let firstRow;
-        if (!parsedRow || parsedRow.length == 0)
+        if (!parsedRow || parsedRow.length === 0)
             return;
         if (this.useFilePerCustomer()) {
             const count = this.rowCountsByCustomer[customerId];
@@ -236,9 +238,17 @@ class FileWriterBase {
         await this.onAddRow(customerId, parsedRow, rawRow, firstRow);
         this.rowCountsByCustomer[customerId] += 1;
     }
-    async onAddRow(customerId, parsedRow, rawRow, firstRow) { }
+    async onAddRow(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    customerId, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    parsedRow, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    rawRow, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    firstRow) { }
     async endCustomer(customerId) {
-        let output = this.getOutput(customerId);
+        const output = this.getOutput(customerId);
         await this.onEndCustomer(customerId, output);
         // finalize the output stream
         if (this.useFilePerCustomer()) {
@@ -246,11 +256,12 @@ class FileWriterBase {
             delete this.streamsByCustomer[customerId];
         }
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onEndCustomer(customerId, output) { }
     async endScript() {
         if (!this.useFilePerCustomer()) {
             // single file for all customer
-            const output = this.streamsByCustomer[""];
+            const output = this.streamsByCustomer[''];
             await this.closeStream(output);
         }
         this.streamsByCustomer = {};
@@ -262,12 +273,12 @@ class FileWriterBase {
         const stream = output.stream;
         this.logger.debug(`Closing stream ${output.path}`);
         await new Promise((resolve, reject) => {
-            stream.once("close", () => {
+            stream.once('close', () => {
                 this.logger.debug(`Closed stream ${output.path}, exists: ${fs_1.default.existsSync(output.path)}`);
-                stream.removeAllListeners("error");
+                stream.removeAllListeners('error');
                 resolve(null);
             });
-            stream.once("error", reject);
+            stream.once('error', reject);
             stream.end((err) => {
                 if (err) {
                     reject(err);
@@ -275,6 +286,7 @@ class FileWriterBase {
             });
         });
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async onClosingStream(output) { }
     async writeToStream(output, content) {
         const writeStream = output.stream;
@@ -289,7 +301,7 @@ class FileWriterBase {
             };
             const success = writeStream.write(content, cb);
             if (!success) {
-                writeStream.once("drain", cb);
+                writeStream.once('drain', cb);
             }
             else {
                 process.nextTick(cb);
@@ -297,7 +309,7 @@ class FileWriterBase {
         });
     }
     async writeContent(customerId, content) {
-        let output = this.getOutput(customerId);
+        const output = this.getOutput(customerId);
         await this.writeToStream(output, content);
     }
 }
@@ -305,7 +317,7 @@ exports.FileWriterBase = FileWriterBase;
 class JsonWriter extends FileWriterBase {
     constructor(options) {
         super(options);
-        this.fileExtension = "json";
+        this.fileExtension = 'json';
         this.format = (options === null || options === void 0 ? void 0 : options.format) || JsonOutputFormat.jsonl;
         this.formatted =
             this.format === JsonOutputFormat.json ? !!(options === null || options === void 0 ? void 0 : options.formatted) : false;
@@ -317,48 +329,48 @@ class JsonWriter extends FileWriterBase {
             rowObj = rawRow;
         }
         else if (this.valueFormat === JsonValueFormat.objects) {
-            let obj = this.query.columnNames.reduce((obj, key, index) => ({ ...obj, [key]: parsedRow[index] }), {});
+            const obj = this.query.columnNames.reduce((obj, key, index) => ({ ...obj, [key]: parsedRow[index] }), {});
             rowObj = obj;
         }
         else {
             // i.e. JsonValueFormat.arrays
             rowObj = parsedRow;
         }
-        let content = JSON.stringify(rowObj, null, this.formatted ? 2 : undefined);
+        const content = JSON.stringify(rowObj, null, this.formatted ? 2 : undefined);
         return content;
     }
     async onAddRow(customerId, parsedRow, rawRow, firstRow) {
-        let content = "";
+        let content = '';
         if (firstRow) {
             // starting a new file
             if (this.format === JsonOutputFormat.json) {
-                content += "[\n";
+                content += '[\n';
             }
             if (this.valueFormat === JsonValueFormat.arrays) {
                 content += JSON.stringify(this.query.columnNames);
                 if (this.format === JsonOutputFormat.json) {
-                    content += ",\n";
+                    content += ',\n';
                 }
                 else {
-                    content += "\n";
+                    content += '\n';
                 }
             }
         }
         content += this.serializeRow(parsedRow, rawRow);
         if (this.format === JsonOutputFormat.json) {
             if (!firstRow) {
-                content = ",\n" + content;
+                content = ',\n' + content;
             }
         }
         else {
-            content += "\n";
+            content += '\n';
         }
         await this.writeContent(customerId, content);
         this.rowCountsByCustomer[customerId] += 1;
     }
     async onClosingStream(output) {
         if (this.format === JsonOutputFormat.json) {
-            const content = "\n]";
+            const content = '\n]';
             await this.writeToStream(output, content);
         }
     }
@@ -367,17 +379,19 @@ exports.JsonWriter = JsonWriter;
 class CsvWriter extends FileWriterBase {
     constructor(options) {
         super(options);
-        this.fileExtension = "csv";
+        this.fileExtension = 'csv';
         this.quoted = !!(options === null || options === void 0 ? void 0 : options.quoted);
-        this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || "|";
+        this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || '|';
     }
     onBeginScript(scriptName, query) {
         this.csvOptions = {
             header: false,
             quoted: this.quoted,
-            columns: query.columns.map((col) => col.name),
+            columns: query.columns.map(col => col.name),
             cast: {
-                boolean: (value, context) => value ? "true" : "false",
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                boolean: (value, context) => value ? 'true' : 'false',
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 object: (value, context) => Array.isArray(value)
                     ? value.join(this.arraySeparator)
                     : JSON.stringify(value),
@@ -389,16 +403,20 @@ class CsvWriter extends FileWriterBase {
         if (firstRow) {
             opts = Object.assign({}, this.csvOptions, { header: true });
         }
-        let csvText = (0, sync_1.stringify)([parsedRow], opts);
+        const csvText = (0, sync_1.stringify)([parsedRow], opts);
         await this.writeContent(customerId, csvText);
         this.rowCountsByCustomer[customerId] += 1;
     }
 }
 exports.CsvWriter = CsvWriter;
 class NullWriter {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     beginScript(scriptName, query) { }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     beginCustomer(customerId) { }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     addRow(customerId, parsedRow, rawRow) { }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     endCustomer(customerId) { }
     endScript() { }
 }

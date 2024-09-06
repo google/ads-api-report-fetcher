@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-import {ColumnUserConfig, getBorderCharacters, table, TableUserConfig} from 'table'
-import _ from "lodash";
+import {
+  ColumnUserConfig,
+  getBorderCharacters,
+  table,
+  TableUserConfig,
+} from 'table';
+import _ from 'lodash';
 
 import {IResultWriter, QueryElements} from './types';
 
@@ -25,7 +30,9 @@ export interface ConsoleWriterOptions {
 }
 
 export enum TransposeModes {
-  auto = 'auto', never = 'never', always = 'always'
+  auto = 'auto',
+  never = 'never',
+  always = 'always',
 }
 
 export class ConsoleWriter implements IResultWriter {
@@ -33,7 +40,7 @@ export class ConsoleWriter implements IResultWriter {
   scriptName: string | undefined;
   query: QueryElements | undefined;
   transpose: TransposeModes;
-  rowsByCustomer: Record<string, any[][]> = {};
+  rowsByCustomer: Record<string, unknown[][]> = {};
   pageSize: number;
   hasMoreRows: boolean;
 
@@ -41,7 +48,7 @@ export class ConsoleWriter implements IResultWriter {
     options = options || {};
     this.transpose =
       TransposeModes[
-        (options.transpose as keyof typeof TransposeModes) || "auto"
+        (options.transpose as keyof typeof TransposeModes) || 'auto'
       ];
     this.pageSize = options.pageSize || ConsoleWriter.DEFAULT_MAX_ROWS;
     this.hasMoreRows = false;
@@ -60,7 +67,12 @@ export class ConsoleWriter implements IResultWriter {
     this.rowsByCustomer[customerId] = [];
   }
 
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]): void {
+  addRow(
+    customerId: string,
+    parsedRow: unknown[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    rawRow: Record<string, unknown>
+  ): void {
     if (
       this.pageSize > 0 &&
       this.rowsByCustomer[customerId].length >= this.pageSize
@@ -72,9 +84,9 @@ export class ConsoleWriter implements IResultWriter {
   }
 
   endCustomer(customerId: string): void | Promise<void> {
-    let cc: ColumnUserConfig = {
+    const cc: ColumnUserConfig = {
       wrapWord: true,
-      alignment: "right",
+      alignment: 'right',
       truncate: 200,
     };
     let rows = this.rowsByCustomer[customerId];
@@ -84,30 +96,36 @@ export class ConsoleWriter implements IResultWriter {
       this.hasMoreRows = false;
       return;
     }
-    console.log(`${this.scriptName} (${customerId}), ${this.hasMoreRows ? 'first ' : ''}${rows.length} rows`);
+    console.log(
+      `${this.scriptName} (${customerId}), ${this.hasMoreRows ? 'first ' : ''}${rows.length} rows`
+    );
 
-    rows = rows.map((row) => {
-      return row.map((val) => {
-        if (val === undefined) return "";
-        if (_.isArray(val) && val.length > 0 && (_.max(val.map(v => v ? v.length : 0)) > 20)) {
-          return val.map(i => i ? i.toString() + '\n' : '').join("");
+    rows = rows.map(row => {
+      return row.map(val => {
+        if (val === undefined) return '';
+        if (
+          _.isArray(val) &&
+          val.length > 0 &&
+          _.max(val.map(v => (v ? v.length : 0))) > 20
+        ) {
+          return val.map(i => (i ? i.toString() + '\n' : '')).join('');
         }
         return val;
       });
     });
     // original table plus a row (first) with headers (columns names)
-    let data = [this.query!.columnNames].concat(rows);
+    const data = [this.query!.columnNames as unknown[]].concat(rows);
     // transpose table (rows become columns)
-    let data_trans = data[0].map((_, colIndex) =>
-      data.map((row) => row[colIndex])
+    const data_trans = data[0].map((_, colIndex) =>
+      data.map(row => row[colIndex])
     );
     // and a row with indexes
     data_trans.splice(0, 0, [
-      "index",
-      ...[...Array(rows.length).keys()].map((i) => (++i).toString()),
+      'index',
+      ...[...Array(rows.length).keys()].map(i => (++i).toString()),
     ]);
-    let tableConfig: TableUserConfig = {
-      border: getBorderCharacters("norc"),
+    const tableConfig: TableUserConfig = {
+      border: getBorderCharacters('norc'),
       columnDefault: {
         paddingLeft: 0,
         paddingRight: 1,
@@ -118,19 +136,19 @@ export class ConsoleWriter implements IResultWriter {
       drawHorizontalLine: (lineIndex, rowCount) => {
         return lineIndex === 0 || lineIndex === 1 || lineIndex === rowCount;
       },
-      columns: this.query!.columnNames.map((c) => cc),
+      columns: this.query!.columnNames.map(_ => cc),
       // singleLine: true
     };
-    let data_formatted_orig = table(data, tableConfig);
-    let data_formatted_trans = table(data_trans, tableConfig);
-    let use_trans = this.transpose == TransposeModes.always;
-    let data_formatted = "";
-    if (process.stdout.columns && this.transpose != TransposeModes.never) {
+    const data_formatted_orig = table(data, tableConfig);
+    const data_formatted_trans = table(data_trans, tableConfig);
+    let use_trans = this.transpose === TransposeModes.always;
+    let data_formatted = '';
+    if (process.stdout.columns && this.transpose !== TransposeModes.never) {
       // we're in Terminal (not streaming to a file)
       if (!use_trans) {
-        let first_line = data_formatted_orig.slice(
+        const first_line = data_formatted_orig.slice(
           0,
-          data_formatted_orig.indexOf("\n")
+          data_formatted_orig.indexOf('\n')
         );
         if (first_line.length > process.stdout.columns) {
           // table isn't fitting into terminal window, transpose it
@@ -138,9 +156,9 @@ export class ConsoleWriter implements IResultWriter {
         }
       }
       if (use_trans) {
-        let first_line_trans = data_formatted_trans.slice(
+        const first_line_trans = data_formatted_trans.slice(
           0,
-          data_formatted_trans.indexOf("\n")
+          data_formatted_trans.indexOf('\n')
         );
         if (first_line_trans.length > process.stdout.columns) {
           // transposed table also isn't fitting, split it onto several tables
@@ -160,9 +178,9 @@ export class ConsoleWriter implements IResultWriter {
     this.hasMoreRows = false;
   }
 
-  processTransposedTable(data_trans: any[][], headers: string[]) {
-    let tableConfig: TableUserConfig = {
-      border: getBorderCharacters("norc"),
+  processTransposedTable(data_trans: unknown[][], headers: string[]) {
+    const tableConfig: TableUserConfig = {
+      border: getBorderCharacters('norc'),
       columnDefault: {
         paddingLeft: 0,
         paddingRight: 1,
@@ -171,23 +189,23 @@ export class ConsoleWriter implements IResultWriter {
       },
       drawVerticalLine: () => true,
       drawHorizontalLine: () => false,
-      columns: this.query!.columnNames.map((c) => {
+      columns: this.query!.columnNames.map(_ => {
         return {
           wrapWord: true,
-          alignment: "left",
+          alignment: 'left',
           truncate: 200,
         };
       }),
       // singleLine: true
     };
 
-    let output = "";
+    let output = '';
     let part = 1;
     let done = false;
     while (!done) {
-      let first_line = data_trans[0];
-      let column_count = first_line.length;
-      let row_count = data_trans.length;
+      const first_line = data_trans[0];
+      const column_count = first_line.length;
+      const row_count = data_trans.length;
       // note: we're starting from 1 because there's always a header columns coming first
       if (column_count <= 2) {
         // if we have only 2 columns (headers+data) there's no way to shrink the matrix
@@ -197,28 +215,28 @@ export class ConsoleWriter implements IResultWriter {
           // slice matrix up to i-th column (included)
           let submatrix = data_trans
             .slice(0, row_count + 1)
-            .map((row) => row.slice(0, i + 1));
+            .map(row => row.slice(0, i + 1));
           let submatrix_formatted = table(submatrix, tableConfig);
-          let first_line = submatrix_formatted.slice(
+          const first_line = submatrix_formatted.slice(
             0,
-            submatrix_formatted.indexOf("\n")
+            submatrix_formatted.indexOf('\n')
           );
           if (first_line.length >= process.stdout.columns) {
             // currently accumulated matrix has come too long horizontally,
             // we have to break at this column - i.e. dump sub-matrix from 0 to previous, (i - 1)th column
             submatrix = data_trans
               .slice(0, row_count + 1)
-              .map((row) => row.slice(0, i));
+              .map(row => row.slice(0, i));
             submatrix_formatted = table(submatrix, tableConfig);
-            if (output) output += "\n";
-            output = output + "#" + part + "\n" + submatrix_formatted;
+            if (output) output += '\n';
+            output = output + '#' + part + '\n' + submatrix_formatted;
             part++;
             // now remove the columns that have been dumped,
             data_trans = data_trans
               .slice(0, row_count + 1)
-              .map((row) => row.slice(i));
+              .map(row => row.slice(i));
             // append headers at matrix first column (for each row)
-            data_trans[0].splice(0, 0, "index");
+            data_trans[0].splice(0, 0, 'index');
             for (let j = 0; j < headers.length; j++) {
               data_trans[j + 1].splice(0, 0, headers[j]);
             }
@@ -232,9 +250,9 @@ export class ConsoleWriter implements IResultWriter {
 
       if (done || column_count <= 2) {
         if (part > 1) {
-          output = output + "\n#" + part;
+          output = output + '\n#' + part;
         }
-        output = output + "\n" + table(data_trans, tableConfig);
+        output = output + '\n' + table(data_trans, tableConfig);
       }
     }
     return output;

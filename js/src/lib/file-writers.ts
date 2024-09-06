@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-import csvStringify from "csv-stringify";
-import { stringify } from "csv-stringify/sync";
-import fs from "fs";
-import * as fs_async from "node:fs/promises";
-import * as stream from "node:stream";
-import path from "path";
-import { Storage, File } from "@google-cloud/storage";
+import csvStringify from 'csv-stringify';
+import {stringify} from 'csv-stringify/sync';
+import fs from 'fs';
+import * as fs_async from 'node:fs/promises';
+import * as stream from 'node:stream';
+import path from 'path';
+import {Storage, File} from '@google-cloud/storage';
 
-import { getLogger } from "./logger";
-import {
-  ArrayHandling,
-  IResultWriter,
-  QueryElements,
-  QueryResult,
-} from "./types";
+import {getLogger} from './logger';
+import {IResultWriter, QueryElements} from './types';
 
 /**
  * Base options for all file-based writers.
@@ -67,11 +62,11 @@ export enum JsonOutputFormat {
   /**
    * Array at the root with all rows as items.
    */
-  json = "json",
+  json = 'json',
   /**
    * Every row is a line
    */
-  jsonl = "jsonl",
+  jsonl = 'jsonl',
 }
 /**
  * Formatting modes for values.
@@ -80,16 +75,16 @@ export enum JsonValueFormat {
   /**
    * Output rows as they received from the API (hierarchical objects)
    */
-  raw = "raw",
+  raw = 'raw',
   /**
    * Output rows as arrays (every query's column is an array's value).
    */
-  arrays = "arrays",
+  arrays = 'arrays',
   /**
    * Output rows as objects (compared to raw an object is flatten
    * where each query's column correspondes to a field).
    */
-  objects = "objects",
+  objects = 'objects',
 }
 /**
  * Options for JsonWriter.
@@ -148,13 +143,13 @@ class Output implements IOutput {
   ) {
     this.path = path;
     this.stream = stream;
-    this.isGCS = this.path.startsWith("gs://");
+    this.isGCS = this.path.startsWith('gs://');
     this.getStorageFile = getStorageFile;
   }
 
   async deleteFile() {
     if (this.isGCS) {
-      await this.getStorageFile!().delete({ ignoreNotFound: true });
+      await this.getStorageFile!().delete({ignoreNotFound: true});
     } else if (fs.existsSync(this.path)) {
       await fs_async.rm(this.path);
     }
@@ -168,7 +163,7 @@ export abstract class FileWriterBase implements IResultWriter {
   destination: string | undefined;
   filePerCustomer: boolean;
   logger;
-  fileExtension: string = "";
+  fileExtension = '';
   scriptName: string | undefined;
   streamsByCustomer: Record<string, IOutput>;
   query: QueryElements | undefined;
@@ -193,12 +188,13 @@ export abstract class FileWriterBase implements IResultWriter {
     this.streamsByCustomer = {};
     if (this.destination && !URL.canParse(this.destination)) {
       if (!fs.existsSync(this.destination)) {
-        fs.mkdirSync(this.destination, { recursive: true });
+        fs.mkdirSync(this.destination, {recursive: true});
       }
     }
     this.onBeginScript(scriptName, query);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected onBeginScript(scriptName: string, query: QueryElements): void {}
 
   async beginCustomer(customerId: string) {
@@ -210,17 +206,18 @@ export abstract class FileWriterBase implements IResultWriter {
       this.streamsByCustomer[customerId] = output;
     } else {
       // all customers into one file
-      if (!this.streamsByCustomer[""]) {
+      if (!this.streamsByCustomer['']) {
         output = this.createOutput(filePath);
-        this.streamsByCustomer[""] = output;
+        this.streamsByCustomer[''] = output;
       }
     }
     if (!output) {
-      output = this.streamsByCustomer[""];
+      output = this.streamsByCustomer[''];
     }
     await this.onBeginCustomer(customerId, output);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected onBeginCustomer(customerId: string, output: Output): void {}
 
   protected useFilePerCustomer() {
@@ -229,7 +226,7 @@ export abstract class FileWriterBase implements IResultWriter {
   }
 
   protected getDataFileName(customerId: string) {
-    let filename = "";
+    let filename = '';
     if (this.useFilePerCustomer()) {
       filename = `${this.scriptName}_${customerId}.${this.fileExtension}`;
     } else {
@@ -242,11 +239,11 @@ export abstract class FileWriterBase implements IResultWriter {
     let filepath = filename;
     if (this.destination) {
       filepath = this.destination;
-      if (!this.destination.endsWith("/")) filepath += "/";
+      if (!this.destination.endsWith('/')) filepath += '/';
       filepath += filename;
     } else if (process.env.K_SERVICE) {
       // we're in GCloud - file system is readonly, the only writable place is /tmp
-      filepath = path.join("/tmp", filepath);
+      filepath = path.join('/tmp', filepath);
     }
     return filepath;
   }
@@ -254,12 +251,12 @@ export abstract class FileWriterBase implements IResultWriter {
   protected createOutput(filePath: string) {
     let writeStream: stream.Writable;
     let getStorageFile;
-    if (filePath.startsWith("gs://")) {
-      let parsed = new URL(filePath);
-      let bucketName = parsed.hostname;
-      let destFileName = parsed.pathname.substring(1);
+    if (filePath.startsWith('gs://')) {
+      const parsed = new URL(filePath);
+      const bucketName = parsed.hostname;
+      const destFileName = parsed.pathname.substring(1);
       const storage = new Storage({
-        retryOptions: { autoRetry: true, maxRetries: 10 },
+        retryOptions: {autoRetry: true, maxRetries: 10},
       });
       const bucket = storage.bucket(bucketName);
       const file = bucket.file(destFileName);
@@ -274,7 +271,7 @@ export abstract class FileWriterBase implements IResultWriter {
         const storage = new Storage();
         return storage.bucket(bucketName).file(destFileName);
       };
-      writeStream.on("error", (e) => {
+      writeStream.on('error', e => {
         this.logger.error(
           `Error on writing to remote stream ${filePath}: ${e}`
         );
@@ -292,18 +289,18 @@ export abstract class FileWriterBase implements IResultWriter {
       output = this.streamsByCustomer[customerId];
     } else {
       // all customers into one file
-      output = this.streamsByCustomer[""];
+      output = this.streamsByCustomer[''];
     }
     return output;
   }
 
   async addRow(
     customerId: string,
-    parsedRow: any[],
-    rawRow: any[]
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>
   ): Promise<void> {
     let firstRow;
-    if (!parsedRow || parsedRow.length == 0) return;
+    if (!parsedRow || parsedRow.length === 0) return;
     if (this.useFilePerCustomer()) {
       const count = this.rowCountsByCustomer[customerId];
       firstRow = count === 0;
@@ -316,14 +313,18 @@ export abstract class FileWriterBase implements IResultWriter {
   }
 
   protected async onAddRow(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     customerId: string,
-    parsedRow: any[],
-    rawRow: any[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    parsedRow: unknown[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    rawRow: Record<string, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     firstRow: boolean
   ): Promise<void> {}
 
   async endCustomer(customerId: string): Promise<void> {
-    let output = this.getOutput(customerId);
+    const output = this.getOutput(customerId);
     await this.onEndCustomer(customerId, output);
     // finalize the output stream
     if (this.useFilePerCustomer()) {
@@ -332,12 +333,13 @@ export abstract class FileWriterBase implements IResultWriter {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected onEndCustomer(customerId: string, output: Output): void {}
 
   async endScript() {
     if (!this.useFilePerCustomer()) {
       // single file for all customer
-      const output = this.streamsByCustomer[""];
+      const output = this.streamsByCustomer[''];
       await this.closeStream(output);
     }
     this.streamsByCustomer = {};
@@ -350,15 +352,15 @@ export abstract class FileWriterBase implements IResultWriter {
     const stream = output.stream;
     this.logger.debug(`Closing stream ${output.path}`);
     await new Promise((resolve, reject) => {
-      stream.once("close", () => {
+      stream.once('close', () => {
         this.logger.debug(
           `Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`
         );
-        stream.removeAllListeners("error");
+        stream.removeAllListeners('error');
         resolve(null);
       });
-      stream.once("error", reject);
-      stream.end((err: any) => {
+      stream.once('error', reject);
+      stream.end((err: unknown) => {
         if (err) {
           reject(err);
         }
@@ -366,6 +368,7 @@ export abstract class FileWriterBase implements IResultWriter {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async onClosingStream(output: Output): Promise<void> {}
 
   protected async writeToStream(output: Output, content: string) {
@@ -380,7 +383,7 @@ export abstract class FileWriterBase implements IResultWriter {
       };
       const success = writeStream.write(content, cb);
       if (!success) {
-        writeStream.once("drain", cb);
+        writeStream.once('drain', cb);
       } else {
         process.nextTick(cb);
       }
@@ -388,7 +391,7 @@ export abstract class FileWriterBase implements IResultWriter {
   }
 
   protected async writeContent(customerId: string, content: string) {
-    let output = this.getOutput(customerId);
+    const output = this.getOutput(customerId);
     await this.writeToStream(output, content);
   }
 }
@@ -400,59 +403,66 @@ export class JsonWriter extends FileWriterBase {
 
   constructor(options?: JsonWriterOptions) {
     super(options);
-    this.fileExtension = "json";
+    this.fileExtension = 'json';
     this.format = options?.format || JsonOutputFormat.jsonl;
     this.formatted =
       this.format === JsonOutputFormat.json ? !!options?.formatted : false;
     this.valueFormat = options?.valueFormat || JsonValueFormat.objects;
   }
 
-  protected serializeRow(parsedRow: any[], rawRow: any[]) {
-    let rowObj: any;
+  protected serializeRow(
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>
+  ) {
+    let rowObj: unknown;
     if (this.valueFormat === JsonValueFormat.raw) {
       rowObj = rawRow;
     } else if (this.valueFormat === JsonValueFormat.objects) {
-      let obj = this.query!.columnNames.reduce(
-        (obj, key, index) => ({ ...obj, [key]: parsedRow[index] }),
+      const obj = this.query!.columnNames.reduce(
+        (obj, key, index) => ({...obj, [key]: parsedRow[index]}),
         {}
       );
-      rowObj = <any>obj;
+      rowObj = obj;
     } else {
       // i.e. JsonValueFormat.arrays
       rowObj = parsedRow;
     }
-    let content = JSON.stringify(rowObj, null, this.formatted ? 2 : undefined);
+    const content = JSON.stringify(
+      rowObj,
+      null,
+      this.formatted ? 2 : undefined
+    );
     return content;
   }
 
   override async onAddRow(
     customerId: string,
-    parsedRow: any[],
-    rawRow: any[],
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>,
     firstRow: boolean
   ) {
-    let content = "";
+    let content = '';
     if (firstRow) {
       // starting a new file
       if (this.format === JsonOutputFormat.json) {
-        content += "[\n";
+        content += '[\n';
       }
       if (this.valueFormat === JsonValueFormat.arrays) {
         content += JSON.stringify(this.query!.columnNames);
         if (this.format === JsonOutputFormat.json) {
-          content += ",\n";
+          content += ',\n';
         } else {
-          content += "\n";
+          content += '\n';
         }
       }
     }
     content += this.serializeRow(parsedRow, rawRow);
     if (this.format === JsonOutputFormat.json) {
       if (!firstRow) {
-        content = ",\n" + content;
+        content = ',\n' + content;
       }
     } else {
-      content += "\n";
+      content += '\n';
     }
     await this.writeContent(customerId, content);
     this.rowCountsByCustomer[customerId] += 1;
@@ -460,7 +470,7 @@ export class JsonWriter extends FileWriterBase {
 
   override async onClosingStream(output: Output): Promise<void> {
     if (this.format === JsonOutputFormat.json) {
-      const content = "\n]";
+      const content = '\n]';
       await this.writeToStream(output, content);
     }
   }
@@ -473,19 +483,21 @@ export class CsvWriter extends FileWriterBase {
 
   constructor(options?: CsvWriterOptions) {
     super(options);
-    this.fileExtension = "csv";
+    this.fileExtension = 'csv';
     this.quoted = !!options?.quoted;
-    this.arraySeparator = options?.arraySeparator || "|";
+    this.arraySeparator = options?.arraySeparator || '|';
   }
 
   protected onBeginScript(scriptName: string, query: QueryElements): void {
     this.csvOptions = {
       header: false,
       quoted: this.quoted,
-      columns: query!.columns.map((col) => col.name),
+      columns: query!.columns.map(col => col.name),
       cast: {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         boolean: (value: boolean, context: csvStringify.CastingContext) =>
-          value ? "true" : "false",
+          value ? 'true' : 'false',
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         object: (value: object, context: csvStringify.CastingContext) =>
           Array.isArray(value)
             ? value.join(this.arraySeparator)
@@ -496,24 +508,32 @@ export class CsvWriter extends FileWriterBase {
 
   override async onAddRow(
     customerId: string,
-    parsedRow: any[],
-    rawRow: any[],
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>,
     firstRow: boolean
   ) {
     let opts = this.csvOptions;
     if (firstRow) {
-      opts = Object.assign({}, this.csvOptions, { header: true });
+      opts = Object.assign({}, this.csvOptions, {header: true});
     }
-    let csvText = stringify([parsedRow], opts);
+    const csvText = stringify([parsedRow], opts);
     await this.writeContent(customerId, csvText);
     this.rowCountsByCustomer[customerId] += 1;
   }
 }
 
 export class NullWriter implements IResultWriter {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   beginScript(scriptName: string, query: QueryElements): void | Promise<void> {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   beginCustomer(customerId: string): void | Promise<void> {}
-  addRow(customerId: string, parsedRow: any[], rawRow: any[]): void {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  addRow(
+    customerId: string,
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>
+  ): void {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   endCustomer(customerId: string): void | Promise<void> {}
   endScript(): void | Promise<void> {}
 }

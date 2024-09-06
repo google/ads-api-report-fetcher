@@ -14,45 +14,45 @@
  limitations under the License.
  */
 
-import winston from "winston";
+import winston from 'winston';
 import {
   LoggingWinston,
   getDefaultMetadataForTracing,
   LOGGING_TRACE_KEY,
-} from "@google-cloud/logging-winston";
-const argv = require("yargs/yargs")(process.argv.slice(2)).argv;
+} from '@google-cloud/logging-winston';
+const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
 
-const { format } = winston;
+const {format} = winston;
 
 /** Default log level */
 // NOTE: as we use argv directly (before parsing) we have to manually check all aliases for the option log-level
-export let LOG_LEVEL =
+export const LOG_LEVEL =
   argv.logLevel ||
   argv.loglevel ||
   argv.ll ||
   argv.log_level ||
   process.env.LOG_LEVEL ||
-  (process.env.NODE_ENV === "dev" ? "verbose" : "info");
+  (process.env.NODE_ENV === 'dev' ? 'verbose' : 'info');
 
 const colors = {
-  error: "red",
-  warn: "yellow",
-  info: "white",
-  verbose: "gray",
-  debug: "grey",
+  error: 'red',
+  warn: 'yellow',
+  info: 'white',
+  verbose: 'gray',
+  debug: 'grey',
 };
 
 function wrap(str: string) {
-  return str ? " [" + str + "]" : "";
+  return str ? ' [' + str + ']' : '';
 }
 const formats: winston.Logform.Format[] = [];
 if (process.stdout.isTTY) {
-  formats.push(format.colorize({ all: true }));
+  formats.push(format.colorize({all: true}));
   winston.addColors(colors);
 }
 formats.push(
   format.printf(
-    (info) =>
+    info =>
       `${info.timestamp}: ${wrap(info.scriptName)}${wrap(info.customerId)} ${
         info.message
       }`
@@ -62,17 +62,17 @@ export const defaultTransports: winston.transport[] = [];
 defaultTransports.push(
   new winston.transports.Console({
     format: format.combine(...formats),
-    handleRejections: LOG_LEVEL === "debug",
+    handleRejections: LOG_LEVEL === 'debug',
   })
 );
 
 export function createConsoleLogger(): winston.Logger {
   const logger = winston.createLogger({
-    silent: LOG_LEVEL === "off",
+    silent: LOG_LEVEL === 'off',
     level: LOG_LEVEL, // NOTE: we use same log level for all transports
     format: format.combine(
-      format.errors({ stack: true }),
-      format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:SSS" })
+      format.errors({stack: true}),
+      format.timestamp({format: 'YYYY-MM-DD HH:mm:ss:SSS'})
     ),
     transports: defaultTransports,
     exitOnError: false,
@@ -84,8 +84,8 @@ export function createCloudLogger(): winston.Logger {
   const cloudLogger = winston.createLogger({
     level: LOG_LEVEL,
     format: format.combine(
-      format.errors({ stack: true }),
-      format((info) => {
+      format.errors({stack: true}),
+      format(info => {
         info.trace = process.env.TRACE_ID;
         info[LOGGING_TRACE_KEY] = process.env.TRACE_ID;
         return info;
@@ -98,12 +98,12 @@ export function createCloudLogger(): winston.Logger {
         labels: {
           component: <string>process.env.LOG_COMPONENT,
         },
-        logName: "gaarf",
+        logName: 'gaarf',
         resource: {
           labels: {
             function_name: <string>process.env.K_SERVICE,
           },
-          type: "cloud_function",
+          type: 'cloud_function',
         },
         useMessageField: false,
         // setting redirectToStdout:true actually disables using Logging API,
@@ -117,7 +117,7 @@ export function createCloudLogger(): winston.Logger {
         // And even recommended in
         // https://cloud.google.com/nodejs/docs/reference/logging-winston/latest#alternative-way-to-ingest-logs-in-google-cloud-managed-environments
         redirectToStdout: true,
-        handleRejections: LOG_LEVEL === "debug",
+        handleRejections: LOG_LEVEL === 'debug',
       }),
     ],
     exitOnError: false,
@@ -133,7 +133,7 @@ export function createLogger(): winston.Logger {
   } else {
     logger = createConsoleLogger();
   }
-  logger.on("error", (e) => {
+  logger.on('error', e => {
     console.error(`Error on logging: ${e}`);
   });
   return logger;

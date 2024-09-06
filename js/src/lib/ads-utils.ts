@@ -14,11 +14,11 @@
  limitations under the License.
  */
 
-import { GoogleAdsApiConfig, IGoogleAdsApiClient } from "./ads-api-client";
-import { getFileContent } from "./file-utils";
-import _ from "lodash";
-import yaml from "js-yaml";
-import { AdsQueryExecutor } from "./ads-query-executor";
+import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client';
+import {getFileContent} from './file-utils';
+import _ from 'lodash';
+import yaml from 'js-yaml';
+import {AdsQueryExecutor} from './ads-query-executor';
 
 /**
  * Return a normalized list of customer ids
@@ -42,8 +42,8 @@ export function parseCustomerIds(
     }
   } else {
     // NOTE: argv.account is CLI arg, it can only be a string
-    if (customerId.includes(",")) {
-      customerIds = customerId.split(",");
+    if (customerId.includes(',')) {
+      customerIds = customerId.split(',');
     } else {
       customerIds = [customerId];
     }
@@ -55,7 +55,7 @@ export function parseCustomerIds(
 
   if (customerIds && customerIds.length) {
     for (let i = 0; i < customerIds.length; i++) {
-      customerIds[i] = customerIds[i].toString().replaceAll("-", "");
+      customerIds[i] = customerIds[i].toString().replaceAll('-', '');
     }
   }
   return customerIds;
@@ -71,17 +71,18 @@ export async function loadAdsConfigFromFile(
 ): Promise<GoogleAdsApiConfig> {
   try {
     const content = await getFileContent(configFilepath);
-    const doc = configFilepath.endsWith(".json")
-      ? <any>JSON.parse(content)
-      : <any>yaml.load(content);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc: any = configFilepath.endsWith('.json')
+      ? JSON.parse(content)
+      : yaml.load(content);
 
     return {
-      developer_token: doc["developer_token"],
-      client_id: doc["client_id"],
-      client_secret: doc["client_secret"],
-      refresh_token: doc["refresh_token"],
-      login_customer_id: doc["login_customer_id"]?.toString(),
-      customer_id: doc["customer_id"]?.toString(),
+      developer_token: doc['developer_token'],
+      client_id: doc['client_id'],
+      client_secret: doc['client_secret'],
+      refresh_token: doc['refresh_token'],
+      login_customer_id: doc['login_customer_id']?.toString(),
+      customer_id: doc['customer_id']?.toString(),
     };
   } catch (e) {
     throw new Error(
@@ -119,25 +120,28 @@ export async function getCustomerInfo(
       AND customer_client.status = "ENABLED"
     ORDER BY customer_client.level`;
   //
-  const queryText2 = `SELECT customer.descriptive_name FROM customer`;
+  const queryText2 = 'SELECT customer.descriptive_name FROM customer';
   let customer: CustomerInfo | undefined = undefined;
   const query = adsClient.getQueryEditor().parseQuery(queryText);
   const query2 = adsClient.getQueryEditor().parseQuery(queryText2);
   const executor = new AdsQueryExecutor(adsClient);
-  const result = await executor.executeQueryAndParseToObjects(query, customerId);
+  const result = await executor.executeQueryAndParseToObjects(
+    query,
+    customerId
+  );
   for (const row of result.rows!) {
-    const cid = row["id"].toString();
-    if (row["level"].toString() === '0') {
+    const cid = row['id'].toString();
+    if (row['level'].toString() === '0') {
       // the current account itself
       const descriptiveName =
-        row["status"] === "ENABLED"
+        row['status'] === 'ENABLED'
           ? (await executor.executeQueryAndParse(query2, cid)).rows![0]
           : null;
       customer = {
         id: cid,
         name: descriptiveName,
         is_mcc: false,
-        status: row["status"],
+        status: row['status'],
         children: [],
       };
     } else {
@@ -164,15 +168,15 @@ export async function getCustomerIds(
     WHERE
       customer_client.status = "ENABLED" AND
       customer_client.manager = False`;
-  if (typeof customerId === "string") {
+  if (typeof customerId === 'string') {
     customerId = [customerId];
   }
-  let all_ids = [];
+  const all_ids = [];
   const executor = new AdsQueryExecutor(adsClient);
   const query = adsClient.getQueryEditor().parseQuery(queryText);
   for (const cid of customerId) {
     const res = await executor.executeQueryAndParse(query, cid);
-    let ids = res!.rows!.map((row) => row[0].toString());
+    const ids = res!.rows!.map(row => row[0].toString());
     all_ids.push(...ids);
   }
   return all_ids;
@@ -190,18 +194,16 @@ export async function filterCustomerIds(
   ids: string[],
   customer_ids_query: string
 ): Promise<string[]> {
-  let query = adsClient.getQueryEditor().parseQuery(customer_ids_query);
-  let accounts: Set<string> = new Set();
-  let idx = 0;
+  const query = adsClient.getQueryEditor().parseQuery(customer_ids_query);
+  const accounts: Set<string> = new Set();
   const executor = new AdsQueryExecutor(adsClient);
-  for (let id of ids) {
-    let result = await executor.executeQueryAndParse(query, id);
+  for (const id of ids) {
+    const result = await executor.executeQueryAndParse(query, id);
     if (result.rowCount > 0) {
-      for (let row of result.rows!) {
+      for (const row of result.rows!) {
         accounts.add(row[0]);
       }
     }
-    idx++;
     // TODO: purge Customer objects in IGoogleAdsApiClient
   }
   return Array.from(accounts);

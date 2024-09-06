@@ -1,4 +1,19 @@
 "use strict";
+/*
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -14,7 +29,7 @@ class FileQueryReader {
         this.scripts = [];
         if (scripts && scripts.length) {
             for (let script of scripts) {
-                if (script.includes("*") || script.includes("**")) {
+                if (script.includes('*') || script.includes('**')) {
                     const expanded_files = (0, glob_1.globSync)(script);
                     this.scripts.push(...expanded_files);
                 }
@@ -29,9 +44,9 @@ class FileQueryReader {
     }
     async *[Symbol.asyncIterator]() {
         for (const script of this.scripts) {
-            let queryText = await (0, file_utils_1.getFileContent)(script);
+            const queryText = await (0, file_utils_1.getFileContent)(script);
             this.logger.info(`Processing query from ${chalk_1.default.gray(script)}`);
-            let scriptName = path_1.default.basename(script).split(".sql")[0];
+            const scriptName = path_1.default.basename(script).split('.sql')[0];
             const item = { name: scriptName, text: queryText };
             yield item;
         }
@@ -47,8 +62,8 @@ class ConsoleQueryReader {
         let i = 0;
         for (let script of this.scripts) {
             i++;
-            let scriptName = "query" + i;
-            let match = script.match(/^([\d\w]+)\:/);
+            let scriptName = 'query' + i;
+            const match = script.match(/^([\d\w]+):/);
             if (match && match.length > 1) {
                 scriptName = match[1];
                 script = script.substring(scriptName.length + 1);

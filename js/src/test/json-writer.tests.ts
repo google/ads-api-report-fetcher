@@ -14,25 +14,25 @@
  * limitations under the License.
  */
 
-import assert from "assert";
-import fs from "fs";
-import path from "path";
+import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 
-import { AdsQueryExecutor } from "../lib/ads-query-executor";
+import {AdsQueryExecutor} from '../lib/ads-query-executor';
 import {
   JsonOutputFormat,
   JsonValueFormat,
   JsonWriter,
-} from "../lib/file-writers";
+} from '../lib/file-writers';
 
-import { MockGoogleAdsApiClient } from "./helpers";
+import {MockGoogleAdsApiClient} from './helpers';
 
-suite("JsonWriter", () => {
+suite('JsonWriter', () => {
   let executor: AdsQueryExecutor;
-  const OUTPUT_DIR = ".tmp";
-  const SCRIPT_NAME = "test";
+  const OUTPUT_DIR = '.tmp';
+  const SCRIPT_NAME = 'test';
 
-  let queryText = `
+  const queryText = `
       SELECT
         ad_group_ad.ad.id AS ad_id,  --number
         ad_group_ad.ad.final_urls AS final_urls,  -- array<string>
@@ -42,86 +42,86 @@ suite("JsonWriter", () => {
       FROM ad_group_ad
     `;
 
-  let customers = ["cust_with_no_data", "cust_with_data"];
-  let mock_result = [
+  const customers = ['cust_with_no_data', 'cust_with_data'];
+  const mock_result = [
     {
       campaign: {
         id: 1767375787,
-        resource_name: "customers/9489090398/campaigns/1767375787",
+        resource_name: 'customers/9489090398/campaigns/1767375787',
       },
       ad_group_ad: {
         ad: {
           id: 563386468726,
-          final_urls: ["url1", "url2"],
+          final_urls: ['url1', 'url2'],
           type: 7,
-          resource_name: "customers/9489090398/ads/563386468726",
+          resource_name: 'customers/9489090398/ads/563386468726',
         },
-        ad_group: "customers/9489090398/adGroups/132594495320",
+        ad_group: 'customers/9489090398/adGroups/132594495320',
         policy_summary: {
           policy_topic_entries: [
             {
               evidences: [],
               constraints: [{}],
-              topic: "COPYRIGHTED_CONTENT",
+              topic: 'COPYRIGHTED_CONTENT',
               type: 8,
             },
           ],
         },
         resource_name:
-          "customers/9489090398/adGroupAds/132594495320~563386468726",
+          'customers/9489090398/adGroupAds/132594495320~563386468726',
       },
     },
     // 2
     {
       campaign: {
         id: 2222222222,
-        resource_name: "customers/9489090398/campaigns/2222222222",
+        resource_name: 'customers/9489090398/campaigns/2222222222',
       },
       ad_group_ad: {
         ad: {
           id: 123456789012,
-          final_urls: ["url1", "url2"],
+          final_urls: ['url1', 'url2'],
           type: 7,
-          resource_name: "customers/9489090398/ads/123456789012",
+          resource_name: 'customers/9489090398/ads/123456789012',
         },
-        ad_group: "customers/9489090398/adGroups/132594495320",
+        ad_group: 'customers/9489090398/adGroups/132594495320',
         policy_summary: {
           policy_topic_entries: [
             {
               evidences: [],
               constraints: [{}],
-              topic: "COPYRIGHTED_CONTENT",
+              topic: 'COPYRIGHTED_CONTENT',
               type: 8,
             },
           ],
         },
         resource_name:
-          "customers/9489090398/adGroupAds/132594495320~123456789012",
+          'customers/9489090398/adGroupAds/132594495320~123456789012',
       },
     },
   ];
 
   setup(() => {
-    let client = new MockGoogleAdsApiClient();
-    client.setupResult({ cust_with_data: mock_result });
+    const client = new MockGoogleAdsApiClient();
+    client.setupResult({cust_with_data: mock_result});
     executor = new AdsQueryExecutor(client);
   });
 
   function getJson() {
-    let jsonText = fs.readFileSync(
-      path.join(OUTPUT_DIR, SCRIPT_NAME + ".json"),
-      "utf-8"
+    const jsonText = fs.readFileSync(
+      path.join(OUTPUT_DIR, SCRIPT_NAME + '.json'),
+      'utf-8'
     );
     console.log(jsonText);
-    let json = JSON.parse(jsonText);
+    const json = JSON.parse(jsonText);
     console.log(json);
     assert(json);
     return json;
   }
 
-  test("writing in json (format=json) with valueFormat=object", async function () {
+  test('writing in json (format=json) with valueFormat=object', async () => {
     // arrange
-    let writer = new JsonWriter({
+    const writer = new JsonWriter({
       outputPath: OUTPUT_DIR,
       format: JsonOutputFormat.json,
       valueFormat: JsonValueFormat.objects,
@@ -133,7 +133,7 @@ suite("JsonWriter", () => {
     // assert
     const json = getJson();
     assert.equal(json.length, 2);
-    let row = json[0];
+    const row = json[0];
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,
@@ -141,9 +141,9 @@ suite("JsonWriter", () => {
     );
   });
 
-  test("writing in json (format=json) with valueFormat=arrays", async function () {
+  test('writing in json (format=json) with valueFormat=arrays', async () => {
     // arrange
-    let writer = new JsonWriter({
+    const writer = new JsonWriter({
       outputPath: OUTPUT_DIR,
       format: JsonOutputFormat.json,
       valueFormat: JsonValueFormat.arrays,
@@ -156,20 +156,20 @@ suite("JsonWriter", () => {
     const json = getJson();
     assert.equal(json.length, 3);
     assert.deepEqual(json[0], [
-      "ad_id",
-      "final_urls",
-      "ad_type",
-      "ad_group",
-      "policy_topic_entries",
+      'ad_id',
+      'final_urls',
+      'ad_type',
+      'ad_group',
+      'policy_topic_entries',
     ]);
-    let row = json[1];
+    const row = json[1];
     assert.equal(row[0], mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(row[1], mock_result[0].ad_group_ad.ad.final_urls);
   });
 
-  test("writing in json (format=json) with valueFormat=raw", async function () {
+  test('writing in json (format=json) with valueFormat=raw', async () => {
     // arrange
-    let writer = new JsonWriter({
+    const writer = new JsonWriter({
       outputPath: OUTPUT_DIR,
       format: JsonOutputFormat.json,
       valueFormat: JsonValueFormat.raw,
@@ -181,7 +181,7 @@ suite("JsonWriter", () => {
     // assert
     const json = getJson();
     assert.equal(json.length, 2);
-    let row = json[0];
+    const row = json[0];
     assert.equal(row.ad_group_ad.ad.id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.ad_group_ad.ad.final_urls,
@@ -189,9 +189,9 @@ suite("JsonWriter", () => {
     );
   });
 
-  test("writing in jsonl with valueFormat=object", async function () {
+  test('writing in jsonl with valueFormat=object', async () => {
     // arrange
-    let writer = new JsonWriter({
+    const writer = new JsonWriter({
       outputPath: OUTPUT_DIR,
       format: JsonOutputFormat.jsonl,
       valueFormat: JsonValueFormat.objects,
@@ -201,14 +201,14 @@ suite("JsonWriter", () => {
     await executor.execute(SCRIPT_NAME, queryText, customers, {}, writer);
 
     // assert
-    let jsonText = fs.readFileSync(
-      path.join(OUTPUT_DIR, SCRIPT_NAME + ".json"),
-      "utf-8"
+    const jsonText = fs.readFileSync(
+      path.join(OUTPUT_DIR, SCRIPT_NAME + '.json'),
+      'utf-8'
     );
     console.log(jsonText);
-    const lines = jsonText.split("\n").filter((s) => s.length > 0);
+    const lines = jsonText.split('\n').filter(s => s.length > 0);
     assert.equal(lines.length, 2);
-    let row = JSON.parse(lines[0]);
+    const row = JSON.parse(lines[0]);
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,

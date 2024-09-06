@@ -25,7 +25,7 @@ async function getFileContent(scriptPath) {
     if (scriptPath.startsWith('gs://')) {
         return (0, google_cloud_1.getFileFromGCS)(scriptPath);
     }
-    let queryText = fs_1.default.readFileSync(scriptPath.trim(), 'utf-8');
+    const queryText = fs_1.default.readFileSync(scriptPath.trim(), 'utf-8');
     return queryText;
 }
 exports.getFileContent = getFileContent;

@@ -14,6 +14,4 @@
  * limitations under the License.
  */
 
-export function mochaGlobalSetup() {
-
-}
+export function mochaGlobalSetup() {}

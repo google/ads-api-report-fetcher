@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { enums } from "google-ads-api";
-import _ from "lodash";
-import { math_parse } from "./math-engine";
+import {enums} from 'google-ads-api';
+import _, {isString} from 'lodash';
 
 import {
   ApiType,
@@ -25,21 +24,28 @@ import {
   CustomizerType,
   FieldTypeKind,
   QueryElements,
-} from "./types";
-import { navigateObject, traverseObject, tryParseNumber } from "./utils";
+} from './types';
+import {navigateObject, traverseObject, tryParseNumber} from './utils';
 
 export interface IAdsRowParser {
+  /**
+   * Parse a row returned by a GoogleAds API client.
+   * @param row A single row returned by IGoogleAdsApiClient.executeQuery
+   * @param query A query
+   * @param objectMode True to use object mode, i.e. return result as an object
+   *        instead of an array.
+   */
   parseRow(
-    row: any,
+    row: Record<string, unknown>,
     query: QueryElements,
     objectMode?: boolean
-  ): any[] | Record<string, any>;
+  ): unknown[] | Record<string, unknown>;
 }
 
 const CAMEL_TO_SNAKE_REGEX = /[A-Z]/g;
 
 /**
- * How to parse results from Ads API in `IAdsRowParser.parseRowz`.
+ * How to parse results from Ads API in `IAdsRowParser.parseRow`.
  */
 export enum ParseResultMode {
   /**
@@ -65,25 +71,29 @@ export class AdsRowParser implements IAdsRowParser {
     return name;
   }
 
-  parseRow(row: any, query: QueryElements, objectMode = false) {
+  parseRow(
+    row: Record<string, unknown>,
+    query: QueryElements,
+    objectMode = false
+  ) {
     // flatten the tree of object into a flat obejct with all properties
-    let rowValues: Record<string, any> = {};
-    for (let field of Object.keys(row)) {
-      let item = row[field];
+    const rowValues: Record<string, unknown> = {};
+    for (const field of Object.keys(row)) {
+      const item = row[field];
       rowValues[this.normalizeName(field)] = item;
       traverseObject(
         item,
-        (name, value, path, object) => {
-          let field_full = path.join(".");
+        (name, value, path) => {
+          const field_full = path.join('.');
           rowValues[this.normalizeName(field_full)] = value;
         },
         [field]
       );
     }
     // process customizers and flatten row object into array
-    let rowValuesArr = [];
+    const rowValuesArr = [];
     for (let i = 0; i < query.columns.length; i++) {
-      let column = query.columns[i];
+      const column = query.columns[i];
       let value;
       if (column.customizer) {
         value = this.getValueWithCustomizer(
@@ -107,18 +117,22 @@ export class AdsRowParser implements IAdsRowParser {
     if (this.apiType === ApiType.gRPC) {
       // NOTE: gRPC API returns enums as numbers, while REST API returns strings
       for (let i = 0; i < query.columns.length; i++) {
-        let column = query.columns[i];
-        let value: any = objectMode ? rowValues[column.name] : rowValuesArr[i];
-        let colType = column.type;
+        const column = query.columns[i];
+        const value: unknown = objectMode
+          ? rowValues[column.name]
+          : rowValuesArr[i];
+        const colType = column.type;
         if (
           colType.kind === FieldTypeKind.enum &&
           colType.repeated &&
           _.isArray(value)
         ) {
           for (let j = 0; j < value.length; j++) {
-            let subval = value[j];
+            const subval = value[j];
             if (_.isNumber(subval)) {
-              let enumType = (<any>enums)[colType.typeName];
+              const enumType = (
+                enums as Record<string, Record<number, string>>
+              )[colType.typeName];
               if (enumType) {
                 value[j] = enumType[subval];
               }
@@ -126,7 +140,9 @@ export class AdsRowParser implements IAdsRowParser {
           }
         } else if (colType.kind === FieldTypeKind.enum) {
           if (_.isNumber(value)) {
-            let enumType = (<any>enums)[colType.typeName];
+            const enumType = (enums as Record<string, Record<number, string>>)[
+              colType.typeName
+            ];
             if (enumType) {
               if (objectMode) {
                 rowValues[column.name] = enumType[value];
@@ -136,35 +152,34 @@ export class AdsRowParser implements IAdsRowParser {
             }
           }
         } else if (colType.kind === FieldTypeKind.struct) {
-          if (value && value.toJSON) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (value && (value as any).toJSON) {
             if (objectMode) {
-              rowValues[column.name] = value.toJSON();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              rowValues[column.name] = (value as any).toJSON();
             } else {
-              rowValuesArr[i] = value.toJSON();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              rowValuesArr[i] = (value as any).toJSON();
             }
           }
         }
       }
     }
-    if (objectMode) {
-      return rowValues;
-    } else {
-      return rowValuesArr;
-    }
+    return objectMode ? rowValues : rowValuesArr;
   }
 
   protected getValueWithCustomizer(
-    row: any,
+    row: Record<string, unknown>,
     column: Column,
     customizer: Customizer,
     query: QueryElements
-  ): any {
+  ): unknown {
     let value;
     if (customizer.type === CustomizerType.VirtualColumn) {
       try {
         value = customizer.evaluator.evaluate(row);
       } catch (e) {
-        if (e.message.includes("TypeError: Cannot read properties of null")) {
+        if (e.message.includes('TypeError: Cannot read properties of null')) {
           value = null;
         }
       }
@@ -172,12 +187,12 @@ export class AdsRowParser implements IAdsRowParser {
       value = row[column.expression];
       if (!value) return value;
       if (customizer.type === CustomizerType.Function) {
-        let func = query.functions[customizer.function];
+        const func = query.functions[customizer.function];
         value = func(value);
       } else {
-        // for other customers we support arrays specifically
+        // for other customizers we support arrays specifically
         if (_.isArray(value)) {
-          let new_value = [];
+          const new_value = [];
           for (let j = 0; j < value.length; j++) {
             new_value[j] = this.parseScalarValue(value[j], customizer);
           }
@@ -190,11 +205,18 @@ export class AdsRowParser implements IAdsRowParser {
     return value;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected parseScalarValue(value: any, customizer: Customizer) {
     if (customizer.type === CustomizerType.NestedField) {
       value = navigateObject(value, customizer.selector);
     } else if (customizer.type === CustomizerType.ResourceIndex) {
-      value = value.split("~")[customizer.index];
+      // the value from query's result we expect to be a string
+      if (!isString(value)) {
+        throw new Error(
+          `Unexpected value type ${typeof value} ('${value}') for column with ResourceIndex customizer`
+        );
+      }
+      value = value.split('~')[customizer.index];
       if (value) {
         if (customizer.index === 0) {
           // e.g. customers/{customer_id}/adGroupAds/{ad_group_id}~{ad_id}

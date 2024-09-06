@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createLogger } from "./logger-factory";
-import winston from "winston";
+import {createLogger} from './logger-factory';
+import winston from 'winston';
 
 let logger: winston.Logger | undefined;
 

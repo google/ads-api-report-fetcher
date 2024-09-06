@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EvalFunction } from "mathjs";
-import { IGoogleAdsApiClient } from "./ads-api-client";
-import { IAdsRowParser } from "./ads-row-parser";
-import { AdsQueryExecutor } from "./ads-query-executor";
+import {EvalFunction} from 'mathjs';
+import {AdsQueryExecutor} from './ads-query-executor';
 
 export interface CustomizerResourceIndex {
   type: CustomizerType.ResourceIndex;
@@ -42,10 +40,10 @@ export type Customizer =
   | CustomizerVirtualColumn;
 
 export enum CustomizerType {
-  ResourceIndex = "ResourceIndex",
-  NestedField = "NestedField",
-  Function = "Function",
-  VirtualColumn = "VirtualColumn",
+  ResourceIndex = 'ResourceIndex',
+  NestedField = 'NestedField',
+  Function = 'Function',
+  VirtualColumn = 'VirtualColumn',
 }
 
 export enum FieldTypeKind {
@@ -54,7 +52,7 @@ export enum FieldTypeKind {
   struct,
 }
 export interface ProtoFieldMeta {
-  rule?: "repeated";
+  rule?: 'repeated';
   /**
    * field's type can be:
    *  - a primitive type (string, int64, float, bool)
@@ -76,7 +74,6 @@ export interface ProtoFieldMeta {
 }
 export interface ProtoTypeMeta {
   name?: string; // extension
-  options?: any;
   /**
    * Type fields
    */
@@ -90,6 +87,7 @@ export interface ProtoEnumMeta {
   values: Record<string, number>;
   name?: string; // extension
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isEnumType(type: any): type is ProtoEnumMeta {
   return !!type.values;
 }
@@ -118,15 +116,15 @@ export interface IQueryExecutor {
     query: QueryElements,
     customerId: string,
     executor: AdsQueryExecutor
-  ): AsyncGenerator<any>;
+  ): AsyncGenerator<Record<string, unknown>>;
 }
 export enum ApiType {
-  gRPC = "gRPC",
-  REST = "REST",
+  gRPC = 'gRPC',
+  REST = 'REST',
 }
 
 export class QueryElements {
-  queryText: string = "";
+  queryText = '';
   columns: Column[];
   resource: ResourceInfo;
   functions: Record<string, Function>;
@@ -136,7 +134,7 @@ export class QueryElements {
     query: string,
     columns: Column[],
     resource: ResourceInfo,
-    functions: Record<string, Function>,
+    functions: Record<string, Function>
   ) {
     this.queryText = query;
     this.columns = columns;
@@ -145,22 +143,25 @@ export class QueryElements {
   }
 
   public get columnNames(): string[] {
-    return this.columns.map((col) => col.name);
+    return this.columns.map(col => col.name);
   }
 
   public get columnTypes(): FieldType[] {
-    return this.columns.map((col) => col.type);
+    return this.columns.map(col => col.type);
   }
 }
 
 export interface QueryResult {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rawRows?: Record<string, any>[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows?: any[];
   rowCount: number;
   query: QueryElements;
   customerId: string;
 }
 export interface QueryObjectResult {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows: Record<string, any>[];
   rowCount: number;
   query: QueryElements;
@@ -172,8 +173,8 @@ export interface IResultWriter {
   beginCustomer(customerId: string): Promise<void> | void;
   addRow(
     customerId: string,
-    parsedRow: any[],
-    rawRow: any[]
+    parsedRow: unknown[],
+    rawRow: Record<string, unknown>
   ): Promise<void> | void;
   endCustomer(customerId: string): Promise<void> | void;
   endScript(): Promise<void> | void;
@@ -184,11 +185,12 @@ export interface InputQuery {
   name: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface IQueryReader extends AsyncIterable<InputQuery> {
   //*[Symbol.iterator];
 }
 
 export enum ArrayHandling {
-  strings = "strings",
-  arrays = "arrays",
+  strings = 'strings',
+  arrays = 'arrays',
 }

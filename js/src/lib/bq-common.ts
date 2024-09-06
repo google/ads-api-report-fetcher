@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { BigQuery, Dataset } from "@google-cloud/bigquery";
-import bigquery from "@google-cloud/bigquery/build/src/types";
-import {getLogger} from "./logger";
+import {BigQuery, Dataset} from '@google-cloud/bigquery';
+import bigquery from '@google-cloud/bigquery/build/src/types';
+import {getLogger} from './logger';
 
-export var OAUTH_SCOPES = [
-  "https://www.googleapis.com/auth/cloud-platform",
-  "https://www.googleapis.com/auth/cloud-platform.read-only",
-  "https://www.googleapis.com/auth/bigquery",
-  "https://www.googleapis.com/auth/bigquery.readonly",
+export const OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/cloud-platform',
+  'https://www.googleapis.com/auth/cloud-platform.read-only',
+  'https://www.googleapis.com/auth/bigquery',
+  'https://www.googleapis.com/auth/bigquery.readonly',
 ];
 
 export async function getDataset(
@@ -36,8 +36,8 @@ export async function getDataset(
   };
   try {
     dataset = bigquery.dataset(datasetId, options);
-    dataset = (await dataset.get({ autoCreate: true }))[0];
-    if (dataset.location != dataset.metadata.location) {
+    dataset = (await dataset.get({autoCreate: true}))[0];
+    if (dataset.location !== dataset.metadata.location) {
       dataset = bigquery.dataset(datasetId, {
         location: dataset.metadata.location,
       });

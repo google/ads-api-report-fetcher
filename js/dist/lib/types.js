@@ -14,6 +14,7 @@ var FieldTypeKind;
     FieldTypeKind[FieldTypeKind["enum"] = 1] = "enum";
     FieldTypeKind[FieldTypeKind["struct"] = 2] = "struct";
 })(FieldTypeKind = exports.FieldTypeKind || (exports.FieldTypeKind = {}));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isEnumType(type) {
     return !!type.values;
 }
@@ -25,17 +26,17 @@ var ApiType;
 })(ApiType = exports.ApiType || (exports.ApiType = {}));
 class QueryElements {
     constructor(query, columns, resource, functions) {
-        this.queryText = "";
+        this.queryText = '';
         this.queryText = query;
         this.columns = columns;
         this.resource = resource;
         this.functions = functions;
     }
     get columnNames() {
-        return this.columns.map((col) => col.name);
+        return this.columns.map(col => col.name);
     }
     get columnTypes() {
-        return this.columns.map((col) => col.type);
+        return this.columns.map(col => col.type);
     }
 }
 exports.QueryElements = QueryElements;

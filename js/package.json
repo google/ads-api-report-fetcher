@@ -23,6 +23,8 @@
     "clean": "shx rm -rf dist/*",
     "tsc": "tsc",
     "start": "node -r ts-node/register src/cli.ts $@",
+    "gts": "gts",
+    "lint": "gts lint",
     "build": "npm run tsc",
     "test": "mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts",
     "test:coverage": "nyc --reporter=text mocha --ui tdd --require ts-node/register --require src/test/fixtures.ts --timeout 10s src/test/**/*.ts"
@@ -71,6 +73,7 @@
     "@types/async": "^3.2.24",
     "@types/mocha": "^10.0.1",
     "@types/nunjucks": "^3.2.3",
+    "gts": "^5.3.1",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
     "shx": "^0.3.4",

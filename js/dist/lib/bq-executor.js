@@ -22,13 +22,15 @@ const utils_1 = require("./utils");
 const bq_common_1 = require("./bq-common");
 class BigQueryExecutor {
     constructor(projectId, options) {
-        const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || "us";
-        this.bigquery = (options === null || options === void 0 ? void 0 : options.bigqueryClient) || new bigquery_1.BigQuery({
-            projectId: projectId,
-            scopes: bq_common_1.OAUTH_SCOPES,
-            keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
-            location: datasetLocation,
-        });
+        const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || 'us';
+        this.bigquery =
+            (options === null || options === void 0 ? void 0 : options.bigqueryClient) ||
+                new bigquery_1.BigQuery({
+                    projectId: projectId,
+                    scopes: bq_common_1.OAUTH_SCOPES,
+                    keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
+                    location: datasetLocation,
+                });
         this.datasetLocation = datasetLocation;
         this.dumpQuery = options === null || options === void 0 ? void 0 : options.dumpQuery;
         this.logger = (0, logger_1.getLogger)();
@@ -36,7 +38,7 @@ class BigQueryExecutor {
     async execute(scriptName, queryText, params) {
         if (params === null || params === void 0 ? void 0 : params.macroParams) {
             for (const macro of Object.keys(params.macroParams)) {
-                if (macro.includes("dataset")) {
+                if (macro.includes('dataset')) {
                     // all macros containing the word 'dataset' we treat as a dataset's name
                     const value = params.macroParams[macro];
                     if (value) {
@@ -48,12 +50,13 @@ class BigQueryExecutor {
         if (params === null || params === void 0 ? void 0 : params.templateParams) {
             queryText = (0, utils_1.renderTemplate)(queryText, params.templateParams);
         }
-        let res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
+        const res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
         if (res.unknown_params.length) {
             throw new Error(`The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`);
         }
-        let query = {
+        const query = {
             query: res.text,
+            params: params === null || params === void 0 ? void 0 : params.sqlParams,
         };
         // NOTE: we can support DML scripts as well, but there is no clear reason for this
         // but if we do then it can be like this:
@@ -63,10 +66,10 @@ class BigQueryExecutor {
         // query.writeDisposition = params?.writeDisposition || 'WRITE_TRUNCATE';
         //}
         if (this.dumpQuery) {
-            this.logger.info(`Query text to execute:\n` + query.query);
+            this.logger.info('Query text to execute:\n' + query.query);
         }
         try {
-            let [values] = await this.bigquery.query(query);
+            const [values] = await this.bigquery.query(query);
             this.logger.info(`Query '${scriptName}' executed successfully`);
             return values;
         }
@@ -76,7 +79,7 @@ class BigQueryExecutor {
         }
     }
     async createUnifiedView(dataset, tableId, customers) {
-        if (typeof dataset == "string") {
+        if (typeof dataset === 'string') {
             dataset = await (0, bq_common_1.getDataset)(this.bigquery, dataset, this.datasetLocation);
         }
         const datasetId = dataset.id;
@@ -91,8 +94,8 @@ class BigQueryExecutor {
             let query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\``;
             if (customers && customers.length) {
                 query += ` WHERE _TABLE_SUFFIX in (${customers
-                    .map((s) => "'" + s + "'")
-                    .join(",")})`;
+                    .map(s => "'" + s + "'")
+                    .join(',')})`;
             }
             this.logger.debug(query);
             await dataset.query({
@@ -102,7 +105,7 @@ class BigQueryExecutor {
         }
         catch (e) {
             this.logger.error(`An error occured during creating the unified view (${table_fq}): ${e.message}`);
-            if (e.message.includes("Views cannot be queried through prefix")) {
+            if (e.message.includes('Views cannot be queried through prefix')) {
                 this.logger.warn(`You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`);
             }
             throw e;

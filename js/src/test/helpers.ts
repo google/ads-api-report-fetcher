@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Copyright 2023 Google LLC
  *
@@ -14,10 +15,10 @@
  * limitations under the License.
  */
 
-import _ from "lodash";
+import _ from 'lodash';
 
-import { GoogleAdsApiClientBase } from "../lib/ads-api-client";
-import { ApiType } from "../lib/types";
+import {GoogleAdsApiClientBase} from '../lib/ads-api-client';
+import {ApiType} from '../lib/types';
 
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
@@ -25,10 +26,10 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   constructor() {
     super(
       {
-        client_id: "",
-        client_secret: "",
-        developer_token: "",
-        refresh_token: "",
+        client_id: '',
+        client_secret: '',
+        developer_token: '',
+        refresh_token: '',
       },
       ApiType.gRPC
     );
@@ -36,21 +37,21 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
 
   setupResult(result: any[] | Record<string, any[]>) {
     if (_.isArray(result)) {
-      this.results[""] = result;
+      this.results[''] = result;
     } else {
       this.results = result;
     }
   }
 
   async executeQuery(query: string, customerId: string): Promise<any[]> {
-    let result = this.results[customerId] || this.results[""] || [];
-    return new Promise((resolve, reject) => {
+    const result = this.results[customerId] || this.results[''] || [];
+    return new Promise(resolve => {
       resolve(result);
     });
   }
 
   async *executeQueryStream(query: string, customerId: string) {
-    let result = this.results[customerId] || this.results[""] || [];
+    const result = this.results[customerId] || this.results[''] || [];
     for (const row of result) {
       yield row;
     }

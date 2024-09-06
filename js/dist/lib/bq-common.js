@@ -18,10 +18,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDataset = exports.OAUTH_SCOPES = void 0;
 const logger_1 = require("./logger");
 exports.OAUTH_SCOPES = [
-    "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/cloud-platform.read-only",
-    "https://www.googleapis.com/auth/bigquery",
-    "https://www.googleapis.com/auth/bigquery.readonly",
+    'https://www.googleapis.com/auth/cloud-platform',
+    'https://www.googleapis.com/auth/cloud-platform.read-only',
+    'https://www.googleapis.com/auth/bigquery',
+    'https://www.googleapis.com/auth/bigquery.readonly',
 ];
 async function getDataset(bigquery, datasetId, datasetLocation) {
     let dataset;
@@ -31,7 +31,7 @@ async function getDataset(bigquery, datasetId, datasetLocation) {
     try {
         dataset = bigquery.dataset(datasetId, options);
         dataset = (await dataset.get({ autoCreate: true }))[0];
-        if (dataset.location != dataset.metadata.location) {
+        if (dataset.location !== dataset.metadata.location) {
             dataset = bigquery.dataset(datasetId, {
                 location: dataset.metadata.location,
             });

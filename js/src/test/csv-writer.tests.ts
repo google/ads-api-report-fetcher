@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Copyright 2023 Google LLC
  *
@@ -14,59 +15,59 @@
  * limitations under the License.
  */
 
-import assert from "assert";
-import { parse } from "csv-parse/sync";
-import fs from "fs";
-import path from "path";
+import assert from 'assert';
+import {parse} from 'csv/sync';
+import fs from 'fs';
+import path from 'path';
 
-import { AdsQueryExecutor } from "../lib/ads-query-executor";
-import { CsvWriter } from "../lib/file-writers";
+import {AdsQueryExecutor} from '../lib/ads-query-executor';
+import {CsvWriter} from '../lib/file-writers';
 
-import { MockGoogleAdsApiClient } from "./helpers";
+import {MockGoogleAdsApiClient} from './helpers';
 
-suite("CsvWriter", () => {
-  const OUTPUT_DIR = ".tmp";
-  const SCRIPT_NAME = "test";
+suite('CsvWriter', () => {
+  const OUTPUT_DIR = '.tmp';
+  const SCRIPT_NAME = 'test';
 
   function assertCsvEqual(customerId: string, mockResults: any[]) {
-    let csvText = fs.readFileSync(
+    const csvText = fs.readFileSync(
       path.join(
         OUTPUT_DIR,
         customerId
-          ? SCRIPT_NAME + "_" + customerId + ".csv"
-          : SCRIPT_NAME + ".csv"
+          ? SCRIPT_NAME + '_' + customerId + '.csv'
+          : SCRIPT_NAME + '.csv'
       ),
-      "utf-8"
+      'utf-8'
     );
-    let csvData = parse(csvText, { columns: true, skipEmptyLines: true });
+    const csvData = parse(csvText, {columns: true, skipEmptyLines: true});
     assert.equal(csvData.length, mockResults.length);
     for (let i = 0; i < mockResults.length; i++) {
-      let expected = mockResults[i];
-      let actual = csvData[i];
-      console.log("Serialized CSV: ");
+      const expected = mockResults[i];
+      const actual = csvData[i];
+      console.log('Serialized CSV: ');
       console.log(actual);
       assert.deepStrictEqual(Object.keys(actual), Object.keys(expected));
-      let keys = Object.keys(expected);
+      const keys = Object.keys(expected);
       for (let j = 0; j < keys.length; j++) {
         assert.deepEqual(actual[keys[j]], expected[keys[j]]);
       }
     }
   }
 
-  test("file handling", async function () {
+  test('file handling', async () => {
     // arrange
-    let mock_result = {
+    const mock_result = {
       customer1: [
         {
           campaign: {
             id: 123,
-            resource_name: "customers/customer1/campaigns/123",
+            resource_name: 'customers/customer1/campaigns/123',
           },
         },
         {
           campaign: {
             id: 125,
-            resource_name: "customers/customer1/campaigns/125",
+            resource_name: 'customers/customer1/campaigns/125',
           },
         },
       ],
@@ -74,22 +75,22 @@ suite("CsvWriter", () => {
         {
           campaign: {
             id: 124,
-            resource_name: "customers/customer2/campaigns/124",
+            resource_name: 'customers/customer2/campaigns/124',
           },
         },
         {
           campaign: {
             id: 126,
-            resource_name: "customers/customer2/campaigns/126",
+            resource_name: 'customers/customer2/campaigns/126',
           },
         },
       ],
     };
-    let customers = ["customer1", "customer2"];
-    let client = new MockGoogleAdsApiClient();
+    const customers = ['customer1', 'customer2'];
+    const client = new MockGoogleAdsApiClient();
     client.setupResult(mock_result);
-    let executor = new AdsQueryExecutor(client);
-    let queryText = `
+    const executor = new AdsQueryExecutor(client);
+    const queryText = `
       SELECT
         campaign.id,
         campaign.resource_name
@@ -106,14 +107,14 @@ suite("CsvWriter", () => {
     // assert
     assertCsvEqual(
       customers[0],
-      mock_result["customer1"].map((o) => {
-        return { id: o.campaign.id, resource_name: o.campaign.resource_name };
+      mock_result['customer1'].map(o => {
+        return {id: o.campaign.id, resource_name: o.campaign.resource_name};
       })
     );
     assertCsvEqual(
       customers[1],
-      mock_result["customer2"].map((o) => {
-        return { id: o.campaign.id, resource_name: o.campaign.resource_name };
+      mock_result['customer2'].map(o => {
+        return {id: o.campaign.id, resource_name: o.campaign.resource_name};
       })
     );
 
@@ -126,11 +127,11 @@ suite("CsvWriter", () => {
 
     // assert
     assertCsvEqual(
-      "",
+      '',
       Object.values(mock_result)
         .flat()
-        .map((o) => {
-          return { id: o.campaign.id, resource_name: o.campaign.resource_name };
+        .map(o => {
+          return {id: o.campaign.id, resource_name: o.campaign.resource_name};
         })
         .sort((a, b) => {
           return a.id > b.id ? 1 : -1;
@@ -138,38 +139,38 @@ suite("CsvWriter", () => {
     );
   });
 
-  test("writing", async function () {
+  test('writing', async () => {
     // arrange
-    let mock_result = [
+    const mock_result = [
       {
         campaign: {
           id: 1767375787,
-          resource_name: "customers/9489090398/campaigns/1767375787",
+          resource_name: 'customers/9489090398/campaigns/1767375787',
         },
         ad_group_ad: {
           ad: {
             id: 563386468726,
-            final_urls: ["url1", "url2"],
+            final_urls: ['url1', 'url2'],
             type: 7,
-            resource_name: "customers/9489090398/ads/563386468726",
+            resource_name: 'customers/9489090398/ads/563386468726',
           },
-          ad_group: "customers/9489090398/adGroups/132594495320",
+          ad_group: 'customers/9489090398/adGroups/132594495320',
           policy_summary: {
             policy_topic_entries: [
               {
                 evidences: [],
                 constraints: [{}],
-                topic: "COPYRIGHTED_CONTENT",
+                topic: 'COPYRIGHTED_CONTENT',
                 type: 8,
               },
             ],
           },
           resource_name:
-            "customers/9489090398/adGroupAds/132594495320~563386468726",
+            'customers/9489090398/adGroupAds/132594495320~563386468726',
         },
       },
     ];
-    let queryText = `
+    const queryText = `
       SELECT
         ad_group_ad.ad.id AS ad_id,  --number
         ad_group_ad.ad.final_urls AS final_urls,  -- array<string>
@@ -178,33 +179,33 @@ suite("CsvWriter", () => {
         ad_group_ad.policy_summary.policy_topic_entries AS policy_topic_entries  -- array
       FROM ad_group_ad
     `;
-    let customers = ["cust_with_no_data", "cust_with_data"];
-    let client = new MockGoogleAdsApiClient();
-    client.setupResult({ cust_with_data: mock_result });
+    const customers = ['cust_with_no_data', 'cust_with_data'];
+    const client = new MockGoogleAdsApiClient();
+    client.setupResult({cust_with_data: mock_result});
 
-    let writer = new CsvWriter({
+    const writer = new CsvWriter({
       outputPath: OUTPUT_DIR,
     });
-    let executor = new AdsQueryExecutor(client);
+    const executor = new AdsQueryExecutor(client);
 
     // act
-    const SCRIPT_NAME = "test";
+    const SCRIPT_NAME = 'test';
     await executor.execute(SCRIPT_NAME, queryText, customers, {}, writer);
 
     // assert
-    let csvText = fs.readFileSync(
-      path.join(OUTPUT_DIR, SCRIPT_NAME + ".csv"),
-      "utf-8"
+    const csvText = fs.readFileSync(
+      path.join(OUTPUT_DIR, SCRIPT_NAME + '.csv'),
+      'utf-8'
     );
-    let csvData = parse(csvText, { columns: true, skipEmptyLines: true });
+    const csvData = parse(csvText, {columns: true, skipEmptyLines: true});
     console.log(csvData);
     assert(csvData);
     assert.equal(csvData.length, 1);
-    let row = csvData[0];
+    const row = csvData[0];
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,
-      mock_result[0].ad_group_ad.ad.final_urls.join("|")
+      mock_result[0].ad_group_ad.ad.final_urls.join('|')
     );
   });
 });

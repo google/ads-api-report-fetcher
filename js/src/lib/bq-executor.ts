@@ -18,7 +18,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 
 import {getLogger} from './logger';
 import {renderTemplate, substituteMacros} from './utils';
-import {getDataset, OAUTH_SCOPES} from "./bq-common";
+import {getDataset, OAUTH_SCOPES} from './bq-common';
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
@@ -27,9 +27,9 @@ export interface BigQueryExecutorOptions {
   dumpQuery?: boolean;
 }
 export interface BigQueryExecutorParams {
-  sqlParams?: Record<string, any>;
-  macroParams?: Record<string, any>;
-  templateParams?: Record<string, any>;
+  sqlParams?: Record<string, unknown>;
+  macroParams?: Record<string, string>;
+  templateParams?: Record<string, string>;
   writeDisposition?: string;
 }
 
@@ -43,13 +43,15 @@ export class BigQueryExecutor {
     projectId?: string | undefined,
     options?: BigQueryExecutorOptions
   ) {
-    const datasetLocation = options?.datasetLocation || "us";
-    this.bigquery = options?.bigqueryClient || new BigQuery({
-      projectId: projectId,
-      scopes: OAUTH_SCOPES,
-      keyFilename: options?.keyFilePath,
-      location: datasetLocation,
-    });
+    const datasetLocation = options?.datasetLocation || 'us';
+    this.bigquery =
+      options?.bigqueryClient ||
+      new BigQuery({
+        projectId: projectId,
+        scopes: OAUTH_SCOPES,
+        keyFilename: options?.keyFilePath,
+        location: datasetLocation,
+      });
     this.datasetLocation = datasetLocation;
     this.dumpQuery = options?.dumpQuery;
     this.logger = getLogger();
@@ -59,10 +61,11 @@ export class BigQueryExecutor {
     scriptName: string,
     queryText: string,
     params?: BigQueryExecutorParams
-  ): Promise<any[]> {
+  ): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Promise<any[][]> {
     if (params?.macroParams) {
       for (const macro of Object.keys(params.macroParams)) {
-        if (macro.includes("dataset")) {
+        if (macro.includes('dataset')) {
           // all macros containing the word 'dataset' we treat as a dataset's name
           const value = params.macroParams[macro];
           if (value) {
@@ -75,14 +78,15 @@ export class BigQueryExecutor {
       queryText = renderTemplate(queryText, params.templateParams);
     }
 
-    let res = substituteMacros(queryText, params?.macroParams);
+    const res = substituteMacros(queryText, params?.macroParams);
     if (res.unknown_params.length) {
       throw new Error(
         `The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`
       );
     }
-    let query: Query = {
+    const query: Query = {
       query: res.text,
+      params: params?.sqlParams,
     };
     // NOTE: we can support DML scripts as well, but there is no clear reason for this
     // but if we do then it can be like this:
@@ -92,10 +96,10 @@ export class BigQueryExecutor {
     // query.writeDisposition = params?.writeDisposition || 'WRITE_TRUNCATE';
     //}
     if (this.dumpQuery) {
-      this.logger.info(`Query text to execute:\n` + query.query);
+      this.logger.info('Query text to execute:\n' + query.query);
     }
     try {
-      let [values] = await this.bigquery.query(query);
+      const [values] = await this.bigquery.query(query);
       this.logger.info(`Query '${scriptName}' executed successfully`);
       return values;
     } catch (e) {
@@ -109,13 +113,13 @@ export class BigQueryExecutor {
     tableId: string,
     customers: string[]
   ): Promise<string> {
-    if (typeof dataset == "string") {
+    if (typeof dataset === 'string') {
       dataset = await getDataset(this.bigquery, dataset, this.datasetLocation);
     }
     const datasetId = dataset.id!;
     // Unfortunately BQ always creates a based empty table for templated
     // (customer) table, so we have to drop it first.
-    await dataset!.table(tableId).delete({ ignoreNotFound: true });
+    await dataset!.table(tableId).delete({ignoreNotFound: true});
     const table_fq = `${datasetId}.${tableId}`;
     try {
       // here there's a potential problem. If wildcard expression (resource_*)
@@ -124,8 +128,8 @@ export class BigQueryExecutor {
       let query = `CREATE OR REPLACE VIEW \`${table_fq}\` AS SELECT * FROM \`${table_fq}_*\``;
       if (customers && customers.length) {
         query += ` WHERE _TABLE_SUFFIX in (${customers
-          .map((s) => "'" + s + "'")
-          .join(",")})`;
+          .map(s => "'" + s + "'")
+          .join(',')})`;
       }
       this.logger.debug(query);
       await dataset!.query({
@@ -136,7 +140,7 @@ export class BigQueryExecutor {
       this.logger.error(
         `An error occured during creating the unified view (${table_fq}): ${e.message}`
       );
-      if (e.message.includes("Views cannot be queried through prefix")) {
+      if (e.message.includes('Views cannot be queried through prefix')) {
         this.logger.warn(
           `You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`
         );
@@ -152,7 +156,7 @@ export class BigQueryExecutor {
     };
     try {
       dataset = this.bigquery.dataset(datasetId, options);
-      await dataset.get({ autoCreate: true });
+      await dataset.get({autoCreate: true});
     } catch (e) {
       this.logger.error(`Failed to get or create the dataset '${datasetId}'`);
       throw e;
