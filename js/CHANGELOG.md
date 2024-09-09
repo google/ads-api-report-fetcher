@@ -1,4 +1,7 @@
 # Changelog
+## 2.12
+* support Google Ads API v17.1 (updated google-ads-api to v17.1)
+
 ## 2.11.1 - 2024-08-14
 * Fix: `FileWriterBase`: disabled resumable upload for streaming to GCS, increased maxRetries - to overcome sporadic failures of GCS API on high load
 
