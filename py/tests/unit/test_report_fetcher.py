@@ -17,9 +17,17 @@ import logging
 
 import pytest
 import tenacity
+from google.ads.googleads import errors as googleads_exceptions
 from google.api_core import exceptions as google_exceptions
 
-from gaarf import api_clients, parsers, query_editor, report_fetcher
+from gaarf import (
+  api_clients,
+  exceptions,
+  parsers,
+  query_editor,
+  report,
+  report_fetcher,
+)
 from tests.unit import helpers
 
 _QUERY = 'SELECT customer.id AS customer_id FROM customer'
@@ -116,6 +124,28 @@ class TestAdsReportFetcher:
     assert 'Running gaarf in an optimized mode' in caplog.text
     assert f'Optimize strategy is {optimize_strategy.name}' in caplog.text
 
+  def test_fetch_returns_correct_report(self, fake_report_fetcher):
+    fetched_report = fake_report_fetcher.fetch(
+      query_specification=_QUERY, customer_ids=[1]
+    )
+    expected_report = report.GaarfReport(
+      results=_EXPECTED_RESULTS, column_names=['customer_id']
+    )
+
+    assert fetched_report == expected_report
+
+  def test_fetch_raises_gaarf_exception(self, mocker, fake_report_fetcher):
+    mocker.patch(
+      'gaarf.report_fetcher.AdsReportFetcher._parse_ads_response',
+      side_effect=[
+        googleads_exceptions.GoogleAdsException(
+          'test-error', 'test-call', 'test-failure', 'test-request-id'
+        )
+      ],
+    )
+    with pytest.raises(exceptions.GaarfExecutorException, match='test-error'):
+      fake_report_fetcher.fetch(query_specification=_QUERY, customer_ids=[1])
+
   def test_parse_ads_response_sequentially_returns_success(
     self, fake_report_fetcher, fake_response
   ):
@@ -146,7 +176,7 @@ class TestAdsReportFetcher:
 
     assert_sequence_content_the_same(results, _EXPECTED_RESULTS)
 
-  def test_parse_ads_response_raises_internal_server_error_after_3_failed_attemps(  # pylint: disable=line-too-long
+  def test_parse_ads_response_raises_internal_server_error_after_3_failed_attemps(  # noqa: E501
     self, failing_api_client, caplog
   ):
     fetcher = report_fetcher.AdsReportFetcher(failing_api_client)

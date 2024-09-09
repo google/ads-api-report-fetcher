@@ -209,7 +209,7 @@ class AdsReportFetcher:
           customer_id,
         )
         logger.error(str(e))
-        raise exceptions.GaarfExecutorException
+        raise exceptions.GaarfExecutorException(e.error)
     if not total_results:
       results_placeholder = [
         parser.parse_ads_row(self.api_client.google_ads_row)
