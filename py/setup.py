@@ -73,7 +73,7 @@ setuptools.setup(
   ],
   packages=setuptools.find_packages(),
   install_requires=[
-    'google-ads>=24.1.0',
+    'google-ads>=25.0.0',
     'smart_open',
     'jinja2',
     'python-dateutil',
