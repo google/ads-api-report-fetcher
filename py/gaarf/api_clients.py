@@ -38,10 +38,6 @@ google_ads_service = importlib.import_module(
   f'google.ads.googleads.{GOOGLE_ADS_API_VERSION}.'
   'services.types.google_ads_service'
 )
-google_ads_service_client = importlib.import_module(
-  f'google.ads.googleads.{GOOGLE_ADS_API_VERSION}.'
-  'services.services.google_ads_service.client'
-)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -285,11 +281,7 @@ class GoogleAdsApiClient(BaseClient):
       path=path_to_config, config_dict=config_dict, yaml_str=yaml_str
     )
     self.client.use_proto_plus = use_proto_plus
-
-  @property
-  def ads_service(self) -> google_ads_service_client.GoogleAdsServiceClient_:
-    """Service for issuing SearchStream requests."""
-    return self.client.get_service('GoogleAdsService')
+    self.ads_service = self.client.get_service('GoogleAdsService')
 
   @tenacity.retry(
     stop=tenacity.stop_after_attempt(3),
