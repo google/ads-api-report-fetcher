@@ -348,25 +348,24 @@ suite('AdsQueryExecutor', () => {
     ]);
 
     const result = await executor.executeOne(query, customerId);
-    assert.ok(result.rows);
-    const status = [result.rows[0] as any][
-      result.query.columnNames.indexOf('status')
-    ];
-    assert.strictEqual(status, 'CANCELED');
 
-    // // assert
-    // assert.ok(result.rows);
-    // assert.deepStrictEqual(result.rows[0], [
-    //   1,
-    //   "customerClients/2",
-    //   "USD",
-    //   "test customer",
-    //   false,
-    //   0,
-    //   false,
-    //   "customers/1/customerClients/2",
-    //   3,
-    //  false, "UTC"
-    // ]);
+    // assert
+    assert.ok(result.rows);
+    const status = result.rows[0][result.query.columnNames.indexOf('status')];
+    assert.strictEqual(status, 'CANCELED');
+    assert.deepStrictEqual(result.rows[0], [
+      1, // id
+      'customers/1/customerClients/2', //resource_name
+      'customerClients/2', // client_customer
+      false, // hidden
+      0, // level
+      'UTC', // time_zone
+      false, // test_account
+      false, // manager
+      'test customer', // descriptive_name
+      'USD', // currency_code
+      'CANCELED', // status
+      false, // is_manager
+    ]);
   });
 });
