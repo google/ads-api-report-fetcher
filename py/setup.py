@@ -47,7 +47,7 @@ EXTRAS_REQUIRE['full'] = list(set(itertools.chain(*EXTRAS_REQUIRE.values())))
 
 setuptools.setup(
   name='google-ads-api-report-fetcher',
-  version='1.15.0',
+  version='1.15.1',
   python_requires='>3.8',
   description=(
     'Library for fetching reports from Google Ads API '

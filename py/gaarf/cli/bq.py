@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import sys
 from concurrent import futures
 
 from gaarf import bq_executor
@@ -52,7 +53,7 @@ def main():
     '--no-parallel-queries', dest='parallel_queries', action='store_false'
   )
   parser.add_argument(
-    '--parallel-threshold', dest='parallel_threshold', default=None
+    '--parallel-threshold', dest='parallel_threshold', default=None, type=int
   )
   parser.set_defaults(save_config=False)
   parser.set_defaults(dry_run=False)
@@ -68,7 +69,7 @@ def main():
   if main_args.save_config and not main_args.gaarf_config:
     utils.ConfigSaver(main_args.save_config_dest).save(config)
   if main_args.dry_run:
-    exit()
+    sys.exit()
 
   config = utils.initialize_runtime_parameters(config)
   logger.debug('initialized config: %s', config)
