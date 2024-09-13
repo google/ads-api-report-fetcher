@@ -4,7 +4,6 @@ import {
   getFileContent,
   GoogleAdsApiConfig,
   loadAdsConfigYaml,
-  getLogger,
   getMemoryUsage,
   ILogger,
 } from 'google-ads-api-report-fetcher';
@@ -92,7 +91,7 @@ export async function getProject() {
   return projectId;
 }
 
-export function splitIntoChunks(array: Array<any>, max: number) {
+export function splitIntoChunks<T>(array: T[], max: number): T[][] {
   const result = [];
   for (let i = 0; i < array.length; i += max) {
     result.push(array.slice(i, i + max));
