@@ -10,6 +10,13 @@ import {
 import path from 'node:path';
 import fs from 'node:fs';
 
+/**
+ * Get script from request body or from a file specified in query parameters.
+ * @param req request object
+ * @param logger logger to write to
+ * @returns a promise that resolves to an object with `queryText` and `scriptName`
+ * properties
+ */
 export async function getScript(
   req: express.Request,
   logger: ILogger
@@ -35,6 +42,12 @@ export async function getScript(
   return {queryText, scriptName};
 }
 
+/**
+ * Get Ads API configuration from request body or from a file specified in query
+ * parameters.
+ * @param req request object
+ * @returns a promise that resolves to an object with Ads API configuration
+ */
 export async function getAdsConfig(
   req: express.Request
 ): Promise<GoogleAdsApiConfig> {
@@ -83,6 +96,10 @@ export async function getAdsConfig(
   return adsConfig;
 }
 
+/**
+ * Get project id from environment variables.
+ * @returns a promise that resolves to a project id
+ */
 export async function getProject() {
   const auth = new GoogleAuth({
     scopes: 'https://www.googleapis.com/auth/cloud-platform',
@@ -91,6 +108,12 @@ export async function getProject() {
   return projectId;
 }
 
+/**
+ * Split an array into chunks of a given size.
+ * @param array array to split
+ * @param max maximum size of a chunk
+ * @returns an array of arrays
+ */
 export function splitIntoChunks<T>(array: T[], max: number): T[][] {
   const result = [];
   for (let i = 0; i < array.length; i += max) {

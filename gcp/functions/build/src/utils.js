@@ -8,6 +8,13 @@ const google_auth_library_1 = require("google-auth-library");
 const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
 const node_path_1 = __importDefault(require("node:path"));
 const node_fs_1 = __importDefault(require("node:fs"));
+/**
+ * Get script from request body or from a file specified in query parameters.
+ * @param req request object
+ * @param logger logger to write to
+ * @returns a promise that resolves to an object with `queryText` and `scriptName`
+ * properties
+ */
 async function getScript(req, logger) {
     const scriptPath = req.query.script_path;
     const body = req.body || {};
@@ -30,6 +37,12 @@ async function getScript(req, logger) {
     return { queryText, scriptName };
 }
 exports.getScript = getScript;
+/**
+ * Get Ads API configuration from request body or from a file specified in query
+ * parameters.
+ * @param req request object
+ * @returns a promise that resolves to an object with Ads API configuration
+ */
 async function getAdsConfig(req) {
     let adsConfig;
     const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
@@ -73,6 +86,10 @@ async function getAdsConfig(req) {
     return adsConfig;
 }
 exports.getAdsConfig = getAdsConfig;
+/**
+ * Get project id from environment variables.
+ * @returns a promise that resolves to a project id
+ */
 async function getProject() {
     const auth = new google_auth_library_1.GoogleAuth({
         scopes: 'https://www.googleapis.com/auth/cloud-platform',
@@ -81,6 +98,12 @@ async function getProject() {
     return projectId;
 }
 exports.getProject = getProject;
+/**
+ * Split an array into chunks of a given size.
+ * @param array array to split
+ * @param max maximum size of a chunk
+ * @returns an array of arrays
+ */
 function splitIntoChunks(array, max) {
     const result = [];
     for (let i = 0; i < array.length; i += max) {
