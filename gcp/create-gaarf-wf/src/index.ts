@@ -916,21 +916,29 @@ async function init() {
 
   const gcp_region = await ask_for_gcp_region(answers);
 
-  // create a bucket
-  const res = await exec_cmd(
-    `gsutil mb -l ${getMultiRegion(gcp_region)} -b on gs://${gcs_bucket}`,
-    new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`),
+  // create a bucket if it doesn't exist
+  let res = await exec_cmd(
+    `gsutil ls gs://${gcs_bucket}`,
+    new clui.Spinner(`Checking if GCS bucket ${gcs_bucket} exists`),
     {silent: true}
   );
-  if (
-    res.code !== 0 &&
-    !res.stderr.includes(
-      `ServiceException: 409 A Cloud Storage bucket named '${gcs_bucket}' already exists`
-    )
-  ) {
-    console.log(chalk.red(`Could not create a bucket ${gcs_bucket}`));
-    console.log(res.stderr || res.stdout);
+  if (res.code !== 0) {
+    // bucket doesn't exist
+    res = await exec_cmd(
+      `gsutil mb -l ${getMultiRegion(gcp_region)} -b on gs://${gcs_bucket}`,
+      new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`),
+      {silent: true}
+    );
+    if (res.code !== 0) {
+      console.log(
+        chalk.red(
+          `Could not create a bucket ${gcs_bucket}. Most likely the installation will fail`
+        )
+      );
+      console.log(res.stderr || res.stdout);
+    }
   }
+
   const gcs_base_path = `gs://${gcs_bucket}/${name}`;
 
   // Create deploy-queries.sh
