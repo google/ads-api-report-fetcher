@@ -16,10 +16,19 @@ import logging
 
 import pytest
 import tenacity
+from google import auth
 from google.ads.googleads import client as googleads_client
 from google.api_core import exceptions as google_exceptions
 
 from gaarf import api_clients
+
+
+def has_default_credentials():
+  try:
+    credentials, _ = auth.default()
+    return True
+  except auth.exceptions.DefaultCredentialsError:
+    return False
 
 
 class TestBaseClient:
@@ -228,7 +237,7 @@ class TestGoogleAdsApiClient:
     )
 
   @pytest.fixture
-  def test_client(self, mocker, config_path):
+  def test_client(self, mocker, fake_googleads_client, config_path):
     mocker.patch('google.ads.googleads.client.oauth2', return_value=[])
     mocker.patch(
       f'google.ads.googleads.{api_clients.GOOGLE_ADS_API_VERSION}'
@@ -240,8 +249,13 @@ class TestGoogleAdsApiClient:
         google_exceptions.InternalServerError('test'),
       ],
     )
-    return api_clients.GoogleAdsApiClient(path_to_config=config_path)
+    return api_clients.GoogleAdsApiClient(
+      path_to_config=config_path, ads_client=fake_googleads_client
+    )
 
+  @pytest.mark.skipif(
+    not has_default_credentials(), reason='Cannot found default credentials'
+  )
   def test_get_response_raises_internal_service_error_after_3_failed_retries(
     self, test_client
   ):
@@ -252,6 +266,9 @@ class TestGoogleAdsApiClient:
         query_text='SELECT customer.id FROM customer',
       )
 
+  @pytest.mark.skipif(
+    not has_default_credentials(), reason='Cannot found default credentials'
+  )
   def test_from_googleads_client_returns_new_instance(
     self, fake_googleads_client, caplog
   ):
@@ -270,6 +287,9 @@ class TestGoogleAdsApiClient:
       '"use_proto_plus=False"'
     ) not in caplog.text
 
+  @pytest.mark.skipif(
+    not has_default_credentials(), reason='Cannot found default credentials'
+  )
   def test_from_googleads_client_generates_warning_for_use_proto_plus(
     self, fake_googleads_client, caplog
   ):
