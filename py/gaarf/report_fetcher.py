@@ -426,6 +426,7 @@ class AdsReportFetcher:
         SELECT customer_client.id FROM customer_client
         WHERE customer_client.manager = FALSE
         AND customer_client.status = ENABLED
+        AND customer_client.hidden = FALSE
         """
     query_specification = query_editor.QuerySpecification(query).generate()
     if not isinstance(seed_customer_ids, MutableSequence):
