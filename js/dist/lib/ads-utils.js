@@ -105,7 +105,8 @@ async function getCustomerInfo(adsClient, customerId) {
     FROM customer_client
     WHERE
       customer_client.level <= 1
-      AND customer_client.status = "ENABLED"
+      AND customer_client.status = ENABLED
+      AND customer_client.hidden = FALSE
     ORDER BY customer_client.level`;
     //
     const queryText2 = 'SELECT customer.descriptive_name FROM customer';
@@ -148,8 +149,9 @@ async function getCustomerIds(adsClient, customerId) {
       customer_client.id as cid
     FROM customer_client
     WHERE
-      customer_client.status = "ENABLED" AND
-      customer_client.manager = False`;
+      customer_client.status = ENABLED
+      AND customer_client.hidden = FALSE
+      AND customer_client.manager = FALSE`;
     if (typeof customerId === 'string') {
         customerId = [customerId];
     }

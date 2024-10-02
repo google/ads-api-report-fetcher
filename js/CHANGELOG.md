@@ -1,4 +1,7 @@
 # Changelog
+## 2.12.1
+* added filtering ouf of hidden accounts while expanding MCC
+
 ## 2.12
 * support Google Ads API v17.1 (updated google-ads-api to v17.1)
 
