@@ -232,7 +232,7 @@ class TestGoogleAdsApiClient:
     return googleads_client.GoogleAdsClient(
       credentials=None,
       developer_token=None,
-      version='v17',
+      version=api_clients.GOOGLE_ADS_API_VERSION,
       use_proto_plus=True,
     )
 
