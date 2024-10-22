@@ -16,6 +16,7 @@
 AdsReportFetcher performs fetching data from Ads API, parsing it
   and returning GaarfReport.
 """
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
 
 from __future__ import annotations
 
@@ -114,6 +115,40 @@ class AdsReportFetcher:
     """
     return self._get_customer_ids(customer_ids, customer_ids_query)
 
+  async def afetch(
+    self,
+    query_specification: str | query_editor.QueryElements,
+    customer_ids: list[str] | str | None = None,
+    customer_ids_query: str | None = None,
+    expand_mcc: bool = False,
+    args: dict[str, Any] | None = None,
+    optimize_strategy: str = 'NONE',
+  ) -> report.GaarfReport:
+    """Asynchronously fetches data from Ads API based on query_specification.
+
+    Args:
+        query_specification: Query text that will be passed to Ads API
+            alongside column_names, customizers and virtual columns.
+        customer_ids: Account(s) from which data should be fetched.
+        customer_ids_query: GAQL query to reduce the number of accounts.
+        expand_mcc: Whether to perform expansion of root customer_ids
+            into leaf accounts.
+        args: Arguments that need to be passed to the query.
+        optimize_strategy: strategy for speeding up query execution
+            ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
+
+    Returns:
+        GaarfReport with results of query execution.
+    """
+    return self.fetch(
+      query_specification,
+      customer_ids,
+      customer_ids_query,
+      expand_mcc,
+      args,
+      optimize_strategy,
+    )
+
   def fetch(
     self,
     query_specification: str | query_editor.QueryElements,
@@ -128,11 +163,11 @@ class AdsReportFetcher:
     Args:
         query_specification: Query text that will be passed to Ads API
             alongside column_names, customizers and virtual columns.
-        customer_ids: Account(s) for from which data should be fetched.
+        customer_ids: Account(s) from which data should be fetched.
         customer_ids_query: GAQL query to reduce the number of accounts.
         expand_mcc: Whether to perform expansion of root customer_ids
             into leaf accounts.
-        args: Arguments that need to be passed to the query
+        args: Arguments that need to be passed to the query.
         optimize_strategy: strategy for speeding up query execution
             ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
 
