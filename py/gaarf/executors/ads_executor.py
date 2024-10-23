@@ -16,6 +16,7 @@
 AdsQueryExecutor performs fetching data from Ads API in a form of
 GaarfReport and saving it to local/remote storage.
 """
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
 
 from __future__ import annotations
 
@@ -54,6 +55,36 @@ class AdsQueryExecutor:
     """Initializes AdsReportFetcher to get data from Ads API."""
     return report_fetcher.AdsReportFetcher(self.api_client)
 
+  async def aexecute(
+    self,
+    query_text: str,
+    query_name: str,
+    customer_ids: list[str] | str,
+    writer_client: abs_writer.AbsWriter = console_writer.ConsoleWriter(),
+    args: dict[str, str] | None = None,
+    optimize_performance: str = 'NONE',
+  ) -> None:
+    """Reads query, extract results and stores them in a specified location.
+
+    Args:
+        query_text: Text for the query.
+        query_name: Identifier of a query.
+        customer_ids: All accounts for which query will be executed.
+        writer_client: Client responsible for writing data to local/remote
+            location.
+        args: Arguments that need to be passed to the query.
+        optimize_performance: strategy for speeding up query execution
+            ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
+    """
+    self.execute(
+      query_text,
+      query_name,
+      customer_ids,
+      writer_client,
+      args,
+      optimize_performance,
+    )
+
   def execute(
     self,
     query_text: str,
@@ -67,13 +98,13 @@ class AdsQueryExecutor:
 
     Args:
         query_text: Text for the query.
-        query_name: Identifier of a query..
+        query_name: Identifier of a query.
         customer_ids: All accounts for which query will be executed.
         writer_client: Client responsible for writing data to local/remote
             location.
-        args: Arguments that need to be passed to the query
+        args: Arguments that need to be passed to the query.
         optimize_performance: strategy for speeding up query execution
-            ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF")
+            ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
     """
     query_specification = query_editor.QuerySpecification(
       query_text, query_name, args, self.report_fetcher.api_client.api_version
