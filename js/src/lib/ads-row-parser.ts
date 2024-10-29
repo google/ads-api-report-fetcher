@@ -212,9 +212,25 @@ export class AdsRowParser implements IAdsRowParser {
     } else if (customizer.type === CustomizerType.ResourceIndex) {
       // the value from query's result we expect to be a string
       if (!isString(value)) {
-        throw new Error(
-          `Unexpected value type ${typeof value} ('${value}') for column with ResourceIndex customizer`
-        );
+        // we fetched a struct, let's try to find a suitable field with resource
+        let resourceVal = '';
+        if (value['name'] && isString(value['name'])) {
+          resourceVal = value['name'];
+        } else if (value['text'] && isString(value['text'])) {
+          resourceVal = value['text'];
+        } else if (value['asset'] && isString(value['asset'])) {
+          resourceVal = value['asset'];
+        } else if (value['value'] && isString(value['value'])) {
+          resourceVal = value['value'];
+        }
+        if (resourceVal) {
+          value = resourceVal;
+        } else {
+          throw new Error(
+            `Unexpected value for ResourceIndex source: ${JSON.stringify(value)}.` +
+              'We expect either a string or a struct with fields name/text/asset/value'
+          );
+        }
       }
       value = value.split('~')[customizer.index];
       if (value) {
