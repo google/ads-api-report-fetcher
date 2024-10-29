@@ -83,6 +83,15 @@ export class ConsoleWriter implements IResultWriter {
     this.rowsByCustomer[customerId].push(parsedRow);
   }
 
+  _formatValue(val: unknown): unknown {
+    if (!val) return val;
+    if (_.isNumber(val) || _.isString(val) || _.isBoolean(val)) return val;
+    if (_.isArray(val)) {
+      return val.map((v: unknown) => this._formatValue(v)).join('\n');
+    }
+    return JSON.stringify(val, null, 2);
+  }
+
   endCustomer(customerId: string): void | Promise<void> {
     const cc: ColumnUserConfig = {
       wrapWord: true,
@@ -108,9 +117,9 @@ export class ConsoleWriter implements IResultWriter {
           val.length > 0 &&
           _.max(val.map(v => (v ? v.length : 0))) > 20
         ) {
-          return val.map(i => (i ? i.toString() + '\n' : '')).join('');
+          return val.map(i => (i ? this._formatValue(i) + '\n' : '')).join('');
         }
-        return val;
+        return this._formatValue(val);
       });
     });
     // original table plus a row (first) with headers (columns names)

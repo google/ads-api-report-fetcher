@@ -193,7 +193,27 @@ class AdsRowParser {
         else if (customizer.type === types_1.CustomizerType.ResourceIndex) {
             // the value from query's result we expect to be a string
             if (!(0, lodash_1.isString)(value)) {
-                throw new Error(`Unexpected value type ${typeof value} ('${value}') for column with ResourceIndex customizer`);
+                // we fetched a struct, let's try to find a suitable field with resource
+                let resourceVal = '';
+                if (value['name'] && (0, lodash_1.isString)(value['name'])) {
+                    resourceVal = value['name'];
+                }
+                else if (value['text'] && (0, lodash_1.isString)(value['text'])) {
+                    resourceVal = value['text'];
+                }
+                else if (value['asset'] && (0, lodash_1.isString)(value['asset'])) {
+                    resourceVal = value['asset'];
+                }
+                else if (value['value'] && (0, lodash_1.isString)(value['value'])) {
+                    resourceVal = value['value'];
+                }
+                if (resourceVal) {
+                    value = resourceVal;
+                }
+                else {
+                    throw new Error(`Unexpected value for ResourceIndex source: ${JSON.stringify(value)}.` +
+                        'We expect either a string or a struct with fields name/text/asset/value');
+                }
             }
             value = value.split('~')[customizer.index];
             if (value) {

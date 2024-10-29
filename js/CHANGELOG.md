@@ -1,8 +1,12 @@
 # Changelog
-## 2.12.1
+## 2.12.2 - 2024-10-29
+* resource index customizer ("~0") support not only string fields but also structs with predefined fields (name/text/assset/value),
+  automatically extract their values
+
+## 2.12.1 - 2024-10-04
 * added filtering ouf of hidden accounts while expanding MCC
 
-## 2.12
+## 2.12 - 2024-09-13
 * support Google Ads API v17.1 (updated google-ads-api to v17.1)
 
 ## 2.11.1 - 2024-08-14
