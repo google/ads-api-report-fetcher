@@ -215,6 +215,58 @@ class GaarfReport:
     """
     return json.dumps(self.to_list(row_type='dict'))
 
+  @classmethod
+  def from_json(cls, json_str: str) -> 'GaarfReport':
+    """Creates a GaarfReport object from a JSON string.
+
+    Args:
+        json_str: JSON string representation of the data.
+
+    Returns:
+        GaarfReport.
+
+    Raises:
+        TypeError: If any value in the JSON data is not a supported type.
+        ValueError: If `data` is a list but not all dictionaries
+        have the same keys.
+    """
+    data = json.loads(json_str)
+
+    def validate_value(value):
+      if not isinstance(value, parsers.GoogleAdsRowElement):
+        raise TypeError(
+          f'Unsupported type {type(value)} for value {value}. '
+          'Expected types: int, float, str, bool, list, or None.'
+        )
+      return value
+
+    # Case 1: `data` is a dictionary
+    if isinstance(data, dict):
+      column_names = list(data.keys())
+      if not data.values():
+        results = []
+      else:
+        results = [[validate_value(value) for value in data.values()]]
+
+    # Case 2: `data` is a list of dictionaries, each representing a row
+    elif isinstance(data, list):
+      column_names = list(data[0].keys()) if data else []
+      for row in data:
+        if not isinstance(row, dict):
+          raise TypeError('All elements in the list must be dictionaries.')
+        if list(row.keys()) != column_names:
+          raise ValueError(
+            'All dictionaries must have consistent keys in the same order.'
+          )
+      results = [
+        [validate_value(value) for value in row.values()] for row in data
+      ]
+    else:
+      raise TypeError(
+        'Input JSON must be a dictionary or a list of dictionaries.'
+      )
+    return cls(results=results, column_names=column_names)
+
   def get_value(
     self, column_index: int = 0, row_index: int = 0
   ) -> parsers.GoogleAdsRowElement:
