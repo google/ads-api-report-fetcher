@@ -13,11 +13,14 @@
 # limitations under the License.
 """Module for writing data to JSON."""
 
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import, g-bare-generic
+
 from __future__ import annotations
 
 import json
 import logging
 import os
+from typing import Union
 
 import smart_open
 
@@ -34,7 +37,9 @@ class JsonWriter(file_writer.FileWriter):
   """
 
   def __init__(
-    self, destination_folder: str | os.PathLike = os.getcwd(), **kwargs: str
+    self,
+    destination_folder: Union[str, os.PathLike] = os.getcwd(),
+    **kwargs: str,
   ) -> None:
     """Initializes JsonWriter based on a destination_folder.
 

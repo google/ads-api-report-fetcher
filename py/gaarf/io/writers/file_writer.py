@@ -13,7 +13,10 @@
 # limitations under the License.
 """Module for writing data to a file."""
 
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import, g-bare-generic
+
 import os
+from typing import Union
 
 from gaarf.io.writers.abs_writer import AbsWriter
 
@@ -27,7 +30,7 @@ class FileWriter(AbsWriter):
 
   def __init__(
     self,
-    destination_folder: str | os.PathLike = os.getcwd(),
+    destination_folder: Union[str, os.PathLike] = os.getcwd(),
     **kwargs: str,
   ) -> None:
     """Initializes FileWriter based on destination folder."""

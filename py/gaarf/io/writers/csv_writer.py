@@ -13,12 +13,14 @@
 # limitations under the License.
 """Module for writing data with CSV."""
 
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import, g-bare-generic
+
 from __future__ import annotations
 
 import csv
 import logging
 import os
-from typing import Literal
+from typing import Literal, Union
 
 import smart_open
 
@@ -39,7 +41,7 @@ class CsvWriter(file_writer.FileWriter):
 
   def __init__(
     self,
-    destination_folder: str | os.PathLike = os.getcwd(),
+    destination_folder: Union[str, os.PathLike] = os.getcwd(),
     delimiter: str = ',',
     quotechar: str = '"',
     quoting: Literal[0] = csv.QUOTE_MINIMAL,
