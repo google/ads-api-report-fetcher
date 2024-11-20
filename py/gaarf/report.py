@@ -20,6 +20,8 @@ Module exposes two classes:
       row in GaarfReport.
 """
 
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 from __future__ import annotations
 
 import itertools
@@ -27,7 +29,7 @@ import json
 import warnings
 from collections import defaultdict
 from collections.abc import MutableSequence, Sequence
-from typing import Generator, Literal
+from typing import Generator, Literal, get_args
 
 from gaarf import exceptions, parsers, query_editor
 
@@ -233,7 +235,7 @@ class GaarfReport:
     data = json.loads(json_str)
 
     def validate_value(value):
-      if not isinstance(value, parsers.GoogleAdsRowElement):
+      if not isinstance(value, get_args(parsers.GoogleAdsRowElement)):
         raise TypeError(
           f'Unsupported type {type(value)} for value {value}. '
           'Expected types: int, float, str, bool, list, or None.'
