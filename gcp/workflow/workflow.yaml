@@ -99,12 +99,20 @@ runAdsQueries:
   steps:
     # get CF 'gaarf-getcids' function's URL
     - get_function_cids:
-        call: http.get
-        args:
-          url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name + "-getcids"}
-          auth:
-            type: OAuth2
-        result: function_cids
+        try:
+          call: http.get
+          args:
+            url: ${"https://cloudfunctions.googleapis.com/v2/projects/" + project + "/locations/" + function_location + "/functions/" + function_name + "-getcids"}
+            auth:
+              type: OAuth2
+          result: function_cids
+        retry:
+          predicate: ${retry_403_predicate}
+          max_retries: 10
+          backoff:
+            initial_delay: 10
+            max_delay: 60
+            multiplier: 1.5
     # get CF 'gaarf-bq-view' function's URL
     - get_function_view:
         call: http.get
@@ -390,6 +398,19 @@ custom_retry_predicate:
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
           - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
+            return: true
+    - otherwise:
+        return: false
+
+retry_403_predicate:
+  params: [e]
+  steps:
+    - normalize_fields:
+        assign:
+          - code: ${default(map.get(e, "code"),0)}
+    - what_to_repeat:
+        switch:
+          - condition: ${code == 403 or code == 429 or code == 502 or code == 503 or code == 504}
             return: true
     - otherwise:
         return: false
