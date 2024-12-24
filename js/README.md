@@ -6,7 +6,7 @@ Supports [Ads API v17.1](https://developers.google.com/google-ads/api/docs/relea
 
 <p align="center">
   <a href="https://developers.google.com/google-ads/api/docs/release-notes">
-    <img src="https://img.shields.io/badge/google%20ads-v13.0.0-009688.svg?style=flat-square"/>
+    <img src="https://img.shields.io/badge/google%20ads-v17.0.0-009688.svg?style=flat-square"/>
   </a>
   <a href="https://www.npmjs.com/package/google-ads-api-report-fetcher">
     <img src="https://img.shields.io/npm/v/google-ads-api-report-fetcher.svg?style=flat-square" />
@@ -14,6 +14,7 @@ Supports [Ads API v17.1](https://developers.google.com/google-ads/api/docs/relea
   <a>
     <img src="https://img.shields.io/npm/dm/google-ads-api-report-fetcher.svg?style=flat-square" />
   </a>
+  [![Code Style: Google](https://img.shields.io/badge/code%20style-google-blueviolet.svg)](https://github.com/google/gts)
 </p>
 
 ## Table of content
@@ -35,7 +36,7 @@ v16 should be sufficient.
 ## Command Line
 ### Install globally
 ```shell
-npm i ads-api-report-fetcher -g
+npm i google-ads-api-report-fetcher -g
 ```
 then you can run the tool with `gaarf` and `gaarf-bq` commands:
 ```shell
@@ -149,7 +150,7 @@ import {
   AdsQueryExecutor,
   loadAdsConfigFromFile,
   CsvWriter}
-  from 'ads-api-report-fetcher';
+  from 'google-ads-api-report-fetcher';
 
 const adsConfig = await loadAdsConfigFromFile('google-ads.yaml');
 const client = new GoogleAdsApiClient(adsConfig);
