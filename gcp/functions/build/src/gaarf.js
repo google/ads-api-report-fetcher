@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.main = void 0;
 /**
  * Cloud Function 'gaarf' - executes Ads query (suplied either via body or as a GCS path) and writes data to BigQuery (or other writer)
  * arguments:
@@ -28,9 +25,9 @@ exports.main = void 0;
  *  - bq_dataset_location - BigQuery dataset location ('us' or 'europe'), optional, by default 'us' is used
  *  - output_path - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
  */
-const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const utils_1 = require("./utils");
-const logger_1 = require("./logger");
+import { AdsQueryExecutor, BigQueryWriter, GoogleAdsRpcApiClient, getMemoryUsage, getCustomerIds, GoogleAdsRestApiClient, CsvWriter, JsonWriter, } from 'google-ads-api-report-fetcher';
+import { getAdsConfig, getProject, getScript, startPeriodicMemoryLogging, } from './utils.js';
+import { createLogger } from './logger.js';
 function getQueryWriter(req, projectId) {
     var _a, _b, _c, _d, _e, _f;
     const body = req.body || {};
@@ -48,7 +45,7 @@ function getQueryWriter(req, projectId) {
         const dataset = req.query.bq_dataset || process.env.DATASET;
         if (!dataset)
             throw new Error("Dataset is not specified in either 'bq_dataset' query argument or DATASET envvar");
-        const writer = new google_ads_api_report_fetcher_1.BigQueryWriter(projectId, dataset, bqWriterOptions);
+        const writer = new BigQueryWriter(projectId, dataset, bqWriterOptions);
         return writer;
     }
     if (req.query.writer === 'csv') {
@@ -57,7 +54,7 @@ function getQueryWriter(req, projectId) {
             arraySeparator: (_d = body.writer_options) === null || _d === void 0 ? void 0 : _d.array_separator,
             outputPath: req.query.output_path || `gs://${projectId}/tmp`,
         };
-        return new google_ads_api_report_fetcher_1.CsvWriter(options);
+        return new CsvWriter(options);
     }
     if (req.query.writer === 'json') {
         const options = {
@@ -65,12 +62,13 @@ function getQueryWriter(req, projectId) {
             valueFormat: (_f = body.writer_options) === null || _f === void 0 ? void 0 : _f.value_format,
             outputPath: req.query.output_path || `gs://${projectId}/tmp`,
         };
-        return new google_ads_api_report_fetcher_1.JsonWriter(options);
+        return new JsonWriter(options);
     }
 }
 async function main_unsafe(req, res, projectId, logger, functionName) {
+    var _a;
     // prepare Ads API parameters
-    const adsConfig = await (0, utils_1.getAdsConfig)(req);
+    const adsConfig = await getAdsConfig(req);
     projectId =
         req.query.bq_project_id || process.env.PROJECT_ID || projectId;
     const customerId = req.query.customer_id || adsConfig.customer_id;
@@ -80,14 +78,14 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
         adsConfig.login_customer_id = customerId;
     }
     let adsClient;
-    if (req.query.api === 'rest') {
+    if (((_a = req.query.api) === null || _a === void 0 ? void 0 : _a.toLocaleLowerCase()) === 'rest') {
         const apiVersion = req.query.apiVersion;
-        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRestApiClient(adsConfig, apiVersion);
+        adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
     }
     else {
-        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRpcApiClient(adsConfig);
+        adsClient = new GoogleAdsRpcApiClient(adsConfig);
     }
-    const { queryText, scriptName } = await (0, utils_1.getScript)(req, logger);
+    const { queryText, scriptName } = await getScript(req, logger);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     const { refresh_token, developer_token, ...ads_config_wo_token } = (adsConfig);
     ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;
@@ -101,7 +99,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     });
     let customers;
     if (req.query.expand_mcc) {
-        customers = await (0, google_ads_api_report_fetcher_1.getCustomerIds)(adsClient, customerId);
+        customers = await getCustomerIds(adsClient, customerId);
         logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
             customerId,
             scriptName,
@@ -111,10 +109,10 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     else {
         customers = [customerId];
     }
-    const executor = new google_ads_api_report_fetcher_1.AdsQueryExecutor(adsClient);
+    const executor = new AdsQueryExecutor(adsClient);
     const writer = getQueryWriter(req, projectId);
     const result = await executor.execute(scriptName, queryText, customers, req.body.macro, writer);
-    logger.info(`Cloud Function ${functionName} compeleted`, {
+    logger.info(`Cloud Function ${functionName} completed`, {
         customerId,
         scriptName,
         result,
@@ -123,15 +121,15 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     res.json(result);
     res.end();
 }
-const main = async (req, res) => {
+export const main = async (req, res) => {
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
-    const projectId = await (0, utils_1.getProject)();
+    const projectId = await getProject();
     const functionName = process.env.K_SERVICE || 'gaarf';
-    const logger = (0, logger_1.createLogger)(req, projectId, functionName);
+    const logger = createLogger(req, projectId, functionName);
     let dispose;
     if (dumpMemory) {
-        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
-        dispose = (0, utils_1.startPeriodicMemoryLogging)(logger, 60000);
+        logger.info(getMemoryUsage('Start'));
+        dispose = startPeriodicMemoryLogging(logger, 60000);
     }
     try {
         await main_unsafe(req, res, projectId, logger, functionName);
@@ -149,9 +147,8 @@ const main = async (req, res) => {
         if (dumpMemory) {
             if (dispose)
                 dispose();
-            logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('End'));
+            logger.info(getMemoryUsage('End'));
         }
     }
 };
-exports.main = main;
 //# sourceMappingURL=gaarf.js.map

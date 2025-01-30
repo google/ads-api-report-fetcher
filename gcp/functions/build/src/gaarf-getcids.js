@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.main_getcids = void 0;
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,17 +29,17 @@ exports.main_getcids = void 0;
    the list will be a subset of CIDs otherwise it will be the whole list of accounts,
    ignoring batching (regadless of the customer_ids_batchsize's value).
  **/
-const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const utils_1 = require("./utils");
-const logger_1 = require("./logger");
+import { getFileContent, GoogleAdsRestApiClient, parseCustomerIds, getMemoryUsage, GoogleAdsRpcApiClient, getCustomerIds, filterCustomerIds, } from 'google-ads-api-report-fetcher';
+import { getAdsConfig, getProject, splitIntoChunks, startPeriodicMemoryLogging, } from './utils.js';
+import { createLogger } from './logger.js';
 const DEFAULT_BATCH_SIZE = 500;
 async function main_getcids_unsafe(req, res, logger) {
     // prepare Ads API parameters
-    const adsConfig = await (0, utils_1.getAdsConfig)(req);
+    const adsConfig = await getAdsConfig(req);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { refresh_token, ...ads_config_wo_token } = adsConfig;
     logger.info('Ads API config', ads_config_wo_token);
-    let customerIds = (0, google_ads_api_report_fetcher_1.parseCustomerIds)(req.query.customer_id, adsConfig);
+    let customerIds = parseCustomerIds(req.query.customer_id, adsConfig);
     let customerIdsIgnore = [];
     if (req.query.customer_ids_ignore) {
         const customerIdsIgnoreQS = req.query.customer_ids_ignore;
@@ -63,22 +60,22 @@ async function main_getcids_unsafe(req, res, logger) {
     let adsClient;
     if (req.query.api === 'rest') {
         const apiVersion = req.query.apiVersion;
-        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRestApiClient(adsConfig, apiVersion);
+        adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
     }
     else {
-        adsClient = new google_ads_api_report_fetcher_1.GoogleAdsRpcApiClient(adsConfig);
+        adsClient = new GoogleAdsRpcApiClient(adsConfig);
     }
-    customerIds = await (0, google_ads_api_report_fetcher_1.getCustomerIds)(adsClient, customerIds);
+    customerIds = await getCustomerIds(adsClient, customerIds);
     let customer_ids_query = '';
     if (req.body && req.body.customer_ids_query) {
         customer_ids_query = req.body.customer_ids_query;
     }
     else if (req.query.customer_ids_query) {
-        customer_ids_query = await (0, google_ads_api_report_fetcher_1.getFileContent)(req.query.customer_ids_query);
+        customer_ids_query = await getFileContent(req.query.customer_ids_query);
     }
     if (customer_ids_query) {
         logger.info(`Fetching customer id using custom query: ${customer_ids_query}`);
-        customerIds = await (0, google_ads_api_report_fetcher_1.filterCustomerIds)(adsClient, customerIds, customer_ids_query);
+        customerIds = await filterCustomerIds(adsClient, customerIds, customer_ids_query);
         logger.info(`Loaded ${customerIds.length} accounts`);
     }
     customerIds = customerIds || [];
@@ -111,7 +108,7 @@ async function main_getcids_unsafe(req, res, logger) {
     else {
         // otherwise, by default we'll return CIDs grouped in batches:
         //    [1, 2, ..., 10_000] => [ [1, 2, ..., 5_000], [5_001, 10_000], ]
-        const customerIdsBatched = (0, utils_1.splitIntoChunks)(customerIds, batchSize);
+        const customerIdsBatched = splitIntoChunks(customerIds, batchSize);
         res.json({
             batchCount: customerIdsBatched.length,
             batchSize: batchSize,
@@ -120,15 +117,15 @@ async function main_getcids_unsafe(req, res, logger) {
         res.end();
     }
 }
-const main_getcids = async (req, res) => {
+export const main_getcids = async (req, res) => {
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
-    const projectId = await (0, utils_1.getProject)();
-    const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-getcids');
+    const projectId = await getProject();
+    const logger = createLogger(req, projectId, process.env.K_SERVICE || 'gaarf-getcids');
     logger.info('request', { body: req.body, query: req.query });
     let dispose;
     if (dumpMemory) {
-        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
-        dispose = (0, utils_1.startPeriodicMemoryLogging)(logger, 60000);
+        logger.info(getMemoryUsage('Start'));
+        dispose = startPeriodicMemoryLogging(logger, 60000);
     }
     try {
         await main_getcids_unsafe(req, res, logger);
@@ -142,9 +139,8 @@ const main_getcids = async (req, res) => {
         if (dumpMemory) {
             if (dispose)
                 dispose();
-            logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('End'));
+            logger.info(getMemoryUsage('End'));
         }
     }
 };
-exports.main_getcids = main_getcids;
 //# sourceMappingURL=gaarf-getcids.js.map

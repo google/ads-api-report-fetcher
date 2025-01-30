@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.main_bq = void 0;
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +13,15 @@ exports.main_bq = void 0;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const utils_1 = require("./utils");
-const logger_1 = require("./logger");
+import { BigQueryExecutor, getMemoryUsage, } from 'google-ads-api-report-fetcher';
+import { getProject, getScript, startPeriodicMemoryLogging } from './utils.js';
+import { createLogger } from './logger.js';
 async function main_bq_unsafe(req, res, projectId, logger) {
     const options = {
         datasetLocation: req.query.dataset_location,
     };
-    const { queryText, scriptName } = await (0, utils_1.getScript)(req, logger);
-    const executor = new google_ads_api_report_fetcher_1.BigQueryExecutor(projectId, options);
+    const { queryText, scriptName } = await getScript(req, logger);
+    const executor = new BigQueryExecutor(projectId, options);
     const body = req.body || {};
     const sqlParams = body.sql;
     const macroParams = body.macro;
@@ -39,15 +36,15 @@ async function main_bq_unsafe(req, res, projectId, logger) {
         res.sendStatus(200);
     }
 }
-const main_bq = async (req, res) => {
+export const main_bq = async (req, res) => {
     const dumpMemory = !!(req.query.dump_memory || process.env.DUMP_MEMORY);
-    const projectId = await (0, utils_1.getProject)();
-    const logger = (0, logger_1.createLogger)(req, projectId, process.env.K_SERVICE || 'gaarf-bq');
+    const projectId = await getProject();
+    const logger = createLogger(req, projectId, process.env.K_SERVICE || 'gaarf-bq');
     logger.info('request', { body: req.body, query: req.query });
     let dispose;
     if (dumpMemory) {
-        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Start'));
-        dispose = (0, utils_1.startPeriodicMemoryLogging)(logger, 60000);
+        logger.info(getMemoryUsage('Start'));
+        dispose = startPeriodicMemoryLogging(logger, 60000);
     }
     try {
         await main_bq_unsafe(req, res, projectId, logger);
@@ -61,9 +58,8 @@ const main_bq = async (req, res) => {
         if (dumpMemory) {
             if (dispose)
                 dispose();
-            logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('End'));
+            logger.info(getMemoryUsage('End'));
         }
     }
 };
-exports.main_bq = main_bq;
 //# sourceMappingURL=gaarf-bq.js.map

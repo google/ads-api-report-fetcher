@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 import path from 'node:path';
 import {BigQueryExecutor, getMemoryUsage} from 'google-ads-api-report-fetcher';
-import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
+import type {HttpFunction} from '@google-cloud/functions-framework';
 import express from 'express';
-import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
-import {createLogger, ILogger} from './logger';
-import {getProject, startPeriodicMemoryLogging} from './utils';
+import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher';
+import {createLogger, ILogger} from './logger.js';
+import {getProject, startPeriodicMemoryLogging} from './utils.js';
 
 async function main_bq_view_unsafe(
   req: express.Request,

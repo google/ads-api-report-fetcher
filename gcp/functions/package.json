@@ -15,15 +15,17 @@
     "pretest": "npm run compile",
     "posttest": "npm run lint"
   },
+  "type": "module",
   "keywords": [],
   "author": "Google Inc. (gTech gPS CSE team)",
   "private": true,
   "license": "Apache-2.0",
   "dependencies": {
+    "@google-cloud/bigquery": "^7.9.1",
     "@google-cloud/functions-framework": "^3.3.0",
     "@google-cloud/logging": "^11.0.0",
     "@google-cloud/logging-winston": "^6.0.0",
-    "google-ads-api-report-fetcher": "^2.12.0",
+    "google-ads-api-report-fetcher": "^2.13.0",
     "google-auth-library": "^9.1.0",
     "js-yaml": "^4.1.0"
   },
@@ -32,12 +34,13 @@
     "@types/express": "^4.17.18",
     "@types/js-yaml": "^4.0.6",
     "@types/lodash": "^4.14.199",
-    "@types/node": "^20.8.2",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^20.16.11",
     "@types/nunjucks": "^3.2.4",
     "concurrently": "^8.2.1",
     "gts": "^4.0.0",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
-    "typescript": "^4.7.4"
+    "typescript": "^5.6.3"
   }
 }

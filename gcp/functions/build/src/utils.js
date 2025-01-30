@@ -1,13 +1,22 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startPeriodicMemoryLogging = exports.splitIntoChunks = exports.getProject = exports.getAdsConfig = exports.getScript = void 0;
-const google_auth_library_1 = require("google-auth-library");
-const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-const node_path_1 = __importDefault(require("node:path"));
-const node_fs_1 = __importDefault(require("node:fs"));
+/*
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+import { GoogleAuth } from 'google-auth-library';
+import { getFileContent, loadAdsConfigYaml, getMemoryUsage, } from 'google-ads-api-report-fetcher';
+import path from 'node:path';
+import fs from 'node:fs';
 /**
  * Get script from request body or from a file specified in query parameters.
  * @param req request object
@@ -15,7 +24,7 @@ const node_fs_1 = __importDefault(require("node:fs"));
  * @returns a promise that resolves to an object with `queryText` and `scriptName`
  * properties
  */
-async function getScript(req, logger) {
+export async function getScript(req, logger) {
     const scriptPath = req.query.script_path;
     const body = req.body || {};
     let queryText;
@@ -26,8 +35,8 @@ async function getScript(req, logger) {
         logger.info('Executing inline query from request');
     }
     else if (scriptPath) {
-        queryText = await (0, google_ads_api_report_fetcher_1.getFileContent)(scriptPath);
-        scriptName = node_path_1.default.basename(scriptPath).split('.sql')[0];
+        queryText = await getFileContent(scriptPath);
+        scriptName = path.basename(scriptPath).split('.sql')[0];
         logger.info(`Executing query from '${scriptPath}'`);
     }
     if (!queryText)
@@ -36,18 +45,17 @@ async function getScript(req, logger) {
         throw new Error('Could not determine script name');
     return { queryText, scriptName };
 }
-exports.getScript = getScript;
 /**
  * Get Ads API configuration from request body or from a file specified in query
  * parameters.
  * @param req request object
  * @returns a promise that resolves to an object with Ads API configuration
  */
-async function getAdsConfig(req) {
+export async function getAdsConfig(req) {
     let adsConfig;
     const adsConfigFile = req.query.ads_config_path || process.env.ADS_CONFIG;
     if (adsConfigFile) {
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)(adsConfigFile);
+        adsConfig = await loadAdsConfigYaml(adsConfigFile);
     }
     else if (req.body && req.body.ads_config) {
         // get from request body
@@ -72,9 +80,9 @@ async function getAdsConfig(req) {
             refresh_token: process.env.REFRESH_TOKEN,
         };
     }
-    else if (node_fs_1.default.existsSync('google-ads.yaml')) {
+    else if (fs.existsSync('google-ads.yaml')) {
         // get from a local file
-        adsConfig = await (0, google_ads_api_report_fetcher_1.loadAdsConfigYaml)('google-ads.yaml');
+        adsConfig = await loadAdsConfigYaml('google-ads.yaml');
     }
     if (!adsConfig ||
         !adsConfig.developer_token ||
@@ -85,44 +93,40 @@ async function getAdsConfig(req) {
     }
     return adsConfig;
 }
-exports.getAdsConfig = getAdsConfig;
 /**
  * Get project id from environment variables.
  * @returns a promise that resolves to a project id
  */
-async function getProject() {
-    const auth = new google_auth_library_1.GoogleAuth({
+export async function getProject() {
+    const auth = new GoogleAuth({
         scopes: 'https://www.googleapis.com/auth/cloud-platform',
     });
     const projectId = await auth.getProjectId();
     return projectId;
 }
-exports.getProject = getProject;
 /**
  * Split an array into chunks of a given size.
  * @param array array to split
  * @param max maximum size of a chunk
  * @returns an array of arrays
  */
-function splitIntoChunks(array, max) {
+export function splitIntoChunks(array, max) {
     const result = [];
     for (let i = 0; i < array.length; i += max) {
         result.push(array.slice(i, i + max));
     }
     return result;
 }
-exports.splitIntoChunks = splitIntoChunks;
 /**
  * Start a periodic logging of memory usage in backgroung.
  * @param logger logger to write to
  * @param intervalMs interval in milliseconds
  * @returns a callback to call for stopping logging
  */
-function startPeriodicMemoryLogging(logger, intervalMs = 5000) {
+export function startPeriodicMemoryLogging(logger, intervalMs = 5000) {
     const intervalId = setInterval(() => {
-        logger.info((0, google_ads_api_report_fetcher_1.getMemoryUsage)('Periodic'));
+        logger.info(getMemoryUsage('Periodic'));
     }, intervalMs);
     return () => clearInterval(intervalId); // Return function to stop logging
 }
-exports.startPeriodicMemoryLogging = startPeriodicMemoryLogging;
 //# sourceMappingURL=utils.js.map

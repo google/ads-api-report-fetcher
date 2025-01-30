@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,15 +40,15 @@ import {
   getCustomerIds,
   filterCustomerIds,
 } from 'google-ads-api-report-fetcher';
-import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
+import type {HttpFunction} from '@google-cloud/functions-framework';
 import express from 'express';
 import {
   getAdsConfig,
   getProject,
   splitIntoChunks,
   startPeriodicMemoryLogging,
-} from './utils';
-import {createLogger, ILogger} from './logger';
+} from './utils.js';
+import {createLogger, ILogger} from './logger.js';
 
 const DEFAULT_BATCH_SIZE = 500;
 

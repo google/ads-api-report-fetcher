@@ -1,6 +1,5 @@
-"use strict";
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLogger = void 0;
-const google_ads_api_report_fetcher_1 = require("google-ads-api-report-fetcher");
-function createLogger(req, projectId, component) {
+import { getLogger } from 'google-ads-api-report-fetcher';
+export function createLogger(req, projectId, component) {
     const logLevel = req.query.log_level || process.env.LOG_LEVEL;
     if (logLevel) {
         process.env.LOG_LEVEL = logLevel;
@@ -27,7 +24,7 @@ function createLogger(req, projectId, component) {
         const [trace] = traceHeader.split('/');
         process.env.TRACE_ID = `projects/${projectId}/traces/${trace}`;
     }
-    const logger = (0, google_ads_api_report_fetcher_1.getLogger)();
+    const logger = getLogger();
     if (logLevel) {
         logger.level = logLevel;
     }
@@ -36,5 +33,4 @@ function createLogger(req, projectId, component) {
     process.env.GCP_PROJECT = projectId;
     return logger;
 }
-exports.createLogger = createLogger;
 //# sourceMappingURL=logger.js.map

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,15 +41,15 @@ import {
   JsonWriter,
   JsonWriterOptions,
 } from 'google-ads-api-report-fetcher';
-import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
+import type {HttpFunction} from '@google-cloud/functions-framework';
 import express from 'express';
 import {
   getAdsConfig,
   getProject,
   getScript,
   startPeriodicMemoryLogging,
-} from './utils';
-import {ILogger, createLogger} from './logger';
+} from './utils.js';
+import {ILogger, createLogger} from './logger.js';
 
 function getQueryWriter(req: express.Request, projectId: string) {
   const body = req.body || {};
@@ -117,7 +117,7 @@ async function main_unsafe(
   }
 
   let adsClient: IGoogleAdsApiClient;
-  if (req.query.api === 'rest') {
+  if ((req.query.api as string)?.toLocaleLowerCase() === 'rest') {
     const apiVersion = <string>req.query.apiVersion;
     adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
   } else {
@@ -169,7 +169,7 @@ async function main_unsafe(
     writer
   );
 
-  logger.info(`Cloud Function ${functionName} compeleted`, {
+  logger.info(`Cloud Function ${functionName} completed`, {
     customerId,
     scriptName,
     result,

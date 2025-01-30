@@ -3,8 +3,9 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
-    "lib": ["ES2021"],
-    "moduleResolution": "node",            /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+    "lib": ["ES2021", "ES2022"],
+    "module": "node16",
+    "moduleResolution": "node16",
     "noImplicitReturns": false,             /* Report error when not all code paths in function return a value. */
     "useUnknownInCatchVariables": false,
     "skipLibCheck": true,                     /* Skip type checking of declaration files. */

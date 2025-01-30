@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {BigQueryExecutor, getMemoryUsage} from 'google-ads-api-report-fetcher';
-import type {HttpFunction} from '@google-cloud/functions-framework/build/src/functions';
+import {
+  BigQueryExecutor,
+  BigQueryExecutorOptions,
+  getMemoryUsage,
+} from 'google-ads-api-report-fetcher';
+import type {HttpFunction} from '@google-cloud/functions-framework';
 import express from 'express';
-import {getProject, getScript, startPeriodicMemoryLogging} from './utils';
-import {BigQueryExecutorOptions} from 'google-ads-api-report-fetcher/src/lib/bq-executor';
-import {createLogger, ILogger} from './logger';
+import {getProject, getScript, startPeriodicMemoryLogging} from './utils.js';
+import {createLogger, ILogger} from './logger.js';
 
 async function main_bq_unsafe(
   req: express.Request,
