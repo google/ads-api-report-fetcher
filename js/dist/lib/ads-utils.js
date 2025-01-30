@@ -1,6 +1,5 @@
-"use strict";
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,27 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.filterCustomerIds = exports.getCustomerIds = exports.getCustomerInfo = exports.loadAdsConfigFromFile = exports.parseCustomerIds = void 0;
-const file_utils_1 = require("./file-utils");
-const lodash_1 = __importDefault(require("lodash"));
-const js_yaml_1 = __importDefault(require("js-yaml"));
-const ads_query_executor_1 = require("./ads-query-executor");
+import { isArray } from 'lodash-es';
+import yaml from 'js-yaml';
+import { getFileContent } from './file-utils.js';
+import { AdsQueryExecutor } from './ads-query-executor.js';
 /**
  * Return a normalized list of customer ids
  * @param customerId a customer id or a list of ids via comma
  * @param adsConfig a config
  * @returns a customer id
  */
-function parseCustomerIds(customerId, adsConfig) {
+export function parseCustomerIds(customerId, adsConfig) {
     let customerIds;
     if (!customerId) {
         // CID/account wasn't provided explicitly, we'll use customer_id field from ads-config (it can be absent)
         if (adsConfig.customer_id) {
-            if (lodash_1.default.isArray(adsConfig.customer_id)) {
+            if (isArray(adsConfig.customer_id)) {
                 customerIds = adsConfig.customer_id;
             }
             else {
@@ -62,20 +56,19 @@ function parseCustomerIds(customerId, adsConfig) {
     }
     return customerIds;
 }
-exports.parseCustomerIds = parseCustomerIds;
 /**
  * Load Ads credentials from a file (json or yaml)
  * @param configFilepath a path to config
  * @returns Ads credentials
  */
-async function loadAdsConfigFromFile(configFilepath) {
+export async function loadAdsConfigFromFile(configFilepath) {
     var _a, _b;
     try {
-        const content = await (0, file_utils_1.getFileContent)(configFilepath);
+        const content = await getFileContent(configFilepath);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const doc = configFilepath.endsWith('.json')
             ? JSON.parse(content)
-            : js_yaml_1.default.load(content);
+            : yaml.load(content);
         return {
             developer_token: doc['developer_token'],
             client_id: doc['client_id'],
@@ -89,14 +82,13 @@ async function loadAdsConfigFromFile(configFilepath) {
         throw new Error(`Failed to load Ads API configuration from ${configFilepath}: ${e}`);
     }
 }
-exports.loadAdsConfigFromFile = loadAdsConfigFromFile;
 /**
  * Bulid a hierarchy with account structure starting from a cid.
  * @param adsClient Ads client
  * @param customerId a seed customer id
  * @returns a hierarchy of CustomerInfo
  */
-async function getCustomerInfo(adsClient, customerId) {
+export async function getCustomerInfo(adsClient, customerId) {
     const queryText = `SELECT
       customer_client.id,
       customer_client.level,
@@ -113,7 +105,7 @@ async function getCustomerInfo(adsClient, customerId) {
     let customer = undefined;
     const query = adsClient.getQueryEditor().parseQuery(queryText);
     const query2 = adsClient.getQueryEditor().parseQuery(queryText2);
-    const executor = new ads_query_executor_1.AdsQueryExecutor(adsClient);
+    const executor = new AdsQueryExecutor(adsClient);
     const result = await executor.executeQueryAndParseToObjects(query, customerId);
     for (const row of result.rows) {
         const cid = row['id'].toString();
@@ -137,14 +129,13 @@ async function getCustomerInfo(adsClient, customerId) {
     }
     return customer;
 }
-exports.getCustomerInfo = getCustomerInfo;
 /**
  * Get all nested non-MCC account for the specified one(s).
  * If the specified one is a leaf account (non-MCC) then it will be returned
  * @param customerId A customer account (CID)
  * @returns a list of child account (at all levels)
  */
-async function getCustomerIds(adsClient, customerId) {
+export async function getCustomerIds(adsClient, customerId) {
     const queryText = `SELECT
       customer_client.id as cid
     FROM customer_client
@@ -156,7 +147,7 @@ async function getCustomerIds(adsClient, customerId) {
         customerId = [customerId];
     }
     const all_ids = [];
-    const executor = new ads_query_executor_1.AdsQueryExecutor(adsClient);
+    const executor = new AdsQueryExecutor(adsClient);
     const query = adsClient.getQueryEditor().parseQuery(queryText);
     for (const cid of customerId) {
         const res = await executor.executeQueryAndParse(query, cid);
@@ -165,7 +156,6 @@ async function getCustomerIds(adsClient, customerId) {
     }
     return all_ids;
 }
-exports.getCustomerIds = getCustomerIds;
 /**
  * Filter customers with a query.
  * @param adsClient Ads client
@@ -173,10 +163,10 @@ exports.getCustomerIds = getCustomerIds;
  * @param customer_ids_query a query
  * @returns a filtered list of customer ids
  */
-async function filterCustomerIds(adsClient, ids, customer_ids_query) {
+export async function filterCustomerIds(adsClient, ids, customer_ids_query) {
     const query = adsClient.getQueryEditor().parseQuery(customer_ids_query);
     const accounts = new Set();
-    const executor = new ads_query_executor_1.AdsQueryExecutor(adsClient);
+    const executor = new AdsQueryExecutor(adsClient);
     for (const id of ids) {
         const result = await executor.executeQueryAndParse(query, id);
         if (result.rowCount > 0) {
@@ -188,5 +178,4 @@ async function filterCustomerIds(adsClient, ids, customer_ids_query) {
     }
     return Array.from(accounts);
 }
-exports.filterCustomerIds = filterCustomerIds;
 //# sourceMappingURL=ads-utils.js.map

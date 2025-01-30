@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFileContent = void 0;
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +13,13 @@ exports.getFileContent = void 0;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const fs_1 = __importDefault(require("fs"));
-const google_cloud_1 = require("./google-cloud");
-async function getFileContent(scriptPath) {
+import fs from 'fs';
+import { getFileFromGCS } from './google-cloud.js';
+export async function getFileContent(scriptPath) {
     if (scriptPath.startsWith('gs://')) {
-        return (0, google_cloud_1.getFileFromGCS)(scriptPath);
+        return getFileFromGCS(scriptPath);
     }
-    const queryText = fs_1.default.readFileSync(scriptPath.trim(), 'utf-8');
+    const queryText = fs.readFileSync(scriptPath.trim(), 'utf-8');
     return queryText;
 }
-exports.getFileContent = getFileContent;
 //# sourceMappingURL=file-utils.js.map

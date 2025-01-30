@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.delay = exports.executeWithRetry = exports.getMemoryUsage = exports.getDirectorySize = exports.getElapsed = exports.renderTemplate = exports.substituteMacros = exports.formatDateISO = exports.tryParseNumber = exports.navigateObject = exports.traverseObject = void 0;
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,33 +13,32 @@ exports.delay = exports.executeWithRetry = exports.getMemoryUsage = exports.getD
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const node_fs_1 = __importDefault(require("node:fs"));
-const add_1 = __importDefault(require("date-fns/add"));
-const format_1 = __importDefault(require("date-fns/format"));
-const lodash_1 = __importDefault(require("lodash"));
-const math_engine_1 = require("./math-engine");
-const nunjucks_1 = __importDefault(require("nunjucks"));
-function traverseObject(
+import fs from 'node:fs';
+import { add as date_add, format } from 'date-fns';
+import { forIn, isPlainObject, isString, isBoolean, isNumber, isFinite, isArray, } from 'lodash-es';
+import nunjucks from 'nunjucks';
+import { math_parse } from './math-engine.js';
+export function traverseObject(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 object, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 visitor, path) {
     path = path || [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return lodash_1.default.forIn(object, (value, name) => {
+    return forIn(object, (value, name) => {
         path.push(name);
-        if (lodash_1.default.isPlainObject(value)) {
+        if (isPlainObject(value)) {
             visitor(name, value, path, object);
             traverseObject(value, visitor, path);
         }
         else if (value === null ||
             value === undefined ||
-            lodash_1.default.isString(value) ||
-            lodash_1.default.isNumber(value) ||
-            lodash_1.default.isBoolean(value)) {
+            isString(value) ||
+            isNumber(value) ||
+            isBoolean(value)) {
             visitor(name, value, path, object);
         }
-        else if (lodash_1.default.isArray(value)) {
+        else if (isArray(value)) {
             // TODO: empty arrays, arrays of primities
             visitor(name, value, path, object);
             // for (const idx in value) {
@@ -62,7 +55,6 @@ visitor, path) {
         path.pop();
     });
 }
-exports.traverseObject = traverseObject;
 /**
  * Navigation a property chain on an object.
  * @param object an object
@@ -70,7 +62,7 @@ exports.traverseObject = traverseObject;
  * @returns a value from the chain
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function navigateObject(object, path) {
+export function navigateObject(object, path) {
     let ctx = object;
     for (const name of path.split('.')) {
         ctx = ctx[name];
@@ -79,27 +71,25 @@ function navigateObject(object, path) {
     }
     return ctx;
 }
-exports.navigateObject = navigateObject;
 /**
  * Parses numbers from strings
  * @param str a string containing a number
  * @returns a finite number (never returns NaN) or undefined
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function tryParseNumber(str) {
-    if (lodash_1.default.isFinite(str))
+export function tryParseNumber(str) {
+    if (isFinite(str))
         return str;
-    if (lodash_1.default.isString(str) && str.length > 0) {
+    if (isString(str) && str.length > 0) {
         const num = Number(str);
         return isNaN(num) ? undefined : num;
     }
 }
-exports.tryParseNumber = tryParseNumber;
 /**
  * Format a date in ISO format - YYYYMMDD or YYYY-MM-DD if delimiter is "-"
  * @deprecated use `format` from `date-fns` package instead
  */
-function formatDateISO(dt, delimiter = '') {
+export function formatDateISO(dt, delimiter = '') {
     const month = dt.getMonth() + 1;
     const day = dt.getDate();
     const iso = dt.getFullYear() +
@@ -109,7 +99,6 @@ function formatDateISO(dt, delimiter = '') {
         (day < 10 ? '0' + day : day);
     return iso;
 }
-exports.formatDateISO = formatDateISO;
 function convert_date(name, value) {
     // eslint-disable-next-line prefer-const
     let [pattern, delta, ...other] = value.split('-');
@@ -118,7 +107,7 @@ function convert_date(name, value) {
     }
     if (!delta) {
         // simple case ":YYYYMMDD"
-        return (0, format_1.default)(new Date(), 'yyyy-MM-dd');
+        return format(new Date(), 'yyyy-MM-dd');
     }
     const ago = +delta;
     pattern = pattern.trim().toUpperCase();
@@ -135,16 +124,16 @@ function convert_date(name, value) {
     else {
         throw new Error(`Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `);
     }
-    const dt = (0, add_1.default)(new Date(), duration);
-    return (0, format_1.default)(dt, 'yyyy-MM-dd');
+    const dt = date_add(new Date(), duration);
+    return format(dt, 'yyyy-MM-dd');
 }
 /**
- * Substitute macros into the text, and evalutes expressions (in ${} blocks).
+ * Substitute macros into the text, and evaluates expressions (in ${} blocks).
  * @param text a text (query) to process
  * @param macros an object with key-values to substitute
  * @returns same text with substituted macros and executed expressions
  */
-function substituteMacros(text, 
+export function substituteMacros(text, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 macros) {
     const unknown_params = {};
@@ -153,7 +142,7 @@ macros) {
     if (macros) {
         Object.entries(macros).map(pair => {
             const value = pair[1];
-            if (value && lodash_1.default.isString(value) && value.startsWith(':YYYY')) {
+            if (value && isString(value) && value.startsWith(':YYYY')) {
                 const key = pair[0];
                 macros[key] = convert_date(key, value);
             }
@@ -162,22 +151,22 @@ macros) {
     macros = macros || {};
     // add "magic" macros for Python version compatibility
     if (!macros['date_iso']) {
-        macros['date_iso'] = (0, format_1.default)(new Date(), 'yyyyMMdd');
+        macros['date_iso'] = format(new Date(), 'yyyyMMdd');
     }
     if (!macros['yesterday_iso']) {
         const date = new Date();
         date.setDate(date.getDate() - 1);
-        macros['yesterday_iso'] = (0, format_1.default)(date, 'yyyyMMdd');
+        macros['yesterday_iso'] = format(date, 'yyyyMMdd');
     }
     if (!macros['current_date']) {
-        macros['current_date'] = (0, format_1.default)(new Date(), 'yyyy-MM-dd');
+        macros['current_date'] = format(new Date(), 'yyyy-MM-dd');
     }
     if (!macros['current_datetime']) {
-        macros['current_datetime'] = (0, format_1.default)(new Date(), 'yyyy-MM-dd HH:mm:ss');
+        macros['current_datetime'] = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
     }
     // notes on the regexp:
     //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
-    //  not precended with '$'), with that we're capturing {smth} expressions
+    //  not prepended with '$'), with that we're capturing {smth} expressions
     //  and not ${smth} expressions
     text = text.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
         if (!Object.prototype.hasOwnProperty.call(macros, name)) {
@@ -192,12 +181,11 @@ macros) {
     text = text.replace(/\$\{([^}]*)\}/g, (ss, expr) => {
         if (!expr.trim())
             return '';
-        return (0, math_engine_1.math_parse)(expr).evaluate(macros);
+        return math_parse(expr).evaluate(macros);
     });
     return { text: text, unknown_params: Object.keys(unknown_params) };
 }
-exports.substituteMacros = substituteMacros;
-function renderTemplate(template, params) {
+export function renderTemplate(template, params) {
     //nunjucks.configure("views", { autoescape: true });
     if (params) {
         for (const [key, value] of Object.entries(params)) {
@@ -206,9 +194,8 @@ function renderTemplate(template, params) {
             }
         }
     }
-    return nunjucks_1.default.renderString(template, params);
+    return nunjucks.renderString(template, params);
 }
-exports.renderTemplate = renderTemplate;
 function prepend(value, num) {
     let value_str = value.toString();
     num = num || 2;
@@ -219,10 +206,10 @@ function prepend(value, num) {
     }
     return value_str;
 }
-function getElapsed(started, now) {
+export function getElapsed(started, now) {
     // NOTE: as we've already imported @js-joda it seems logic to use it for
-    // calculating duration and formating. Unfortunetely it doesn't seem to
-    // support formating of duration in a way we need (hh:mm:ss)
+    // calculating duration and formatting. Unfortunately it doesn't seem to
+    // support formatting of duration in a way we need (hh:mm:ss)
     //let from = LocalDateTime.from(nativeJs(started));
     //let to = LocalDateTime.from(nativeJs(now || new Date()));
     //Duration.between(from, to).toString() - return 'PT..' string
@@ -242,31 +229,29 @@ function getElapsed(started, now) {
         '.' +
         prepend(ms, 3));
 }
-exports.getElapsed = getElapsed;
 /**
  * Return a directory size.
  * @param path a local path
  * @returns size in megabytes
  */
-function getDirectorySize(path) {
+export function getDirectorySize(path) {
     let totalSize = 0;
-    if (node_fs_1.default.existsSync(path)) {
-        const files = node_fs_1.default.readdirSync(path);
+    if (fs.existsSync(path)) {
+        const files = fs.readdirSync(path);
         for (const file of files) {
-            const stats = node_fs_1.default.statSync(`${path}/${file}`);
+            const stats = fs.statSync(`${path}/${file}`);
             totalSize += stats.size;
         }
         return Math.round(totalSize / 1024 / 1024); // Convert to MB
     }
     return undefined;
 }
-exports.getDirectorySize = getDirectorySize;
 /**
  * Construct a string with memory usage dump.
- * @param phase arbitrar string to describe a moment
+ * @param phase arbitrary string to describe a moment
  * @returns formatted info
  */
-function getMemoryUsage(phase) {
+export function getMemoryUsage(phase) {
     const used = process.memoryUsage();
     // NOTE: Additionally v8.getHeapStatistics() can be used
     let memUsage = '';
@@ -282,7 +267,6 @@ function getMemoryUsage(phase) {
     }
     return `${phase} - Memory Usage: ${memUsage}\n${extra}`;
 }
-exports.getMemoryUsage = getMemoryUsage;
 /**
  *
  * @param fn Any operation to execute
@@ -290,7 +274,7 @@ exports.getMemoryUsage = getMemoryUsage;
  * @param baseDelayMs Initial delay in milliseconds to wait before retrying the operation
  * @returns A result of the operation
  */
-function executeWithRetry(fn, 
+export function executeWithRetry(fn, 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 checkToRetry, options) {
     let attempt = 1;
@@ -329,13 +313,11 @@ checkToRetry, options) {
     };
     return execute();
 }
-exports.executeWithRetry = executeWithRetry;
 /**
  * Return a waitable Promise for a delay.
  * @param ms number of milliseconds to wait
  */
-function delay(ms) {
+export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-exports.delay = delay;
 //# sourceMappingURL=utils.js.map

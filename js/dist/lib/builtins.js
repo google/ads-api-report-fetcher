@@ -1,6 +1,5 @@
-"use strict";
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BuiltinQueryProcessor = void 0;
-const types_1 = require("./types");
-class BuiltinQueryProcessor {
+import { FieldTypeKind, QueryElements } from './types.js';
+export class BuiltinQueryProcessor {
     constructor(queryEditor) {
         this.queryEditor = queryEditor;
     }
@@ -30,7 +27,7 @@ class BuiltinQueryProcessor {
                     name: 'customer_id',
                     expression: 'customer_id',
                     type: {
-                        kind: types_1.FieldTypeKind.primitive,
+                        kind: FieldTypeKind.primitive,
                         type: 'int64',
                         typeName: 'int64',
                     },
@@ -39,7 +36,7 @@ class BuiltinQueryProcessor {
                     name: 'ocid',
                     expression: 'ocid',
                     type: {
-                        kind: types_1.FieldTypeKind.primitive,
+                        kind: FieldTypeKind.primitive,
                         type: 'string',
                         typeName: 'string',
                     },
@@ -52,7 +49,7 @@ class BuiltinQueryProcessor {
                 typeMeta: resourceTypeFrom,
                 isConstant: false,
             };
-            const query = new types_1.QueryElements(queryNew, fields, resourceInfo, {});
+            const query = new QueryElements(queryNew, fields, resourceInfo, {});
             query.executor = this;
             return query;
         }
@@ -175,5 +172,4 @@ class BuiltinQueryProcessor {
         throw new Error('Unknown builtin query: ' + query.resource.name);
     }
 }
-exports.BuiltinQueryProcessor = BuiltinQueryProcessor;
 //# sourceMappingURL=builtins.js.map

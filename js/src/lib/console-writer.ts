@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import {
   table,
   TableUserConfig,
 } from 'table';
-import _ from 'lodash';
+import {isNumber, isBoolean, isString, isArray, max} from 'lodash-es';
 
-import {IResultWriter, QueryElements} from './types';
+import {IResultWriter, QueryElements} from './types.js';
 
 export interface ConsoleWriterOptions {
   transpose?: string;
@@ -85,8 +85,8 @@ export class ConsoleWriter implements IResultWriter {
 
   _formatValue(val: unknown): unknown {
     if (!val) return val;
-    if (_.isNumber(val) || _.isString(val) || _.isBoolean(val)) return val;
-    if (_.isArray(val)) {
+    if (isNumber(val) || isString(val) || isBoolean(val)) return val;
+    if (isArray(val)) {
       return val.map((v: unknown) => this._formatValue(v)).join('\n');
     }
     return JSON.stringify(val, null, 2);
@@ -113,9 +113,9 @@ export class ConsoleWriter implements IResultWriter {
       return row.map(val => {
         if (val === undefined) return '';
         if (
-          _.isArray(val) &&
+          isArray(val) &&
           val.length > 0 &&
-          _.max(val.map(v => (v ? v.length : 0))) > 20
+          max(val.map(v => (v ? v.length : 0))) > 20
         ) {
           return val.map(i => (i ? this._formatValue(i) + '\n' : '')).join('');
         }

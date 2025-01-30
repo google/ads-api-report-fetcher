@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-import {BigQuery, Dataset} from '@google-cloud/bigquery';
-import bigquery from '@google-cloud/bigquery/build/src/types';
+import {
+  BigQuery,
+  Dataset,
+  TableSchema,
+  TableField,
+} from '@google-cloud/bigquery';
 import fs_async from 'node:fs/promises';
-import _, {isArray} from 'lodash';
+import {isObjectLike, isArray, isString} from 'lodash-es';
 
 import {
   ArrayHandling,
@@ -25,11 +29,11 @@ import {
   FieldTypeKind,
   isEnumType,
   QueryElements,
-} from './types';
-import {delay, substituteMacros} from './utils';
-import {getDataset, OAUTH_SCOPES} from './bq-common';
-import {BigQueryExecutor, BigQueryExecutorOptions} from './bq-executor';
-import {FileWriterBase} from './file-writers';
+} from './types.js';
+import {delay, substituteMacros} from './utils.js';
+import {getDataset, OAUTH_SCOPES} from './bq-common.js';
+import {BigQueryExecutor, BigQueryExecutorOptions} from './bq-executor.js';
+import {FileWriterBase} from './file-writers.js';
 
 const MAX_ROWS = 50000;
 
@@ -49,7 +53,7 @@ export interface BigQueryWriterOptions {
    */
   insertMethod?: BigQueryInsertMethod;
   /**
-   * How to process arrys (as is or convert to strings).
+   * How to process arrays (as is or convert to strings).
    */
   arrayHandling?: ArrayHandling;
   /**
@@ -81,7 +85,7 @@ export class BigQueryWriter extends FileWriterBase {
   datasetId: string;
   datasetLocation?: string;
   customers: string[];
-  schema: bigquery.ITableSchema | undefined;
+  schema: TableSchema | undefined;
   tableId: string | undefined;
   dataset: Dataset | undefined;
   rowsByCustomer: Record<string, Record<string, unknown>[]>;
@@ -140,7 +144,7 @@ export class BigQueryWriter extends FileWriterBase {
       this.datasetLocation
     );
     this.query = query;
-    const schema: bigquery.ITableSchema = this.createSchema(query);
+    const schema: TableSchema = this.createSchema(query);
     this.schema = schema;
     if (this.dumpSchema) {
       this.logger.debug(JSON.stringify(schema, null, 2));
@@ -231,7 +235,7 @@ export class BigQueryWriter extends FileWriterBase {
           // in the array, and they will be rejected
           for (let j = 0; j < val.length; j++) {
             const subval = val[j];
-            if (_.isArray(subval) || _.isObjectLike(subval)) {
+            if (isArray(subval) || isObjectLike(subval)) {
               val[j] = JSON.stringify(subval);
             }
           }
@@ -300,7 +304,7 @@ export class BigQueryWriter extends FileWriterBase {
         }
       } else if (e.code === 404) {
         // ApiError: "Table 162551664177:dataset.table not found"
-        // This is unexpected but theriotically can happen (and did)
+        // This is unexpected but theoretically can happen (and did)
         // due to eventually consistency of BigQuery
         console.error(`Table ${tableFullName} not found.`, {
           customerId: customerId,
@@ -374,7 +378,7 @@ export class BigQueryWriter extends FileWriterBase {
       // no rows found for the customer, as so no table was created,
       // create an empty one, so we could use it for a union view
       try {
-        // it might a case when creatTables fails because the previous delete
+        // it might a case when createTables fails because the previous delete
         // hasn't been propagated
         await this.ensureTableCreated(tableFullName);
         this.logger.verbose(`Created empty table '${tableFullName}'`, {
@@ -407,7 +411,7 @@ export class BigQueryWriter extends FileWriterBase {
     }
     if (!this.query.resource.isConstant && !this.noUnionView) {
       /*
-      Create a view to union all customer tables (if not disabled excplicitly):
+      Create a view to union all customer tables (if not disabled explicitly):
       CREATE OR REPLACE VIEW `dataset.resource` AS
         SELECT * FROM `dataset.resource_*`;
       */
@@ -429,10 +433,10 @@ export class BigQueryWriter extends FileWriterBase {
     this.rowCountsByCustomer = {};
   }
 
-  private createSchema(query: QueryElements): bigquery.ITableSchema {
-    const schema: bigquery.ITableSchema = {fields: []};
+  private createSchema(query: QueryElements): TableSchema {
+    const schema: TableSchema = {fields: []};
     for (const column of query.columns) {
-      const field: bigquery.ITableFieldSchema = {
+      const field: TableField = {
         mode:
           column.type.repeated && this.arrayHandling === ArrayHandling.arrays
             ? 'REPEATED'
@@ -453,7 +457,7 @@ export class BigQueryWriter extends FileWriterBase {
   private getBigQueryFieldType(colType: FieldType): string | undefined {
     if (this.arrayHandling === ArrayHandling.strings && colType.repeated)
       return 'STRING';
-    if (_.isString(colType.type)) {
+    if (isString(colType.type)) {
       switch (colType.type.toLowerCase()) {
         case 'int32':
         case 'int64':

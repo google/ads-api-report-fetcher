@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /*
- Copyright 2023 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,5 @@
  limitations under the License.
  */
 
-const cli = require('./dist/cli-bq');
-
-// TODO: move to ESM one day
-//import * as cli from './dist/cli.js';
+// eslint-disable-next-line no-unused-vars
+import * as cli from './dist/cli.js';

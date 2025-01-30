@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import {BigQuery, Dataset} from '@google-cloud/bigquery';
-import bigquery from '@google-cloud/bigquery/build/src/types';
-import {getLogger} from './logger';
+import {BigQuery, Dataset, CreateDatasetOptions} from '@google-cloud/bigquery';
+import {getLogger} from './logger.js';
 
 export const OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/cloud-platform',
@@ -31,7 +30,7 @@ export async function getDataset(
   datasetLocation?: string
 ): Promise<Dataset> {
   let dataset: Dataset;
-  const options: bigquery.IDataset = {
+  const options: CreateDatasetOptions = {
     location: datasetLocation,
   };
   try {

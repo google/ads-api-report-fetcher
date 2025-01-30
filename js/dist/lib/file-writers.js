@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,44 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NullWriter = exports.CsvWriter = exports.JsonWriter = exports.FileWriterBase = exports.JsonValueFormat = exports.JsonOutputFormat = void 0;
-const sync_1 = require("csv-stringify/sync");
-const fs_1 = __importDefault(require("fs"));
-const fs_async = __importStar(require("node:fs/promises"));
-const path_1 = __importDefault(require("path"));
-const storage_1 = require("@google-cloud/storage");
-const logger_1 = require("./logger");
+import { stringify } from 'csv-stringify/sync';
+import fs from 'fs';
+import * as fs_async from 'node:fs/promises';
+import path from 'path';
+import { Storage } from '@google-cloud/storage';
+import { getLogger } from './logger.js';
 /**
  * File format mode for JSON
  */
-var JsonOutputFormat;
+export var JsonOutputFormat;
 (function (JsonOutputFormat) {
     /**
      * Array at the root with all rows as items.
@@ -61,11 +32,11 @@ var JsonOutputFormat;
      * Every row is a line
      */
     JsonOutputFormat["jsonl"] = "jsonl";
-})(JsonOutputFormat = exports.JsonOutputFormat || (exports.JsonOutputFormat = {}));
+})(JsonOutputFormat || (JsonOutputFormat = {}));
 /**
  * Formatting modes for values.
  */
-var JsonValueFormat;
+export var JsonValueFormat;
 (function (JsonValueFormat) {
     /**
      * Output rows as they received from the API (hierarchical objects)
@@ -77,10 +48,10 @@ var JsonValueFormat;
     JsonValueFormat["arrays"] = "arrays";
     /**
      * Output rows as objects (compared to raw an object is flatten
-     * where each query's column correspondes to a field).
+     * where each query's column corresponds to a field).
      */
     JsonValueFormat["objects"] = "objects";
-})(JsonValueFormat = exports.JsonValueFormat || (exports.JsonValueFormat = {}));
+})(JsonValueFormat || (JsonValueFormat = {}));
 class Output {
     constructor(path, stream, getStorageFile) {
         this.path = path;
@@ -92,7 +63,7 @@ class Output {
         if (this.isGCS) {
             await this.getStorageFile().delete({ ignoreNotFound: true });
         }
-        else if (fs_1.default.existsSync(this.path)) {
+        else if (fs.existsSync(this.path)) {
             await fs_async.rm(this.path);
         }
     }
@@ -100,27 +71,27 @@ class Output {
 /**
  * Base class for all file-based writers.
  */
-class FileWriterBase {
+export class FileWriterBase {
     constructor(options) {
         this.fileExtension = '';
         this.rowWritten = false;
         this.destination = (options === null || options === void 0 ? void 0 : options.outputPath) || (options === null || options === void 0 ? void 0 : options.destinationFolder);
         if (this.destination && !URL.canParse(this.destination)) {
             // it's a folder
-            this.destination = path_1.default.resolve(this.destination);
+            this.destination = path.resolve(this.destination);
         }
         this.filePerCustomer = !!(options === null || options === void 0 ? void 0 : options.filePerCustomer);
         this.streamsByCustomer = {};
         this.rowCountsByCustomer = {};
-        this.logger = (0, logger_1.getLogger)();
+        this.logger = getLogger();
     }
     beginScript(scriptName, query) {
         this.query = query;
         this.scriptName = scriptName;
         this.streamsByCustomer = {};
         if (this.destination && !URL.canParse(this.destination)) {
-            if (!fs_1.default.existsSync(this.destination)) {
-                fs_1.default.mkdirSync(this.destination, { recursive: true });
+            if (!fs.existsSync(this.destination)) {
+                fs.mkdirSync(this.destination, { recursive: true });
             }
         }
         this.onBeginScript(scriptName, query);
@@ -175,7 +146,7 @@ class FileWriterBase {
         }
         else if (process.env.K_SERVICE) {
             // we're in GCloud - file system is readonly, the only writable place is /tmp
-            filepath = path_1.default.join('/tmp', filepath);
+            filepath = path.join('/tmp', filepath);
         }
         return filepath;
     }
@@ -186,7 +157,7 @@ class FileWriterBase {
             const parsed = new URL(filePath);
             const bucketName = parsed.hostname;
             const destFileName = parsed.pathname.substring(1);
-            const storage = new storage_1.Storage({
+            const storage = new Storage({
                 retryOptions: { autoRetry: true, maxRetries: 10 },
             });
             const bucket = storage.bucket(bucketName);
@@ -195,11 +166,11 @@ class FileWriterBase {
                 // surprisingly setting highWaterMark is crucial,
                 // w/ o it we'll get unlimited memory growth
                 highWaterMark: 1024 * 1024,
-                // setting for preventing sparodic errors 'Retry limit exceeded'
+                // setting for preventing sporadic errors 'Retry limit exceeded'
                 resumable: false,
             });
             getStorageFile = () => {
-                const storage = new storage_1.Storage();
+                const storage = new Storage();
                 return storage.bucket(bucketName).file(destFileName);
             };
             writeStream.on('error', e => {
@@ -208,7 +179,7 @@ class FileWriterBase {
         }
         else {
             // local files
-            writeStream = fs_1.default.createWriteStream(filePath);
+            writeStream = fs.createWriteStream(filePath);
         }
         return new Output(filePath, writeStream, getStorageFile);
     }
@@ -274,7 +245,7 @@ class FileWriterBase {
         this.logger.debug(`Closing stream ${output.path}`);
         await new Promise((resolve, reject) => {
             stream.once('close', () => {
-                this.logger.debug(`Closed stream ${output.path}, exists: ${fs_1.default.existsSync(output.path)}`);
+                this.logger.debug(`Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`);
                 stream.removeAllListeners('error');
                 resolve(null);
             });
@@ -313,8 +284,7 @@ class FileWriterBase {
         await this.writeToStream(output, content);
     }
 }
-exports.FileWriterBase = FileWriterBase;
-class JsonWriter extends FileWriterBase {
+export class JsonWriter extends FileWriterBase {
     constructor(options) {
         super(options);
         this.fileExtension = 'json';
@@ -375,8 +345,7 @@ class JsonWriter extends FileWriterBase {
         }
     }
 }
-exports.JsonWriter = JsonWriter;
-class CsvWriter extends FileWriterBase {
+export class CsvWriter extends FileWriterBase {
     constructor(options) {
         super(options);
         this.fileExtension = 'csv';
@@ -403,13 +372,12 @@ class CsvWriter extends FileWriterBase {
         if (firstRow) {
             opts = Object.assign({}, this.csvOptions, { header: true });
         }
-        const csvText = (0, sync_1.stringify)([parsedRow], opts);
+        const csvText = stringify([parsedRow], opts);
         await this.writeContent(customerId, csvText);
         this.rowCountsByCustomer[customerId] += 1;
     }
 }
-exports.CsvWriter = CsvWriter;
-class NullWriter {
+export class NullWriter {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     beginScript(scriptName, query) { }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -420,5 +388,4 @@ class NullWriter {
     endCustomer(customerId) { }
     endScript() { }
 }
-exports.NullWriter = NullWriter;
 //# sourceMappingURL=file-writers.js.map

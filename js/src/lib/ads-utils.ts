@@ -1,5 +1,5 @@
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  limitations under the License.
  */
 
-import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client';
-import {getFileContent} from './file-utils';
-import _ from 'lodash';
+import {isArray} from 'lodash-es';
 import yaml from 'js-yaml';
-import {AdsQueryExecutor} from './ads-query-executor';
+import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client.js';
+import {getFileContent} from './file-utils.js';
+import {AdsQueryExecutor} from './ads-query-executor.js';
 
 /**
  * Return a normalized list of customer ids
@@ -34,7 +34,7 @@ export function parseCustomerIds(
   if (!customerId) {
     // CID/account wasn't provided explicitly, we'll use customer_id field from ads-config (it can be absent)
     if (adsConfig.customer_id) {
-      if (_.isArray(adsConfig.customer_id)) {
+      if (isArray(adsConfig.customer_id)) {
         customerIds = adsConfig.customer_id;
       } else {
         customerIds = [adsConfig.customer_id];

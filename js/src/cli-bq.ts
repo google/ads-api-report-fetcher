@@ -1,6 +1,6 @@
 /* eslint-disable n/no-process-exit */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ import path from 'path';
 import yargs from 'yargs';
 import {hideBin} from 'yargs/helpers';
 
-import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor';
-import {getFileContent} from './lib/file-utils';
-import {getLogger} from './lib/logger';
+import {BigQueryExecutor, BigQueryExecutorOptions} from './lib/bq-executor.js';
+import {getFileContent} from './lib/file-utils.js';
+import {getLogger} from './lib/logger.js';
 
 const argv = yargs(hideBin(process.argv))
   .scriptName('gaarf-bq')
-  .wrap(yargs.terminalWidth())
+  .wrap(yargs().terminalWidth())
   .version()
   .alias('v', 'version')
   .command('$0 <files..>', 'Execute BigQuery queries', {})

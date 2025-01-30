@@ -1,22 +1,5 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,22 +13,21 @@ exports.loadAdsConfigYaml = exports.GoogleAdsApiClient = void 0;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-__exportStar(require("./lib/ads-api-client"), exports);
-__exportStar(require("./lib/ads-query-editor"), exports);
-__exportStar(require("./lib/ads-query-executor"), exports);
-__exportStar(require("./lib/bq-executor"), exports);
-__exportStar(require("./lib/bq-writer"), exports);
-__exportStar(require("./lib/file-writers"), exports);
-__exportStar(require("./lib/file-utils"), exports);
-__exportStar(require("./lib/google-cloud"), exports);
-__exportStar(require("./lib/types"), exports);
-__exportStar(require("./lib/logger"), exports);
-__exportStar(require("./lib/logger-factory"), exports);
-__exportStar(require("./lib/utils"), exports);
-__exportStar(require("./lib/ads-utils"), exports);
+export * from './lib/ads-api-client.js';
+export * from './lib/ads-query-editor.js';
+export * from './lib/ads-query-executor.js';
+export * from './lib/bq-executor.js';
+export * from './lib/bq-writer.js';
+export * from './lib/bq-common.js';
+export * from './lib/file-writers.js';
+export * from './lib/file-utils.js';
+export * from './lib/google-cloud.js';
+export * from './lib/types.js';
+export * from './lib/logger.js';
+export * from './lib/logger-factory.js';
+export * from './lib/utils.js';
+export * from './lib/ads-utils.js';
 // for backward-compatibility
-var ads_api_client_1 = require("./lib/ads-api-client");
-Object.defineProperty(exports, "GoogleAdsApiClient", { enumerable: true, get: function () { return ads_api_client_1.GoogleAdsRpcApiClient; } });
-var ads_utils_1 = require("./lib/ads-utils");
-Object.defineProperty(exports, "loadAdsConfigYaml", { enumerable: true, get: function () { return ads_utils_1.loadAdsConfigFromFile; } });
+export { GoogleAdsRpcApiClient as GoogleAdsApiClient } from './lib/ads-api-client.js';
+export { loadAdsConfigFromFile as loadAdsConfigYaml } from './lib/ads-utils.js';
 //# sourceMappingURL=index.js.map

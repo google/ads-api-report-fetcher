@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 import fs from 'node:fs';
-import date_add from 'date-fns/add';
-import format from 'date-fns/format';
-import _ from 'lodash';
-
-import {math_parse} from './math-engine';
+import {add as date_add, format, Duration} from 'date-fns';
+import {
+  forIn,
+  isPlainObject,
+  isString,
+  isBoolean,
+  isNumber,
+  isFinite,
+  isArray,
+} from 'lodash-es';
 import nunjucks from 'nunjucks';
+
+import {math_parse} from './math-engine.js';
 
 export function traverseObject(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,20 +37,20 @@ export function traverseObject(
 ): boolean {
   path = path || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return _.forIn(object, (value: any, name: string) => {
+  return forIn(object, (value: any, name: string) => {
     path.push(name);
-    if (_.isPlainObject(value)) {
+    if (isPlainObject(value)) {
       visitor(name, value, path, object);
       traverseObject(value, visitor, path);
     } else if (
       value === null ||
       value === undefined ||
-      _.isString(value) ||
-      _.isNumber(value) ||
-      _.isBoolean(value)
+      isString(value) ||
+      isNumber(value) ||
+      isBoolean(value)
     ) {
       visitor(name, value, path, object);
-    } else if (_.isArray(value)) {
+    } else if (isArray(value)) {
       // TODO: empty arrays, arrays of primities
       visitor(name, value, path, object);
       // for (const idx in value) {
@@ -83,8 +90,8 @@ export function navigateObject(object: any, path: string) {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function tryParseNumber(str: any): number | undefined {
-  if (_.isFinite(str)) return <number>str;
-  if (_.isString(str) && str.length > 0) {
+  if (isFinite(str)) return str as number;
+  if (isString(str) && str.length > 0) {
     const num = Number(str);
     return isNaN(num) ? undefined : num;
   }
@@ -137,7 +144,7 @@ function convert_date(name: string, value: string): string {
 }
 
 /**
- * Substitute macros into the text, and evalutes expressions (in ${} blocks).
+ * Substitute macros into the text, and evaluates expressions (in ${} blocks).
  * @param text a text (query) to process
  * @param macros an object with key-values to substitute
  * @returns same text with substituted macros and executed expressions
@@ -153,7 +160,7 @@ export function substituteMacros(
   if (macros) {
     Object.entries(macros).map(pair => {
       const value = <string>pair[1];
-      if (value && _.isString(value) && value.startsWith(':YYYY')) {
+      if (value && isString(value) && value.startsWith(':YYYY')) {
         const key = pair[0];
         macros![key] = convert_date(key, value);
       }
@@ -179,7 +186,7 @@ export function substituteMacros(
 
   // notes on the regexp:
   //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
-  //  not precended with '$'), with that we're capturing {smth} expressions
+  //  not prepended with '$'), with that we're capturing {smth} expressions
   //  and not ${smth} expressions
   text = text.replace(/(?<!\$)\{([^}]+)\}/g, (ss, name) => {
     if (!Object.prototype.hasOwnProperty.call(macros!, name)) {
@@ -226,8 +233,8 @@ function prepend(value: number, num?: number): string {
 
 export function getElapsed(started: Date, now?: Date): string {
   // NOTE: as we've already imported @js-joda it seems logic to use it for
-  // calculating duration and formating. Unfortunetely it doesn't seem to
-  // support formating of duration in a way we need (hh:mm:ss)
+  // calculating duration and formatting. Unfortunately it doesn't seem to
+  // support formatting of duration in a way we need (hh:mm:ss)
   //let from = LocalDateTime.from(nativeJs(started));
   //let to = LocalDateTime.from(nativeJs(now || new Date()));
   //Duration.between(from, to).toString() - return 'PT..' string
@@ -272,7 +279,7 @@ export function getDirectorySize(path: string): number | undefined {
 
 /**
  * Construct a string with memory usage dump.
- * @param phase arbitrar string to describe a moment
+ * @param phase arbitrary string to describe a moment
  * @returns formatted info
  */
 export function getMemoryUsage(phase: string): string {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import csvStringify from 'csv-stringify';
+import {CastingContext, Options as StringifyOptions} from 'csv-stringify';
 import {stringify} from 'csv-stringify/sync';
 import fs from 'fs';
 import * as fs_async from 'node:fs/promises';
@@ -22,8 +22,8 @@ import * as stream from 'node:stream';
 import path from 'path';
 import {Storage, File} from '@google-cloud/storage';
 
-import {getLogger} from './logger';
-import {IResultWriter, QueryElements} from './types';
+import {getLogger} from './logger.js';
+import {IResultWriter, QueryElements} from './types.js';
 
 /**
  * Base options for all file-based writers.
@@ -82,7 +82,7 @@ export enum JsonValueFormat {
   arrays = 'arrays',
   /**
    * Output rows as objects (compared to raw an object is flatten
-   * where each query's column correspondes to a field).
+   * where each query's column corresponds to a field).
    */
   objects = 'objects',
 }
@@ -264,7 +264,7 @@ export abstract class FileWriterBase implements IResultWriter {
         // surprisingly setting highWaterMark is crucial,
         // w/ o it we'll get unlimited memory growth
         highWaterMark: 1024 * 1024,
-        // setting for preventing sparodic errors 'Retry limit exceeded'
+        // setting for preventing sporadic errors 'Retry limit exceeded'
         resumable: false,
       });
       getStorageFile = () => {
@@ -479,7 +479,7 @@ export class JsonWriter extends FileWriterBase {
 export class CsvWriter extends FileWriterBase {
   quoted: boolean;
   arraySeparator: string;
-  csvOptions: csvStringify.Options | undefined;
+  csvOptions: StringifyOptions | undefined;
 
   constructor(options?: CsvWriterOptions) {
     super(options);
@@ -495,10 +495,10 @@ export class CsvWriter extends FileWriterBase {
       columns: query!.columns.map(col => col.name),
       cast: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        boolean: (value: boolean, context: csvStringify.CastingContext) =>
+        boolean: (value: boolean, context: CastingContext) =>
           value ? 'true' : 'false',
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        object: (value: object, context: csvStringify.CastingContext) =>
+        object: (value: object, context: CastingContext) =>
           Array.isArray(value)
             ? value.join(this.arraySeparator)
             : JSON.stringify(value),

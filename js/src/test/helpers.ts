@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import _ from 'lodash';
+import {isArray} from 'lodash-es';
 
-import {GoogleAdsApiClientBase} from '../lib/ads-api-client';
-import {ApiType} from '../lib/types';
+import {GoogleAdsApiClientBase} from '../lib/ads-api-client.js';
+import {ApiType} from '../lib/types.js';
 
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
@@ -36,7 +36,7 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   }
 
   setupResult(result: any[] | Record<string, any[]>) {
-    if (_.isArray(result)) {
+    if (isArray(result)) {
       this.results[''] = result;
     } else {
       this.results = result;

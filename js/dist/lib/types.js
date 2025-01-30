@@ -1,30 +1,26 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArrayHandling = exports.QueryElements = exports.ApiType = exports.isEnumType = exports.FieldTypeKind = exports.CustomizerType = void 0;
-var CustomizerType;
+export var CustomizerType;
 (function (CustomizerType) {
     CustomizerType["ResourceIndex"] = "ResourceIndex";
     CustomizerType["NestedField"] = "NestedField";
     CustomizerType["Function"] = "Function";
     CustomizerType["VirtualColumn"] = "VirtualColumn";
-})(CustomizerType = exports.CustomizerType || (exports.CustomizerType = {}));
-var FieldTypeKind;
+})(CustomizerType || (CustomizerType = {}));
+export var FieldTypeKind;
 (function (FieldTypeKind) {
     FieldTypeKind[FieldTypeKind["primitive"] = 0] = "primitive";
     FieldTypeKind[FieldTypeKind["enum"] = 1] = "enum";
     FieldTypeKind[FieldTypeKind["struct"] = 2] = "struct";
-})(FieldTypeKind = exports.FieldTypeKind || (exports.FieldTypeKind = {}));
+})(FieldTypeKind || (FieldTypeKind = {}));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isEnumType(type) {
+export function isEnumType(type) {
     return !!type.values;
 }
-exports.isEnumType = isEnumType;
-var ApiType;
+export var ApiType;
 (function (ApiType) {
     ApiType["gRPC"] = "gRPC";
     ApiType["REST"] = "REST";
-})(ApiType = exports.ApiType || (exports.ApiType = {}));
-class QueryElements {
+})(ApiType || (ApiType = {}));
+export class QueryElements {
     constructor(query, columns, resource, functions) {
         this.queryText = '';
         this.queryText = query;
@@ -39,10 +35,9 @@ class QueryElements {
         return this.columns.map(col => col.type);
     }
 }
-exports.QueryElements = QueryElements;
-var ArrayHandling;
+export var ArrayHandling;
 (function (ArrayHandling) {
     ArrayHandling["strings"] = "strings";
     ArrayHandling["arrays"] = "arrays";
-})(ArrayHandling = exports.ArrayHandling || (exports.ArrayHandling = {}));
+})(ArrayHandling || (ArrayHandling = {}));
 //# sourceMappingURL=types.js.map

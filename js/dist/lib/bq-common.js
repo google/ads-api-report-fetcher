@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDataset = exports.OAUTH_SCOPES = void 0;
-const logger_1 = require("./logger");
-exports.OAUTH_SCOPES = [
+import { getLogger } from './logger.js';
+export const OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/cloud-platform',
     'https://www.googleapis.com/auth/cloud-platform.read-only',
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigquery.readonly',
 ];
-async function getDataset(bigquery, datasetId, datasetLocation) {
+export async function getDataset(bigquery, datasetId, datasetLocation) {
     let dataset;
     const options = {
         location: datasetLocation,
@@ -38,11 +35,10 @@ async function getDataset(bigquery, datasetId, datasetLocation) {
         }
     }
     catch (e) {
-        const logger = (0, logger_1.getLogger)();
+        const logger = getLogger();
         logger.error(`Failed to get or create the dataset ${datasetId}`);
         throw e;
     }
     return dataset;
 }
-exports.getDataset = getDataset;
 //# sourceMappingURL=bq-common.js.map

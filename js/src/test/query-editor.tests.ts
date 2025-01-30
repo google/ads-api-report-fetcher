@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 import assert from 'assert';
 
-import {AdsQueryEditor} from '../lib/ads-query-editor';
-import {ApiType, FieldTypeKind} from '../lib/types';
+import {AdsQueryEditor} from '../lib/ads-query-editor.js';
+import {ApiType, FieldTypeKind} from '../lib/types.js';
 
 suite('AdsQueryEditor', () => {
   const editor = new AdsQueryEditor(ApiType.gRPC, 'v16');

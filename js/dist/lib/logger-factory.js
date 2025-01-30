@@ -1,6 +1,5 @@
-"use strict";
 /*
- Copyright 2023 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,18 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLogger = exports.createCloudLogger = exports.createConsoleLogger = exports.defaultTransports = exports.LOG_LEVEL = void 0;
-const winston_1 = __importDefault(require("winston"));
-const logging_winston_1 = require("@google-cloud/logging-winston");
+import winston from 'winston';
+import { LoggingWinston, getDefaultMetadataForTracing, LOGGING_TRACE_KEY, } from '@google-cloud/logging-winston';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
-const { format } = winston_1.default;
+const { format } = winston;
 /** Default log level */
 // NOTE: as we use argv directly (before parsing) we have to manually check all aliases for the option log-level
-exports.LOG_LEVEL = argv.logLevel ||
+export const LOG_LEVEL = argv.logLevel ||
     argv.loglevel ||
     argv.ll ||
     argv.log_level ||
@@ -44,36 +40,35 @@ function wrap(str) {
 const formats = [];
 if (process.stdout.isTTY) {
     formats.push(format.colorize({ all: true }));
-    winston_1.default.addColors(colors);
+    winston.addColors(colors);
 }
 formats.push(format.printf(info => `${info.timestamp}: ${wrap(info.scriptName)}${wrap(info.customerId)} ${info.message}`));
-exports.defaultTransports = [];
-exports.defaultTransports.push(new winston_1.default.transports.Console({
+export const defaultTransports = [];
+defaultTransports.push(new winston.transports.Console({
     format: format.combine(...formats),
-    handleRejections: exports.LOG_LEVEL === 'debug',
+    handleRejections: LOG_LEVEL === 'debug',
 }));
-function createConsoleLogger() {
-    const logger = winston_1.default.createLogger({
-        silent: exports.LOG_LEVEL === 'off',
-        level: exports.LOG_LEVEL,
+export function createConsoleLogger() {
+    const logger = winston.createLogger({
+        silent: LOG_LEVEL === 'off',
+        level: LOG_LEVEL, // NOTE: we use same log level for all transports
         format: format.combine(format.errors({ stack: true }), format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:SSS' })),
-        transports: exports.defaultTransports,
+        transports: defaultTransports,
         exitOnError: false,
     });
     return logger;
 }
-exports.createConsoleLogger = createConsoleLogger;
-function createCloudLogger() {
-    const cloudLogger = winston_1.default.createLogger({
-        level: exports.LOG_LEVEL,
+export function createCloudLogger() {
+    const cloudLogger = winston.createLogger({
+        level: LOG_LEVEL,
         format: format.combine(format.errors({ stack: true }), format(info => {
             info.trace = process.env.TRACE_ID;
-            info[logging_winston_1.LOGGING_TRACE_KEY] = process.env.TRACE_ID;
+            info[LOGGING_TRACE_KEY] = process.env.TRACE_ID;
             return info;
         })()),
-        defaultMeta: (0, logging_winston_1.getDefaultMetadataForTracing)(),
+        defaultMeta: getDefaultMetadataForTracing(),
         transports: [
-            new logging_winston_1.LoggingWinston({
+            new LoggingWinston({
                 projectId: process.env.GCP_PROJECT,
                 labels: {
                     component: process.env.LOG_COMPONENT,
@@ -89,7 +84,7 @@ function createCloudLogger() {
                 // setting redirectToStdout:true actually disables using Logging API,
                 // and simply dumps entries to stdout where the logger agent
                 // parses them and redirect to Logging.
-                // It's the only way to overcome sparodic errors
+                // It's the only way to overcome sporadic errors
                 // during calling Logging API:
                 // "GoogleError: Total timeout of API google.logging.v2.LoggingServiceV2
                 // exceeded 60000 milliseconds before any response was received"
@@ -97,15 +92,14 @@ function createCloudLogger() {
                 // And even recommended in
                 // https://cloud.google.com/nodejs/docs/reference/logging-winston/latest#alternative-way-to-ingest-logs-in-google-cloud-managed-environments
                 redirectToStdout: true,
-                handleRejections: exports.LOG_LEVEL === 'debug',
+                handleRejections: LOG_LEVEL === 'debug',
             }),
         ],
         exitOnError: false,
     });
     return cloudLogger;
 }
-exports.createCloudLogger = createCloudLogger;
-function createLogger() {
+export function createLogger() {
     let logger;
     if (process.env.K_SERVICE) {
         // we're in Google Cloud (Run/Functions)
@@ -119,5 +113,4 @@ function createLogger() {
     });
     return logger;
 }
-exports.createLogger = createLogger;
 //# sourceMappingURL=logger-factory.js.map

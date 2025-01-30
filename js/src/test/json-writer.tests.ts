@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 
-import {AdsQueryExecutor} from '../lib/ads-query-executor';
+import {AdsQueryExecutor} from '../lib/ads-query-executor.js';
 import {
   JsonOutputFormat,
   JsonValueFormat,
   JsonWriter,
-} from '../lib/file-writers';
-
-import {MockGoogleAdsApiClient} from './helpers';
+} from '../lib/file-writers.js';
+import {MockGoogleAdsApiClient} from './helpers.js';
 
 suite('JsonWriter', () => {
   let executor: AdsQueryExecutor;

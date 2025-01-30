@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConsoleWriter = exports.TransposeModes = void 0;
-const table_1 = require("table");
-const lodash_1 = __importDefault(require("lodash"));
-var TransposeModes;
+import { getBorderCharacters, table, } from 'table';
+import { isNumber, isBoolean, isString, isArray, max } from 'lodash-es';
+export var TransposeModes;
 (function (TransposeModes) {
     TransposeModes["auto"] = "auto";
     TransposeModes["never"] = "never";
     TransposeModes["always"] = "always";
-})(TransposeModes = exports.TransposeModes || (exports.TransposeModes = {}));
-class ConsoleWriter {
+})(TransposeModes || (TransposeModes = {}));
+export class ConsoleWriter {
     constructor(options) {
         this.rowsByCustomer = {};
         options = options || {};
@@ -56,6 +50,16 @@ class ConsoleWriter {
         }
         this.rowsByCustomer[customerId].push(parsedRow);
     }
+    _formatValue(val) {
+        if (!val)
+            return val;
+        if (isNumber(val) || isString(val) || isBoolean(val))
+            return val;
+        if (isArray(val)) {
+            return val.map((v) => this._formatValue(v)).join('\n');
+        }
+        return JSON.stringify(val, null, 2);
+    }
     endCustomer(customerId) {
         const cc = {
             wrapWord: true,
@@ -73,12 +77,12 @@ class ConsoleWriter {
             return row.map(val => {
                 if (val === undefined)
                     return '';
-                if (lodash_1.default.isArray(val) &&
+                if (isArray(val) &&
                     val.length > 0 &&
-                    lodash_1.default.max(val.map(v => (v ? v.length : 0))) > 20) {
-                    return val.map(i => (i ? i.toString() + '\n' : '')).join('');
+                    max(val.map(v => (v ? v.length : 0))) > 20) {
+                    return val.map(i => (i ? this._formatValue(i) + '\n' : '')).join('');
                 }
-                return val;
+                return this._formatValue(val);
             });
         });
         // original table plus a row (first) with headers (columns names)
@@ -91,7 +95,7 @@ class ConsoleWriter {
             ...[...Array(rows.length).keys()].map(i => (++i).toString()),
         ]);
         const tableConfig = {
-            border: (0, table_1.getBorderCharacters)('norc'),
+            border: getBorderCharacters('norc'),
             columnDefault: {
                 paddingLeft: 0,
                 paddingRight: 1,
@@ -105,8 +109,8 @@ class ConsoleWriter {
             columns: this.query.columnNames.map(_ => cc),
             // singleLine: true
         };
-        const data_formatted_orig = (0, table_1.table)(data, tableConfig);
-        const data_formatted_trans = (0, table_1.table)(data_trans, tableConfig);
+        const data_formatted_orig = table(data, tableConfig);
+        const data_formatted_trans = table(data_trans, tableConfig);
         let use_trans = this.transpose === TransposeModes.always;
         let data_formatted = '';
         if (process.stdout.columns && this.transpose !== TransposeModes.never) {
@@ -135,7 +139,7 @@ class ConsoleWriter {
     }
     processTransposedTable(data_trans, headers) {
         const tableConfig = {
-            border: (0, table_1.getBorderCharacters)('norc'),
+            border: getBorderCharacters('norc'),
             columnDefault: {
                 paddingLeft: 0,
                 paddingRight: 1,
@@ -171,7 +175,7 @@ class ConsoleWriter {
                     let submatrix = data_trans
                         .slice(0, row_count + 1)
                         .map(row => row.slice(0, i + 1));
-                    let submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
+                    let submatrix_formatted = table(submatrix, tableConfig);
                     const first_line = submatrix_formatted.slice(0, submatrix_formatted.indexOf('\n'));
                     if (first_line.length >= process.stdout.columns) {
                         // currently accumulated matrix has come too long horizontally,
@@ -179,7 +183,7 @@ class ConsoleWriter {
                         submatrix = data_trans
                             .slice(0, row_count + 1)
                             .map(row => row.slice(0, i));
-                        submatrix_formatted = (0, table_1.table)(submatrix, tableConfig);
+                        submatrix_formatted = table(submatrix, tableConfig);
                         if (output)
                             output += '\n';
                         output = output + '#' + part + '\n' + submatrix_formatted;
@@ -205,12 +209,11 @@ class ConsoleWriter {
                 if (part > 1) {
                     output = output + '\n#' + part;
                 }
-                output = output + '\n' + (0, table_1.table)(data_trans, tableConfig);
+                output = output + '\n' + table(data_trans, tableConfig);
             }
         }
         return output;
     }
 }
-exports.ConsoleWriter = ConsoleWriter;
 ConsoleWriter.DEFAULT_MAX_ROWS = 1000;
 //# sourceMappingURL=console-writer.js.map

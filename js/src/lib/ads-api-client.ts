@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,18 @@
  */
 
 import {Customer, errors, GoogleAdsApi, services} from 'google-ads-api';
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
 // eslint-disable-next-line n/no-extraneous-require
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
-import {executeWithRetry} from './utils';
-import {getLogger} from './logger';
+import {executeWithRetry} from './utils.js';
+import {getLogger, ILogger} from './logger.js';
 import axios from 'axios';
-import {ApiType} from './types';
-import {AdsQueryEditor, IAdsQueryEditor} from './ads-query-editor';
-import {AdsRowParser, IAdsRowParser} from './ads-row-parser';
+import {ApiType} from './types.js';
+import {AdsQueryEditor, IAdsQueryEditor} from './ads-query-editor.js';
+import {AdsRowParser, IAdsRowParser} from './ads-row-parser.js';
 
 /**
  * Google Ads API abstraction.
@@ -108,7 +110,7 @@ export abstract class GoogleAdsApiClientBase implements IGoogleAdsApiClient {
   adsConfig: GoogleAdsApiConfig;
   _apiType: ApiType;
   apiVersion: string;
-  logger;
+  logger: ILogger;
 
   constructor(
     adsConfig: GoogleAdsApiConfig,
@@ -195,7 +197,7 @@ export class GoogleAdsRpcApiClient
     try {
       console.error(error);
       this.logger.error(
-        `An error occured on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
+        `An error occurred on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
           JSON.stringify(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (error as any).toJSON
@@ -210,7 +212,7 @@ export class GoogleAdsRpcApiClient
       // a very unfortunate situation
       console.error(e);
       this.logger.error(
-        `An error occured on executing query and on logging it afterwards: ${query}\n.Logging error: ${e}`,
+        `An error occurred on executing query and on logging it afterwards: ${query}\n.Logging error: ${e}`,
         {customerId, query, originalError: error}
       );
     }
@@ -247,7 +249,7 @@ export class GoogleAdsRpcApiClient
       // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
       // We used to handle only a subset of error by error code
       // (see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html)
-      // particularly 14 (unavailble), 13 (internal server error),
+      // particularly 14 (unavailable), 13 (internal server error),
       // 8(RESOURCE_EXHAUSTED), 4 (DEADLINE_EXCEEDED)
       // But there was always something new that we didn't expect, so
       // in the end it seems much safer to treat any error not from the API
@@ -305,10 +307,10 @@ export class GoogleAdsRpcApiClient
       // NOTE: we're iterating over the stream instead of returning it
       // for the sake of error handling
       const stream = customer.queryStream(query);
-      this.logger.debug('Created AsyncGenerator from queryStream', {
-        customerId,
-        query,
-      });
+      // this.logger.debug('Created AsyncGenerator from queryStream', {
+      //   customerId,
+      //   query,
+      // });
       for await (const row of stream) {
         yield row as Record<string, unknown>;
       }
@@ -374,7 +376,7 @@ export class GoogleAdsRestApiClient
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(
-          `Failed to refresh token: ${error.response?.status}, ${error.response?.data}`
+          `Failed to refresh token: ${error.response?.status}, ${JSON.stringify(error.response?.data)}`
         );
       }
       throw error;
@@ -482,7 +484,7 @@ export class GoogleAdsRestApiClient
     };
     do {
       // The current implementation is using batched 'search' method,
-      // simply iterating over results. Ideally we should use 'seachStream' method
+      // simply iterating over results. Ideally we should use 'searchStream' method
       // with axios' responseType: 'stream' and parse results w/o buffering.
       // Additionally there's a difference how executeQueryStream and executeQuery
       // are used. The former is called by AdsQueryExecuter wrapped in executeWithRetry,
@@ -540,7 +542,7 @@ export class GoogleAdsRestApiClient
     try {
       console.error(error);
       this.logger.error(
-        `An error occured on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
+        `An error occurred on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
           JSON.stringify(error, null, 2),
         {customerId, query}
       );
@@ -548,13 +550,16 @@ export class GoogleAdsRestApiClient
       // a very unfortunate situation
       console.error(e);
       this.logger.error(
-        `An error occured on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`
+        `An error occurred on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`
       );
     }
     const failure =
       error.details && error.details.length ? error.details[0] : null;
     if (!failure) {
-      return;
+      this.logger.debug('Could not parse API error into GoogleAdsFailure');
+      error.logged = true;
+      error.retryable = true;
+      return error;
     }
 
     let message = error.message || 'Unknown Google Ads API error';
@@ -579,7 +584,7 @@ export class GoogleAdsRestApiClient
       }
     } else {
       // it's an unknown error (no `errors` collection), it happens sometimes
-      // we'll treat such errors as retyable
+      // we'll treat such errors as retryable
       ex.retryable = true;
     }
     ex.account = customerId;

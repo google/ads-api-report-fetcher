@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,40 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdsRowParser = exports.ParseResultMode = void 0;
-const google_ads_api_1 = require("google-ads-api");
-const lodash_1 = __importStar(require("lodash"));
-const types_1 = require("./types");
-const utils_1 = require("./utils");
+import { enums } from 'google-ads-api';
+import { isNumber, isArray, isString } from 'lodash-es';
+import { ApiType, CustomizerType, FieldTypeKind, } from './types.js';
+import { navigateObject, traverseObject, tryParseNumber } from './utils.js';
 const CAMEL_TO_SNAKE_REGEX = /[A-Z]/g;
 /**
  * How to parse results from Ads API in `IAdsRowParser.parseRow`.
  */
-var ParseResultMode;
+export var ParseResultMode;
 (function (ParseResultMode) {
     /**
      * Return results as an array.
@@ -57,13 +31,13 @@ var ParseResultMode;
      * Return results as an object.
      */
     ParseResultMode[ParseResultMode["Object"] = 2] = "Object";
-})(ParseResultMode = exports.ParseResultMode || (exports.ParseResultMode = {}));
-class AdsRowParser {
+})(ParseResultMode || (ParseResultMode = {}));
+export class AdsRowParser {
     constructor(apiType) {
         this.apiType = apiType;
     }
     normalizeName(name) {
-        if (this.apiType === types_1.ApiType.REST) {
+        if (this.apiType === ApiType.REST) {
             return name.replace(CAMEL_TO_SNAKE_REGEX, (letter) => `_${letter.toLowerCase()}`);
         }
         return name;
@@ -74,7 +48,7 @@ class AdsRowParser {
         for (const field of Object.keys(row)) {
             const item = row[field];
             rowValues[this.normalizeName(field)] = item;
-            (0, utils_1.traverseObject)(item, (name, value, path) => {
+            traverseObject(item, (name, value, path) => {
                 const field_full = path.join('.');
                 rowValues[this.normalizeName(field_full)] = value;
             }, [field]);
@@ -98,7 +72,7 @@ class AdsRowParser {
             }
         }
         // post process enum (convert number to enum field names) and structs
-        if (this.apiType === types_1.ApiType.gRPC) {
+        if (this.apiType === ApiType.gRPC) {
             // NOTE: gRPC API returns enums as numbers, while REST API returns strings
             for (let i = 0; i < query.columns.length; i++) {
                 const column = query.columns[i];
@@ -106,22 +80,22 @@ class AdsRowParser {
                     ? rowValues[column.name]
                     : rowValuesArr[i];
                 const colType = column.type;
-                if (colType.kind === types_1.FieldTypeKind.enum &&
+                if (colType.kind === FieldTypeKind.enum &&
                     colType.repeated &&
-                    lodash_1.default.isArray(value)) {
+                    isArray(value)) {
                     for (let j = 0; j < value.length; j++) {
                         const subval = value[j];
-                        if (lodash_1.default.isNumber(subval)) {
-                            const enumType = google_ads_api_1.enums[colType.typeName];
+                        if (isNumber(subval)) {
+                            const enumType = enums[colType.typeName];
                             if (enumType) {
                                 value[j] = enumType[subval];
                             }
                         }
                     }
                 }
-                else if (colType.kind === types_1.FieldTypeKind.enum) {
-                    if (lodash_1.default.isNumber(value)) {
-                        const enumType = google_ads_api_1.enums[colType.typeName];
+                else if (colType.kind === FieldTypeKind.enum) {
+                    if (isNumber(value)) {
+                        const enumType = enums[colType.typeName];
                         if (enumType) {
                             if (objectMode) {
                                 rowValues[column.name] = enumType[value];
@@ -132,7 +106,7 @@ class AdsRowParser {
                         }
                     }
                 }
-                else if (colType.kind === types_1.FieldTypeKind.struct) {
+                else if (colType.kind === FieldTypeKind.struct) {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     if (value && value.toJSON) {
                         if (objectMode) {
@@ -151,7 +125,7 @@ class AdsRowParser {
     }
     getValueWithCustomizer(row, column, customizer, query) {
         let value;
-        if (customizer.type === types_1.CustomizerType.VirtualColumn) {
+        if (customizer.type === CustomizerType.VirtualColumn) {
             try {
                 value = customizer.evaluator.evaluate(row);
             }
@@ -165,13 +139,13 @@ class AdsRowParser {
             value = row[column.expression];
             if (!value)
                 return value;
-            if (customizer.type === types_1.CustomizerType.Function) {
+            if (customizer.type === CustomizerType.Function) {
                 const func = query.functions[customizer.function];
                 value = func(value);
             }
             else {
                 // for other customizers we support arrays specifically
-                if (lodash_1.default.isArray(value)) {
+                if (isArray(value)) {
                     const new_value = [];
                     for (let j = 0; j < value.length; j++) {
                         new_value[j] = this.parseScalarValue(value[j], customizer);
@@ -187,24 +161,24 @@ class AdsRowParser {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parseScalarValue(value, customizer) {
-        if (customizer.type === types_1.CustomizerType.NestedField) {
-            value = (0, utils_1.navigateObject)(value, customizer.selector);
+        if (customizer.type === CustomizerType.NestedField) {
+            value = navigateObject(value, customizer.selector);
         }
-        else if (customizer.type === types_1.CustomizerType.ResourceIndex) {
+        else if (customizer.type === CustomizerType.ResourceIndex) {
             // the value from query's result we expect to be a string
-            if (!(0, lodash_1.isString)(value)) {
+            if (!isString(value)) {
                 // we fetched a struct, let's try to find a suitable field with resource
                 let resourceVal = '';
-                if (value['name'] && (0, lodash_1.isString)(value['name'])) {
+                if (value['name'] && isString(value['name'])) {
                     resourceVal = value['name'];
                 }
-                else if (value['text'] && (0, lodash_1.isString)(value['text'])) {
+                else if (value['text'] && isString(value['text'])) {
                     resourceVal = value['text'];
                 }
-                else if (value['asset'] && (0, lodash_1.isString)(value['asset'])) {
+                else if (value['asset'] && isString(value['asset'])) {
                     resourceVal = value['asset'];
                 }
-                else if (value['value'] && (0, lodash_1.isString)(value['value'])) {
+                else if (value['value'] && isString(value['value'])) {
                     resourceVal = value['value'];
                 }
                 if (resourceVal) {
@@ -223,11 +197,10 @@ class AdsRowParser {
                     // and index=1 ("~1") - ad_id
                     value = value.match(/[^/]+\/(\d+)$/)[1];
                 }
-                value = (0, utils_1.tryParseNumber)(value);
+                value = tryParseNumber(value);
             }
         }
         return value;
     }
 }
-exports.AdsRowParser = AdsRowParser;
 //# sourceMappingURL=ads-row-parser.js.map

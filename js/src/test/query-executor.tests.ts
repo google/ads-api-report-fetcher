@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 import assert from 'assert';
 import {LocalDate} from '@js-joda/core';
-import {AdsQueryExecutor} from '../lib/ads-query-executor';
-import {QueryResult} from '../lib/types';
-
-import {MockGoogleAdsApiClient} from './helpers';
+import {AdsQueryExecutor} from '../lib/ads-query-executor.js';
+import {QueryResult} from '../lib/types.js';
+import {MockGoogleAdsApiClient} from './helpers.js';
 
 suite('AdsQueryExecutor', () => {
   test('enums', async () => {
@@ -234,10 +233,10 @@ suite('AdsQueryExecutor', () => {
     // NOTE for the query:
     //  #1: virtual column with a constant string (value executed as expression)
     //  #2: virtual column with a constant number
-    //  #3: virtual column with a ariphmetic operation against real columns
+    //  #3: virtual column with a arithmetic operation against real columns
     //      (they will be fetched automatically)
-    //  #4: virtual column with a ariphmetic operation between a column and const
-    //  #5: virtual column with a ariphmetic operation between a column and const
+    //  #4: virtual column with a arithmetic operation between a column and const
+    //  #5: virtual column with a arithmetic operation between a column and const
     //      but the column is 2 level nested
     const mockResult = [
       {

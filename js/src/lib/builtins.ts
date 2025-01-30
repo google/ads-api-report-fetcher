@@ -1,5 +1,5 @@
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  limitations under the License.
  */
 
-import {FieldTypeKind, IQueryExecutor, QueryElements} from './types';
-import {AdsQueryEditor} from './ads-query-editor';
-import {AdsQueryExecutor} from './ads-query-executor';
+import {FieldTypeKind, IQueryExecutor, QueryElements} from './types.js';
+import {AdsQueryEditor} from './ads-query-editor.js';
+import {AdsQueryExecutor} from './ads-query-executor.js';
 
 export class BuiltinQueryProcessor implements IQueryExecutor {
   constructor(public queryEditor: AdsQueryEditor) {}

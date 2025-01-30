@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,22 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export * from './lib/ads-api-client';
-export * from './lib/ads-query-editor';
-export * from './lib/ads-query-executor';
-export * from './lib/bq-executor';
-export * from './lib/bq-writer';
-export * from './lib/file-writers';
+export * from './lib/ads-api-client.js';
+export * from './lib/ads-query-editor.js';
+export * from './lib/ads-query-executor.js';
+export * from './lib/bq-executor.js';
+export * from './lib/bq-writer.js';
+export * from './lib/bq-common.js';
+export * from './lib/file-writers.js';
 
-export * from './lib/file-utils';
-export * from './lib/google-cloud';
+export * from './lib/file-utils.js';
+export * from './lib/google-cloud.js';
 
-export * from './lib/types';
-export * from './lib/logger';
-export * from './lib/logger-factory';
-export * from './lib/utils';
-export * from './lib/ads-utils';
+export * from './lib/types.js';
+export * from './lib/logger.js';
+export * from './lib/logger-factory.js';
+export * from './lib/utils.js';
+export * from './lib/ads-utils.js';
 
 // for backward-compatibility
-export {GoogleAdsRpcApiClient as GoogleAdsApiClient} from './lib/ads-api-client';
-export {loadAdsConfigFromFile as loadAdsConfigYaml} from './lib/ads-utils';
+export {GoogleAdsRpcApiClient as GoogleAdsApiClient} from './lib/ads-api-client.js';
+export {loadAdsConfigFromFile as loadAdsConfigYaml} from './lib/ads-utils.js';

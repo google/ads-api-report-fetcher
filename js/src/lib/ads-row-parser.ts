@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import {enums} from 'google-ads-api';
-import _, {isString} from 'lodash';
+import {isNumber, isArray, isString} from 'lodash-es';
 
 import {
   ApiType,
@@ -24,8 +24,8 @@ import {
   CustomizerType,
   FieldTypeKind,
   QueryElements,
-} from './types';
-import {navigateObject, traverseObject, tryParseNumber} from './utils';
+} from './types.js';
+import {navigateObject, traverseObject, tryParseNumber} from './utils.js';
 
 export interface IAdsRowParser {
   /**
@@ -125,11 +125,11 @@ export class AdsRowParser implements IAdsRowParser {
         if (
           colType.kind === FieldTypeKind.enum &&
           colType.repeated &&
-          _.isArray(value)
+          isArray(value)
         ) {
           for (let j = 0; j < value.length; j++) {
             const subval = value[j];
-            if (_.isNumber(subval)) {
+            if (isNumber(subval)) {
               const enumType = (
                 enums as Record<string, Record<number, string>>
               )[colType.typeName];
@@ -139,7 +139,7 @@ export class AdsRowParser implements IAdsRowParser {
             }
           }
         } else if (colType.kind === FieldTypeKind.enum) {
-          if (_.isNumber(value)) {
+          if (isNumber(value)) {
             const enumType = (enums as Record<string, Record<number, string>>)[
               colType.typeName
             ];
@@ -191,7 +191,7 @@ export class AdsRowParser implements IAdsRowParser {
         value = func(value);
       } else {
         // for other customizers we support arrays specifically
-        if (_.isArray(value)) {
+        if (isArray(value)) {
           const new_value = [];
           for (let j = 0; j < value.length; j++) {
             new_value[j] = this.parseScalarValue(value[j], customizer);

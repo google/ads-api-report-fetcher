@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryExecutor = void 0;
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +13,24 @@ exports.BigQueryExecutor = void 0;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const bigquery_1 = require("@google-cloud/bigquery");
-const logger_1 = require("./logger");
-const utils_1 = require("./utils");
-const bq_common_1 = require("./bq-common");
-class BigQueryExecutor {
+import { BigQuery, } from '@google-cloud/bigquery';
+import { getLogger } from './logger.js';
+import { renderTemplate, substituteMacros } from './utils.js';
+import { getDataset, OAUTH_SCOPES } from './bq-common.js';
+export class BigQueryExecutor {
     constructor(projectId, options) {
         const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || 'us';
         this.bigquery =
             (options === null || options === void 0 ? void 0 : options.bigqueryClient) ||
-                new bigquery_1.BigQuery({
+                new BigQuery({
                     projectId: projectId,
-                    scopes: bq_common_1.OAUTH_SCOPES,
+                    scopes: OAUTH_SCOPES,
                     keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
                     location: datasetLocation,
                 });
         this.datasetLocation = datasetLocation;
         this.dumpQuery = options === null || options === void 0 ? void 0 : options.dumpQuery;
-        this.logger = (0, logger_1.getLogger)();
+        this.logger = getLogger();
     }
     async execute(scriptName, queryText, params) {
         if (params === null || params === void 0 ? void 0 : params.macroParams) {
@@ -48,9 +45,9 @@ class BigQueryExecutor {
             }
         }
         if (params === null || params === void 0 ? void 0 : params.templateParams) {
-            queryText = (0, utils_1.renderTemplate)(queryText, params.templateParams);
+            queryText = renderTemplate(queryText, params.templateParams);
         }
-        const res = (0, utils_1.substituteMacros)(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
+        const res = substituteMacros(queryText, params === null || params === void 0 ? void 0 : params.macroParams);
         if (res.unknown_params.length) {
             throw new Error(`The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`);
         }
@@ -80,7 +77,7 @@ class BigQueryExecutor {
     }
     async createUnifiedView(dataset, tableId, customers) {
         if (typeof dataset === 'string') {
-            dataset = await (0, bq_common_1.getDataset)(this.bigquery, dataset, this.datasetLocation);
+            dataset = await getDataset(this.bigquery, dataset, this.datasetLocation);
         }
         const datasetId = dataset.id;
         // Unfortunately BQ always creates a based empty table for templated
@@ -104,7 +101,7 @@ class BigQueryExecutor {
             return table_fq;
         }
         catch (e) {
-            this.logger.error(`An error occured during creating the unified view (${table_fq}): ${e.message}`);
+            this.logger.error(`An error occurred during creating the unified view (${table_fq}): ${e.message}`);
             if (e.message.includes('Views cannot be queried through prefix')) {
                 this.logger.warn(`You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`);
             }
@@ -127,5 +124,4 @@ class BigQueryExecutor {
         return dataset;
     }
 }
-exports.BigQueryExecutor = BigQueryExecutor;
 //# sourceMappingURL=bq-executor.js.map

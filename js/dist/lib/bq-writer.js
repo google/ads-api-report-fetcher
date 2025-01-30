@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,47 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BigQueryWriter = exports.BigQueryInsertMethod = void 0;
-const bigquery_1 = require("@google-cloud/bigquery");
-const promises_1 = __importDefault(require("node:fs/promises"));
-const lodash_1 = __importStar(require("lodash"));
-const types_1 = require("./types");
-const utils_1 = require("./utils");
-const bq_common_1 = require("./bq-common");
-const bq_executor_1 = require("./bq-executor");
-const file_writers_1 = require("./file-writers");
+import { BigQuery, } from '@google-cloud/bigquery';
+import fs_async from 'node:fs/promises';
+import { isObjectLike, isArray, isString } from 'lodash-es';
+import { ArrayHandling, FieldTypeKind, isEnumType, } from './types.js';
+import { delay, substituteMacros } from './utils.js';
+import { getDataset, OAUTH_SCOPES } from './bq-common.js';
+import { BigQueryExecutor } from './bq-executor.js';
+import { FileWriterBase } from './file-writers.js';
 const MAX_ROWS = 50000;
 /**
  * Modes how to insert rows into a table.
  */
-var BigQueryInsertMethod;
+export var BigQueryInsertMethod;
 (function (BigQueryInsertMethod) {
     /**
      * Using `insert` with rows in memory.
@@ -64,17 +35,17 @@ var BigQueryInsertMethod;
      * Using `load` with rows in json files.
      */
     BigQueryInsertMethod["loadTable"] = "load";
-})(BigQueryInsertMethod = exports.BigQueryInsertMethod || (exports.BigQueryInsertMethod = {}));
+})(BigQueryInsertMethod || (BigQueryInsertMethod = {}));
 /**
  * Writer to BigQuery.
  */
-class BigQueryWriter extends file_writers_1.FileWriterBase {
+export class BigQueryWriter extends FileWriterBase {
     constructor(projectId, dataset, options) {
         super({ filePerCustomer: true, outputPath: options === null || options === void 0 ? void 0 : options.outputPath });
         const datasetLocation = (options === null || options === void 0 ? void 0 : options.datasetLocation) || 'us';
-        this.bigquery = new bigquery_1.BigQuery({
+        this.bigquery = new BigQuery({
             projectId: projectId,
-            scopes: bq_common_1.OAUTH_SCOPES,
+            scopes: OAUTH_SCOPES,
             keyFilename: options === null || options === void 0 ? void 0 : options.keyFilePath,
             location: datasetLocation,
         });
@@ -85,7 +56,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         this.dumpData = (options === null || options === void 0 ? void 0 : options.dumpData) || false;
         this.noUnionView = (options === null || options === void 0 ? void 0 : options.noUnionView) || false;
         this.insertMethod = (options === null || options === void 0 ? void 0 : options.insertMethod) || BigQueryInsertMethod.loadTable;
-        this.arrayHandling = (options === null || options === void 0 ? void 0 : options.arrayHandling) || types_1.ArrayHandling.arrays;
+        this.arrayHandling = (options === null || options === void 0 ? void 0 : options.arrayHandling) || ArrayHandling.arrays;
         this.arraySeparator = (options === null || options === void 0 ? void 0 : options.arraySeparator) || '|';
         this.customers = [];
         this.rowsByCustomer = {};
@@ -93,26 +64,26 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
             datasetLocation: datasetLocation,
             bigqueryClient: this.bigquery,
         };
-        this.bqExecutor = new bq_executor_1.BigQueryExecutor(projectId, bqExecutorOptions);
+        this.bqExecutor = new BigQueryExecutor(projectId, bqExecutorOptions);
     }
     async beginScript(scriptName, query) {
         if (!scriptName)
             throw new Error('scriptName (used as name for table) was not specified');
         // a script's results go to a separate table with same name as a file
         if (this.tableTemplate) {
-            this.tableId = (0, utils_1.substituteMacros)(this.tableTemplate, { scriptName }).text;
+            this.tableId = substituteMacros(this.tableTemplate, { scriptName }).text;
         }
         else {
             this.tableId = scriptName;
         }
-        this.dataset = await (0, bq_common_1.getDataset)(this.bigquery, this.datasetId, this.datasetLocation);
+        this.dataset = await getDataset(this.bigquery, this.datasetId, this.datasetLocation);
         this.query = query;
         const schema = this.createSchema(query);
         this.schema = schema;
         if (this.dumpSchema) {
             this.logger.debug(JSON.stringify(schema, null, 2));
             const schemaJson = JSON.stringify(schema, undefined, 2);
-            await promises_1.default.writeFile(scriptName + '_schema.json', schemaJson);
+            await fs_async.writeFile(scriptName + '_schema.json', schemaJson);
         }
     }
     async beginCustomer(customerId) {
@@ -181,21 +152,21 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
                     // repeated field can't access nulls
                     val = [];
                 }
-                else if ((0, lodash_1.isArray)(val)) {
+                else if (isArray(val)) {
                     // there could be structs (or arrays, or their combinations)
                     // in the array, and they will be rejected
                     for (let j = 0; j < val.length; j++) {
                         const subval = val[j];
-                        if (lodash_1.default.isArray(subval) || lodash_1.default.isObjectLike(subval)) {
+                        if (isArray(subval) || isObjectLike(subval)) {
                             val[j] = JSON.stringify(subval);
                         }
                     }
                 }
-                if ((0, lodash_1.isArray)(val) && this.arrayHandling === types_1.ArrayHandling.strings) {
+                if (isArray(val) && this.arrayHandling === ArrayHandling.strings) {
                     val = val.join(this.arraySeparator);
                 }
             }
-            else if (colType.kind === types_1.FieldTypeKind.struct) {
+            else if (colType.kind === FieldTypeKind.struct) {
                 // we don't support structs at the moment
                 if (val) {
                     val = JSON.stringify(val);
@@ -248,7 +219,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
             }
             else if (e.code === 404) {
                 // ApiError: "Table 162551664177:dataset.table not found"
-                // This is unexpected but theriotically can happen (and did)
+                // This is unexpected but theoretically can happen (and did)
                 // due to eventually consistency of BigQuery
                 console.error(`Table ${tableFullName} not found.`, {
                     customerId: customerId,
@@ -316,7 +287,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
             // no rows found for the customer, as so no table was created,
             // create an empty one, so we could use it for a union view
             try {
-                // it might a case when creatTables fails because the previous delete
+                // it might a case when createTables fails because the previous delete
                 // hasn't been propagated
                 await this.ensureTableCreated(tableFullName);
                 this.logger.verbose(`Created empty table '${tableFullName}'`, {
@@ -345,7 +316,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         }
         if (!this.query.resource.isConstant && !this.noUnionView) {
             /*
-            Create a view to union all customer tables (if not disabled excplicitly):
+            Create a view to union all customer tables (if not disabled explicitly):
             CREATE OR REPLACE VIEW `dataset.resource` AS
               SELECT * FROM `dataset.resource_*`;
             */
@@ -367,7 +338,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         const schema = { fields: [] };
         for (const column of query.columns) {
             const field = {
-                mode: column.type.repeated && this.arrayHandling === types_1.ArrayHandling.arrays
+                mode: column.type.repeated && this.arrayHandling === ArrayHandling.arrays
                     ? 'REPEATED'
                     : 'NULLABLE',
                 name: column.name.replace(/\./g, '_'),
@@ -383,9 +354,9 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         return schema;
     }
     getBigQueryFieldType(colType) {
-        if (this.arrayHandling === types_1.ArrayHandling.strings && colType.repeated)
+        if (this.arrayHandling === ArrayHandling.strings && colType.repeated)
             return 'STRING';
-        if (lodash_1.default.isString(colType.type)) {
+        if (isString(colType.type)) {
             switch (colType.type.toLowerCase()) {
                 case 'int32':
                 case 'int64':
@@ -396,7 +367,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
             }
             return colType.type;
         }
-        if ((0, types_1.isEnumType)(colType.type)) {
+        if (isEnumType(colType.type)) {
             return 'STRING';
         }
         // TODO: any other means STRUCT, but do we really need structs in BQ?
@@ -426,7 +397,7 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
                 if (e.code === 409) {
                     // 409 - ApiError: Already Exists
                     // probably the table still hasn't been deleted, wait a bit
-                    await (0, utils_1.delay)(200);
+                    await delay(200);
                     continue;
                 }
                 throw e;
@@ -435,5 +406,4 @@ class BigQueryWriter extends file_writers_1.FileWriterBase {
         throw new Error(`Failed to create a table ${tableFullName} after ${maxRetries} attempts`);
     }
 }
-exports.BigQueryWriter = BigQueryWriter;
 //# sourceMappingURL=bq-writer.js.map

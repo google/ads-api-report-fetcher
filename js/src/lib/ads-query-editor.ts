@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-import _ from 'lodash';
+import {isInteger, isNumber, isString} from 'lodash-es';
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
 // eslint-disable-next-line n/no-extraneous-require
 const ads_protos = require('google-ads-node/build/protos/protos.json');
-import {getLogger} from './logger';
+import {getLogger} from './logger.js';
 import {
   Customizer,
   CustomizerType,
@@ -29,10 +31,10 @@ import {
   QueryElements,
   ResourceInfo,
   ApiType,
-} from './types';
-import {substituteMacros} from './utils';
-import {math_parse} from './math-engine';
-import {BuiltinQueryProcessor} from './builtins';
+} from './types.js';
+import {substituteMacros} from './utils.js';
+import {mathjs} from './math-engine.js';
+import {BuiltinQueryProcessor} from './builtins.js';
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
 const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
@@ -61,8 +63,8 @@ export class AdsQueryEditor implements IAdsQueryEditor {
   }
 
   /**
-   * Remove comments and empty lines, normilize newlines,
-   * i.e. remove insugnificat elements
+   * Remove comments and empty lines, normalize newlines,
+   * i.e. remove insignificant elements
    */
   private cleanupQueryText(query: string): string {
     const queryLines = [];
@@ -128,7 +130,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     const functions = this.parseFunctions(query);
     query = this.removeFunctions(query);
 
-    // substibute parameters and detect unspecified ones
+    // substitute parameters and detect unspecified ones
     const res = substituteMacros(query, macros);
     if (res.unknown_params.length) {
       throw new Error(
@@ -140,9 +142,9 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     const columnsPlaceholder = '$COLUMNS$';
     let queryNative = this.normalizeQuery(query, columnsPlaceholder);
 
-    const raw_select_fields: string[] = [];
+    let raw_select_fields: string[] = [];
     // parse query metadata (resource type)
-    const match = query.match(/ FROM ([^\s]+)/i);
+    const match = query.match(/\s+FROM ([^\s]+)/i);
     if (!match || !match.length)
       throw new Error('Could not parse resource from the query');
     let resourceName = match[1];
@@ -190,7 +192,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
         column_name = column_name.substring(resourceName.length + 1);
       }
       column_name = column_name.replaceAll(/[ ]/g, '');
-      // check for uniquniess
+      // check for uniqueness
       if (column_names.includes(column_name)) {
         throw new InvalidQuerySyntax(
           `duplicating column name ${column_name} at index ${field_index}`
@@ -217,7 +219,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
         if (parsedExpr.customizer.type === CustomizerType.NestedField) {
           // we expect a field with nested_field customizer should ends with a
           // type (not primitive, not enum) i.e. ProtoTypeMeta
-          if (_.isString(fieldType.type)) {
+          if (isString(fieldType.type)) {
             throw new Error(
               `InvalidQuery: field ${column_name} contains nested field accessor (:) but selected field's type is primitive (${fieldType.typeName})`
             );
@@ -243,7 +245,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
           const func = functions[parsedExpr.customizer.function];
           if (!func) {
             throw new Error(
-              `InvalidQuerySyntax: unknown function reference '${parsedExpr.customizer.function}' in experession '${select_expr}'`
+              `InvalidQuerySyntax: unknown function reference '${parsedExpr.customizer.function}' in expression '${select_expr}'`
             );
           }
           // expect that function's return type is always string
@@ -268,15 +270,28 @@ export class AdsQueryEditor implements IAdsQueryEditor {
           // everything else should be an expression
           // it can be either a constant (number/string) or an expression of fields, or combinations,
           // we should parse all fields from the expression and add them into raw query for selecting
-          const parsed_expression = math_parse(select_expr_parsed);
+          let parsed_expression;
+          try {
+            parsed_expression = mathjs.parse(select_expr_parsed);
+          } catch (e: unknown) {
+            console.warn(
+              'Failed to parse: ' +
+                select_expr_parsed +
+                ', original column expr: ' +
+                select_expr +
+                ', at index ' +
+                field_index
+            );
+            throw e;
+          }
           let field: Column;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((parsed_expression as any).isConstantNode) {
             // constant expression
             const value = parsed_expression.evaluate();
-            const value_type = _.isInteger(value)
+            const value_type = isInteger(value)
               ? 'int64'
-              : _.isNumber(value)
+              : isNumber(value)
                 ? 'double'
                 : 'string';
             field = {
@@ -368,6 +383,8 @@ export class AdsQueryEditor implements IAdsQueryEditor {
       }
       fields.splice(expandWildcardAt, 0, ...new_fields);
     }
+    // remove duplicates:
+    raw_select_fields = [...new Set(raw_select_fields)];
     queryNative = queryNative.replace(
       '$COLUMNS$',
       raw_select_fields.join(', ')
@@ -391,7 +408,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
       if (customizer.type === CustomizerType.NestedField) {
         // we expect a field with nested_field customizer should ends with a
         // type (not primitive, not enum) i.e. ProtoTypeMeta
-        if (_.isString(fieldType.type)) {
+        if (isString(fieldType.type)) {
           throw new Error(
             `InvalidQuery: field ${columnName} contains nested field accessor (:) but selected field's type is primitive (${fieldType.typeName})`
           );
@@ -438,7 +455,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
       const field = type.fields[nameParts[i]];
       if (!field) {
         if (isLastPart) {
-          // it's an unknown field (probably from a next version)
+          // it's an unknown field (probably from a future version)
           fieldType = {
             repeated: false,
             type: 'string',
@@ -609,9 +626,9 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     // remove index (resource~N)
     const resources = selectExpr.split('~');
     if (resources.length > 1) {
-      if (!_.isInteger(+resources[1])) {
+      if (!isInteger(+resources[1])) {
         throw new Error(
-          `Expression '${selectExpr}' contains indexed access ('~') but argument isn't a number`
+          `Expression '${selectExpr}' contains indexed access ('~') but argument isn't a number (${resources[1]})`
         );
       }
       return {

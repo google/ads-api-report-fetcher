@@ -1,11 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 /* eslint-disable n/no-process-exit */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +14,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const chalk_1 = __importDefault(require("chalk"));
-const fs_1 = __importDefault(require("fs"));
-const js_yaml_1 = __importDefault(require("js-yaml"));
-const path_1 = __importDefault(require("path"));
-const yargs_1 = __importDefault(require("yargs"));
-const helpers_1 = require("yargs/helpers");
-const bq_executor_1 = require("./lib/bq-executor");
-const file_utils_1 = require("./lib/file-utils");
-const logger_1 = require("./lib/logger");
-const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+import chalk from 'chalk';
+import fs from 'fs';
+import yaml from 'js-yaml';
+import path from 'path';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { BigQueryExecutor } from './lib/bq-executor.js';
+import { getFileContent } from './lib/file-utils.js';
+import { getLogger } from './lib/logger.js';
+const argv = yargs(hideBin(process.argv))
     .scriptName('gaarf-bq')
-    .wrap(yargs_1.default.terminalWidth())
+    .wrap(yargs().terminalWidth())
     .version()
     .alias('v', 'version')
     .command('$0 <files..>', 'Execute BigQuery queries', {})
@@ -58,9 +53,9 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 })
     .env('GAARF_BQ')
     .config('config', 'Path to JSON or YAML config file', configPath => {
-    const content = fs_1.default.readFileSync(configPath, 'utf-8');
+    const content = fs.readFileSync(configPath, 'utf-8');
     if (configPath.endsWith('.yaml')) {
-        return js_yaml_1.default.load(content);
+        return yaml.load(content);
     }
     return JSON.parse(content);
 })
@@ -70,11 +65,11 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .example('$0 bq-queries/**/*.sql --config=gaarf_bq.json', 'Execute BigQuery queries with passing arguments via config file')
     .epilog(`(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`)
     .parseSync();
-const logger = (0, logger_1.getLogger)();
+const logger = getLogger();
 async function main() {
     logger.verbose(JSON.stringify(argv, null, 2));
     if (!argv.files || !argv.files.length) {
-        console.log(chalk_1.default.redBright('Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'));
+        console.log(chalk.redBright('Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'));
         process.exit(-1);
     }
     const scriptPaths = argv.files;
@@ -86,11 +81,11 @@ async function main() {
         datasetLocation: argv['dataset-location'],
         dumpQuery: argv['dump-query'],
     };
-    const executor = new bq_executor_1.BigQueryExecutor(projectId, options);
+    const executor = new BigQueryExecutor(projectId, options);
     for (const scriptPath of scriptPaths) {
-        const queryText = await (0, file_utils_1.getFileContent)(scriptPath);
+        const queryText = await getFileContent(scriptPath);
         logger.info(`Processing query from ${scriptPath}`);
-        const scriptName = path_1.default.basename(scriptPath).split('.sql')[0];
+        const scriptName = path.basename(scriptPath).split('.sql')[0];
         await executor.execute(scriptName, queryText, {
             sqlParams,
             macroParams,

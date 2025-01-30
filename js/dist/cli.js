@@ -1,7 +1,6 @@
-"use strict";
 /* eslint-disable n/no-process-exit */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,34 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const chalk_1 = __importDefault(require("chalk"));
-const find_up_1 = __importDefault(require("find-up"));
-const fs_1 = __importDefault(require("fs"));
-const js_yaml_1 = __importDefault(require("js-yaml"));
-const yargs_1 = __importDefault(require("yargs"));
-const helpers_1 = require("yargs/helpers");
-const ads_api_client_1 = require("./lib/ads-api-client");
-const ads_query_executor_1 = require("./lib/ads-query-executor");
-const bq_writer_1 = require("./lib/bq-writer");
-const console_writer_1 = require("./lib/console-writer");
-const file_writers_1 = require("./lib/file-writers");
-const file_utils_1 = require("./lib/file-utils");
-const logger_1 = require("./lib/logger");
-const utils_1 = require("./lib/utils");
-const query_reader_1 = require("./lib/query-reader");
-const ads_utils_1 = require("./lib/ads-utils");
-const configPath = find_up_1.default.sync(['.gaarfrc', '.gaarfrc.json']);
+import chalk from 'chalk';
+import { findUpSync } from 'find-up';
+import fs from 'fs';
+import yaml from 'js-yaml';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { GoogleAdsRpcApiClient, GoogleAdsRestApiClient, } from './lib/ads-api-client.js';
+import { AdsQueryExecutor, AdsApiVersion, } from './lib/ads-query-executor.js';
+import { BigQueryInsertMethod, BigQueryWriter, } from './lib/bq-writer.js';
+import { ConsoleWriter } from './lib/console-writer.js';
+import { CsvWriter, JsonWriter, NullWriter, } from './lib/file-writers.js';
+import { getFileContent } from './lib/file-utils.js';
+import { getLogger } from './lib/logger.js';
+import { getElapsed } from './lib/utils.js';
+import { ConsoleQueryReader, FileQueryReader } from './lib/query-reader.js';
+import { filterCustomerIds, getCustomerIds, getCustomerInfo, loadAdsConfigFromFile, parseCustomerIds, } from './lib/ads-utils.js';
+const configPath = findUpSync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath
-    ? JSON.parse(fs_1.default.readFileSync(configPath, 'utf-8'))
+    ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
     : {};
-const logger = (0, logger_1.getLogger)();
-const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+const logger = getLogger();
+const argv = yargs(hideBin(process.argv))
     .scriptName('gaarf')
-    .wrap(yargs_1.default.terminalWidth())
+    .wrap(yargs().terminalWidth())
     .version()
     .alias('v', 'version')
     .command('validate', 'Validate Ads configuration')
@@ -268,13 +263,13 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .env('GAARF')
     .config(configObj)
     .config('config', 'Path to JSON or YAML config file', async (configPath) => {
-    const content = await (0, file_utils_1.getFileContent)(configPath);
+    const content = await getFileContent(configPath);
     if (configPath.endsWith('.yaml')) {
-        return js_yaml_1.default.load(content);
+        return yaml.load(content);
     }
     return JSON.parse(content);
 })
-    .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${ads_query_executor_1.AdsApiVersion}.`)
+    .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${AdsApiVersion}.`)
     .example('$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds', 'Execute ads queries and upload results to BigQuery, table per script')
     .example('$0 queries/**/*.sql --output=csv --csv.destination-folder=output', 'Execute ads queries and output results to csv files, one per script')
     .example('$0 queries/**/*.sql --config=gaarf.json', 'Execute ads queries with passing arguments via config file')
@@ -284,16 +279,16 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
 function getWriter() {
     const output = (argv.output || '').toString();
     if (output === '') {
-        return new file_writers_1.NullWriter();
+        return new NullWriter();
     }
     if (output === 'console') {
-        return new console_writer_1.ConsoleWriter(argv.console);
+        return new ConsoleWriter(argv.console);
     }
     if (output === 'csv') {
-        return new file_writers_1.CsvWriter(argv.csv);
+        return new CsvWriter(argv.csv);
     }
     if (output === 'json') {
-        return new file_writers_1.JsonWriter(argv.json);
+        return new JsonWriter(argv.json);
     }
     if (output === 'bq' || output === 'bigquery') {
         // TODO: move all options to BigQueryWriterOptions
@@ -320,15 +315,15 @@ function getWriter() {
         opts.noUnionView = bq_opts['no-union-view'];
         opts.insertMethod =
             (bq_opts['insert-method'] || '').toLowerCase() === 'insert'
-                ? bq_writer_1.BigQueryInsertMethod.insertAll
-                : bq_writer_1.BigQueryInsertMethod.loadTable;
+                ? BigQueryInsertMethod.insertAll
+                : BigQueryInsertMethod.loadTable;
         opts.arrayHandling = bq_opts['array-handling'];
         opts.arraySeparator = bq_opts['array-separator'];
         opts.keyFilePath = bq_opts['key-file-path'];
         opts.outputPath = bq_opts['output-path'];
         logger.debug('BigQueryWriterOptions:');
         logger.debug(opts);
-        return new bq_writer_1.BigQueryWriter(projectId, dataset, opts);
+        return new BigQueryWriter(projectId, dataset, opts);
     }
     // TODO: if (output === 'sqldb')
     throw new Error(`Unknown output format: '${output}'`);
@@ -336,17 +331,17 @@ function getWriter() {
 function getReader() {
     const input = (argv.input || '').toString();
     if (input === 'console') {
-        return new query_reader_1.ConsoleQueryReader(argv.files);
+        return new ConsoleQueryReader(argv.files);
     }
-    return new query_reader_1.FileQueryReader(argv.files);
+    return new FileQueryReader(argv.files);
 }
 function getApiClient(adsConfig) {
     let client;
     if (argv.api === 'rest') {
-        client = new ads_api_client_1.GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
+        client = new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
     }
     else {
-        client = new ads_api_client_1.GoogleAdsRpcApiClient(adsConfig);
+        client = new GoogleAdsRpcApiClient(adsConfig);
         if (argv.apiVersion) {
             console.warn('api-version is not supported for gRPC API (api=grpc)');
         }
@@ -373,14 +368,14 @@ async function main() {
             login_customer_id: ads_cfg.login_customer_id || '',
         });
     }
-    else if (!adConfigFilePath && fs_1.default.existsSync('google-ads.yaml')) {
+    else if (!adConfigFilePath && fs.existsSync('google-ads.yaml')) {
         // load a default google-ads if it wasn't explicitly specified
         // TODO: support searching google-ads.yaml in user home folder (?)
         adsConfig = await loadAdsConfig('google-ads.yaml');
     }
     if (!adsConfig) {
         if (argv.loglevel !== 'off') {
-            console.log(chalk_1.default.red("Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting"));
+            console.log(chalk.red("Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting"));
         }
         process.exit(-1);
     }
@@ -389,10 +384,10 @@ async function main() {
         refresh_token: '<hidden>',
         developer_token: '<hidden>',
     }), null, 2));
-    const customerIds = (0, ads_utils_1.parseCustomerIds)(argv.account, adsConfig);
+    const customerIds = parseCustomerIds(argv.account, adsConfig);
     if (!customerIds || customerIds.length === 0) {
         if (argv.loglevel !== 'off') {
-            console.log(chalk_1.default.red('No customer id/ids were provided. Exiting'));
+            console.log(chalk.red('No customer id/ids were provided. Exiting'));
         }
         process.exit(-1);
     }
@@ -401,26 +396,26 @@ async function main() {
     }
     const client = getApiClient(adsConfig);
     logger.info(`Using ${client.apiType} API (${client.apiVersion})`);
-    const executor = new ads_query_executor_1.AdsQueryExecutor(client);
+    const executor = new AdsQueryExecutor(client);
     if (argv._ && argv._[0] === 'validate') {
         try {
-            await (0, ads_utils_1.getCustomerIds)(client, customerIds);
+            await getCustomerIds(client, customerIds);
             if (argv.loglevel !== 'off') {
-                console.log(chalk_1.default.green('Ads configuration has been validated'));
+                console.log(chalk.green('Ads configuration has been validated'));
             }
             process.exit(0);
         }
         catch (e) {
             if (argv.loglevel !== 'off') {
                 console.log('Validation of ads config has failed:');
-                console.log(chalk_1.default.red(e));
+                console.log(chalk.red(e));
             }
             process.exit(-1);
         }
     }
     else if (argv._ && argv._[0] === 'account-tree') {
         for (const cid of customerIds) {
-            const info = await (0, ads_utils_1.getCustomerInfo)(client, cid);
+            const info = await getCustomerInfo(client, cid);
             dumpCustomerInfo(info);
         }
         process.exit(0);
@@ -429,7 +424,7 @@ async function main() {
         // Besides two commands ("validate" and "account-tree") we treat all
         // positional args as file names
         if (argv.loglevel !== 'off') {
-            console.log(chalk_1.default.redBright('Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'));
+            console.log(chalk.redBright('Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'));
         }
         process.exit(-1);
     }
@@ -449,7 +444,7 @@ async function main() {
         customer_ids_query = argv.customer_ids_query;
     }
     else if (argv.customer_ids_query_file) {
-        customer_ids_query = await (0, file_utils_1.getFileContent)(argv.customer_ids_query_file);
+        customer_ids_query = await getFileContent(argv.customer_ids_query_file);
     }
     let customers;
     if (argv.disable_account_expansion) {
@@ -459,14 +454,14 @@ async function main() {
     else {
         // expand the provided accounts to leaf ones as they could be MMC accounts
         logger.info(`Expanding customer ids ${customer_ids_query ? '(using custom query)' : ''}`);
-        customers = await (0, ads_utils_1.getCustomerIds)(client, customerIds);
+        customers = await getCustomerIds(client, customerIds);
         logger.verbose(`Customer ids from the root account(s) ${customerIds.join(',')} (${customers.length}):`);
         logger.verbose(customers);
         if (customer_ids_query) {
             logger.verbose('Filtering customer ids with custom query');
             logger.debug(customer_ids_query);
             try {
-                customers = await (0, ads_utils_1.filterCustomerIds)(client, customers, customer_ids_query);
+                customers = await filterCustomerIds(client, customers, customer_ids_query);
             }
             catch (e) {
                 logger.error('Fetching customer ids using customer_ids_query failed: ' + e);
@@ -476,7 +471,7 @@ async function main() {
     }
     if (customers.length === 0) {
         if (argv.loglevel !== 'off') {
-            console.log(chalk_1.default.redBright('No customers found for processing'));
+            console.log(chalk.redBright('No customers found for processing'));
         }
         process.exit(-1);
     }
@@ -495,19 +490,19 @@ async function main() {
     for await (const query of reader) {
         const started_script = new Date();
         await executor.execute(query.name, query.text, customers, macros, writer, options);
-        const elapsed_script = (0, utils_1.getElapsed)(started_script);
-        logger.info(`Query from ${chalk_1.default.gray(query.name)} processing for all customers completed. Elapsed: ${elapsed_script}`);
+        const elapsed_script = getElapsed(started_script);
+        logger.info(`Query from ${chalk.gray(query.name)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }
-    const elapsed = (0, utils_1.getElapsed)(started);
-    logger.info(chalk_1.default.green('All done!') + ' ' + chalk_1.default.gray(`Elapsed: ${elapsed}`));
+    const elapsed = getElapsed(started);
+    logger.info(chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`));
 }
 async function loadAdsConfig(configFilepath) {
     try {
-        return (0, ads_utils_1.loadAdsConfigFromFile)(configFilepath);
+        return loadAdsConfigFromFile(configFilepath);
     }
     catch (e) {
         if (argv.loglevel !== 'off') {
-            console.log(chalk_1.default.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));
+            console.log(chalk.red(`Failed to load Ads API configuration from ${configFilepath}: ${e}`));
         }
         process.exit(-1);
     }

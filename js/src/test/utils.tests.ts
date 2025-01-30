@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,13 @@
  */
 
 import assert from 'assert';
-import date_add from 'date-fns/add';
-
+import {add as date_add} from 'date-fns';
 import {
   formatDateISO,
   getElapsed,
   substituteMacros,
   renderTemplate,
-} from './../lib/utils';
+} from './../lib/utils.js';
 
 suite('substituteMacros', () => {
   test('support empty params', async () => {
@@ -118,13 +117,13 @@ suite('substituteMacros', () => {
     query = substituteMacros(query_text);
     assert.deepEqual(query.text, '2022-07-02');
 
-    // substruct two Dates
+    // subtract two Dates
     query_text = '${tomorrow()-today()}';
     query = substituteMacros(query_text);
     assert.deepEqual(query.text, 'P1D');
   });
 
-  test('expressions: date formating', () => {
+  test('expressions: date formatting', () => {
     const query_text = "${format(date('2022-07-01'), 'yyyyMMdd')}";
     const query = substituteMacros(query_text);
     assert.deepEqual(query.text, '20220701');

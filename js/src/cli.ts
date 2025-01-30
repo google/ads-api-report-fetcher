@@ -1,6 +1,6 @@
 /* eslint-disable n/no-process-exit */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 
 import chalk from 'chalk';
-import findUp from 'find-up';
+import {findUpSync} from 'find-up';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import yargs from 'yargs';
@@ -27,30 +27,30 @@ import {
   GoogleAdsApiConfig,
   GoogleAdsRestApiClient,
   IGoogleAdsApiClient,
-} from './lib/ads-api-client';
+} from './lib/ads-api-client.js';
 import {
   AdsQueryExecutor,
   AdsQueryExecutorOptions,
   AdsApiVersion,
-} from './lib/ads-query-executor';
+} from './lib/ads-query-executor.js';
 import {
   BigQueryInsertMethod,
   BigQueryWriter,
   BigQueryWriterOptions,
-} from './lib/bq-writer';
-import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer';
+} from './lib/bq-writer.js';
+import {ConsoleWriter, ConsoleWriterOptions} from './lib/console-writer.js';
 import {
   CsvWriter,
   CsvWriterOptions,
   JsonWriter,
   JsonWriterOptions,
   NullWriter,
-} from './lib/file-writers';
-import {getFileContent} from './lib/file-utils';
-import {getLogger} from './lib/logger';
-import {IQueryReader, IResultWriter} from './lib/types';
-import {getElapsed} from './lib/utils';
-import {ConsoleQueryReader, FileQueryReader} from './lib/query-reader';
+} from './lib/file-writers.js';
+import {getFileContent} from './lib/file-utils.js';
+import {getLogger} from './lib/logger.js';
+import {IQueryReader, IResultWriter} from './lib/types.js';
+import {getElapsed} from './lib/utils.js';
+import {ConsoleQueryReader, FileQueryReader} from './lib/query-reader.js';
 import {
   CustomerInfo,
   filterCustomerIds,
@@ -58,9 +58,9 @@ import {
   getCustomerInfo,
   loadAdsConfigFromFile,
   parseCustomerIds,
-} from './lib/ads-utils';
+} from './lib/ads-utils.js';
 
-const configPath = findUp.sync(['.gaarfrc', '.gaarfrc.json']);
+const configPath = findUpSync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath
   ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
   : {};
@@ -69,7 +69,7 @@ const logger = getLogger();
 
 const argv = yargs(hideBin(process.argv))
   .scriptName('gaarf')
-  .wrap(yargs.terminalWidth())
+  .wrap(yargs().terminalWidth())
   .version()
   .alias('v', 'version')
   .command('validate', 'Validate Ads configuration')

@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {BigQuery, Dataset, Query} from '@google-cloud/bigquery';
-import bigquery from '@google-cloud/bigquery/build/src/types';
+import {
+  BigQuery,
+  Dataset,
+  Query,
+  CreateDatasetOptions,
+} from '@google-cloud/bigquery';
 
-import {getLogger} from './logger';
-import {renderTemplate, substituteMacros} from './utils';
-import {getDataset, OAUTH_SCOPES} from './bq-common';
+import {getLogger} from './logger.js';
+import {renderTemplate, substituteMacros} from './utils.js';
+import {getDataset, OAUTH_SCOPES} from './bq-common.js';
 
 export interface BigQueryExecutorOptions {
   datasetLocation?: string;
@@ -138,7 +142,7 @@ export class BigQueryExecutor {
       return table_fq;
     } catch (e) {
       this.logger.error(
-        `An error occured during creating the unified view (${table_fq}): ${e.message}`
+        `An error occurred during creating the unified view (${table_fq}): ${e.message}`
       );
       if (e.message.includes('Views cannot be queried through prefix')) {
         this.logger.warn(
@@ -151,7 +155,7 @@ export class BigQueryExecutor {
 
   private async getDataset(datasetId: string): Promise<Dataset> {
     let dataset: Dataset;
-    const options: bigquery.IDataset = {
+    const options: CreateDatasetOptions = {
       location: this.datasetLocation,
     };
     try {

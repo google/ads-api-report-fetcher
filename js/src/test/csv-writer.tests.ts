@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import assert from 'assert';
 import {parse} from 'csv/sync';
 import fs from 'fs';
 import path from 'path';
 
-import {AdsQueryExecutor} from '../lib/ads-query-executor';
-import {CsvWriter} from '../lib/file-writers';
-
-import {MockGoogleAdsApiClient} from './helpers';
+import {AdsQueryExecutor} from '../lib/ads-query-executor.js';
+import {CsvWriter} from '../lib/file-writers.js';
+import {MockGoogleAdsApiClient} from './helpers.js';
 
 suite('CsvWriter', () => {
   const OUTPUT_DIR = '.tmp';

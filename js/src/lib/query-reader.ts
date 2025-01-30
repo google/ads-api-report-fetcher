@@ -1,5 +1,5 @@
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 import path from 'path';
 import chalk from 'chalk';
-import {getFileContent} from './file-utils';
-import {IQueryReader, InputQuery} from './types';
-import {getLogger} from './logger';
 import {globSync} from 'glob';
+import {getFileContent} from './file-utils.js';
+import {IQueryReader, InputQuery} from './types.js';
+import {getLogger} from './logger.js';
 
 export class FileQueryReader implements IQueryReader {
   scripts: string[];

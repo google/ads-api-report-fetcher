@@ -1,5 +1,5 @@
 /*
- Copyright 2023 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import {
   getDefaultMetadataForTracing,
   LOGGING_TRACE_KEY,
 } from '@google-cloud/logging-winston';
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
 const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
 
 const {format} = winston;
@@ -53,7 +55,7 @@ if (process.stdout.isTTY) {
 formats.push(
   format.printf(
     info =>
-      `${info.timestamp}: ${wrap(info.scriptName)}${wrap(info.customerId)} ${
+      `${info.timestamp}: ${wrap(info.scriptName as string)}${wrap(info.customerId as string)} ${
         info.message
       }`
   )
@@ -109,7 +111,7 @@ export function createCloudLogger(): winston.Logger {
         // setting redirectToStdout:true actually disables using Logging API,
         // and simply dumps entries to stdout where the logger agent
         // parses them and redirect to Logging.
-        // It's the only way to overcome sparodic errors
+        // It's the only way to overcome sporadic errors
         // during calling Logging API:
         // "GoogleError: Total timeout of API google.logging.v2.LoggingServiceV2
         // exceeded 60000 milliseconds before any response was received"

@@ -1,6 +1,5 @@
-"use strict";
 /*
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,23 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConsoleQueryReader = exports.FileQueryReader = void 0;
-const path_1 = __importDefault(require("path"));
-const chalk_1 = __importDefault(require("chalk"));
-const file_utils_1 = require("./file-utils");
-const logger_1 = require("./logger");
-const glob_1 = require("glob");
-class FileQueryReader {
+import path from 'path';
+import chalk from 'chalk';
+import { globSync } from 'glob';
+import { getFileContent } from './file-utils.js';
+import { getLogger } from './logger.js';
+export class FileQueryReader {
     constructor(scripts) {
         this.scripts = [];
         if (scripts && scripts.length) {
             for (let script of scripts) {
                 if (script.includes('*') || script.includes('**')) {
-                    const expanded_files = (0, glob_1.globSync)(script);
+                    const expanded_files = globSync(script);
                     this.scripts.push(...expanded_files);
                 }
                 else {
@@ -40,23 +34,22 @@ class FileQueryReader {
                 }
             }
         }
-        this.logger = (0, logger_1.getLogger)();
+        this.logger = getLogger();
     }
     async *[Symbol.asyncIterator]() {
         for (const script of this.scripts) {
-            const queryText = await (0, file_utils_1.getFileContent)(script);
-            this.logger.info(`Processing query from ${chalk_1.default.gray(script)}`);
-            const scriptName = path_1.default.basename(script).split('.sql')[0];
+            const queryText = await getFileContent(script);
+            this.logger.info(`Processing query from ${chalk.gray(script)}`);
+            const scriptName = path.basename(script).split('.sql')[0];
             const item = { name: scriptName, text: queryText };
             yield item;
         }
     }
 }
-exports.FileQueryReader = FileQueryReader;
-class ConsoleQueryReader {
+export class ConsoleQueryReader {
     constructor(scripts) {
         this.scripts = scripts || [];
-        this.logger = (0, logger_1.getLogger)();
+        this.logger = getLogger();
     }
     async *[Symbol.asyncIterator]() {
         let i = 0;
@@ -68,11 +61,10 @@ class ConsoleQueryReader {
                 scriptName = match[1];
                 script = script.substring(scriptName.length + 1);
             }
-            this.logger.info(`Processing inline query ${scriptName}:\n ${chalk_1.default.gray(script)}`);
+            this.logger.info(`Processing inline query ${scriptName}:\n ${chalk.gray(script)}`);
             const item = { name: scriptName, text: script };
             yield item;
         }
     }
 }
-exports.ConsoleQueryReader = ConsoleQueryReader;
 //# sourceMappingURL=query-reader.js.map

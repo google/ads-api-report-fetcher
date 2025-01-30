@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +21,13 @@ import {
   Period,
 } from '@js-joda/core';
 import {all, create, factory} from 'mathjs';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-const mathjs = create(all);
+export const mathjs = create(all);
 // MathJS customization:
 //  - date/time support (using type from @js-joda: LocalDateTime, LocalDate,
 //    Duration, Period)
-mathjs!.import!(
+mathjs.import(
   [
     // data types
     factory(
@@ -172,4 +172,4 @@ mathjs!.import!(
   {override: true}
 );
 
-export const math_parse = mathjs.parse!;
+export const math_parse = mathjs.parse;

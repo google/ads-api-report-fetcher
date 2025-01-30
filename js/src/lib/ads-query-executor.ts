@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import {IGoogleAdsApiClient} from './ads-api-client';
-import {AdsApiVersion, IAdsQueryEditor} from './ads-query-editor';
-import {IAdsRowParser} from './ads-row-parser';
-import {getLogger} from './logger';
+import {IGoogleAdsApiClient} from './ads-api-client.js';
+import {AdsApiVersion, IAdsQueryEditor} from './ads-query-editor.js';
+import {IAdsRowParser} from './ads-row-parser.js';
+import {getLogger} from './logger.js';
 import {
   IResultWriter,
   QueryElements,
   QueryObjectResult,
   QueryResult,
-} from './types';
-import {executeWithRetry, getElapsed, getMemoryUsage} from './utils';
+} from './types.js';
+import {executeWithRetry, getElapsed, getMemoryUsage} from './utils.js';
 import {mapLimit} from 'async';
 export {AdsApiVersion};
 
@@ -33,11 +33,11 @@ export interface AdsQueryExecutorOptions {
   skipConstants?: boolean | undefined;
   /**
    * Execution mode: parallel (default) or synchronous -
-   * whether a scripts will be executed for all account in parallel or synchronously
+   * whether a script will be executed for all account in parallel or synchronously
    */
   parallelAccounts?: boolean;
   /**
-   * A level of parallelism (if parallelAccounts:true) - maximum number
+   * A level of parallelism (if `parallelAccounts=true`) - maximum number
    * of requests executing in parallel.
    */
   parallelThreshold?: number;
@@ -243,7 +243,7 @@ export class AdsQueryExecutor {
    * `beginScript` and `endScript` on your writer instance.
    * @param query parsed Ads query (GAQL)
    * @param customerId customer id
-   * @param writer output writer, can be ommited (if you need QueryResult with data)
+   * @param writer output writer, can be omitted (if you need QueryResult with data)
    * @returns QueryResult, but `rows` and `rawRows` fields will be empty if you supplied a writer
    */
   async executeOne(
@@ -293,7 +293,7 @@ export class AdsQueryExecutor {
       if (!e.logged) {
         console.error(e);
         this.logger.error(
-          `An error occured during executing script '${scriptName}':${
+          `An error occurred during executing script '${scriptName}':${
             e.message || e
           }`,
           {
@@ -305,7 +305,7 @@ export class AdsQueryExecutor {
       }
       e.customerId = customerId;
       // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
-      // but swalling the exception here will possible cause other issue in writer,
+      // but swelling the exception here will possible cause other issue in writer,
       // particularly in BigQueryWriter.endScript we'll trying to create a view
       // for customer - based tables,
       // and if query failed for all customers the view creation will also fail.

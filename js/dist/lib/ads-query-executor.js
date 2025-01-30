@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdsQueryExecutor = exports.AdsApiVersion = void 0;
-const ads_query_editor_1 = require("./ads-query-editor");
-Object.defineProperty(exports, "AdsApiVersion", { enumerable: true, get: function () { return ads_query_editor_1.AdsApiVersion; } });
-const logger_1 = require("./logger");
-const utils_1 = require("./utils");
-const async_1 = require("async");
+import { AdsApiVersion } from './ads-query-editor.js';
+import { getLogger } from './logger.js';
+import { executeWithRetry, getElapsed, getMemoryUsage } from './utils.js';
+import { mapLimit } from 'async';
+export { AdsApiVersion };
 /**
  * The main component for Adq query execution.
  */
-class AdsQueryExecutor {
+export class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
         this.editor = client.getQueryEditor();
         this.parser = client.getRowParser();
-        this.logger = (0, logger_1.getLogger)();
+        this.logger = getLogger();
         this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
     parseQuery(queryText, scriptName, macros) {
@@ -58,10 +55,10 @@ class AdsQueryExecutor {
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         const threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
         if (customers.length > 1) {
-            this.logger.verbose(`Executing (API ${ads_query_editor_1.AdsApiVersion}) '${scriptName}' query for ${customers.length} accounts in ${sync ? 'synchronous' : 'parallel'} mode`, { scriptName });
+            this.logger.verbose(`Executing (API ${AdsApiVersion}) '${scriptName}' query for ${customers.length} accounts in ${sync ? 'synchronous' : 'parallel'} mode`, { scriptName });
         }
         else {
-            this.logger.verbose(`Executing (API ${ads_query_editor_1.AdsApiVersion}) '${scriptName}' query for single account (${customers[0]})`);
+            this.logger.verbose(`Executing (API ${AdsApiVersion}) '${scriptName}' query for single account (${customers[0]})`);
         }
         const query = this.parseQuery(queryText, scriptName, macros);
         const isConstResource = query.resource.isConstant;
@@ -91,7 +88,7 @@ class AdsQueryExecutor {
             if (!sync) {
                 // parallel mode - we're limiting the level of concurrency with limit
                 this.logger.debug(`Concurrently processing customers (throttle: ${threshold}): ${customers}`);
-                const results = await (0, async_1.mapLimit)(customers, threshold, async (customerId) => {
+                const results = await mapLimit(customers, threshold, async (customerId) => {
                     return this.executeOne(query, customerId, writer, scriptName);
                 });
                 for (const result of results) {
@@ -108,7 +105,7 @@ class AdsQueryExecutor {
         if (writer)
             await writer.endScript();
         if (process.env.DUMP_MEMORY) {
-            this.logger.debug((0, utils_1.getMemoryUsage)('Script completed'));
+            this.logger.debug(getMemoryUsage('Script completed'));
         }
         return result_map;
     }
@@ -156,7 +153,7 @@ class AdsQueryExecutor {
      * `beginScript` and `endScript` on your writer instance.
      * @param query parsed Ads query (GAQL)
      * @param customerId customer id
-     * @param writer output writer, can be ommited (if you need QueryResult with data)
+     * @param writer output writer, can be omitted (if you need QueryResult with data)
      * @returns QueryResult, but `rows` and `rawRows` fields will be empty if you supplied a writer
      */
     async executeOne(query, customerId, writer, scriptName) {
@@ -167,7 +164,7 @@ class AdsQueryExecutor {
             customerId,
         });
         if (process.env.DUMP_MEMORY) {
-            this.logger.debug((0, utils_1.getMemoryUsage)('Begin customer'));
+            this.logger.debug(getMemoryUsage('Begin customer'));
         }
         const started = new Date();
         try {
@@ -178,16 +175,16 @@ class AdsQueryExecutor {
                 customerId,
             });
             const result = await this.executeQueryAndParse(query, customerId, writer);
-            this.logger.info(`Query executed and parsed. ${result.rowCount} rows. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+            this.logger.info(`Query executed and parsed. ${result.rowCount} rows. Elapsed: ${getElapsed(started)}`, {
                 scriptName,
                 customerId,
             });
             if (writer)
                 await writer.endCustomer(customerId);
             if (process.env.DUMP_MEMORY) {
-                this.logger.debug((0, utils_1.getMemoryUsage)('Customer completed'));
+                this.logger.debug(getMemoryUsage('Customer completed'));
             }
-            this.logger.info(`Customer processing completed. Elapsed: ${(0, utils_1.getElapsed)(started)}`, {
+            this.logger.info(`Customer processing completed. Elapsed: ${getElapsed(started)}`, {
                 scriptName,
                 customerId,
             });
@@ -196,7 +193,7 @@ class AdsQueryExecutor {
         catch (e) {
             if (!e.logged) {
                 console.error(e);
-                this.logger.error(`An error occured during executing script '${scriptName}':${e.message || e}`, {
+                this.logger.error(`An error occurred during executing script '${scriptName}':${e.message || e}`, {
                     scriptName,
                     customerId,
                     error: e,
@@ -204,7 +201,7 @@ class AdsQueryExecutor {
             }
             e.customerId = customerId;
             // NOTE: there could be legit reasons for the query to fail (e.g. customer is disabled),
-            // but swalling the exception here will possible cause other issue in writer,
+            // but swelling the exception here will possible cause other issue in writer,
             // particularly in BigQueryWriter.endScript we'll trying to create a view
             // for customer - based tables,
             // and if query failed for all customers the view creation will also fail.
@@ -243,10 +240,10 @@ class AdsQueryExecutor {
      *          otherwise only rowCount returned
      */
     async executeQueryAndParse(query, customerId, writer) {
-        return (0, utils_1.executeWithRetry)(async () => {
+        return executeWithRetry(async () => {
             const stream = this.executeNativeQuery(query, customerId);
             if (process.env.DUMP_MEMORY) {
-                this.logger.debug((0, utils_1.getMemoryUsage)('Query executed'));
+                this.logger.debug(getMemoryUsage('Query executed'));
             }
             let rowCount = 0;
             const rawRows = [];
@@ -260,7 +257,7 @@ class AdsQueryExecutor {
                 if (writer) {
                     await writer.addRow(customerId, parsedRow, row);
                     if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
-                        this.logger.debug((0, utils_1.getMemoryUsage)('10 rows processed'));
+                        this.logger.debug(getMemoryUsage('10 rows processed'));
                     }
                 }
                 else {
@@ -281,7 +278,6 @@ class AdsQueryExecutor {
         });
     }
 }
-exports.AdsQueryExecutor = AdsQueryExecutor;
 AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD = 16;
 AdsQueryExecutor.DEFAULT_RETRY_COUNT = 5;
 //# sourceMappingURL=ads-query-executor.js.map
