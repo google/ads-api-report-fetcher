@@ -8,6 +8,8 @@ main:
           - function_location: ${default(map.get(args, "location"), "us-central1")}
           - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
           - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
+          # Google Ads API endpoint to use: 'rest' or 'grpc'
+          - api: ${default(map.get(args, "api"), "rest")}
           - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
           - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
           # 20 is the default for "Concurrent branches and iterations" - https://cloud.google.com/workflows/quotas#parallel_steps
@@ -28,7 +30,8 @@ main:
           function_name: ${cloud_function}
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.ads_queries_path}
-          ads_config_path: ${args.ads_config_path}
+          ads_config_path: ${ads_config_path}
+          api: ${api}
           cid: ${args.cid}
           cid_ignore: ${map.get(args, "cid_ignore")}
           customer_ids_query: ${map.get(args, "customer_ids_query")}
@@ -80,6 +83,7 @@ runAdsQueries:
       gcs_bucket,
       queries_path,
       ads_config_path,
+      api,
       cid,
       cid_ignore,
       customer_ids_query,
@@ -135,6 +139,7 @@ runAdsQueries:
             customer_ids_query: ${default(customer_ids_query, "")}
             customer_ids_offset: ${default(customer_ids_offset, "")}
             customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
+            api: ${api}
           auth:
             type: OIDC
         result: accounts_response
@@ -209,6 +214,7 @@ runAdsQueries:
                     function_name: ${function_name}
                     function_location: ${function_location}
                     ads_config_path: ${ads_config_path}
+                    api: ${api}
                     writer: ${writer}
                     bq_dataset: ${bq_dataset}
                     bq_dataset_location: ${bq_dataset_location}
