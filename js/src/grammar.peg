@@ -1,0 +1,220 @@
+// GAQL Grammar for Peggy.js
+{
+  function makeList(head, tail) {
+    return [head].concat(tail.map(item => item[3]));  // Get the SelectedField part
+  }
+}
+
+Query
+  = __
+    select:SelectSection
+    from:FromClause
+    where:WhereClause?
+    orderBy:OrderByClause?
+    limit:LimitClause?
+    parameters:ParametersClause?
+    ";"?
+    functions:FunctionsClause?
+    __
+    {
+      return {
+        type: 'query',
+        select,
+        from,
+        where,
+        orderBy,
+        limit,
+        parameters,
+        functions
+      };
+    }
+
+SelectSection
+  = _ SELECT __ head:SelectedField tail:(__ "," __ SelectedField)* OptionalTrailingComma
+    { return { type: 'select', fields: makeList(head, tail) }; }
+
+OptionalTrailingComma
+  = __ "," __ &FROM
+  / __ &FROM
+
+ExpressionTerminator
+  = __ "AS"i ![a-zA-Z]
+  / __ "," &(__ ("AS"i ![a-zA-Z] / "FROM"i ![a-zA-Z] / SelectedField))
+  / __ "FROM"i ![a-zA-Z]
+
+SelectedField
+  = expr:Expression alias:FieldAlias?
+    {
+      return alias
+       ? { expression: expr, alias, type: 'aliasedField' }
+        : { expression: expr, type: 'field' };
+    }
+
+Expression
+  = IndexedField
+  / SubfieldAccess
+  / SimpleField
+  / BacktickedExpression
+  / MathExpression
+
+// For patterns like: resource.field1~0
+IndexedField
+  = chain:FieldChain "~" num:[0-9]+ &ExpressionEnd
+    {
+      return {
+        type: 'indexedField',
+        selector: text()
+      };
+    }
+
+// For patterns like: resource.field1:field2.field3
+SubfieldAccess
+  = left:FieldChain ":" right:FieldChain &ExpressionEnd
+    {
+      return {
+        type: 'subfieldAccess',
+        selector: text()
+      };
+    }
+
+// For patterns like: resource.field1.field2
+SimpleField
+  = chain:FieldChain &ExpressionEnd
+    {
+      return {
+        type: 'simpleField',
+        selector: text()
+      };
+    }
+
+// Base chain of dot-separated identifiers
+FieldChain
+  = head:Identifier tail:("." Identifier)*
+
+Identifier
+  = [a-zA-Z_] [a-zA-Z0-9_]*
+
+// Lookahead to ensure we've reached end of field
+ExpressionEnd
+  = &(__ ("AS"i ![a-zA-Z] / "," / "FROM"i ![a-zA-Z]))
+
+// For backticked expressions that can contain anything
+BacktickedExpression
+  = "`" expr:(!"`" .)* "`"
+    {
+      return {
+        type: 'mathExpression',
+        expression: expr.map(([_, char]) => char).join('')
+      };
+    }
+
+// Anything else becomes a math expression
+MathExpression
+  = expr:(!ExpressionTerminator .)+
+    {
+      return {
+        type: 'mathExpression',
+        selector: expr.map(([_, char]) => char).join('').trim()
+      };
+    }
+
+
+StringLiteral
+  = "'" chars:SingleQuoteChar* "'"   { return text(); }
+  / '"' chars:DoubleQuoteChar* '"'   { return text(); }
+
+SingleQuoteChar
+  = !("'" / LineTerminator) .
+
+DoubleQuoteChar
+  = !('"' / LineTerminator) .
+
+
+FieldAlias
+  = __ AS __ alias:AliasName
+    { return alias; }
+
+AliasName
+  = head:[a-zA-Z_] tail:[a-zA-Z0-9_]*
+    { return head + tail.join(''); }
+
+FromClause
+  = __ FROM __ resource:ResourceName __
+    { return { type: 'from', resource }; }
+
+WhereClause
+  = __ WHERE __ clause:RawClause
+    { return { type: 'where', clause }; }
+
+OrderByClause
+  = __ ORDER __ BY __ clause:RawClause
+    { return { type: 'orderBy', clause }; }
+
+LimitClause
+  = __ LIMIT __ limit:([0-9]+) __
+    { return { type: 'limit', value: parseInt(limit.join(''), 10) }; }
+
+ParametersClause
+  = __ PARAMETERS __ clause:RawClause
+    { return { type: 'parameters', clause }; }
+
+FunctionsClause
+  = __ FUNCTIONS __ code:JavaScriptCode
+    { return { type: 'functions', clause: code }; }
+
+// Capture all remaining content as JavaScript
+JavaScriptCode
+  = chars:.*
+    { return chars.join('').trim(); }
+
+SELECT = [sS][eE][lL][eE][cC][tT]
+FROM = [fF][rR][oO][mM]
+WHERE = [wW][hH][eE][rR][eE]
+ORDER = [oO][rR][dD][eE][rR]
+BY = [bB][yY]
+LIMIT = [lL][iI][mM][iI][tT]
+PARAMETERS = [pP][aA][rR][aA][mM][eE][tT][eE][rR][sS]
+AS = [aA][sS]
+FUNCTIONS = [fF][uU][nN][cC][tT][iI][oO][nN][sS]
+
+Comment "comment"
+  = MultiLineComment
+  / SingleLineComment
+
+MultiLineComment
+  = "/*" (!"*/" .)* "*/"
+
+SingleLineComment
+  = ("--" / "//" / "#") (!LineTerminator .)* LineTerminator?
+  { return ""; }  // Return empty string for comments
+
+RawClause
+  = content:(
+      Comment
+      / (!(";" / "SELECT"i ![a-zA-Z] / "FROM"i ![a-zA-Z] / "WHERE"i ![a-zA-Z] /
+           "ORDER"i __ "BY"i ![a-zA-Z] / "LIMIT"i ![a-zA-Z] / "PARAMETERS"i ![a-zA-Z] /
+           "FUNCTIONS"i ![a-zA-Z] / Comment) .)
+    )*
+    {
+      return content
+        .map(item => Array.isArray(item) ? item[1] : item)
+        .join('')
+        .trim();
+    }
+
+ResourceName
+  = head:[a-z][a-zA-Z0-9_]* tail:("." [a-z][a-zA-Z0-9_]*)*
+    { return text(); }
+
+_ "whitespace"
+  = WhiteSpace*
+
+__ "whitespace_or_comment"
+  = (WhiteSpace / Comment)*
+
+WhiteSpace
+  = [ \t\n\r]
+  / "\\" LineTerminator
+
+LineTerminator
+  = [\n\r\u2028\u2029]

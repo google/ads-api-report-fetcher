@@ -320,4 +320,8 @@ checkToRetry, options) {
 export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+export function assertIsError(e) {
+    if (!(e instanceof Error))
+        throw new Error('e is not an Error');
+}
 //# sourceMappingURL=utils.js.map

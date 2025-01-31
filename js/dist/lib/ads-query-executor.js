@@ -45,8 +45,8 @@ export class AdsQueryExecutor {
      * @param scriptName name of a script (can be use as target table name)
      * @param queryText Ads query text (GAQL)
      * @param customers customer ids
-     * @param macros macro values to substritute into the query
-     * @param writer output writer, can be ommited
+     * @param macros macro values to substitute into the query
+     * @param writer output writer, can be omitted
      * @param options additional execution options
      * @returns a map from customer-id to row counts
      */
@@ -113,8 +113,6 @@ export class AdsQueryExecutor {
      * Analogue to `execute` method but with an ability to get result for each
      * customer
      * (`execute` can only be used with a writer)
-     * @example
-     *
      * @param scriptName name of the script
      * @param queryText parsed Ads query
      * @param customers a list of customers to process

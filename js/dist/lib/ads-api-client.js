@@ -57,7 +57,7 @@ export class GoogleAdsApiClientBase {
         return new AdsQueryEditor(this.apiType, this.apiVersion);
     }
     getRowParser() {
-        return new AdsRowParser(this.apiType);
+        return new AdsRowParser(this.apiType, this.logger);
     }
 }
 /**

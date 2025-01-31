@@ -92,8 +92,8 @@ suite('AdsQueryExecutor', () => {
     ];
     const queryText = `
       SELECT
-        audience.dimensions.audience_segments.segments.user_interest.user_interest_category,
-        audience.dimensions.audience_segments.segments.custom_audience.custom_audience
+        --audience.dimensions:audience_segments.segments:user_interest.user_interest_category,
+        (audience.dimensions:audience_segments.segments) --:custom_audience.custom_audience
       FROM audience`;
     const client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
@@ -134,12 +134,16 @@ suite('AdsQueryExecutor', () => {
               cap: 200,
             },
           ],
+          manual_cpc: {
+            enhanced_cpc_enabled: true,
+          },
         },
       },
     ];
     const queryText = `
       SELECT
-        campaign.frequency_caps:key.level AS frequency_caps_level,
+        campaign.frequency_caps:key.level AS frequency_caps_level, --array
+        campaign.manual_cpc:enhanced_cpc_enabled                   --scalar
       FROM campaign
     `;
     const customerId = '1';
@@ -153,6 +157,7 @@ suite('AdsQueryExecutor', () => {
 
     // assert
     assert.deepEqual(result.rows![0][0], ['AD_GROUP_AD', 'AD_GROUP']);
+    assert.deepEqual(result.rows![0][1], true);
   });
 
   test('functions', async () => {
@@ -169,10 +174,13 @@ suite('AdsQueryExecutor', () => {
     const queryText = `
       SELECT
         campaign.id AS campaign_id,
-        campaign_criterion.ad_schedule.day_of_week:$format AS ad_schedule_day_of_week
+        campaign_criterion.ad_schedule.day_of_week:$formatDay
+          AS ad_schedule_day_of_week, --pre v3 format
+        formatDay(campaign_criterion.ad_schedule.day_of_week)
+          AS ad_schedule_day_of_week2
       FROM campaign_criterion
       FUNCTIONS
-      function format(val) {
+      function formatDay(val) {
         let days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
         if (!val) return '';
         return val === 8 ? days[6] : days[val-2];
@@ -190,6 +198,7 @@ suite('AdsQueryExecutor', () => {
     // assert
     assert(result.rows!.length);
     assert.equal(result.rows![0][1], 'сб');
+    assert.equal(result.rows![0][2], 'сб');
   });
 
   test('resource indices', async () => {
@@ -222,31 +231,40 @@ suite('AdsQueryExecutor', () => {
   test('virtual columns', async () => {
     const queryText = `
       SELECT
-        '$\{today()}' as date, -- #1
-        1 AS counter,           -- #2
-        metrics.clicks / metrics.impressions AS ctr, -- #3
-        metrics.cost_micros * 1000 AS cost,          -- #4
-        campaign.target_cpa.target_cpa_micros / 1000000 AS target_cpa, -- #5
-        campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type
+        '$\{today()}' as date, #1 constant string substituted as expression
+        1 AS counter,          #2 constant number
+        100+10 AS counter2,    #3 constant expression
+        #4 arithmetic operation against real columns:
+        metrics.clicks / metrics.impressions AS ctr,
+        #5 arithmetic operation between a column and constant:
+        metrics.cost_micros * 1000 AS cost,
+        #6 arithmetic operation between a column and const but the column is 2-level nested:
+        campaign.target_cpa.target_cpa_micros / 1000000 AS target_cpa,
+        #7 function call on a enum column's value:
+        campaign.name.split('.').pop() as last_name,
+        #8 indexing on function's result
+        campaign.tracking_url_template.split(':')[1] as protocol,
+        #9 enum:
+        campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type,
+        #10 indexing and nesting on arrays (repeatable fields)
+        (campaign.final_urls[1].key).toString() + '!' as url_key,
       FROM campaign
     `;
-    // NOTE for the query:
-    //  #1: virtual column with a constant string (value executed as expression)
-    //  #2: virtual column with a constant number
-    //  #3: virtual column with a arithmetic operation against real columns
-    //      (they will be fetched automatically)
-    //  #4: virtual column with a arithmetic operation between a column and const
-    //  #5: virtual column with a arithmetic operation between a column and const
-    //      but the column is 2 level nested
     const mockResult = [
       {
         campaign: {
+          name: 'part1.part2.part3',
+          tracking_url_template: 'https://example.org',
           app_campaign_setting: {
             bidding_strategy_goal_type: 2, // OPTIMIZE_INSTALLS_TARGET_INSTALL_COST
           },
           target_cpa: {
             target_cpa_micros: 1000000,
           },
+          final_urls: [
+            {key: 'key1', value: 'value1'},
+            {key: 'key2', value: 'value2'},
+          ],
         },
         metrics: {
           clicks: 10,
@@ -265,11 +283,45 @@ suite('AdsQueryExecutor', () => {
     assert.deepStrictEqual(res.rows[0], [
       LocalDate.now().toString(), // date
       1, // counter
+      100 + 10, // counter2
       10 / 2, // ctr
       3 * 1000, // cost
       1, //target_cpa
+      'part3', // last_name
+      'https', // protocol
       'OPTIMIZE_INSTALLS_TARGET_INSTALL_COST', // bidding_type
+      'key1!', // url_key
     ]);
+  });
+
+  test('virtual columns: integration with customizers', async () => {
+    const queryText = `
+SELECT
+    (change_event.new_resource:campaign.target_cpa.target_cpa_micros) / 1000000 AS new_target_cpa
+FROM change_event
+    `;
+    const mockResult = [
+      {
+        change_event: {
+          new_resource: {
+            campaign: {
+              target_cpa: {
+                target_cpa_micros: 1000000,
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const customerId = '1';
+    const client = new MockGoogleAdsApiClient();
+    client.setupResult(mockResult);
+    const executor = new AdsQueryExecutor(client);
+    const query = executor.parseQuery(queryText);
+    const res = await executor.executeOne(query, customerId);
+    assert.ok(res.rows);
+    assert.deepStrictEqual(res.rows[0], [1]);
   });
 
   test('builtin query', async () => {

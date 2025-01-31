@@ -97,7 +97,7 @@ suite('AdsQueryEditor', () => {
     );
   });
 
-  test('virtual columns: operation with columns', () => {
+  test('virtual columns: arithmetic operation with columns', () => {
     const queryText = `SELECT
       metrics.clicks / metrics.impressions
       FROM campaign
@@ -109,14 +109,44 @@ suite('AdsQueryEditor', () => {
     );
   });
 
+  test('virtual columns: method call on column value', () => {
+    const queryText = `SELECT
+      (metrics.clicks / metrics.impressions).toFixed(2) as ctr,
+      campaign.name.split('_').pop() as prefix
+      FROM campaign
+    `;
+    const query = editor.parseQuery(queryText, {});
+    assert.equal(
+      query.queryText,
+      'SELECT metrics.clicks, metrics.impressions, campaign.name FROM campaign'
+    );
+  });
+
+  test('virtual columns: compatibility with resource indexes and nested fields', () => {
+    const queryText = `SELECT
+      campaign.frequency_caps AS frequency_caps_raw,
+      campaign.frequency_caps:key.level AS frequency_caps_level,
+      'campaign: ' + campaign.name + '(' + campaign.id + ')' as title,
+      '~' + campaign.name + '~' as name
+      FROM campaign
+    `;
+    // symbols '~' and ':' in constants should not be confused with customizers
+    const query = editor.parseQuery(queryText, {});
+    assert.equal(
+      query.queryText,
+      'SELECT campaign.frequency_caps, campaign.name, campaign.id FROM campaign'
+    );
+  });
+
   test('remove comments', () => {
     const query_text = `/* Copyleft (x) 2030
 https://www.apache.org/licenses/LICENSE-2.0
 */
-      SELECT
+      SELECT #comment
         --campagin
         campaign.id -- campaign id
-      FROM campaign
+# comment
+      FROM campaign /*comment*/
       /*WHERE campaign
       */
     `;

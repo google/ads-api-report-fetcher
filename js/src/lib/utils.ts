@@ -371,3 +371,7 @@ export function executeWithRetry<T>(
 export function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function assertIsError(e: unknown): asserts e is Error {
+  if (!(e instanceof Error)) throw new Error('e is not an Error');
+}

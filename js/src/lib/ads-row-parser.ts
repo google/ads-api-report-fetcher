@@ -15,7 +15,7 @@
  */
 
 import {enums} from 'google-ads-api';
-import {isNumber, isArray, isString} from 'lodash-es';
+import {isNumber, isArray, isString, forIn, isPlainObject} from 'lodash-es';
 
 import {
   ApiType,
@@ -25,7 +25,8 @@ import {
   FieldTypeKind,
   QueryElements,
 } from './types.js';
-import {navigateObject, traverseObject, tryParseNumber} from './utils.js';
+import {navigateObject, tryParseNumber} from './utils.js';
+import {ILogger} from './logger.js';
 
 export interface IAdsRowParser {
   /**
@@ -58,38 +59,72 @@ export enum ParseResultMode {
   Object = 2,
 }
 
-export class AdsRowParser implements IAdsRowParser {
-  constructor(private apiType: ApiType) {}
+export function transformObject(
+  obj: any,
+  convertName?: (name: string) => string
+): Record<string, unknown> {
+  // result object containing both structured and flattened fields
+  const result: Record<string, unknown> = {};
 
-  private normalizeName(name: string): string {
-    if (this.apiType === ApiType.REST) {
-      return name.replace(
-        CAMEL_TO_SNAKE_REGEX,
-        (letter: string) => `_${letter.toLowerCase()}`
-      );
+  function traverse(currentObj: any, parentPath: string[] = []): any {
+    if (isArray(currentObj)) {
+      return currentObj.map(item => traverse(item, parentPath));
     }
-    return name;
+
+    if (!isPlainObject(currentObj)) {
+      if (currentObj && typeof currentObj === 'object' && currentObj.toJSON) {
+        return traverse(currentObj.toJSON(), parentPath);
+      }
+      return currentObj;
+    }
+
+    const transformedObj: Record<string, unknown> = {};
+
+    forIn(currentObj, (value, key) => {
+      const keyNew = convertName ? convertName(key) : key;
+      const currentPath = [...parentPath, keyNew];
+
+      // Add flattened field to result
+      const flattenedKey = currentPath.join('.');
+      result[flattenedKey] = value;
+
+      // Transform nested value
+      transformedObj[keyNew] = traverse(value, currentPath);
+    });
+
+    return transformedObj;
   }
+
+  // Transform the root object and merge it into result
+  const transformed = traverse(obj);
+  Object.assign(result, transformed);
+
+  return result;
+}
+
+export class AdsRowParser implements IAdsRowParser {
+  constructor(
+    private apiType: ApiType,
+    private logger: ILogger
+  ) {}
 
   parseRow(
     row: Record<string, unknown>,
     query: QueryElements,
     objectMode = false
   ) {
-    // flatten the tree of object into a flat obejct with all properties
-    const rowValues: Record<string, unknown> = {};
-    for (const field of Object.keys(row)) {
-      const item = row[field];
-      rowValues[this.normalizeName(field)] = item;
-      traverseObject(
-        item,
-        (name, value, path) => {
-          const field_full = path.join('.');
-          rowValues[this.normalizeName(field_full)] = value;
-        },
-        [field]
-      );
-    }
+    // flatten the tree of object into a flat object with all properties
+    const rowValues: Record<string, unknown> = transformObject(
+      row,
+      this.apiType === ApiType.REST
+        ? (name: string) =>
+            name.replace(
+              CAMEL_TO_SNAKE_REGEX,
+              (letter: string) => `_${letter.toLowerCase()}`
+            )
+        : undefined
+    );
+
     // process customizers and flatten row object into array
     const rowValuesArr = [];
     for (let i = 0; i < query.columns.length; i++) {
@@ -181,6 +216,10 @@ export class AdsRowParser implements IAdsRowParser {
       } catch (e) {
         if (e.message.includes('TypeError: Cannot read properties of null')) {
           value = null;
+        } else {
+          this.logger.warn(
+            `Evaluation of expression for column ${column.name} failed: ${e.message}, expression: ${column.expression}`
+          );
         }
       }
     } else {

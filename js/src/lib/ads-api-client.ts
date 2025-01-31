@@ -138,7 +138,7 @@ export abstract class GoogleAdsApiClientBase implements IGoogleAdsApiClient {
   }
 
   getRowParser(): IAdsRowParser {
-    return new AdsRowParser(this.apiType);
+    return new AdsRowParser(this.apiType, this.logger);
   }
 
   abstract executeQueryStream(

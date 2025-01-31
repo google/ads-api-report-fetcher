@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DateTimeFormatter, Duration, LocalDate, LocalDateTime, Period, } from '@js-joda/core';
-import { all, create, factory } from 'mathjs';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { DateTimeFormatter, Duration, LocalDate, LocalDateTime, Period, } from '@js-joda/core';
+import { all, create, factory, isAccessorNode, isConstantNode, isOperatorNode, isParenthesisNode, isRangeNode, isSymbolNode, } from 'mathjs';
 export const mathjs = create(all);
 // MathJS customization:
 //  - date/time support (using type from @js-joda: LocalDateTime, LocalDate,
@@ -127,5 +127,132 @@ mathjs.import([
         return () => LocalDateTime.now();
     }),
 ], { override: true });
+// Helper to build full property access chain
+function getFullPropertyChain(node) {
+    if (!node)
+        return null;
+    if (isRangeNode(node)) {
+        // For RangeNode, combine left and right parts with ":"
+        const leftPart = getFullPropertyChain(node.start);
+        const rightPart = getFullPropertyChain(node.end);
+        return leftPart && rightPart ? `${leftPart}:${rightPart}` : null;
+    }
+    else if (isAccessorNode(node)) {
+        if (node.index.dotNotation) {
+            const objectChain = getFullPropertyChain(node.object);
+            if (objectChain) {
+                // Get field name from the IndexNode's dimensions
+                const fieldName = node.index.dimensions[0]
+                    .value;
+                if (Number.isFinite(fieldName)) {
+                    return objectChain;
+                }
+                else {
+                    return `${objectChain}.${fieldName}`;
+                }
+            }
+        }
+        else {
+            // For array access, process the object part only
+            return getFullPropertyChain(node.object);
+        }
+    }
+    else if (isSymbolNode(node)) {
+        return node.name;
+    }
+    return null;
+}
+/**
+ * Extract all field accesses from a mathjs expression.
+ * @param node a mathjs ast node
+ * @returns list of field accessors
+ */
+export function extractFieldAccesses(node) {
+    const fieldAccesses = new Set();
+    const processedNodes = new Set();
+    // Helper to find field access in function chain
+    const findFieldAccessInFunctionChain = (node) => {
+        if (!node)
+            return null;
+        // For a FunctionNode, we need to:
+        // 1. Process its arguments
+        // 2. Look at its fn property which should be an AccessorNode
+        // 3. Follow fn.object which might be another FunctionNode or the actual field access
+        if (node.type === 'FunctionNode') {
+            const funcNode = node;
+            // Process function arguments
+            if (funcNode.args) {
+                funcNode.args.forEach(arg => traverse(arg));
+            }
+            // If fn is an AccessorNode, check its object
+            if (funcNode.fn && funcNode.fn.type === 'AccessorNode') {
+                if (funcNode.fn.object) {
+                    // If object is a FunctionNode, continue the chain
+                    if (funcNode.fn.object.type === 'FunctionNode') {
+                        return findFieldAccessInFunctionChain(funcNode.fn.object);
+                    }
+                    // If object is an AccessorNode, this is our field access
+                    else if (funcNode.fn.object.type === 'AccessorNode') {
+                        return getFullPropertyChain(funcNode.fn.object);
+                    }
+                    // Handle ParenthesisNode and other types by traversing them
+                    else {
+                        traverse(funcNode.fn.object);
+                    }
+                }
+            }
+        }
+        return null;
+    };
+    // Main traversal function
+    const traverse = (node) => {
+        if (!node || processedNodes.has(node))
+            return;
+        processedNodes.add(node);
+        //console.log(node);
+        // Handle AccessorNode chains
+        if (isAccessorNode(node)) {
+            const chain = getFullPropertyChain(node);
+            if (chain) {
+                fieldAccesses.add(chain);
+            }
+        }
+        if (isRangeNode(node)) {
+            const chain = getFullPropertyChain(node);
+            if (chain) {
+                fieldAccesses.add(chain);
+            }
+        }
+        // TODO: Handle array access
+        // else if (isIndexNode(node)) {
+        //   if (node.object) {
+        //     traverse(node.object);
+        //   }
+        // }
+        // Handle standalone SymbolNodes
+        else if (isSymbolNode(node) && !isConstantNode(node)) {
+            fieldAccesses.add(node.name);
+        }
+        // Handle function calls
+        else if (node.type === 'FunctionNode') {
+            // For function calls, check if it's a property access (a method call)
+            const chain = findFieldAccessInFunctionChain(node);
+            if (chain) {
+                fieldAccesses.add(chain);
+            }
+        }
+        else if (isOperatorNode(node) && node.args) {
+            // Continue traversal for any other children
+            node.args.forEach(arg => traverse(arg));
+        }
+        // Handle ParenthesisNode
+        else if (isParenthesisNode(node) && node.content) {
+            traverse(node.content);
+        }
+    };
+    // Start traversal from root node
+    traverse(node);
+    return Array.from(fieldAccesses);
+}
 export const math_parse = mathjs.parse;
 //# sourceMappingURL=math-engine.js.map

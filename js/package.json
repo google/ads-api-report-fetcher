@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "2.13.0",
+  "version": "3.0.0",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -45,7 +45,8 @@
     "@js-joda/core": "^5.4.2",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.5",
-    "@types/lodash": "^4.17.13",
+    "@types/lodash-es": "^4.17.12",
+    "@types/nunjucks": "^3.2.3",
     "@types/yargs": "^17.0.33",
     "async": "^3.2.6",
     "axios": "^1.7.7",
@@ -68,9 +69,7 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/async": "^3.2.24",
-    "@types/lodash-es": "^4.17.12",
     "@types/mocha": "^10.0.1",
-    "@types/nunjucks": "^3.2.3",
     "gts": "^5.3.1",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
