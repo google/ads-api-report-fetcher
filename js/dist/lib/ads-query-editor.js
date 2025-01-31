@@ -20,7 +20,7 @@ const require = createRequire(import.meta.url);
 const ads_protos = require('google-ads-node/build/protos/protos.json');
 import { getLogger } from './logger.js';
 import { CustomizerType, FieldTypeKind, isEnumType, QueryElements, } from './types.js';
-import { assertIsError, substituteMacros } from './utils.js';
+import { assertIsError, renderTemplate, substituteMacros } from './utils.js';
 import { extractFieldAccesses, mathjs } from './math-engine.js';
 import { BuiltinQueryProcessor } from './builtins.js';
 import { parse } from './parser.js';
@@ -104,17 +104,23 @@ export class AdsQueryEditor {
         }
         return text;
     }
-    parseQuery(query, macros) {
+    parseQuery(query, macros, templateParams) {
         var _a;
         let ast = parse(query);
         let queryNormalized = this.compileAst(ast);
         const functions = this.parseFunctions(((_a = ast.functions) === null || _a === void 0 ? void 0 : _a.clause) || '');
         mathjs.import(functions);
+        if (templateParams) {
+            query = renderTemplate(query, templateParams);
+        }
         // substitute parameters and detect unspecified ones
         const res = substituteMacros(queryNormalized, macros);
         if (res.unknown_params.length) {
             throw new Error('The following parameters used in query and were not specified: ' +
-                res.unknown_params);
+                res.unknown_params +
+                (macros
+                    ? ', all passed macros: ' + Object.keys(macros)
+                    : ', no macros were passed'));
         }
         queryNormalized = res.text;
         // reparse query again with substituted macro

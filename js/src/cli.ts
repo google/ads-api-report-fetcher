@@ -589,7 +589,8 @@ async function main() {
   logger.info(`Customers to process (${customers.length}):`);
   logger.info(customers);
 
-  const macros = <Record<string, string>>argv['macro'] || {};
+  const macros = (argv['macro'] || {}) as Record<string, string>;
+  const templateParams = argv['template'] as Record<string, string>;
   const writer = getWriter(); // NOTE: create writer from argv
   const reader = getReader(); // NOTE: create reader from argv
   const options: AdsQueryExecutorOptions = {
@@ -606,7 +607,7 @@ async function main() {
       query.name,
       query.text,
       customers,
-      macros,
+      {macros, templateParams},
       writer,
       options
     );

@@ -45,6 +45,20 @@ export interface AdsQueryExecutorOptions {
 }
 
 /**
+ * Parameter for query parsing (parseQuery method)
+ */
+export interface AdsQueryParams {
+  /**
+   * Macros map used in the query in the `{param}` format.
+   */
+  macros?: Record<string, string>;
+  /**
+   * Params for template processing
+   */
+  templateParams?: Record<string, string>;
+}
+
+/**
  * The main component for Adq query execution.
  */
 export class AdsQueryExecutor {
@@ -65,13 +79,13 @@ export class AdsQueryExecutor {
     this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
   }
 
-  parseQuery(
-    queryText: string,
-    scriptName?: string,
-    macros?: Record<string, string>
-  ) {
+  parseQuery(queryText: string, scriptName?: string, params?: AdsQueryParams) {
     try {
-      return this.editor.parseQuery(queryText, macros);
+      return this.editor.parseQuery(
+        queryText,
+        params?.macros,
+        params?.templateParams
+      );
     } catch (e) {
       e.message = (scriptName ? scriptName + ': ' : '') + e.message;
       throw e;
@@ -85,7 +99,7 @@ export class AdsQueryExecutor {
    * @param scriptName name of a script (can be use as target table name)
    * @param queryText Ads query text (GAQL)
    * @param customers customer ids
-   * @param macros macro values to substitute into the query
+   * @param params macro values to substitute into the query
    * @param writer output writer, can be omitted
    * @param options additional execution options
    * @returns a map from customer-id to row counts
@@ -94,7 +108,7 @@ export class AdsQueryExecutor {
     scriptName: string,
     queryText: string,
     customers: string[],
-    macros: Record<string, string>,
+    params: AdsQueryParams,
     writer?: IResultWriter | undefined,
     options?: AdsQueryExecutorOptions
   ): Promise<Record<string, number>> {
@@ -115,7 +129,7 @@ export class AdsQueryExecutor {
       );
     }
 
-    const query = this.parseQuery(queryText, scriptName, macros);
+    const query = this.parseQuery(queryText, scriptName, params);
     const isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       this.logger.verbose(
@@ -188,7 +202,7 @@ export class AdsQueryExecutor {
    * @param scriptName name of the script
    * @param queryText parsed Ads query
    * @param customers a list of customers to process
-   * @param macros macros (arbitrary key-value pairs to substitute into query)
+   * @param params macros (arbitrary key-value pairs to substitute into query)
    * @param options execution options
    * @returns an async generator to iterate through to get results for each
    *     customer
@@ -197,11 +211,11 @@ export class AdsQueryExecutor {
     scriptName: string,
     queryText: string,
     customers: string[],
-    macros?: Record<string, string>,
+    params?: AdsQueryParams,
     options?: AdsQueryExecutorOptions
   ): AsyncGenerator<QueryResult, void, QueryResult | void> {
     const skipConstants = !!options?.skipConstants;
-    const query = this.parseQuery(queryText, scriptName, macros);
+    const query = this.parseQuery(queryText, scriptName, params);
     const isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       this.logger.verbose(

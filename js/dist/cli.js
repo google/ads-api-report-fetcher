@@ -477,7 +477,8 @@ async function main() {
     }
     logger.info(`Customers to process (${customers.length}):`);
     logger.info(customers);
-    const macros = argv['macro'] || {};
+    const macros = (argv['macro'] || {});
+    const templateParams = argv['template'];
     const writer = getWriter(); // NOTE: create writer from argv
     const reader = getReader(); // NOTE: create reader from argv
     const options = {
@@ -489,7 +490,7 @@ async function main() {
     const started = new Date();
     for await (const query of reader) {
         const started_script = new Date();
-        await executor.execute(query.name, query.text, customers, macros, writer, options);
+        await executor.execute(query.name, query.text, customers, { macros, templateParams }, writer, options);
         const elapsed_script = getElapsed(started_script);
         logger.info(`Query from ${chalk.gray(query.name)} processing for all customers completed. Elapsed: ${elapsed_script}`);
     }

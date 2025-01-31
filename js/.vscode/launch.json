@@ -19,6 +19,8 @@
       ],
       "runtimeArgs": [
         "--nolazy",
+        "--loader",
+        "ts-node/esm",
         "-r",
         "ts-node/register"
       ],

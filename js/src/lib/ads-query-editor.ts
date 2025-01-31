@@ -32,10 +32,9 @@ import {
   ResourceInfo,
   ApiType,
 } from './types.js';
-import {assertIsError, substituteMacros} from './utils.js';
+import {assertIsError, renderTemplate, substituteMacros} from './utils.js';
 import {extractFieldAccesses, mathjs} from './math-engine.js';
 import {BuiltinQueryProcessor} from './builtins.js';
-import {isConstantNode} from 'mathjs';
 import {parse} from './parser.js';
 
 const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
@@ -49,7 +48,11 @@ const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
 class InvalidQuerySyntax extends Error {}
 
 export interface IAdsQueryEditor {
-  parseQuery(query: string, macros?: Record<string, string>): QueryElements;
+  parseQuery(
+    query: string,
+    macros?: Record<string, string>,
+    templateParams?: Record<string, string>
+  ): QueryElements;
 }
 
 interface AstFieldExpression {
@@ -169,19 +172,29 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     return text;
   }
 
-  parseQuery(query: string, macros?: Record<string, string>): QueryElements {
+  parseQuery(
+    query: string,
+    macros?: Record<string, string>,
+    templateParams?: Record<string, string>
+  ): QueryElements {
     let ast = parse(query) as AstQuery;
 
     let queryNormalized = this.compileAst(ast);
     const functions = this.parseFunctions(ast.functions?.clause || '');
     mathjs.import(functions);
 
+    if (templateParams) {
+      query = renderTemplate(query, templateParams);
+    }
     // substitute parameters and detect unspecified ones
     const res = substituteMacros(queryNormalized, macros);
     if (res.unknown_params.length) {
       throw new Error(
         'The following parameters used in query and were not specified: ' +
-          res.unknown_params
+          res.unknown_params +
+          (macros
+            ? ', all passed macros: ' + Object.keys(macros)
+            : ', no macros were passed')
       );
     }
     queryNormalized = res.text;
@@ -347,7 +360,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
             };
           } else {
             // if no field accesses then it's a constant expression
-            let value: any;
+            let value: unknown;
             try {
               value = parsed_expression.evaluate();
             } catch (e: unknown) {

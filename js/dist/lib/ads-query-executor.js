@@ -29,9 +29,9 @@ export class AdsQueryExecutor {
         this.logger = getLogger();
         this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
-    parseQuery(queryText, scriptName, macros) {
+    parseQuery(queryText, scriptName, params) {
         try {
-            return this.editor.parseQuery(queryText, macros);
+            return this.editor.parseQuery(queryText, params === null || params === void 0 ? void 0 : params.macros, params === null || params === void 0 ? void 0 : params.templateParams);
         }
         catch (e) {
             e.message = (scriptName ? scriptName + ': ' : '') + e.message;
@@ -45,12 +45,12 @@ export class AdsQueryExecutor {
      * @param scriptName name of a script (can be use as target table name)
      * @param queryText Ads query text (GAQL)
      * @param customers customer ids
-     * @param macros macro values to substitute into the query
+     * @param params macro values to substitute into the query
      * @param writer output writer, can be omitted
      * @param options additional execution options
      * @returns a map from customer-id to row counts
      */
-    async execute(scriptName, queryText, customers, macros, writer, options) {
+    async execute(scriptName, queryText, customers, params, writer, options) {
         const skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         const threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
@@ -60,7 +60,7 @@ export class AdsQueryExecutor {
         else {
             this.logger.verbose(`Executing (API ${AdsApiVersion}) '${scriptName}' query for single account (${customers[0]})`);
         }
-        const query = this.parseQuery(queryText, scriptName, macros);
+        const query = this.parseQuery(queryText, scriptName, params);
         const isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
@@ -116,14 +116,14 @@ export class AdsQueryExecutor {
      * @param scriptName name of the script
      * @param queryText parsed Ads query
      * @param customers a list of customers to process
-     * @param macros macros (arbitrary key-value pairs to substitute into query)
+     * @param params macros (arbitrary key-value pairs to substitute into query)
      * @param options execution options
      * @returns an async generator to iterate through to get results for each
      *     customer
      */
-    async *executeGen(scriptName, queryText, customers, macros, options) {
+    async *executeGen(scriptName, queryText, customers, params, options) {
         const skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
-        const query = this.parseQuery(queryText, scriptName, macros);
+        const query = this.parseQuery(queryText, scriptName, params);
         const isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {

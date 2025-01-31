@@ -93,9 +93,9 @@ async function main() {
   }
   const scriptPaths = argv.files;
   const projectId = argv.project || '';
-  const sqlParams = <Record<string, unknown>>argv['sql'];
-  const macroParams = <Record<string, string>>argv['macro'];
-  const templateParams = <Record<string, string>>argv['template'];
+  const sqlParams = argv['sql'] as Record<string, unknown>;
+  const macroParams = argv['macro'] as Record<string, string>;
+  const templateParams = argv['template'] as Record<string, string>;
   const options: BigQueryExecutorOptions = {
     datasetLocation: argv['dataset-location'],
     dumpQuery: argv['dump-query'],
