@@ -74,6 +74,7 @@ export async function getAdsConfig(
     adsConfig = await loadAdsConfigYaml(adsConfigFile);
   } else if (req.body && req.body.ads_config) {
     // get from request body
+    // TODO: support service account key file
     adsConfig = <GoogleAdsApiConfig>{
       developer_token: <string>req.body.ads_config.developer_token,
       login_customer_id: <string>req.body.ads_config.login_customer_id,
@@ -81,13 +82,12 @@ export async function getAdsConfig(
       client_secret: <string>req.body.ads_config.client_secret,
       refresh_token: <string>req.body.ads_config.refresh_token,
     };
-  } else if (
-    process.env.REFRESH_TOKEN &&
-    process.env.DEVELOPER_TOKEN &&
-    process.env.CLIENT_ID &&
-    process.env.CLIENT_SECRET
-  ) {
-    // get from environment variables
+  } else if (fs.existsSync('google-ads.yaml')) {
+    // get from a local file (must be deployed with the Function)
+    adsConfig = await loadAdsConfigYaml('google-ads.yaml');
+  } else {
+    // otherwise get settings from environment variables
+    // NOTE: Envvars can be mapped to secrets in Secret Manager
     adsConfig = <GoogleAdsApiConfig>{
       developer_token: <string>process.env.DEVELOPER_TOKEN,
       login_customer_id: <string>process.env.LOGIN_CUSTOMER_ID,
@@ -95,18 +95,9 @@ export async function getAdsConfig(
       client_secret: <string>process.env.CLIENT_SECRET,
       refresh_token: <string>process.env.REFRESH_TOKEN,
     };
-  } else if (fs.existsSync('google-ads.yaml')) {
-    // get from a local file
-    adsConfig = await loadAdsConfigYaml('google-ads.yaml');
   }
-  if (
-    !adsConfig ||
-    !adsConfig.developer_token ||
-    !adsConfig.refresh_token ||
-    !adsConfig.client_id ||
-    !adsConfig.client_secret
-  ) {
-    throw new Error('Ads API configuration is not complete.');
+  if (!adsConfig || !adsConfig.developer_token) {
+    throw new Error('Ads API configuration is not complete (missing developer_token).');
   }
 
   return adsConfig;

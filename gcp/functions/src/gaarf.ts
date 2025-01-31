@@ -15,14 +15,14 @@
  */
 
 /**
- * Cloud Function 'gaarf' - executes Ads query (suplied either via body or as a GCS path) and writes data to BigQuery (or other writer)
+ * Cloud Function 'gaarf' - executes Ads query (supplied either via body or as a GCS path) and writes data to BigQuery (or other writer)
  * arguments:
  *  - (required) ads config - different sources are supported, see `getAdsConfig` function
  *  - writer - writer to use: "bq", "json", "csv". By default - "bq" (BigQuery)
  *  - bq_dataset - (can be taken from envvar DATASET) output BQ dataset id
  *  - bq_project_id - BigQuery project id, be default the current project is used
  *  - customer_id - Ads customer id (a.k.a. CID), can be taken from google-ads.yaml if specified
- *  - expand_mcc - true to expand account in `customer_id` argument. By default (if fale) it also disables creating union views.
+ *  - expand_mcc - true to expand account in `customer_id` argument. By default (if false) it also disables creating union views.
  *  - bq_dataset_location - BigQuery dataset location ('us' or 'europe'), optional, by default 'us' is used
  *  - output_path - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
  */
@@ -113,7 +113,7 @@ async function main_unsafe(
       "Customer id is not specified in either 'customer_id' query argument or google-ads.yaml"
     );
   if (!adsConfig.login_customer_id) {
-    adsConfig.login_customer_id = <string>customerId;
+    adsConfig.login_customer_id = (req.query.root_cid || customerId) as string;
   }
 
   let adsClient: IGoogleAdsApiClient;
@@ -161,11 +161,19 @@ async function main_unsafe(
   const executor = new AdsQueryExecutor(adsClient);
   const writer = getQueryWriter(req, projectId);
 
+  logger.info(`Starting executing script via Gaarf (${adsClient.apiType})`, {
+    customers,
+    scriptName,
+    queryText,
+    macro: req.body.macro,
+    templateParams: req.body.templateParams,
+  });
+
   const result = await executor.execute(
     scriptName,
     queryText,
     customers,
-    req.body.macro,
+    {macros: req.body.macro, templateParams: req.body.templateParams},
     writer
   );
 
