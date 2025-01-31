@@ -4,19 +4,28 @@ main:
     - init:
         assign:
           - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          # base name for all Cloud Functions ('gaarf' by default)
           - cloud_function: ${default(map.get(args, "cloud_function"), "gaarf")}
+          # Cloud Functions region
           - function_location: ${default(map.get(args, "location"), "us-central1")}
+          # BigQuery dataset region ('us' by default)
           - bq_dataset_location: ${if(default(map.get(args, "bq_dataset_location"), "us") == "", "us", default(map.get(args, "bq_dataset_location"), "us"))}
-          - gcs_bucket: ${default(map.get(args,"gcs_bucket"), project)}
+          # GCS bucket name where all artifacts are located (same as project id by default)
+          - gcs_bucket: ${default(map.get(args, "gcs_bucket"), project)}
+          # full GCS path to google-ads.yaml (optional)
+          - ads_config_path: ${default(map.get(args, "ads_config_path"), "")}
           # Google Ads API endpoint to use: 'rest' or 'grpc'
           - api: ${default(map.get(args, "api"), "rest")}
-          - only_run_bq: ${default(map.get(args,"only_run_bq"), false)}
+          # skip running Ads scripts and execute only bq scripts
+          - only_run_bq: ${default(map.get(args, "only_run_bq"), false)}
+          # pub/sub topic id to signal about completion
           - completion_topic: ${default(map.get(args, "completion_topic"), "gaarf_wf_completed")}
           # 20 is the default for "Concurrent branches and iterations" - https://cloud.google.com/workflows/quotas#parallel_steps
           - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
+          # Ads workflow id
           - workflow_ads_id: ${default(map.get(args, "workflow_ads_id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID") + "-ads")}
           #- recreate_dataset: ${default(map.get(args,"recreate_dataset"), false)}
-          - disable_strict_views: ${default(map.get(args,"disable_strict_views"), false)}
+          - disable_strict_views: ${default(map.get(args, "disable_strict_views"), false)}
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -211,6 +220,7 @@ runAdsQueries:
                   argument:
                     scripts: ${scripts}
                     accounts: ${accounts_batch}
+                    root_cid: ${cid}
                     function_name: ${function_name}
                     function_location: ${function_location}
                     ads_config_path: ${ads_config_path}

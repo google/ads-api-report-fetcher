@@ -6,6 +6,7 @@ main:
           - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
           - scripts: ${args.scripts}
           - accounts: ${args.accounts}
+          - root_cid: ${args.root_cid}
           - function_name: ${default(map.get(args, "function_name"), "gaarf")}
           - function_location: ${default(map.get(args, "function_location"), "us-central1")}
           - ads_config_path: ${args.ads_config_path}
@@ -63,6 +64,7 @@ main:
                     cf_uri: ${gaarf_main_cf_uri}
                     script_path: ${script_item}
                     account: ${accounts[0]}
+                    root_cid: ${root_cid}
                     macros: ${macros}
                     project: ${project}
                     writer: ${writer}
@@ -95,6 +97,7 @@ main:
                                   cf_uri: ${gaarf_main_cf_uri}
                                   script_path: ${script_item}
                                   account: ${account}
+                                  root_cid: ${root_cid}
                                   macros: ${macros}
                                   project: ${project}
                                   writer: ${writer}
@@ -153,6 +156,7 @@ executeAdsQuery:
       cf_uri,
       script_path,
       account,
+      root_cid,
       macros,
       project,
       writer,
@@ -183,6 +187,7 @@ executeAdsQuery:
               bq_dataset: ${bq_dataset}
               bq_dataset_location: ${bq_dataset_location}
               customer_id: ${account}
+              root_cid: ${root_cid}
               output_path: ${output_path}
             body:
               macro: ${macros}
@@ -231,7 +236,7 @@ custom_retry_predicate:
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
           - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or "SystemError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
-            next: log_call_gaarf_cf_rety
+            next: log_call_gaarf_cf_retry
     - otherwise:
         steps:
           - log_call_gaarf_cf_terminate:
@@ -241,7 +246,7 @@ custom_retry_predicate:
                 severity: "ERROR"
           - return_false:
               return: false
-    - log_call_gaarf_cf_rety:
+    - log_call_gaarf_cf_retry:
         call: sys.log
         args:
           text: "Retrying"
