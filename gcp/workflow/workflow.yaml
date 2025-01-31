@@ -195,6 +195,31 @@ runAdsQueries:
             scripts: ${scripts}
           severity: "INFO"
 
+    # collecting account ids from `accounts` where they are slit into batched into a flatten list
+    - initialize_accounts_flatten:
+        assign:
+          - accounts_flatten: []
+    - flatten_accounts:
+        for:
+          value: accounts_batch
+          in: ${accounts}
+          steps:
+            - loop_over_batch:
+                for:
+                  value: account
+                  in: ${accounts_batch}
+                  steps:
+                    - append:
+                        assign:
+                          - accounts_flatten: ${list.concat(accounts_flatten, account)}
+
+    # Exit processing if no accounts received
+    - check_for_no_accounts:
+        switch:
+          - condition: ${len(accounts_flatten) == 0}
+            next: return_result
+        next: iteration_over_batches
+
     # loop over accounts grouped by batches (to overcome the limit of max steps in workflow)
     - iteration_over_batches:
         for:
@@ -233,24 +258,6 @@ runAdsQueries:
                     output_path: ${output_path}
                     concurrency_limit: ${concurrency_limit}
                 result: execution_result
-
-    # collecting account ids from `accounts` where they are slit into batched into a flatten list
-    - initialize_accounts_flatten:
-        assign:
-          - accounts_flatten: []
-    - flatten_accounts:
-        for:
-          value: accounts_batch
-          in: ${accounts}
-          steps:
-            - loop_over_batch:
-                for:
-                  value: account
-                  in: ${accounts_batch}
-                  steps:
-                    - append:
-                        assign:
-                          - accounts_flatten: ${list.concat(accounts_flatten, account)}
 
     - check_for_bq_writer:
         switch:
