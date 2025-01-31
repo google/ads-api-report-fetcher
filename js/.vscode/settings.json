@@ -1,7 +1,8 @@
 {
-  "editor.rulers": [80,120],
+  "editor.rulers": [80, 120],
   "editor.formatOnPaste": true,
   //"editor.formatOnType": true,
+  "eslint.validate": ["javascript", "typescript", "vue"],
   // JavaScript/TypeScript
   "clang-format.style": "{BasedOnStyle: google}",
   "[markdown]": {
@@ -14,34 +15,24 @@
       "other": "off"
     },
     "editor.formatOnType": false,
-    "editor.formatOnPaste": false,
+    "editor.formatOnPaste": false
   },
-  "[cpp]": { "editor.defaultFormatter": "xaver.clang-format" },
-  "mocha.files.glob": "src/test/**/*.tests.ts",
-  "mocha.options": {
-    "ui": "tdd",
-    "timeout": "5s"
+  "[sql]": {
+    "editor.rulers": [100]
   },
-  "mocha.requires": [
-    "ts-node/register",
-    //"ts-node/esm",
-    "src/test/fixtures.ts"
-  ],
-  "mocha.coverage": {
-    "enable": true,
-    "decoration": true,
-    "runWithInterval": false,
-    "autoUpdateInterval": 20000,
-    "activeOnStart": true,
-    "runAfterTest": false,
-    "runCoverageAfterFileSave": false,
-    "reporters": []
-  },
+  "[cpp]": {"editor.defaultFormatter": "xaver.clang-format"},
   "files.exclude": {
     "dist/": true
   },
-  "mochaExplorer.files": "src/test/**/*.ts",
+  "mochaExplorer.esmLoader": true,
+  "mochaExplorer.files": "src/test/**/*.tests.ts",
   "mochaExplorer.require": ["ts-node/register", "src/test/fixtures.ts"],
   "mochaExplorer.ui": "tdd",
-  "mochaExplorer.timeout": 60
+  "mochaExplorer.timeout": 600,
+  "mochaExplorer.nodeArgv": [
+    "--loader=ts-node/esm",
+    "--no-warnings=ExperimentalWarning",
+    "--experimental-specifier-resolution=node"
+  ],
+  "cSpell.words": ["Customizer", "GAQL"]
 }
