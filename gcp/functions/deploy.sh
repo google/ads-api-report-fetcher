@@ -66,6 +66,9 @@ while :; do
       shift
       SERVICE_ACCOUNT=--service-account=$1
       ;;
+  --use-secret-manager)
+      USE_SECRET_MANAGER=true
+      ;;
   *)
       break
     esac
@@ -78,6 +81,10 @@ function execute_deploy() {
   local deployable_function=$1
   local entry_point=$2
   local memory=$3
+  local set_secret
+  if [[ $USE_SECRET_MANAGER ]]; then
+    set_secret="--set-secrets DEVELOPER_TOKEN=google-ads-dev-token:latest"
+  fi
 
   gcloud functions deploy $deployable_function \
       --trigger-http \
@@ -90,6 +97,7 @@ function execute_deploy() {
       --gen2 \
       $MAX_INSTANCES \
       $SERVICE_ACCOUNT \
+      $set_secret \
       --source=.
   echo $? > $statusfile
 }

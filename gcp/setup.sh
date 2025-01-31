@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #------------------------------------------------------------------------------
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
+
 SETTING_FILE="./settings.ini"
 SCRIPT_PATH=$(readlink -f "$0" | xargs dirname)
 SETTING_FILE="${SCRIPT_PATH}/settings.ini"
 
-# changing the cwd to the script's contining folder so all pathes inside can be local to it
+# changing the cwd to the script's containing folder so all paths inside can be local to it
 # (important as the script can be called via absolute path and as a nested path)
 pushd $SCRIPT_PATH > /dev/null
 
@@ -57,12 +61,13 @@ enable_apis() {
   gcloud services enable cloudbuild.googleapis.com
   gcloud services enable bigquery.googleapis.com
   gcloud services enable cloudfunctions.googleapis.com
+  gcloud services enable secretmanager.googleapis.com
   gcloud services enable googleads.googleapis.com
 }
 
 
 set_iam_permissions() {
-  echo -e "${COLOR}Setting up IAM permissions...${NC}"
+  echo -e "${CYAN}Setting up IAM permissions...${NC}"
   declare -ar ROLES=(
     # Permissions for Workflow:
     # Cloud Storage
@@ -82,6 +87,7 @@ set_iam_permissions() {
     # For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
     roles/artifactregistry.repoAdmin
     roles/iam.serviceAccountUser
+    roles/secretmanager.secretAccessor
   )
   for role in "${ROLES[@]}"
   do
@@ -90,6 +96,14 @@ set_iam_permissions() {
       --role=$role \
       --condition=None
   done
+}
+
+
+create_gcs() {
+  echo -e "${CYAN}Creating GCS...${NC}"
+  if ! gsutil ls gs://${PROJECT_ID} > /dev/null 2> /dev/null; then
+    gsutil mb -l ${GCS_REGION} -b on gs://${PROJECT_ID}
+  fi
 }
 
 
@@ -103,7 +117,27 @@ create_wf_completion_topic() {
 }
 
 
+create_secret() {
+  local SECRET_NAME
+  SECRET_NAME=$(_get_arg_value "--secret" "$@")
+  local SECRET_VALUE
+  SECRET_VALUE=$(_get_arg_value "--value" "$@")
+  if [[ ! -n $SECRET_NAME ]]; then
+    echo -e "${RED}Please provide a secret name via --secret argument${NC}"
+    return 1
+  fi
+  if [[ ! -n $SECRET_VALUE ]]; then
+    echo -e "${RED}Please provide a secret value via --value argument${NC}"
+    return 1
+  fi
+  echo $SECRET_VALUE | gcloud secrets create $SECRET_NAME --data-file=-
+}
+
 deploy_functions() {
+  USE_SM=$(git config -f $SETTING_FILE functions.use-secret-manager || echo false)
+  if [[ -n $USE_SM ]]; then
+    USE_SM="--use-secret-manager"
+  fi
   CF_MEMORY=$(git config -f $SETTING_FILE functions.memory)
   if [[ -n $CF_MEMORY ]]; then
     CF_MEMORY="--memory $CF_MEMORY"
@@ -113,16 +147,16 @@ deploy_functions() {
   if [[ -n $MEMORY_GETCIDS ]]; then
     MEMORY_GETCIDS="--memory-getcids $MEMORY_GETCIDS"
   fi
-  ./functions/deploy.sh --name $NAME $CF_MEMORY $MEMORY_GETCIDS --region $REGION --service-account $SERVICE_ACCOUNT
+  ./functions/deploy.sh --name $NAME $CF_MEMORY $MEMORY_GETCIDS --region $REGION --service-account $SERVICE_ACCOUNT $USE_SM
   return $?
 }
 
 
 enable_debug_logging() {
-  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
-  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
-  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
-  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20 
+  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
+  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
+  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
+  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
 }
 
 
@@ -131,17 +165,23 @@ deploy_wf() {
   return $?
 }
 
+_get_arg_value() {
+  local arg_name=$1
+  shift
+  for ((i=1; i<=$#; i++)); do
+    if [ ${!i} = "$arg_name" ]; then
+      ((i++))
+      echo ${!i}
+      return 0
+    fi
+  done
+  return 1
+}
 
 _get_data() {
   # we'll get a path to data json file with job's args from --data cli argument
   local DATA_FILE
-  for ((i=1; i<=$#; i++)); do
-    if [ ${!i} = "--data" ]; then
-      ((i++))
-      DATA_FILE=${!i}
-      break
-    fi
-  done
+  DATA_FILE=$(_get_arg_value "--data" "$@")
   data=$(<${DATA_FILE})
   echo $data
 }
@@ -158,7 +198,7 @@ schedule_wf() {
   if [[ -n $JOB_EXISTS ]]; then
     gcloud scheduler jobs delete $JOB_NAME --location $REGION --quiet
   fi
-  
+
   # run the job daily at midnight
   gcloud scheduler jobs create http $JOB_NAME \
     --schedule="$SCHEDULE" \
@@ -174,7 +214,7 @@ run_wf() {
   data=$(_get_data $@)
   state=$(gcloud workflows run $WORKFLOW_NAME --location=$REGION --data="$data" --format="get(state)")
   if [[ $state == 'FAILED' ]]; then
-    echo 'Execution failed'
+    echo -e "${RED}Execution failed${NC}"
     exit 1
   else
     echo 'Execution succeeded'
@@ -194,7 +234,7 @@ delete_all() {
   gcloud functions delete $NAME-bq --region $REGION --quiet 2> /dev/null
   gcloud functions delete $NAME-bq-view --region $REGION --quiet 2> /dev/null
   # delete workflows
-  echo "Deleting Worflows"
+  echo "Deleting Workflows"
   gcloud workflows delete $WORKFLOW_NAME --location=$REGION --quiet 2> /dev/null
   gcloud workflows delete $WORKFLOW_NAME-ads --location=$REGION --quiet 2> /dev/null
   # delete schedule job
@@ -231,11 +271,12 @@ else
       "$i" ${args[@]}
       exitcode=$?
       if [ $exitcode -ne 0 ]; then
-        echo "Breaking script as command '$i' failed"
+        echo -e "${RED}Breaking script as command '$i' failed${NC}"
         exit $exitcode
       fi
     else
-      echo -e "\033[0;31mFunction '$i' does not exist.\033[0m"
+      echo -e "${RED}Function '$i' does not exist.${NC}"
+      exit -1
     fi
   done
 fi
