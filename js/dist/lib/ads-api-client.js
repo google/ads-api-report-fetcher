@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { errors, GoogleAdsApi } from 'google-ads-api';
+import { GoogleAuth } from 'google-auth-library';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line n/no-extraneous-require
@@ -194,7 +195,14 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
         this.currentToken = null;
         this.tokenExpiration = 0;
         this.refreshInterval = 300000; // 5 minutes
+        this.authClient = null;
         this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
+        if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
+            this.authClient = new GoogleAuth({
+                keyFile: this.adsConfig.json_key_file_path,
+                scopes: 'https://www.googleapis.com/auth/adwords',
+            });
+        }
     }
     async refreshAccessToken(clientId, clientSecret, refreshToken) {
         var _a, _b;
@@ -220,8 +228,14 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
         }
     }
     async getValidToken() {
+        if (this.authClient) {
+            // working under a service account
+            const accessToken = await this.authClient.getAccessToken();
+            return accessToken;
+        }
         if (this.currentToken === null ||
             Date.now() >= this.tokenExpiration - this.refreshInterval) {
+            // working under a user account (with refreshToken)
             // Refresh if within 5 minutes of expiration
             const { access_token, expires_in } = await this.refreshAccessToken(this.adsConfig.client_id, this.adsConfig.client_secret, this.adsConfig.refresh_token);
             this.currentToken = access_token;
@@ -278,6 +292,9 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
             'developer-token': this.adsConfig.developer_token,
             'Content-Type': 'application/json',
         };
+        if (this.authClient) {
+            headers['x-goog-user-project'] = await this.authClient.getProjectId();
+        }
         if (this.adsConfig.login_customer_id) {
             headers['login-customer-id'] = this.adsConfig.login_customer_id;
         }

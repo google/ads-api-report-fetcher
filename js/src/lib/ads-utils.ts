@@ -83,6 +83,7 @@ export async function loadAdsConfigFromFile(
       refresh_token: doc['refresh_token'],
       login_customer_id: doc['login_customer_id']?.toString(),
       customer_id: doc['customer_id']?.toString(),
+      json_key_file_path: doc['json_key_file_path'],
     };
   } catch (e) {
     throw new Error(

@@ -76,6 +76,7 @@ export async function loadAdsConfigFromFile(configFilepath) {
             refresh_token: doc['refresh_token'],
             login_customer_id: (_a = doc['login_customer_id']) === null || _a === void 0 ? void 0 : _a.toString(),
             customer_id: (_b = doc['customer_id']) === null || _b === void 0 ? void 0 : _b.toString(),
+            json_key_file_path: doc['json_key_file_path'],
         };
     }
     catch (e) {

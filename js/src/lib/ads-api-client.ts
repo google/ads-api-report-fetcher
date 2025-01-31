@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import {Customer, errors, GoogleAdsApi, services} from 'google-ads-api';
+import {Customer, errors, GoogleAdsApi} from 'google-ads-api';
+import {GoogleAuth} from 'google-auth-library';
 import {createRequire} from 'module';
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line n/no-extraneous-require
@@ -84,6 +85,7 @@ export type GoogleAdsApiConfig = {
   login_customer_id?: string;
   linked_customer_id?: string;
   customer_id?: string[] | string;
+  json_key_file_path?: string;
 };
 
 export class GoogleAdsError extends Error {
@@ -348,10 +350,17 @@ export class GoogleAdsRestApiClient
   private currentToken: string | null = null;
   private tokenExpiration = 0;
   private readonly refreshInterval = 300000; // 5 minutes
+  private authClient: GoogleAuth | null = null;
 
   constructor(adsConfig: GoogleAdsApiConfig, apiVersion?: string) {
     super(adsConfig, ApiType.REST, apiVersion);
     this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
+    if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
+      this.authClient = new GoogleAuth({
+        keyFile: this.adsConfig.json_key_file_path,
+        scopes: 'https://www.googleapis.com/auth/adwords',
+      });
+    }
   }
 
   protected async refreshAccessToken(
@@ -384,10 +393,16 @@ export class GoogleAdsRestApiClient
   }
 
   protected async getValidToken(): Promise<string> {
+    if (this.authClient) {
+      // working under a service account
+      const accessToken = await this.authClient.getAccessToken();
+      return accessToken as string;
+    }
     if (
       this.currentToken === null ||
       Date.now() >= this.tokenExpiration - this.refreshInterval
     ) {
+      // working under a user account (with refreshToken)
       // Refresh if within 5 minutes of expiration
       const {access_token, expires_in} = await this.refreshAccessToken(
         this.adsConfig.client_id,
@@ -466,6 +481,9 @@ export class GoogleAdsRestApiClient
       'developer-token': this.adsConfig.developer_token,
       'Content-Type': 'application/json',
     };
+    if (this.authClient) {
+      headers['x-goog-user-project'] = await this.authClient.getProjectId();
+    }
     if (this.adsConfig.login_customer_id) {
       headers['login-customer-id'] = this.adsConfig.login_customer_id;
     }
