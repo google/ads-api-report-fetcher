@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-process-exit */
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import os from 'node:os';
 import child_process, {CommonOptions} from 'child_process';
 import minimist from 'minimist';
 import inquirer, {Answers, QuestionCollection} from 'inquirer';
-import prompts, {Choice, PromptType} from 'prompts';
+import prompts, {PromptType} from 'prompts';
 import figlet from 'figlet';
 import chalk from 'chalk';
 import clui from 'clui';
@@ -39,9 +39,9 @@ const is_debug = argv.debug || argv.diag;
 const ignore_errors = argv.ignore_errors;
 const settings_file = argv.settingsFile || 'settings.ini';
 
-const cwd = get_cwd(argv);
+const cwd = getCwd(argv);
 
-function get_cwd(argv: minimist.ParsedArgs) {
+function getCwd(argv: minimist.ParsedArgs) {
   // First argument (optional) is a path where the tool run in.
   let cwd = argv._[0];
   if (cwd) {
@@ -58,13 +58,13 @@ function get_cwd(argv: minimist.ParsedArgs) {
   return cwd;
 }
 
-function deploy_shell_script(fileName: string, content: string) {
+function deployShellScript(fileName: string, content: string) {
   fs.writeFileSync(fileName, content);
-  exec_sync(`chmod +x ${fileName}`);
+  execSync(`chmod +x ${fileName}`);
   console.log(chalk.gray(`Created ${fileName}`));
 }
 
-function exec_sync(cmd: string, options?: CommonOptions): string {
+function execSync(cmd: string, options?: CommonOptions): string {
   options = Object.assign(options || {}, {
     stdio: 'pipe',
     shell: true,
@@ -76,7 +76,7 @@ function exec_sync(cmd: string, options?: CommonOptions): string {
   return child.stdout.toString();
 }
 
-function exec_cmd(
+function execCmd(
   cmd: string,
   spinner?: clui.Spinner | undefined | null,
   options?: {
@@ -139,9 +139,9 @@ function exec_cmd(
           process.stdout.clearScreenDown();
         }
       }
-      if (stderr && !options?.realtime && !options?.silent && code !== 0) {
+      if (code !== 0 && !options?.realtime && !options?.silent) {
         // by default, if not switched off and not realtime output, show error
-        console.log(stderr);
+        console.error(stderr || stdout);
       }
       if (is_debug) {
         fs.appendFileSync(
@@ -160,9 +160,11 @@ function exec_cmd(
   });
 }
 
-async function ask_for_gcp_region(answers: Partial<any>): Promise<string> {
+async function askForGcpRegion(
+  answers: Record<string, unknown>
+): Promise<string> {
   if (answers && answers.gcp_region) {
-    return answers.gcp_region;
+    return answers.gcp_region as string;
   }
   // TODO: this is an ugly hard-code but at the moment of Jan 2023 there's no way to automate it
   // The list contains GCP regions where all three services are supported:
@@ -209,9 +211,9 @@ async function ask_for_gcp_region(answers: Partial<any>): Promise<string> {
   return response.gcp_region;
 }
 
-async function initialize_gcp_project(answers: Partial<any>) {
+async function initializeGcpProject(answers: Record<string, unknown>) {
   // check for gcloud
-  const gcloud_res = await exec_cmd('which gcloud', null, {silent: true});
+  const gcloud_res = await execCmd('which gcloud', null, {silent: true});
   const gcloud_path = gcloud_res.stdout.trim();
   if (gcloud_res.code !== 0 || !fs.existsSync(gcloud_path)) {
     console.log(
@@ -224,7 +226,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
     process.exit(-1);
   }
   // now check for authentication in gcloud
-  const auth_output = exec_sync('gcloud auth print-access-token')
+  const auth_output = execSync('gcloud auth print-access-token')
     .toString()
     .trim();
   if (auth_output.includes('ERROR: (gcloud.auth.print-access-token)')) {
@@ -234,7 +236,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
     );
     process.exit(-1);
   }
-  let gcp_project_id = exec_sync('gcloud config get-value project 2> /dev/null')
+  let gcp_project_id = execSync('gcloud config get-value project 2> /dev/null')
     .toString()
     .trim();
   if (gcp_project_id) {
@@ -244,7 +246,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
           {
             type: 'confirm',
             name: 'use_current_project',
-            message: `Detected currect GCP project ${chalk.green(
+            message: `Detected current GCP project ${chalk.green(
               gcp_project_id
             )}, do you want to use it (Y) or choose another (N)?:`,
             default: true,
@@ -257,7 +259,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
     }
   }
   // otherwise let the user to choose a project
-  const projects_csv = exec_sync(
+  const projects_csv = execSync(
     'gcloud projects list --format="csv(projectId,name)" --sort-by=projectId --limit=500'
   ).toString();
   const rows = projects_csv.split('\n').map(row => row.split(','));
@@ -286,7 +288,7 @@ async function initialize_gcp_project(answers: Partial<any>) {
       message: 'Please enter a GCP project id:',
     });
     // make sure the entered project does exist
-    const describe_output = exec_sync(
+    const describe_output = execSync(
       `gcloud projects describe ${response.project_id}`
     ).toString();
     if (describe_output.includes('ERROR:')) {
@@ -297,17 +299,17 @@ async function initialize_gcp_project(answers: Partial<any>) {
   }
   gcp_project_id = response.project_id;
   if (gcp_project_id) {
-    exec_sync('gcloud config set project ' + gcp_project_id);
+    execSync('gcloud config set project ' + gcp_project_id);
   }
   return gcp_project_id;
 }
 
 /**
- * Walks throught directory structure and returns a list of full file paths.
+ * Walks through directory structure and returns a list of full file paths.
  * @param dirpath a directory path
  * @returns a list of full paths of files in the directory (recursively)
  */
-function read_dir(dirpath: string) {
+function readDir(dirpath: string) {
   let results: string[] = [];
   if (!fs.existsSync(dirpath)) return results;
   const entries = fs.readdirSync(dirpath, {withFileTypes: true});
@@ -315,7 +317,7 @@ function read_dir(dirpath: string) {
     const entry_path = path.resolve(dirpath, entry.name);
     if (entry.isDirectory()) {
       /* Recurse into a subdirectory */
-      results = results.concat(read_dir(entry_path));
+      results = results.concat(readDir(entry_path));
     } else {
       /* Is a file */
       results.push(entry_path);
@@ -324,12 +326,12 @@ function read_dir(dirpath: string) {
   return results;
 }
 
-function get_macro_values(
+function getMacroValues(
   folder_path: string,
-  answers: Partial<any>,
+  answers: Record<string, any>,
   prefix: string
 ) {
-  const filelist = read_dir(folder_path);
+  const filelist = readDir(folder_path);
   const macro: Record<string, null> = {};
   for (const file_path of filelist) {
     if (file_path.endsWith('.sql')) {
@@ -341,7 +343,7 @@ function get_macro_values(
       }
       // notes on the regexp:
       //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
-      //  not precended with '$'), with that we're capturing {smth} expressions
+      //  not prepended with '$'), with that we're capturing {smth} expressions
       //  and not ${smth} expressions
       const re = /(?<!\$)\{(?<macro>[^}]+)\}/gi;
       const matches = [...script_content.matchAll(re)];
@@ -383,14 +385,14 @@ function get_macro_values(
 
 async function prompt(
   questions: QuestionCollection<Answers>,
-  answers: Partial<any>
+  answers: Record<string, unknown>
 ) {
   const actual_answers = await inquirer.prompt(questions, answers);
   Object.assign(answers, actual_answers);
   return actual_answers;
 }
 
-function get_lookerstudio_create_report_url(
+function getLookerstudioCreateReportUrl(
   report_id: string,
   report_name: string,
   project_id: string,
@@ -416,7 +418,7 @@ function get_lookerstudio_create_report_url(
   return url;
 }
 
-async function ask_for_dashboard_datasources(
+async function askForDashboardDatasources(
   datasources: Record<string, string>
 ): Promise<Record<string, string>> {
   const idx = Object.keys(datasources).length;
@@ -445,13 +447,13 @@ async function ask_for_dashboard_datasources(
     datasources[answers.dashboard_datasource] = answers.dashboard_table;
   }
   if (answers.dashboard_more_tables) {
-    return await ask_for_dashboard_datasources(datasources);
+    return await askForDashboardDatasources(datasources);
   }
   return datasources;
 }
 
-async function deploy_dashboard(
-  answers: Partial<any>,
+async function deployDashboard(
+  answers: Record<string, any>,
   project_id: string,
   output_dataset: string,
   macro_bq: Record<string, any>
@@ -506,10 +508,10 @@ async function deploy_dashboard(
   // (see https://developers.google.com/looker-studio/integrate/linking-api#data-source-alias)
   let datasources = answers.dashboard_datasources || {};
   if (Object.keys(datasources).length === 0) {
-    datasources = await ask_for_dashboard_datasources(datasources);
+    datasources = await askForDashboardDatasources(datasources);
     answers.dashboard_datasources = datasources;
   }
-  const dashboard_url = get_lookerstudio_create_report_url(
+  const dashboard_url = getLookerstudioCreateReportUrl(
     dash_answers.dashboard_id,
     dash_answers.dashboard_name,
     project_id,
@@ -524,7 +526,11 @@ async function deploy_dashboard(
   return dashboard_url;
 }
 
-async function initialize_googleads_config(answers: Partial<any>) {
+async function initializeGoogleAdsConfig(
+  answers: Record<string, any>,
+  serviceAccount: string,
+  gaarfFolder: string
+) {
   const googleads_config_candidate = fs.readdirSync(cwd).find(f => {
     const file_name = path.basename(f);
     return !!(
@@ -656,18 +662,18 @@ refresh_token: ${refresh_token}
   return path_to_googleads_config;
 }
 
-async function validate_googeads_config(
+async function validateGoogleAdsConfig(
   gaarf_folder: string,
   path_to_googleads_config: string
 ) {
-  await exec_cmd(
+  await execCmd(
     'npm install --prod',
     new clui.Spinner('Installing dependencies...'),
     {
       cwd: `./${gaarf_folder}/js`,
     }
   );
-  const res = await exec_cmd(
+  const res = await execCmd(
     `./gaarf validate --ads-config=../../${path_to_googleads_config}`,
     new clui.Spinner(
       `Validating Ads credentials from ${path_to_googleads_config}...`
@@ -675,13 +681,12 @@ async function validate_googeads_config(
     {cwd: `./${gaarf_folder}/js`}
   );
   if (res.code !== 0 && !ignore_errors) {
-    console.log(chalk.red(res.stderr || res.stdout));
     process.exit(res.code);
   }
 }
 
-function get_answers(): Partial<any> {
-  let answers: Partial<any> = {};
+function getAnswers(): Record<string, unknown> {
+  let answers: Record<string, unknown> = {};
   if (argv.answers) {
     // users can mistakenly supply `--answers.json` (instead of `answers=answers.json`), in that case argv.answers
     if (typeof argv.answers !== 'string') {
@@ -719,16 +724,16 @@ function sanitizeCustomerId(cid: string | number) {
   return cid.toString().replaceAll('-', '').replaceAll(' ', '');
 }
 
-async function git_clone_repo(url: string, gaarf_folder: string) {
+async function gitCloneRepo(url: string, gaarf_folder: string) {
   if (!fs.existsSync(gaarf_folder)) {
-    await exec_cmd(
+    await execCmd(
       `git clone ${url} --depth 1 ${gaarf_folder}`,
       new clui.Spinner(`Cloning Gaarf repository (${url}), please wait...`)
     );
   } else {
     let git_user_name = '';
     try {
-      git_user_name = exec_sync('git config --get user.name', {
+      git_user_name = execSync('git config --get user.name', {
         cwd: path.join(cwd, gaarf_folder),
       })
         .toString()
@@ -739,21 +744,21 @@ async function git_clone_repo(url: string, gaarf_folder: string) {
     }
     if (!git_user_name) {
       // there's no user identity, git pull -ff can fail, let's set some arbitrary identity
-      const git_user_name = exec_sync('echo $USER').toString().trim() || 'user';
+      const git_user_name = execSync('echo $USER').toString().trim() || 'user';
       const git_user_email =
-        exec_sync('echo $USER_EMAIL').toString().trim() || 'user@example.com';
-      exec_sync(`git config --local user.name ${git_user_name}`, {
+        execSync('echo $USER_EMAIL').toString().trim() || 'user@example.com';
+      execSync(`git config --local user.name ${git_user_name}`, {
         cwd: path.join(cwd, gaarf_folder),
       });
-      exec_sync(`git config --local user.email ${git_user_email}`, {
+      execSync(`git config --local user.email ${git_user_email}`, {
         cwd: path.join(cwd, gaarf_folder),
       });
     }
-    exec_sync('git pull --ff', {cwd: path.join(cwd, gaarf_folder)});
+    execSync('git pull --ff', {cwd: path.join(cwd, gaarf_folder)});
   }
 }
 
-function dump_settings(settings: Record<string, Record<string, any>>): string {
+function dumpSettings(settings: Record<string, Record<string, any>>): string {
   let content = '';
   for (const name of Object.keys(settings)) {
     content += `[${name}]\n`;
@@ -768,7 +773,7 @@ function dump_settings(settings: Record<string, Record<string, any>>): string {
 }
 
 async function init() {
-  const answers = get_answers();
+  const answers = getAnswers();
   const status_log = `Running create-gaarf-wf in ${cwd}`;
   if (is_debug) {
     fs.writeFileSync(LOG_FILE, `[${new Date()}]${status_log}`);
@@ -791,7 +796,11 @@ async function init() {
     'It is best to run this script in a folder that is a parent for your queries'
   );
 
-  const gcp_project_id = await initialize_gcp_project(answers);
+  // clone gaarf repo
+  const gaarf_folder = 'ads-api-fetcher';
+  await gitCloneRepo(GIT_REPO, gaarf_folder);
+
+  const gcp_project_id = await initializeGcpProject(answers);
 
   const PATH_ADS_QUERIES = 'ads-queries';
   const PATH_BQ_QUERIES = 'bq-queries';
@@ -860,7 +869,7 @@ async function init() {
         type: 'input',
         name: 'custom_ids_query_path',
         message:
-          'Sql file path with a query to filter customer accounts (leave blank if not needed):',
+          'File path with a query to filter customer accounts (leave blank if not needed):',
         default: '',
       },
     ],
@@ -882,7 +891,11 @@ async function init() {
     console.log(chalk.grey(`Created '${path_to_bq_queries_abs}' folder`));
   }
   const custom_ids_query_path = answers1.custom_ids_query_path;
-  const path_to_googleads_config = await initialize_googleads_config(answers);
+  const path_to_googleads_config = await initializeGoogleAdsConfig(
+    answers,
+    service_account,
+    gaarf_folder
+  );
 
   // some warnings to users if queries and ads config don't exist
   if (!fs.readdirSync(path_to_ads_queries).length) {
@@ -902,29 +915,26 @@ async function init() {
 
   gcs_bucket = (gcs_bucket || gcp_project_id).trim();
 
-  // clone gaarf repo
-  const gaarf_folder = 'ads-api-fetcher';
-  await git_clone_repo(GIT_REPO, gaarf_folder);
-
   // call the gaarf cli tool from the cloned repo to validate the ads credentials
   if (
     fs.existsSync(path_to_googleads_config) &&
     !answers.disable_ads_validation
   ) {
-    await validate_googeads_config(gaarf_folder, path_to_googleads_config);
+    await validateGoogleAdsConfig(gaarf_folder, path_to_googleads_config);
   }
 
-  const gcp_region = await ask_for_gcp_region(answers);
+  const gcp_region = await askForGcpRegion(answers);
 
   // create a bucket if it doesn't exist
-  let res = await exec_cmd(
+  // TODO: move this to setup.sh and just call it with create_bucket task
+  let res = await execCmd(
     `gsutil ls gs://${gcs_bucket}`,
     new clui.Spinner(`Checking if GCS bucket ${gcs_bucket} exists`),
     {silent: true}
   );
   if (res.code !== 0) {
     // bucket doesn't exist
-    res = await exec_cmd(
+    res = await execCmd(
       `gsutil mb -l ${getMultiRegion(gcp_region)} -b on gs://${gcs_bucket}`,
       new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`),
       {silent: true}
@@ -954,7 +964,7 @@ async function init() {
     deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
   }
   // Note that we deploy queries to hard-coded paths
-  deploy_shell_script(
+  deployShellScript(
     'deploy-queries.sh',
     `# Deploy Ads and BQ queries from local folders to Google Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
@@ -1010,7 +1020,7 @@ fi
       memory: cf_memory,
     },
   };
-  deploy_shell_script(
+  deployShellScript(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflows
 set -e
@@ -1024,9 +1034,9 @@ cd ..
   // now we need parameters for running the WF
   let ads_customer_id;
   if (fs.existsSync(path_to_googleads_config)) {
-    const yamldoc = <any>(
-      yaml.load(fs.readFileSync(path_to_googleads_config, 'utf-8'))
-    );
+    const yamldoc = yaml.load(
+      fs.readFileSync(path_to_googleads_config, 'utf-8')
+    ) as Record<string, any>;
     // look up for the default default value for account id (CID) from google-ads.yaml
     ads_customer_id =
       yamldoc['customer_id'] ||
@@ -1056,12 +1066,12 @@ cd ..
   );
 
   // now we detect macro used in queries and ask for their values
-  const macro_ads = await get_macro_values(
+  const macro_ads = await getMacroValues(
     path.join(cwd, path_to_ads_queries),
     answers,
     'ads_macro'
   );
-  const macro_bq = await get_macro_values(
+  const macro_bq = await getMacroValues(
     path.join(cwd, path_to_bq_queries),
     answers,
     'bq_macro'
@@ -1091,7 +1101,7 @@ cd ..
   fs.writeFileSync(wf_data_file, JSON.stringify(wf_data, null, 2));
 
   // Create run-wf.sh
-  deploy_shell_script(
+  deployShellScript(
     'run-wf.sh',
     `set -e
 ./ads-api-fetcher/gcp/setup.sh run_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
@@ -1099,7 +1109,7 @@ cd ..
 `
   );
 
-  fs.writeFileSync(settings_file, dump_settings(settings));
+  fs.writeFileSync(settings_file, dumpSettings(settings));
 
   // now execute some scripts
   // deploying queries and ads config to GCS
@@ -1116,7 +1126,7 @@ cd ..
       )
     ).deploy_scripts
   ) {
-    const res = await exec_cmd(path.join(cwd, './deploy-queries.sh'), null, {
+    const res = await execCmd(path.join(cwd, './deploy-queries.sh'), null, {
       realtime: true,
     });
     if (res.code !== 0 && !ignore_errors) {
@@ -1147,7 +1157,7 @@ cd ..
     ).deploy_wf
   ) {
     // deploying GCP components
-    const res = await exec_cmd(
+    const res = await execCmd(
       path.join(cwd, './deploy-wf.sh'),
       new clui.Spinner('Deploying Cloud components, please wait...')
     );
@@ -1204,10 +1214,10 @@ cd ..
 
   settings['scheduler'] = settings['scheduler'] || {};
   settings['scheduler']['schedule'] = schedule_cron;
-  fs.writeFileSync(settings_file, dump_settings(settings));
+  fs.writeFileSync(settings_file, dumpSettings(settings));
 
   // Create schedule-wf.sh
-  deploy_shell_script(
+  deployShellScript(
     'schedule-wf.sh',
     `# Create Scheduler Job to execute Cloud Workflow
 ./${gaarf_folder}/gcp/setup.sh schedule_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
@@ -1215,7 +1225,7 @@ cd ..
   );
 
   if (answers3.schedule_wf) {
-    const res = await exec_cmd(
+    const res = await execCmd(
       path.join(cwd, './schedule-wf.sh'),
       new clui.Spinner('Creating a Scheduler Job, please wait...')
     );
@@ -1228,7 +1238,7 @@ cd ..
     if (answers3.run_job) {
       // running the job
       const workflow_name = name + '-wf';
-      const res = await exec_cmd(
+      const res = await execCmd(
         `gcloud scheduler jobs run ${workflow_name} --location=${gcp_region}`,
         null,
         {realtime: true}
@@ -1255,7 +1265,7 @@ cd ..
       answers
     );
     if (answers_wf.run_wf) {
-      const res = await exec_cmd(path.join(cwd, './run-wf.sh'), null, {
+      const res = await execCmd(path.join(cwd, './run-wf.sh'), null, {
         realtime: true,
       });
       if (res.code !== 0 && !ignore_errors) {
@@ -1268,23 +1278,23 @@ cd ..
   }
 
   // creating scripts for directly executing gaarf
-  const ads_macro_clistr = Object.entries(macro_ads)
+  const adsMacroCliStr = Object.entries(macro_ads)
     .map(macro => `--macro.${macro[0]}=${macro[1]}`)
     .join(' ');
-  deploy_shell_script(
+  deployShellScript(
     'run-gaarf-console.sh',
-    `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=console --console.transpose=always ${ads_macro_clistr}`
+    `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=console --console.transpose=always ${adsMacroCliStr}`
   );
-  deploy_shell_script(
+  deployShellScript(
     'run-gaarf.sh',
-    `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=bq --bq.project=${gcp_project_id} --bq.dataset=${output_dataset} ${ads_macro_clistr}`
+    `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=bq --bq.project=${gcp_project_id} --bq.dataset=${output_dataset} ${adsMacroCliStr}`
   );
-  const bq_macro_clistr = Object.entries(macro_bq)
+  const bqMacroCliStr = Object.entries(macro_bq)
     .map(macro => `--macro.${macro[0]}=${macro[1]}`)
     .join(' ');
-  deploy_shell_script(
+  deployShellScript(
     'run-gaarf-bq.sh',
-    `${gaarf_folder}/js/gaarf-bq ${path_to_bq_queries}/*.sql --project=${gcp_project_id} ${bq_macro_clistr}`
+    `${gaarf_folder}/js/gaarf-bq ${path_to_bq_queries}/*.sql --project=${gcp_project_id} ${bqMacroCliStr}`
   );
 
   // clone dashboard
@@ -1301,8 +1311,8 @@ cd ..
       )
     ).clone_dashboard
   ) {
-    await deploy_dashboard(answers, gcp_project_id, output_dataset, macro_bq);
-    await exec_cmd(
+    await deployDashboard(answers, gcp_project_id, output_dataset, macro_bq);
+    await execCmd(
       `gsutil cp ${DASHBOARD_LINK_FILE} ${gcs_base_path}/`,
       new clui.Spinner(
         `Copying ${DASHBOARD_LINK_FILE} to GCS ${gcs_base_path}/`
@@ -1312,7 +1322,7 @@ cd ..
   }
 
   // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
-  await exec_cmd(
+  await execCmd(
     `gsutil -m cp *.sh ${gcs_base_path}/scripts/;gsutil -m cp ${settings_file} ${gcs_base_path}/scripts/;gsutil -m cp ${wf_data_file} ${gcs_base_path}/scripts/`,
     new clui.Spinner(
       `Copying all shell scripts to GCS ${gcs_base_path}/scripts`
@@ -1320,7 +1330,7 @@ cd ..
     {silent: true}
   );
   // create download-script.sh shell script to download scripts back from GCS
-  deploy_shell_script(
+  deployShellScript(
     'download-scripts.sh',
     `for file in *.sh; do
   [ -e "$file" ] || continue
