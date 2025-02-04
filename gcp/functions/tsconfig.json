@@ -1,3 +1,4 @@
+//tsconfig
 {
   "extends": "./node_modules/gts/tsconfig-google.json",
   "compilerOptions": {
@@ -6,11 +7,11 @@
     "lib": ["ES2021", "ES2022"],
     "module": "node16",
     "moduleResolution": "node16",
-    "noImplicitReturns": false,             /* Report error when not all code paths in function return a value. */
+    "noImplicitReturns": false,               /* Report error when not all code paths in function return a value. */
     "useUnknownInCatchVariables": false,
     "skipLibCheck": true,                     /* Skip type checking of declaration files. */
     "esModuleInterop": true,                  /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
-    "declaration": false,
+    "declaration": false
   },
   "include": [
     "src/**/*.ts",

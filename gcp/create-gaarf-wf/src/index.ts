@@ -538,20 +538,22 @@ async function initializeGoogleAdsConfig(
       (file_name.endsWith('yaml') || file_name.endsWith('.yml'))
     );
   });
-  const answers_new = await prompt(
-    [
-      {
-        type: 'confirm',
-        name: 'use_googleads_config',
-        message:
-          'Do you want to use a google-ads.yaml config (Y) or enter credentials one by one (N)?:',
-        default: true,
-      },
-    ],
-    answers
-  );
+  const use_googleads_config = (
+    await prompt(
+      [
+        {
+          type: 'confirm',
+          name: 'use_googleads_config',
+          message: 'Do you want to use an existing google-ads.yaml (Y)?:',
+          default: true,
+        },
+      ],
+      answers
+    )
+  ).use_googleads_config;
   let path_to_googleads_config = '';
-  if (answers_new.use_googleads_config) {
+  if (use_googleads_config) {
+    // user wants to use an existing google-ads, we don't care what's inside
     const answers_new = await prompt(
       [
         {
@@ -581,84 +583,174 @@ async function initializeGoogleAdsConfig(
       );
       process.exit(-1);
     }
-  } else {
-    // entering credentials one by one
-    let refresh_token = '';
-    const answers_new = await prompt(
+    // user has provide a path to google-ads.yaml and it exists, we're done
+    return path_to_googleads_config;
+  }
+
+  const answers1 = await prompt(
+    [
+      {
+        type: 'list',
+        name: 'googleads_credentials_type',
+        message: 'How do you want to access Google Ads API',
+        default: 'service_account',
+        choices: [
+          {
+            name:
+              'Under a Service Account' +
+              (serviceAccount ? ' (' + serviceAccount + ')' : ''),
+            value: 'service_account',
+          },
+          {name: 'Under a User Account', value: 'user_account'},
+        ],
+      },
+    ],
+    answers
+  );
+  const useServiceAccount =
+    answers1.googleads_credentials_type === 'service_account';
+  if (useServiceAccount) {
+    // For running under a SA we need only dev_token, optionally a MCC and key_file
+    const answers2 = await prompt(
       [
         {
-          type: 'input',
-          name: 'googleads_config_clientid',
-          message: 'OAuth client id:',
-        },
-        {
-          type: 'input',
-          name: 'googleads_config_clientsecret',
-          message: 'OAuth client secret:',
-        },
-        {
-          type: 'input',
-          name: 'googleads_config_devtoken',
-          message: 'Google Ads API developer token:',
-        },
-        {
-          type: 'input',
-          name: 'googleads_config_mcc',
-          message: 'Google Ads MCC:',
-        },
-        {
           type: 'confirm',
-          name: 'googleads_config_generate_refreshtoken',
-          // TODO: add a note that it won't work in Cloud Shell
-          message:
-            'Do you want to generate a refresh token (Y) or you will enter it manually (N)?:',
+          name: 'use_secret_manager',
+          message: 'Do you want to use Secret Manager?:',
+          default: true,
         },
       ],
       answers
     );
-    if (answers_new.googleads_config_generate_refreshtoken) {
-      const flow = await generateRefreshToken(
-        answers_new.googleads_config_clientid,
-        answers_new.googleads_config_clientsecret,
-        'https://www.googleapis.com/auth/adwords'
+    if (answers2.use_secret_manager) {
+      const answers3 = await prompt(
+        [
+          {
+            type: 'input',
+            name: 'googleads_config_devtoken',
+            message:
+              'Enter Google Ads API developer token to put into "google-ads-dev-token" secret or leave blank to skip:',
+          },
+        ],
+        answers
       );
-      console.log('Navigate to the following url on the current machine:');
-      console.log(chalk.cyan(flow.authorizeUrl));
-      refresh_token = await flow.getToken();
-      if (refresh_token) {
-        console.log('Successfully acquired a refresh token');
+      if (answers3.googleads_config_devtoken) {
+        const res = await execCmd(
+          `./${gaarfFolder}/gcp/setup.sh create_secret --secret google-ads-dev-token --value ${answers3.googleads_config_devtoken}`
+        );
+        if (res.code !== 0 && !ignore_errors) {
+          process.exit(res.code);
+        }
+      } else {
+        console.log(
+          chalk.yellow('You need to create a secret ') +
+            chalk.cyan('google-ads-dev-token') +
+            chalk.yellow(' with a dev token before calling the workflow. ')
+        );
+        console.log(
+          'To do this run the command: ' +
+            chalk.cyan(
+              `./${gaarfFolder}/gcp/setup.sh create_secret --secret google-ads-dev-token --value <YOUR_DEV_TOKEN>`
+            )
+        );
       }
-    } else {
-      refresh_token = (
-        await prompt(
-          [
-            {
-              type: 'input',
-              name: 'googleads_config_refreshtoken',
-              message: 'Enter refresh token:',
-            },
-          ],
-          answers
-        )
-      ).googleads_config_refreshtoken;
+      // TODO: what about MCC?
+      // regardless of whether the secret was created we won't use google-ads.yaml, we're done
+      return null;
     }
-
-    // google-ads.yaml wasn't specified (credentials were entered), so let create it under the default name
-    path_to_googleads_config = 'google-ads.yaml';
-    const yaml_content = `# File was generated with create-gaarf-wf at ${new Date()}
-developer_token: ${answers_new.googleads_config_devtoken}
-client_id: ${answers_new.googleads_config_clientid}
-client_secret: ${answers_new.googleads_config_clientsecret}
-login_customer_id: ${sanitizeCustomerId(answers_new.googleads_config_mcc)}
-refresh_token: ${refresh_token}
-    `;
-    fs.writeFileSync(path_to_googleads_config, yaml_content, {
-      encoding: 'utf8',
-    });
-    console.log(
-      `Google Ads API credentials were saved to ${path_to_googleads_config}`
-    );
+    // otherwise, we use service account but with google-ads.yaml
   }
+  // prompting the user for credentials to put into google-ads.yaml;
+  // either for a User Account (need refresh_token, client_id, client_secret, dev_token)
+  // or Service Account (need dev_token)
+
+  let refresh_token = '';
+  const answers_new = await prompt(
+    [
+      {
+        type: 'input',
+        name: 'googleads_config_clientid',
+        message: 'OAuth client id:',
+        when: () => !useServiceAccount,
+      },
+      {
+        type: 'input',
+        name: 'googleads_config_clientsecret',
+        message: 'OAuth client secret:',
+        when: () => !useServiceAccount,
+      },
+      {
+        type: 'input',
+        name: 'googleads_config_devtoken',
+        message: 'Google Ads API developer token:',
+      },
+      {
+        type: 'input',
+        name: 'googleads_config_mcc',
+        message: 'Google Ads MCC:',
+      },
+      {
+        type: 'confirm',
+        name: 'googleads_config_generate_refreshtoken',
+        when: () => !useServiceAccount,
+        // TODO: add a note that it won't work in Cloud Shell
+        message:
+          'Do you want to generate a refresh token (Y) or you will enter it manually (N)?:',
+      },
+    ],
+    answers
+  );
+  if (answers_new.googleads_config_generate_refreshtoken) {
+    const flow = await generateRefreshToken(
+      answers_new.googleads_config_clientid,
+      answers_new.googleads_config_clientsecret,
+      'https://www.googleapis.com/auth/adwords'
+    );
+    console.log('Navigate to the following url on the current machine:');
+    console.log(chalk.cyan(flow.authorizeUrl));
+    refresh_token = await flow.getToken();
+    if (refresh_token) {
+      console.log('Successfully acquired a refresh token');
+    }
+  } else {
+    refresh_token = (
+      await prompt(
+        [
+          {
+            type: 'input',
+            name: 'googleads_config_refreshtoken',
+            message: 'Enter refresh token:',
+            when: () => !useServiceAccount,
+          },
+        ],
+        answers
+      )
+    ).googleads_config_refreshtoken;
+  }
+
+  // google-ads.yaml wasn't specified (credentials were entered),
+  // so let's create it under the default name
+  path_to_googleads_config = 'google-ads.yaml';
+  const yaml_content =
+    `# File was generated with create-gaarf-wf at ${new Date()}
+developer_token: ${answers_new.googleads_config_devtoken || ''}
+login_customer_id: ${sanitizeCustomerId(
+      answers_new.googleads_config_mcc || ''
+    )}` +
+    (useServiceAccount
+      ? ''
+      : `
+client_id: ${answers_new.googleads_config_clientid || ''}
+client_secret: ${answers_new.googleads_config_clientsecret || ''}
+refresh_token: ${refresh_token || ''}
+    `);
+  fs.writeFileSync(path_to_googleads_config, yaml_content, {
+    encoding: 'utf8',
+  });
+  console.log(
+    `Google Ads API credentials were saved to ${path_to_googleads_config}`
+  );
+
   return path_to_googleads_config;
 }
 
@@ -674,7 +766,7 @@ async function validateGoogleAdsConfig(
     }
   );
   const res = await execCmd(
-    `./gaarf validate --ads-config=../../${path_to_googleads_config}`,
+    `./gaarf validate --ads-config=../../${path_to_googleads_config} --api=rest`,
     new clui.Spinner(
       `Validating Ads credentials from ${path_to_googleads_config}...`
     ),
@@ -905,18 +997,12 @@ async function init() {
       )
     );
   }
-  if (!fs.existsSync(path_to_googleads_config)) {
-    console.log(
-      chalk.red(
-        `Please put your Ads API config into '${path_to_googleads_config}' file`
-      )
-    );
-  }
 
   gcs_bucket = (gcs_bucket || gcp_project_id).trim();
 
   // call the gaarf cli tool from the cloned repo to validate the ads credentials
   if (
+    path_to_googleads_config &&
     fs.existsSync(path_to_googleads_config) &&
     !answers.disable_ads_validation
   ) {
@@ -963,15 +1049,19 @@ async function init() {
     custom_query_gcs_path = `${gcs_base_path}/get-accounts.sql`;
     deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
   }
+  let deploy_googleads_config_snippet = '';
+  if (path_to_googleads_config) {
+    deploy_googleads_config_snippet = `if [[  -f ${path_to_googleads_config} ]]; then
+  gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
+fi`;
+  }
   // Note that we deploy queries to hard-coded paths
   deployShellScript(
     'deploy-queries.sh',
     `# Deploy Ads and BQ queries from local folders to Google Cloud Storage.
 GCS_BASE_PATH=${gcs_base_path}
 
-if [[  -f ${path_to_googleads_config} ]]; then
-  gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
-fi
+${deploy_googleads_config_snippet}
 ${deploy_custom_query_snippet}
 
 gsutil -m rm -r $GCS_BASE_PATH/${path_to_ads_queries}
@@ -1020,6 +1110,10 @@ fi
       memory: cf_memory,
     },
   };
+  if (!path_to_googleads_config) {
+    // not using google-ads.yaml means using Secret Manager
+    settings['functions']['use-secret-manager'] = true;
+  }
   deployShellScript(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflows
@@ -1033,7 +1127,7 @@ cd ..
 
   // now we need parameters for running the WF
   let ads_customer_id;
-  if (fs.existsSync(path_to_googleads_config)) {
+  if (path_to_googleads_config && fs.existsSync(path_to_googleads_config)) {
     const yamldoc = yaml.load(
       fs.readFileSync(path_to_googleads_config, 'utf-8')
     ) as Record<string, any>;
@@ -1089,7 +1183,7 @@ cd ..
     bq_queries_path: `${name}/${PATH_BQ_QUERIES}/`,
     dataset: output_dataset,
     cid: customer_id,
-    ads_config_path: `${gcs_base_path}/google-ads.yaml`,
+    ads_config_path: '',
     output_path: `${gcs_base_path}/tmp`,
     customer_ids_query: custom_query_gcs_path,
     bq_dataset_location: bq_location,
@@ -1097,6 +1191,9 @@ cd ..
     ads_macro: macro_ads,
     bq_macro: macro_bq,
   };
+  if (path_to_googleads_config) {
+    wf_data['ads_config_path'] = `${gcs_base_path}/google-ads.yaml`;
+  }
   const wf_data_file = 'data.json';
   fs.writeFileSync(wf_data_file, JSON.stringify(wf_data, null, 2));
 
@@ -1104,7 +1201,10 @@ cd ..
   deployShellScript(
     'run-wf.sh',
     `set -e
+# run workflow synchronously with parameters in data.json
 ./ads-api-fetcher/gcp/setup.sh run_wf --settings $(readlink -f "./${settings_file}") --data $(readlink -f "./${wf_data_file}")
+
+# alternatively rub Schedule Job created earlier via schedule-wf.sh
 #./ads-api-fetcher/gcp/setup.sh run_job --settings $(readlink -f "./${settings_file}")
 `
   );
@@ -1119,7 +1219,8 @@ cd ..
         {
           type: 'confirm',
           name: 'deploy_scripts',
-          message: 'Do you want to deploy queries (Ads/BQ) to GCS:',
+          message:
+            'Do you want to deploy queries (Ads/BQ) to GCS (deploy-queries.sh):',
           default: true,
         },
         answers
@@ -1149,7 +1250,7 @@ cd ..
         {
           type: 'confirm',
           name: 'deploy_wf',
-          message: 'Do you want to deploy Cloud components:',
+          message: 'Do you want to deploy Cloud components (deploy-wf.sh):',
           default: true,
         },
         answers
@@ -1236,10 +1337,9 @@ cd ..
     }
 
     if (answers3.run_job) {
-      // running the job
-      const workflow_name = name + '-wf';
+      // run the job
       const res = await execCmd(
-        `gcloud scheduler jobs run ${workflow_name} --location=${gcp_region}`,
+        `./${gaarf_folder}/gcp/setup.sh schedule_wf --settings $(readlink -f "./${settings_file}")`,
         null,
         {realtime: true}
       );
@@ -1252,7 +1352,7 @@ cd ..
     }
   }
   if (!answers3.run_job) {
-    // Scheduler Job wasn't run, maybe the user want to run the workflow directly (it's synchronous in contract to the scheduler)
+    // Scheduler Job wasn't run, maybe the user want to run the workflow directly (it's synchronous in contrast to the scheduler)
     const answers_wf = await prompt(
       [
         {
