@@ -130,7 +130,13 @@ create_secret() {
     echo -e "${RED}Please provide a secret value via --value argument${NC}"
     return 1
   fi
-  echo $SECRET_VALUE | gcloud secrets create $SECRET_NAME --data-file=-
+  if gcloud secrets describe $SECRET_NAME >/dev/null 2>&1; then
+      # Secret exists - add new version
+      echo -n "$SECRET_VALUE" | gcloud secrets versions add $SECRET_NAME --data-file=-
+  else
+      # Secret doesn't exist - create new
+      echo -n "$SECRET_VALUE" | gcloud secrets create $SECRET_NAME --data-file=-
+  fi
 }
 
 deploy_functions() {
