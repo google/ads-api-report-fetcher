@@ -141,8 +141,10 @@ create_secret() {
 
 deploy_functions() {
   USE_SM=$(git config -f $SETTING_FILE functions.use-secret-manager || echo false)
-  if [[ -n $USE_SM ]]; then
+  if [[ "$USE_SM" == "true" ]]; then
     USE_SM="--use-secret-manager"
+  else
+    USE_SM=""
   fi
   CF_MEMORY=$(git config -f $SETTING_FILE functions.memory)
   if [[ -n $CF_MEMORY ]]; then
