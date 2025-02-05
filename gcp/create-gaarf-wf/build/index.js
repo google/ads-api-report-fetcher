@@ -1039,8 +1039,8 @@ cd ..
     const adsMacroCliStr = Object.entries(macro_ads)
         .map(macro => `--macro.${macro[0]}=${macro[1]}`)
         .join(' ');
-    deployShellScript('run-gaarf-console.sh', `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=console --console.transpose=always ${adsMacroCliStr}`);
-    deployShellScript('run-gaarf.sh', `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} --ads-config=${path_to_googleads_config} --output=bq --bq.project=${gcp_project_id} --bq.dataset=${output_dataset} ${adsMacroCliStr}`);
+    deployShellScript('run-gaarf-console.sh', `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} ${path_to_googleads_config ? '--ads-config=' + path_to_googleads_config : ''} --output=console --console.transpose=always ${adsMacroCliStr} --api=rest`);
+    deployShellScript('run-gaarf.sh', `${gaarf_folder}/js/gaarf ${path_to_ads_queries}/*.sql --account=${customer_id} ${path_to_googleads_config ? '--ads-config=' + path_to_googleads_config : ''} --output=bq --bq.project=${gcp_project_id} --bq.dataset=${output_dataset} ${adsMacroCliStr} --api=rest`);
     const bqMacroCliStr = Object.entries(macro_bq)
         .map(macro => `--macro.${macro[0]}=${macro[1]}`)
         .join(' ');

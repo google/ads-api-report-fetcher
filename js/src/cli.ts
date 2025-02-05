@@ -427,7 +427,7 @@ async function main() {
   let adsConfig: GoogleAdsApiConfig | undefined = undefined;
   const adConfigFilePath = <string>argv.adsConfig;
   if (adConfigFilePath) {
-    // try to use ads config from extenral file (ads-config arg)
+    // try to use ads config from external file (ads-config arg)
     adsConfig = await loadAdsConfig(adConfigFilePath);
   }
   // try to use ads config from explicit cli arguments
