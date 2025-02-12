@@ -17,4 +17,4 @@
  */
 
 // eslint-disable-next-line no-unused-vars
-import * as cli from './dist/cli.js';
+import * as cli from './dist/cli-bq.js';
