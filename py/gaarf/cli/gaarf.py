@@ -10,6 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module for defing `gaarf` CLI utility.
 
 `gaarf` allows to execute GAQL queries and store results in local/remote
@@ -28,6 +31,7 @@ from pathlib import Path
 import smart_open
 import yaml
 
+import gaarf
 from gaarf import api_clients, exceptions, query_executor
 from gaarf.cli import utils
 from gaarf.io import reader, writer
@@ -86,10 +90,7 @@ def main():
   main_args = args[0]
 
   if main_args.version:
-    import pkg_resources
-
-    version = pkg_resources.require('google-ads-api-report-fetcher')[0].version
-    print(f'gaarf version {version}')
+    print(f'gaarf version {gaarf.__version__}')
     sys.exit()
 
   logger = utils.init_logging(

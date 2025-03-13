@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Defines simplified imports.
 
 Instead of importing `gaarf.report.GaarfReport`
@@ -28,3 +31,5 @@ __all__ = [
   'GoogleAdsApiClient',
   'AdsReportFetcher',
 ]
+
+__version__ = '1.15.5'

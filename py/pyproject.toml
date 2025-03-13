@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "google-ads-api-report-fetcher"
+dependencies = [
+  'google-ads>=25.1.0',
+  'smart_open',
+  'jinja2==3.1.4',
+  'python-dateutil',
+  'typing-extensions',
+  'rich',
+  'tenacity',
+]
+requires-python = ">=3.8"
+description = "Library for fetching reports from Google Ads API and saving them locally & remotely."
+readme = "README.md"
+classifiers = [
+  'Programming Language :: Python :: 3 :: Only',
+  'Programming Language :: Python :: 3.8',
+  'Programming Language :: Python :: 3.9',
+  'Programming Language :: Python :: 3.10',
+  'Programming Language :: Python :: 3.11',
+  'Programming Language :: Python :: 3.12',
+  'Programming Language :: Python :: 3.13',
+  'Intended Audience :: Developers',
+  'Topic :: Software Development :: Libraries :: Python Modules',
+  'Operating System :: OS Independent',
+  'License :: OSI Approved :: Apache Software License',
+]
+authors = [
+  {name = "Google Inc. (gTech gPS CSE team)", email = "no-reply@google.com"},
+]
+license = {text = "Apache 2.0"}
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/google/ads-api-reports-fetcher"
+Documentation = "https://github.com/google/ads-api-report-fetcher/tree/main/docs"
+Repository = "https://github.com/google/ads-api-reports-fetcher.git"
+Issues = "https://github.com/google/ads-api-report-fetcher/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "gaarf.__version__"}
+
+[project.optional-dependencies]
+bq = [
+  "google-cloud-bigquery",
+  "pandas>=1.3.4",
+  "smart_open[gcs]",
+]
+pandas = [
+  "pandas>=1.3.4",
+]
+sqlalchemy = [
+  "sqlalchemy"
+]
+simulator = [
+  "Faker"
+]
+sheets = [
+  "gspread"
+]
+full = [
+"google-ads-api-report-fetcher[bq,pandas,sqlalchemy,simulator,sheets]"
+]
+
+[options.extras_require]
+test =  [
+  "pytest",
+  "pytest-mock",
+]
+
+[project.scripts]
+gaarf="gaarf.cli.gaarf:main"
+gaarf-py="gaarf.cli.gaarf:main"
+gaarf-bq="gaarf.cli.bq:main"
+gaarf-py-bq="gaarf.cli.bq:main"
+gaarf-simulator="gaarf.cli.simulator:main"
+gaarf-sql="gaarf.cli.sql:main"
