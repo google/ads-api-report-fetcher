@@ -15,3 +15,5 @@ tags
 .tox
 .coverage
 .python-version
+py/build*
+py/dist*

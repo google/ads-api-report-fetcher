@@ -119,10 +119,10 @@ class AdsQueryExecutor:
       query_specification.query_title,
       type(writer_client),
     )
-    writer_client.write(results, query_specification.query_title)
+    writer_client.write(results, query_name)
     logger.debug(
       'Finish writing data for query %s via %s writer',
-      query_specification.query_title,
+      query_name,
       type(writer_client),
     )
 
