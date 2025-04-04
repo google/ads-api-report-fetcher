@@ -48,7 +48,15 @@ REGION=$(git config -f $SETTING_FILE common.region || echo "europe-west1")
 WORKFLOW_NAME=$NAME-wf
 
 enable_apis() {
-  gcloud services enable compute.googleapis.com
+  # Track if compute API was newly enabled
+  local compute_enabled=false
+  # Check if compute API is already enabled
+  if ! gcloud services list --enabled --filter="name:compute.googleapis.com" | grep -q compute.googleapis.com; then
+    echo "Enabling Compute Engine API..."
+    gcloud services enable compute.googleapis.com
+    compute_enabled=true
+  fi
+
   # apis for workflow
   gcloud services enable workflows.googleapis.com
   gcloud services enable workflowexecutions.googleapis.com
@@ -63,8 +71,39 @@ enable_apis() {
   gcloud services enable cloudfunctions.googleapis.com
   gcloud services enable secretmanager.googleapis.com
   gcloud services enable googleads.googleapis.com
+
+  if [ "$compute_enabled" = "true" ]; then
+    wait_for_service_account
+    return $?
+  fi
 }
 
+wait_for_service_account() {
+  local max_attempts=15
+  local attempt=1
+
+  while [ $attempt -le $max_attempts ]; do
+    if gcloud iam service-accounts describe $SERVICE_ACCOUNT &>/dev/null; then
+      echo -e "${CYAN}Service account $SERVICE_ACCOUNT is ready!${NC}"
+      return 0
+    else
+      echo "Attempt $attempt: Service account $SERVICE_ACCOUNT not ready yet, waiting..."
+      sleep 10
+      attempt=$((attempt+1))
+    fi
+  done
+
+  echo -e "${RED}Service account didn't become available after multiple attempts.${NC}"
+  return 1
+}
+
+check_service_account() {
+  echo "Checking if service account $SERVICE_ACCOUNT exists..."
+  if ! gcloud iam service-accounts describe $SERVICE_ACCOUNT &>/dev/null; then
+    echo "Service account $SERVICE_ACCOUNT doesn't exist or you don't have permission to access it."
+    exit 1
+  fi
+}
 
 set_iam_permissions() {
   echo -e "${CYAN}Setting up IAM permissions...${NC}"
