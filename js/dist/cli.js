@@ -56,7 +56,7 @@ const argv = yargs(hideBin(process.argv))
     //       But having them at root level is better for TS typings
     .option('ads-config', {
     type: 'string',
-    description: 'path to yaml config for Google Ads (google-ads.yaml)',
+    description: 'Path to a YAML/JSON config for Google Ads (google-ads.yaml)',
 })
     .option('ads', { hidden: true })
     .option('ads.developer_token', {
@@ -353,7 +353,7 @@ async function main() {
     let adsConfig = undefined;
     const adConfigFilePath = argv.adsConfig;
     if (adConfigFilePath) {
-        // try to use ads config from extenral file (ads-config arg)
+        // try to use ads config from external file (ads-config arg)
         adsConfig = await loadAdsConfig(adConfigFilePath);
     }
     // try to use ads config from explicit cli arguments

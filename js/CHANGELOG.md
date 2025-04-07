@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.0 - 2025-04-08
+
+- support Google Ads API v19 (updated google-ads-api to v19)
+
 ## 3.0.1 - 2025-02-13
 
 - Fix: fixed gaarf-bq cli entrypoint
@@ -9,8 +13,8 @@
 - support authentication under service accounts
 - GAQL parser based on Peggy grammar (https://peggyjs.org/online.html) - support any form of comments and whitespaces
 - reworked parsing of virtual column expressions (with mathjs):
-  - compatibility with resource indexes and nested fields, e.g. the following are examples that didn't work and work now: 
-    - `'http://' + ad_group_ad.ad.final_urls[1]` - failed previously 
+  - compatibility with resource indexes and nested fields, e.g. the following are examples that didn't work and work now:
+    - `'http://' + ad_group_ad.ad.final_urls[1]` - failed previously
     - any other expressions contained '~' and ':' in strings failed
     - `(change_event.new_resource:campaign.target_cpa.target_cpa_micros) / 1000000` - nested field customizers in expressions
   - support method calls (e.g. `(metrics.clicks / metrics.impressions).toFixed(2)` or `campaign.name.split('.').pop()`)

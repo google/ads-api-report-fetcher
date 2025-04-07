@@ -89,7 +89,7 @@ const argv = yargs(hideBin(process.argv))
   //       But having them at root level is better for TS typings
   .option('ads-config', {
     type: 'string',
-    description: 'path to yaml config for Google Ads (google-ads.yaml)',
+    description: 'Path to a YAML/JSON config for Google Ads (google-ads.yaml)',
   })
   .option('ads', {hidden: true})
   .option('ads.developer_token', {
@@ -113,7 +113,7 @@ const argv = yargs(hideBin(process.argv))
     alias: ['customer', 'customer-id', 'customer_id'],
     type: 'string',
     description:
-      'Google Ads account id (w/o dashes), a.k.a customer id or multiple accounts separeted with comma',
+      'Google Ads account id (w/o dashes), a.k.a customer id, or multiple accounts comma-separated',
   })
   .option('customer-ids-query', {
     alias: ['customer_ids_query'],
