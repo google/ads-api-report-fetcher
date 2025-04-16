@@ -77,11 +77,11 @@ export interface IGoogleAdsApiClient {
 
 export type GoogleAdsApiConfig = {
   // ClientOptions:
-  client_id: string;
-  client_secret: string;
+  client_id?: string;
+  client_secret?: string;
   developer_token: string;
   // CustomerOptions:
-  refresh_token: string;
+  refresh_token?: string;
   login_customer_id?: string;
   linked_customer_id?: string;
   customer_id?: string[] | string;
@@ -167,8 +167,8 @@ export class GoogleAdsRpcApiClient
   constructor(adsConfig: GoogleAdsApiConfig) {
     super(adsConfig, ApiType.gRPC);
     this.client = new GoogleAdsApi({
-      client_id: adsConfig.client_id,
-      client_secret: adsConfig.client_secret,
+      client_id: adsConfig.client_id!,
+      client_secret: adsConfig.client_secret!,
       developer_token: adsConfig.developer_token,
     });
     this.customers = {};
@@ -184,7 +184,7 @@ export class GoogleAdsRpcApiClient
       customer = this.client.Customer({
         customer_id: customerId,
         login_customer_id: this.adsConfig.login_customer_id,
-        refresh_token: this.adsConfig.refresh_token,
+        refresh_token: this.adsConfig.refresh_token!,
       });
       this.customers[customerId] = customer;
     }
@@ -309,10 +309,6 @@ export class GoogleAdsRpcApiClient
       // NOTE: we're iterating over the stream instead of returning it
       // for the sake of error handling
       const stream = customer.queryStream(query);
-      // this.logger.debug('Created AsyncGenerator from queryStream', {
-      //   customerId,
-      //   query,
-      // });
       for await (const row of stream) {
         yield row as Record<string, unknown>;
       }
@@ -405,9 +401,9 @@ export class GoogleAdsRestApiClient
       // working under a user account (with refreshToken)
       // Refresh if within 5 minutes of expiration
       const {access_token, expires_in} = await this.refreshAccessToken(
-        this.adsConfig.client_id,
-        this.adsConfig.client_secret,
-        this.adsConfig.refresh_token
+        this.adsConfig.client_id!,
+        this.adsConfig.client_secret!,
+        this.adsConfig.refresh_token!
       );
       this.currentToken = access_token;
       this.tokenExpiration = Date.now() + expires_in * 1000;

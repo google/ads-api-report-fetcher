@@ -79,7 +79,7 @@ const argv = yargs(hideBin(process.argv))
     .option('account', {
     alias: ['customer', 'customer-id', 'customer_id'],
     type: 'string',
-    description: 'Google Ads account id (w/o dashes), a.k.a customer id or multiple accounts separeted with comma',
+    description: 'Google Ads account id (w/o dashes), a.k.a customer id, or multiple accounts comma-separated',
 })
     .option('customer-ids-query', {
     alias: ['customer_ids_query'],

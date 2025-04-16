@@ -173,10 +173,6 @@ export class GoogleAdsRpcApiClient extends GoogleAdsApiClientBase {
             // NOTE: we're iterating over the stream instead of returning it
             // for the sake of error handling
             const stream = customer.queryStream(query);
-            // this.logger.debug('Created AsyncGenerator from queryStream', {
-            //   customerId,
-            //   query,
-            // });
             for await (const row of stream) {
                 yield row;
             }

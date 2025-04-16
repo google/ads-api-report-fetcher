@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.1.1 - 2025-04-17
+
+- Fix: added `override:true` while importing user functions into mathjs
+- added debug logging for raw objects from API response via env var GAARF_DUMP_API_ROW
+
 ## 3.1.0 - 2025-04-08
 
 - support Google Ads API v19 (updated google-ads-api to v19)

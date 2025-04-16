@@ -1,6 +1,6 @@
 {
   "name": "google-ads-api-report-fetcher",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Google Ads API Report Fetcher (gaarf)",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
@@ -22,6 +22,7 @@
   "scripts": {
     "clean": "shx rm -rf dist/*",
     "tsc": "tsc",
+    "compile": "tsc",
     "start": "node -r ts-node/register src/cli.ts $@",
     "gts": "gts",
     "lint": "gts lint",

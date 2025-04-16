@@ -372,6 +372,8 @@ export class AdsQueryExecutor {
   ): Promise<QueryResult> {
     return executeWithRetry(
       async () => {
+        const dumpRawRow = process.env.GAARF_DUMP_API_ROW;
+        const dumpRow = process.env.GAARF_DUMP_ROW;
         const stream = this.executeNativeQuery(query, customerId);
         if (process.env.DUMP_MEMORY) {
           this.logger.debug(getMemoryUsage('Query executed'));
@@ -382,9 +384,15 @@ export class AdsQueryExecutor {
         // NOTE: as we're iterating over an AsyncGenerator any error if happens
         // will be thrown on iterating not on creating of the generator
         for await (const row of stream) {
+          if (dumpRawRow) {
+            console.log(row);
+          }
           const parsedRow = <unknown[]>this.parser.parseRow(row, query, false);
+          if (dumpRow) {
+            console.log(parsedRow);
+          }
           rowCount++;
-          // NOTE: to descrease memory consumption we won't accumulate data if a writer was supplied
+          // NOTE: to decrease memory consumption we won't accumulate data if a writer was supplied
           if (writer) {
             await writer.addRow(customerId, parsedRow, row);
             if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
