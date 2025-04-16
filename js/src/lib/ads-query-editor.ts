@@ -181,7 +181,7 @@ export class AdsQueryEditor implements IAdsQueryEditor {
 
     let queryNormalized = this.compileAst(ast);
     const functions = this.parseFunctions(ast.functions?.clause || '');
-    mathjs.import(functions);
+    mathjs.import(functions, {override: true});
 
     if (templateParams) {
       query = renderTemplate(query, templateParams);

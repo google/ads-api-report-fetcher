@@ -109,7 +109,7 @@ export class AdsQueryEditor {
         let ast = parse(query);
         let queryNormalized = this.compileAst(ast);
         const functions = this.parseFunctions(((_a = ast.functions) === null || _a === void 0 ? void 0 : _a.clause) || '');
-        mathjs.import(functions);
+        mathjs.import(functions, { override: true });
         if (templateParams) {
             query = renderTemplate(query, templateParams);
         }
