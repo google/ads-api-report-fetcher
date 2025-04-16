@@ -37,7 +37,7 @@ async function main_getcids_unsafe(req, res, logger) {
     // prepare Ads API parameters
     const adsConfig = await getAdsConfig(req);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { refresh_token, ...ads_config_wo_token } = adsConfig;
+    const { refresh_token, developer_token, ...ads_config_wo_token } = adsConfig;
     logger.info('Ads API config', ads_config_wo_token);
     let customerIds = parseCustomerIds(req.query.customer_id, adsConfig);
     let customerIdsIgnore = [];
@@ -59,7 +59,7 @@ async function main_getcids_unsafe(req, res, logger) {
     }
     let adsClient;
     if (req.query.api === 'rest') {
-        const apiVersion = req.query.apiVersion;
+        const apiVersion = req.query.api_version;
         adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
     }
     else {

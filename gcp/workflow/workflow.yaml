@@ -16,6 +16,8 @@ main:
           - ads_config_path: ${default(map.get(args, "ads_config_path"), "")}
           # Google Ads API endpoint to use: 'rest' or 'grpc'
           - api: ${default(map.get(args, "api"), "rest")}
+          # Google Ads API version to override
+          - api_version: ${default(map.get(args, "api_version"), "")}
           # skip running Ads scripts and execute only bq scripts
           - only_run_bq: ${default(map.get(args, "only_run_bq"), false)}
           # pub/sub topic id to signal about completion
@@ -41,6 +43,7 @@ main:
           queries_path: ${args.ads_queries_path}
           ads_config_path: ${ads_config_path}
           api: ${api}
+          api_version: ${api_version}
           cid: ${args.cid}
           cid_ignore: ${map.get(args, "cid_ignore")}
           customer_ids_query: ${map.get(args, "customer_ids_query")}
@@ -93,6 +96,7 @@ runAdsQueries:
       queries_path,
       ads_config_path,
       api,
+      api_version,
       cid,
       cid_ignore,
       customer_ids_query,
@@ -149,6 +153,7 @@ runAdsQueries:
             customer_ids_offset: ${default(customer_ids_offset, "")}
             customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
             api: ${api}
+            api_version: ${api_version}
           auth:
             type: OIDC
         result: accounts_response
@@ -250,6 +255,7 @@ runAdsQueries:
                     function_location: ${function_location}
                     ads_config_path: ${ads_config_path}
                     api: ${api}
+                    api_version: ${api_version}
                     writer: ${writer}
                     bq_dataset: ${bq_dataset}
                     bq_dataset_location: ${bq_dataset_location}

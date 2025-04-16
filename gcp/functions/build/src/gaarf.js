@@ -79,7 +79,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     }
     let adsClient;
     if (((_a = req.query.api) === null || _a === void 0 ? void 0 : _a.toLocaleLowerCase()) === 'rest') {
-        const apiVersion = req.query.apiVersion;
+        const apiVersion = req.query.api_version;
         adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
     }
     else {
@@ -133,6 +133,7 @@ export const main = async (req, res) => {
     const projectId = await getProject();
     const functionName = process.env.K_SERVICE || 'gaarf';
     const logger = createLogger(req, projectId, functionName);
+    logger.info('request', { body: req.body, query: req.query });
     let dispose;
     if (dumpMemory) {
         logger.info(getMemoryUsage('Start'));

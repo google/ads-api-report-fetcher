@@ -11,6 +11,7 @@ main:
           - function_location: ${default(map.get(args, "function_location"), "us-central1")}
           - ads_config_path: ${args.ads_config_path}
           - api: ${map.get(args, "api")}
+          - api_version: ${default(map.get(args, "api_version"), "")}
           - writer: ${default(map.get(args, "writer"), "bq")}
           - bq_dataset: ${default(map.get(args, "bq_dataset"), "")}
           - bq_dataset_location: ${default(map.get(args, "bq_dataset_location"), "")}
@@ -72,6 +73,7 @@ main:
                     bq_dataset_location: ${bq_dataset_location}
                     ads_config_path: ${ads_config_path}
                     api: ${api}
+                    api_version: ${api_version}
                     writer_options: ${writer_options}
                     output_path: ${output_path}
                     is_constant: true
@@ -105,6 +107,7 @@ main:
                                   bq_dataset_location: ${bq_dataset_location}
                                   ads_config_path: ${ads_config_path}
                                   api: ${api}
+                                  api_version: ${api_version}
                                   writer_options: ${writer_options}
                                   output_path: ${output_path}
                               except:
@@ -164,6 +167,7 @@ executeAdsQuery:
       bq_dataset_location,
       ads_config_path,
       api,
+      api_version,
       writer_options,
       output_path,
       is_constant: false,
@@ -182,6 +186,7 @@ executeAdsQuery:
               script_path: ${script_path}
               ads_config_path: ${ads_config_path}
               api: ${api}
+              api_version: ${api_version}
               bq_project_id: ${project}
               writer: ${writer}
               bq_dataset: ${bq_dataset}
