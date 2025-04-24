@@ -10,8 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 from __future__ import annotations
 
+import dataclasses
 import itertools
 import logging
 
@@ -22,7 +26,6 @@ from google.api_core import exceptions as google_exceptions
 
 from gaarf import (
   api_clients,
-  exceptions,
   parsers,
   query_editor,
   report,
@@ -36,6 +39,16 @@ _EXPECTED_RESULTS = [
   [2],
   [3],
 ]
+
+
+@dataclasses.dataclass
+class FakeGoogleAdsFailureMessage:
+  message: str
+
+
+@dataclasses.dataclass
+class FakeGoogleAdsFailure:
+  errors: list[FakeGoogleAdsFailureMessage]
 
 
 class TestAdsReportFetcher:
@@ -134,17 +147,27 @@ class TestAdsReportFetcher:
 
     assert fetched_report == expected_report
 
-  def test_fetch_raises_gaarf_exception(self, mocker, fake_report_fetcher):
+  def test_fetch_raises_gaarf_exception(
+    self, mocker, fake_report_fetcher, caplog
+  ):
     mocker.patch(
       'gaarf.report_fetcher.AdsReportFetcher._parse_ads_response',
       side_effect=[
         googleads_exceptions.GoogleAdsException(
-          'test-error', 'test-call', 'test-failure', 'test-request-id'
+          error='test-error',
+          call='test-call',
+          failure=FakeGoogleAdsFailure(
+            errors=[FakeGoogleAdsFailureMessage(message='test-failure')]
+          ),
+          request_id='test-request-id',
         )
       ],
     )
-    with pytest.raises(exceptions.GaarfExecutorException, match='test-error'):
+    with pytest.raises(googleads_exceptions.GoogleAdsException):
       fake_report_fetcher.fetch(query_specification=_QUERY, customer_ids=[1])
+    assert (
+      'Cannot execute query None for 1 due to the following error: test-failure'
+    ) in caplog.text
 
   def test_parse_ads_response_sequentially_returns_success(
     self, fake_report_fetcher, fake_response

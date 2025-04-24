@@ -179,6 +179,8 @@ class AdsReportFetcher:
             When customer_ids are not provided or Ads API returned error.
         GaarfBuiltInQueryException:
             When built-in query cannot be found in the registry.
+        GoogleAdsException:
+            When Google Ads API returns an error.
     """
     if isinstance(self.api_client, api_clients.GoogleAdsApiClient):
       if not customer_ids:
@@ -191,7 +193,7 @@ class AdsReportFetcher:
         if hasattr(self, 'customer_ids'):
           if not self.customer_ids:
             raise exceptions.GaarfExecutorException(
-              'Please specify add `customer_ids` to ' '`fetch` method'
+              'Please specify add `customer_ids` to `fetch` method'
             )
           customer_ids = self.customer_ids
       else:
@@ -217,8 +219,7 @@ class AdsReportFetcher:
         )
       ):
         raise exceptions.GaarfBuiltInQueryException(
-          'Cannot find the built-in query '
-          f'"{query_specification.query_title}"'
+          f'Cannot find the built-in query "{query_specification.query_title}"'
         )
       return builtin_report(self, accounts=customer_ids)
     optimize_strategy = OptimizeStrategy[optimize_strategy]
@@ -239,20 +240,19 @@ class AdsReportFetcher:
           break
       except googleads_exceptions.GoogleAdsException as e:
         logger.error(
-          'Cannot execute query %s for %s',
+          'Cannot execute query %s for %s due to the following error: %s',
           query_specification.query_title,
           customer_id,
+          e.failure.errors[0].message,
         )
-        logger.error(str(e))
-        raise exceptions.GaarfExecutorException(e.error)
+        raise
     if not total_results:
       results_placeholder = [
         parser.parse_ads_row(self.api_client.google_ads_row)
       ]
       if not isinstance(self.api_client, api_clients.BaseClient):
         logger.warning(
-          'Query %s generated zero results, '
-          'using placeholders to infer schema',
+          'Query %s generated zero results, using placeholders to infer schema',
           query_specification.query_title,
         )
     else:
