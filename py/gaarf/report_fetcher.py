@@ -69,21 +69,25 @@ class AdsReportFetcher:
   def __init__(
     self,
     api_client: api_clients.GoogleAdsApiClient
-    | googleads_client.GoogleAdsClient,
-    customer_ids: Sequence[str] | None = None,
+    | googleads_client.GoogleAdsClient
+    | None = None,
+    *args: str,
+    **kwargs: str,
   ) -> None:
     """Instantiates AdsReportFetcher based on provided api client.
 
     Args:
       api_client: Instantiated GoogleAdsClient or GoogleAdsApiClient.
-      customer_ids: Account to fetch data from (deprecated).
     """
-    self.api_client = (
-      api_clients.GoogleAdsApiClient.from_googleads_client(api_client)
-      if isinstance(api_client, googleads_client.GoogleAdsClient)
-      else api_client
-    )
-    if customer_ids:
+    if isinstance(api_client, googleads_client.GoogleAdsClient):
+      self.api_client = api_clients.GoogleAdsApiClient.from_googleads_client(
+        api_client
+      )
+    elif api_client is None:
+      self.api_client = api_clients.GoogleAdsApiClient()
+    else:
+      self.api_client = api_client
+    if customer_ids := args or kwargs.get('customer_ids'):
       warnings.warn(
         '`AdsReportFetcher` will deprecate passing `customer_ids` '
         'to `__init__` method. '
