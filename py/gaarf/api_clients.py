@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module for defining client to interact with API."""
 
 from __future__ import annotations
@@ -254,7 +257,9 @@ class GoogleAdsApiClient(BaseClient):
 
   def __init__(
     self,
-    path_to_config: str | os.PathLike = default_google_ads_yaml,
+    path_to_config: str | os.PathLike[str] = os.getenv(
+      'GOOGLE_ADS_CONFIGURATION_FILE_PATH', default_google_ads_yaml
+    ),
     config_dict: dict[str, str] | None = None,
     yaml_str: str | None = None,
     version: str = GOOGLE_ADS_API_VERSION,
