@@ -28,6 +28,7 @@ pushd $SCRIPT_PATH > /dev/null
 
 args=()
 started=0
+# pack all arguments into args array (except --settings)
 for ((i=1; i<=$#; i++)); do
   if [[ ${!i} == --* ]]; then started=1; fi
   if [ ${!i} = "--settings" ]; then
@@ -106,6 +107,13 @@ check_service_account() {
 }
 
 set_iam_permissions() {
+  local disable_grants
+  disable_grants=$(_get_arg_value "--disable-grants" "$@")
+  if [[ "$disable_grants" == "true" ]]; then
+    echo -e "${CYAN}Skipping setting up IAM permissions...${NC}"
+    return
+  fi
+
   echo -e "${CYAN}Setting up IAM permissions...${NC}"
   declare -ar ROLES=(
     # Permissions for Workflow:
@@ -217,9 +225,17 @@ _get_arg_value() {
   shift
   for ((i=1; i<=$#; i++)); do
     if [ ${!i} = "$arg_name" ]; then
-      ((i++))
-      echo ${!i}
-      return 0
+      # Check if this is the last argument or if next argument starts with - or --
+      ((next=i+1))
+      if [ $next -gt $# ] || [[ "${!next}" == -* ]]; then
+        # This is a flag without value
+        echo "true"
+        return 0
+      else
+        # This is a value argument
+        echo ${!next}
+        return 0
+      fi
     fi
   done
   return 1
@@ -292,7 +308,7 @@ delete_all() {
 
 deploy_all() {
   enable_apis || return $?
-  set_iam_permissions || return $?
+  set_iam_permissions $@ || return $?
   deploy_functions || return $?
   create_wf_completion_topic || return $?
   deploy_wf || return $?

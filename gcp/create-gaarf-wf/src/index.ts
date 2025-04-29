@@ -1114,6 +1114,11 @@ fi
     // not using google-ads.yaml means using Secret Manager
     settings['functions']['use-secret-manager'] = true;
   }
+  let aux_args = '';
+  if (answers.disable_grants) {
+    aux_args = '--disable-grants'
+  }
+
   deployShellScript(
     'deploy-wf.sh',
     `# Deploy Cloud Functions and Cloud Workflows
@@ -1121,7 +1126,7 @@ set -e
 cd ./${gaarf_folder}
 git pull --ff
 cd ..
-./${gaarf_folder}/gcp/setup.sh deploy_all --settings $(readlink -f "./${settings_file}")
+./${gaarf_folder}/gcp/setup.sh deploy_all --settings $(readlink -f "./${settings_file}") ${aux_args}
 `
   );
 
