@@ -28,6 +28,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Final
 
+import google.auth
 import proto
 import smart_open
 import tenacity
@@ -41,6 +42,10 @@ google_ads_service = importlib.import_module(
   f'google.ads.googleads.{GOOGLE_ADS_API_VERSION}.'
   'services.types.google_ads_service'
 )
+
+
+class GoogleAdsApiClientError(Exception):
+  """Google Ads client errors."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -331,9 +336,24 @@ class GoogleAdsApiClient(BaseClient):
       None if instantiation hasn't been done.
 
     Raises:
-      ValueError: if google-ads.yaml wasn't found.
+      GoogleAdsApiClientError:
+        if google-ads.yaml wasn't found or missing crucial parts.
     """
     if config_dict:
+      if not (developer_token := config_dict.get('developer_token')):
+        raise GoogleAdsApiClientError('developer_token is missing.')
+      if (
+        'refresh_token' not in config_dict
+        and 'json_key_file_path' not in config_dict
+      ):
+        credentials, _ = google.auth.default(
+          scopes=['https://www.googleapis.com/auth/adswords']
+        )
+        return googleads_client.GoogleAdsClient(
+          credentials=credentials,
+          developer_token=developer_token,
+          login_customer_id=config_dict.get('login_customer_id'),
+        )
       return googleads_client.GoogleAdsClient.load_from_dict(
         config_dict, self.api_version
       )
@@ -350,7 +370,7 @@ class GoogleAdsApiClient(BaseClient):
     try:
       return googleads_client.GoogleAdsClient.load_from_env(self.api_version)
     except ValueError as e:
-      raise ValueError('Cannot instantiate GoogleAdsClient') from e
+      raise GoogleAdsApiClientError('Cannot instantiate GoogleAdsClient') from e
 
   @classmethod
   def from_googleads_client(
