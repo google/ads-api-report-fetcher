@@ -322,7 +322,10 @@ class GoogleAdsApiClient(BaseClient):
     )
 
   def _init_client(
-    self, path: str, config_dict: dict[str, str], yaml_str: str
+    self,
+    path: str | None = None,
+    config_dict: dict[str, str] | None = None,
+    yaml_str: str | None = None,
   ) -> googleads_client.GoogleAdsClient | None:
     """Initializes GoogleAdsClient based on one of the methods.
 
@@ -349,10 +352,13 @@ class GoogleAdsApiClient(BaseClient):
         credentials, _ = google.auth.default(
           scopes=['https://www.googleapis.com/auth/adswords']
         )
+        if login_customer_id := config_dict.get('login_customer_id'):
+          login_customer_id = str(login_customer_id)
+
         return googleads_client.GoogleAdsClient(
           credentials=credentials,
           developer_token=developer_token,
-          login_customer_id=config_dict.get('login_customer_id'),
+          login_customer_id=login_customer_id,
         )
       return googleads_client.GoogleAdsClient.load_from_dict(
         config_dict, self.api_version
@@ -364,9 +370,7 @@ class GoogleAdsApiClient(BaseClient):
     if path:
       with smart_open.open(path, 'r', encoding='utf-8') as f:
         google_ads_config_dict = yaml.safe_load(f)
-      return googleads_client.GoogleAdsClient.load_from_dict(
-        google_ads_config_dict, self.api_version
-      )
+      return self._init_client(config_dict=google_ads_config_dict)
     try:
       return googleads_client.GoogleAdsClient.load_from_env(self.api_version)
     except ValueError as e:
