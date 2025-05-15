@@ -350,7 +350,7 @@ class GoogleAdsApiClient(BaseClient):
         and 'json_key_file_path' not in config_dict
       ):
         credentials, _ = google.auth.default(
-          scopes=['https://www.googleapis.com/auth/adswords']
+          scopes=['https://www.googleapis.com/auth/adwords']
         )
         if login_customer_id := config_dict.get('login_customer_id'):
           login_customer_id = str(login_customer_id)
