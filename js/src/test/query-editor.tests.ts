@@ -20,7 +20,7 @@ import {AdsQueryEditor} from '../lib/ads-query-editor.js';
 import {ApiType, FieldTypeKind} from '../lib/types.js';
 
 suite('AdsQueryEditor', () => {
-  const editor = new AdsQueryEditor(ApiType.gRPC, 'v19');
+  const editor = new AdsQueryEditor(ApiType.gRPC, 'v20');
 
   test('parse aliases', () => {
     const query_text = `
