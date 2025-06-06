@@ -7,18 +7,17 @@ name = "google-ads-api-report-fetcher"
 dependencies = [
   'google-ads>=25.1.0',
   'smart_open',
-  'jinja2==3.1.4',
+  'jinja2',
   'python-dateutil',
   'typing-extensions',
   'rich',
   'tenacity',
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9, <3.14"
 description = "Library for fetching reports from Google Ads API and saving them locally & remotely."
 readme = "README.md"
 classifiers = [
   'Programming Language :: Python :: 3 :: Only',
-  'Programming Language :: Python :: 3.8',
   'Programming Language :: Python :: 3.9',
   'Programming Language :: Python :: 3.10',
   'Programming Language :: Python :: 3.11',
