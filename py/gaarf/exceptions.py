@@ -69,3 +69,7 @@ class GaarfBuiltInQueryException(GaarfException):
 
 class GaarfExecutorException(GaarfException):
   """Base exception for errors during GaarfQuery execution."""
+
+
+class GaarfDeprecationError(GaarfException):
+  """Error when calling deprecated methods."""

@@ -11,28 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Defines mechanism for executing queries via SqlAlchemy."""
+"""Deprecated module for executing queries via SqlAlchemy."""
 
 from __future__ import annotations
 
-import warnings
-
-import sqlalchemy
-
-from gaarf.executors import sql_executor
+from gaarf import exceptions
 
 
 class SqlAlchemyQueryExecutor:
   """Deprecated class for creating SqlAlchemyQueryExecutor."""
 
-  def __new__(
-    cls, engine: sqlalchemy.engine.base.Engine
-  ) -> sql_executor.SqlAlchemyQueryExecutor:
-    warnings.warn(
+  def __init__(self, **kwargs: str) -> None:
+    raise exceptions.GaarfDeprecationError(
       'Loading SqlAlchemyQueryExecutor from `gaarf.sql_executor` is '
       'deprecated; Import SqlAlchemyQueryExecutor from '
       '`gaarf.executors.sql_executor` instead',
-      category=DeprecationWarning,
-      stacklevel=2,
     )
-    return sql_executor.SqlAlchemyQueryExecutor(engine)

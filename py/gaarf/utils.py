@@ -11,38 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module for various utility functions."""
 
 from __future__ import annotations
 
-import warnings
-from collections.abc import MutableSequence
-
-from gaarf import api_clients, report_fetcher
+from gaarf import exceptions
 
 
-def get_customer_ids(
-  ads_client: api_clients.GoogleAdsApiClient,
-  customer_id: str | MutableSequence,
-  customer_ids_query: str | None = None,
-) -> list[str]:
-  """Gets list of customer_ids from an MCC account.
-
-  Args:
-      ads_client: GoogleAdsApiClient used for connection.
-      customer_id: MCC account_id(s).
-      customer_ids_query: GAQL query used to reduce the number of accounts.
-
-  Returns:
-      All customer_ids from MCC satisfying the condition.
-  """
-  warnings.warn(
-    '`get_customer_ids` will be deprecated, '
+def get_customer_ids(**kwargs: str) -> None:
+  """Raises deprecation error when calling obsoleted function."""
+  raise exceptions.GaarfDeprecationError(
+    '`get_customer_ids` is deprecated, '
     'use `AdsReportFetcher.expand_mcc` or `AdsQueryExecutor.expand_mcc` '
     'methods instead',
-    category=DeprecationWarning,
-    stacklevel=3,
-  )
-  return report_fetcher.AdsReportFetcher(ads_client).expand_mcc(
-    customer_id, customer_ids_query
   )
