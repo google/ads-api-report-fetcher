@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import functools
 import sys
 from concurrent import futures
 
-from gaarf import bq_executor
 from gaarf.cli import utils
+from gaarf.executors import bq_executor
 from gaarf.io import reader  # type: ignore
 
 

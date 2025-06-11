@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import smart_open
 import yaml
 
 import gaarf
-from gaarf import api_clients, exceptions, query_executor
+from gaarf import api_clients, exceptions, executors
 from gaarf.cli import utils
 from gaarf.io import reader, writer
 
@@ -131,7 +131,7 @@ def main():
     use_proto_plus=main_args.optimize_performance
     not in ('PROTOBUF', 'BATCH_PROTOBUF'),
   )
-  ads_query_executor = query_executor.AdsQueryExecutor(ads_client)
+  ads_query_executor = executors.AdsQueryExecutor(ads_client)
   reader_factory = reader.ReaderFactory()
   reader_client = reader_factory.create_reader(main_args.input)
 
