@@ -30,11 +30,11 @@ from pathlib import Path
 
 import smart_open
 import yaml
+from garf_io import reader, writer
 
 import gaarf
 from gaarf import api_clients, exceptions, executors
 from gaarf.cli import utils
-from gaarf.io import reader, writer
 
 
 def main():
@@ -132,13 +132,12 @@ def main():
     not in ('PROTOBUF', 'BATCH_PROTOBUF'),
   )
   ads_query_executor = executors.AdsQueryExecutor(ads_client)
-  reader_factory = reader.ReaderFactory()
-  reader_client = reader_factory.create_reader(main_args.input)
+  reader_client = reader.create_reader(main_args.input)
 
   if config.customer_ids_query:
     customer_ids_query = config.customer_ids_query
   elif config.customer_ids_query_file:
-    file_reader = reader_factory.create_reader('file')
+    file_reader = reader.create_reader('file')
     customer_ids_query = file_reader.read(config.customer_ids_query_file)
   else:
     customer_ids_query = None
@@ -164,9 +163,7 @@ def main():
       customer_ids_query,
     )
     sys.exit()
-  writer_client = writer.WriterFactory().create_writer(
-    config.output, **config.writer_params
-  )
+  writer_client = writer.create_writer(config.output, **config.writer_params)
   if config.output == 'bq':
     _ = writer_client.create_or_get_dataset()
   if config.output == 'sheet':

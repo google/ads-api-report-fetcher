@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,56 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
-from typing import Dict
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
 
-from smart_open import open  # type: ignore
+"""Loads queries to be processed by Gaarf."""
 
+from garf_io import reader
 
-class AbsReader(abc.ABC):
-  @abc.abstractmethod
-  def read(self, query_path: str, **kwargs):
-    raise NotImplementedError
+from gaarf import exceptions
 
-
-class FileReader(AbsReader):
-  def __init__(self):
-    pass
-
-  def read(self, query_path, **kwargs):
-    with open(query_path, 'r') as f:
-      raw_query_text = f.read()
-    return raw_query_text
-
-
-class ConsoleReader(AbsReader):
-  def __init__(self):
-    pass
-
-  def read(self, query_path, **kwargs):
-    return query_path
-
-
-class NullReader(AbsReader):
-  def __init__(self, reader_option, **kwargs):
-    raise ValueError(f'{reader_option} is unknown reader type!')
-
-  def read(self):
-    print('Unknown reader type!')
+FileReader = reader.FileReader
+ConsoleReader = reader.ConsoleReader
+create_reader = reader.create_reader
 
 
 class ReaderFactory:
-  reader_options: Dict[str, AbsReader] = {}
+  """Deprecated class for creating readers."""
 
   def __init__(self):
-    self.load_reader_options()
-
-  def load_reader_options(self):
-    self.reader_options['file'] = FileReader
-    self.reader_options['console'] = ConsoleReader
-
-  def create_reader(self, reader_option: str, **kwargs) -> AbsReader:
-    if reader_option in self.reader_options:
-      return self.reader_options[reader_option](**kwargs)
-    else:
-      return NullReader(reader_option)
+    raise exceptions.GaarfDeprecationError(
+      'ReaderFactory is deprecated; '
+      'Create reader with `gaarf.io.reader.create_reader` function instead',
+    )

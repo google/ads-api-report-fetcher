@@ -23,9 +23,10 @@ import functools
 import sys
 from concurrent import futures
 
+from garf_io import reader  # type: ignore
+
 from gaarf.cli import utils
 from gaarf.executors import bq_executor
-from gaarf.io import reader  # type: ignore
 
 
 def main():

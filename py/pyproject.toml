@@ -12,6 +12,7 @@ dependencies = [
   'typing-extensions',
   'rich',
   'tenacity',
+  'garf_io',
 ]
 requires-python = ">=3.9, <3.14"
 description = "Library for fetching reports from Google Ads API and saving them locally & remotely."
@@ -45,7 +46,7 @@ version = {attr = "gaarf.__version__"}
 
 [project.optional-dependencies]
 bq = [
-  "google-cloud-bigquery",
+  "garf_io[bq]",
   "pandas>=1.3.4",
   "smart_open[gcs]",
 ]
@@ -53,13 +54,13 @@ pandas = [
   "pandas>=1.3.4",
 ]
 sqlalchemy = [
-  "sqlalchemy"
+  "garf_io[sqlalchemy]",
 ]
 simulator = [
   "Faker"
 ]
 sheets = [
-  "gspread"
+  "garf_io[sheets]"
 ]
 full = [
 "google-ads-api-report-fetcher[bq,pandas,sqlalchemy,simulator,sheets]"

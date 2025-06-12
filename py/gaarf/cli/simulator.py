@@ -10,6 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module for defining `gaarf-simulator` CLI utility.
 
 `gaarf-simulator` allows to simulate API resonse based on GAQL queries
@@ -21,10 +24,10 @@ from __future__ import annotations
 import argparse
 
 import yaml
+from garf_io import reader, writer
 
 from gaarf import api_clients, simulation
 from gaarf.cli import utils
-from gaarf.io import reader, writer
 
 
 def main():
@@ -73,8 +76,7 @@ def main():
   )
   if config.output == 'bq':
     _ = writer_client.create_or_get_dataset()
-  reader_factory = reader.ReaderFactory()
-  reader_client = reader_factory.create_reader(main_args.input)
+  reader_client = reader.create_reader(main_args.input)
 
   for query in main_args.query:
     if simulator_config := main_args.simulator_config:

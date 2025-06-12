@@ -24,10 +24,10 @@ import sys
 from concurrent import futures
 
 import sqlalchemy
+from garf_io import reader  # type: ignore
 
 from gaarf.cli import utils
 from gaarf.executors import sql_executor
-from gaarf.io import reader  # type: ignore
 
 
 def main():
