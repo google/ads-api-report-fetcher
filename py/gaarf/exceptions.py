@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+from garf_core import report
+
 
 class GaarfException(Exception):
   """Base exception."""
@@ -59,10 +61,6 @@ class GaarfResourceException(GaarfQueryException):
   """Specifies incorrect resource name in Google Ads API."""
 
 
-class GaarfReportException(GaarfException):
-  """Base exception for Gaarf reports."""
-
-
 class GaarfBuiltInQueryException(GaarfException):
   """Specifies missing built-in Gaarf query."""
 
@@ -73,3 +71,6 @@ class GaarfExecutorException(GaarfException):
 
 class GaarfDeprecationError(GaarfException):
   """Error when calling deprecated methods."""
+
+
+GaarfReportException = report.GarfReportError
