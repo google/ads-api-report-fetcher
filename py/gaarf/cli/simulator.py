@@ -71,9 +71,7 @@ def main():
   config = utils.ConfigBuilder('gaarf').build(vars(args[0]), args[1])
   logger.debug('config: %s', config)
 
-  writer_client = writer.WriterFactory().create_writer(
-    config.output, **config.writer_params
-  )
+  writer_client = writer.create_writer(config.output, **config.writer_params)
   if config.output == 'bq':
     _ = writer_client.create_or_get_dataset()
   reader_client = reader.create_reader(main_args.input)
@@ -92,7 +90,6 @@ def main():
       reader_client.read(query),
       query,
       config.params,
-      main_args.api_version,
       simulator_specification,
     ):
       writer_client.write(report, query)
