@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.2.0 - 2025-06-20
+
+- support Google Ads API v20 (updated google-ads-api to v20)
+
 ## 3.1.1 - 2025-04-17
 
 - Fix: added `override:true` while importing user functions into mathjs
