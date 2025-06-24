@@ -15,12 +15,17 @@ You generally only need to submit a CLA once, so if you've already submitted one
 (even if it was for a different project), you probably don't need to do it
 again.
 
-## Code Reviews
+## Proposing Changes
+Please note that this GitHub repository is a mirror of our internal source code
+repository. For this reason, we are unable to merge pull requests directly on GitHub.
 
-All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
-information on using pull requests.
+However, we still find pull requests extremely valuable for seeing and discussing
+proposed changes. We encourage you to open a pull request to showcase your suggestions.
+This allows our team to review the proposed modifications and engage in a discussion with you.
+
+If your contribution is accepted, a project member will manually incorporate your changes
+into our internal repository. Those changes will then be reflected here in a future update.
+We appreciate your understanding of this workflow.
 
 ## Community Guidelines
 
