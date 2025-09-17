@@ -9,7 +9,7 @@ Please see the full documentation in the root [README](https://github.com/google
 
 ### Prerequisites
 
-* Python 3.8+
+* Python 3.9+
 * pip installed
 * Google Ads API enabled
 * `google-ads.yaml` file. Learn how to create one [here](../docs/how-to-authenticate-ads-api.md).

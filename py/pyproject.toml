@@ -32,6 +32,8 @@ classifiers = [
 ]
 authors = [
   {name = "Google Inc. (gTech gPS CSE team)", email = "no-reply@google.com"},
+  {name = "Andrei Markin", email = "amarkin@google.com"},
+  {name = "Sergei Dorogin", email = "segy@google.com"},
 ]
 license = {text = "Apache 2.0"}
 dynamic = ["version"]

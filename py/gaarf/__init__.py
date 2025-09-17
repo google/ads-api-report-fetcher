@@ -14,11 +14,7 @@
 
 # pylint: disable=C0330, g-bad-import-order, g-multiple-import
 
-"""Defines simplified imports.
-
-Instead of importing `gaarf.report.GaarfReport`
-import like this `from gaarf import GaarfReport`
-"""
+"""Library for fetching reports from Google Ads API."""
 
 from __future__ import annotations
 
@@ -32,4 +28,4 @@ __all__ = [
   'AdsReportFetcher',
 ]
 
-__version__ = '1.16.1'
+__version__ = '1.17.0'
