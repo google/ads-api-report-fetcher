@@ -21,7 +21,7 @@ import json
 
 import proto
 import pytest
-from google.ads.googleads.v18.resources.types import (
+from google.ads.googleads.v21.resources.types import (
   ad_group_ad_asset_view,
   change_event,
 )
