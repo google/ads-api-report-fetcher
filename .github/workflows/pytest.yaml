@@ -1,6 +1,11 @@
 name: Test gaarf-py
 
-on: [push]
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
