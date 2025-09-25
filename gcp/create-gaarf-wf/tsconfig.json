@@ -6,11 +6,11 @@
     "esModuleInterop": true,
     "module": "nodenext",
     "outDir": "build",
+    "rootDir": "src",
     "lib": ["es2021"]
   },
   "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
+    "src/**/*.ts"
   ],
   "ts-node": { "esm": true },
   "exclude": ["build/**/*", "node_modules"]

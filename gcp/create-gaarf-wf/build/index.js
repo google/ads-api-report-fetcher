@@ -187,6 +187,20 @@ async function askForGcpRegion(answers) {
         message: 'Region for Cloud services (workflows, functions, scheduler):',
         choices: options,
     });
+    if (response.gcp_region === MANUAL_ITEM || !response.gcp_region) {
+        const response2 = await prompts({
+            type: 'text',
+            name: 'gcp_region',
+            validate: val => {
+                if (!val) {
+                    return 'Please provide a Cloud region';
+                }
+                return true;
+            },
+            message: 'Please enter a region for Cloud services:',
+        });
+        return response2.gcp_region;
+    }
     return response.gcp_region;
 }
 async function initializeGcpProject(answers) {
@@ -246,6 +260,12 @@ async function initializeGcpProject(answers) {
         response = await prompts({
             type: 'text',
             name: 'project_id',
+            validate: val => {
+                if (!val) {
+                    return 'Please provide a Cloud project id';
+                }
+                return true;
+            },
             message: 'Please enter a GCP project id:',
         });
         // make sure the entered project does exist
@@ -630,6 +650,8 @@ function getAnswers() {
     return answers;
 }
 function getMultiRegion(region) {
+    if (!region)
+        return 'eu'; // europe by default
     if (region.includes('us'))
         return 'us';
     if (region.includes('europe'))
@@ -716,7 +738,8 @@ async function init() {
     answers.name = name;
     const ads_queries_folder_candidates = fs
         .readdirSync(cwd)
-        .find(f => path.basename(f).includes('ads') && path.basename(f).includes('queries'));
+        .find(f => path.basename(f).includes('ads') &&
+        path.basename(f).includes('queries'));
     const bq_queries_folder_candidates = fs
         .readdirSync(cwd)
         .find(f => path.basename(f).includes('bq') && path.basename(f).includes('queries'));
