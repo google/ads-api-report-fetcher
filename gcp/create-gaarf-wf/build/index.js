@@ -93,23 +93,22 @@ function execCmd(cmd, spinner, options) {
         cwd: options.cwd,
     });
     return new Promise(resolve => {
-        var _a, _b;
         let stderr = '';
         let stdout = '';
-        (_a = cp.stderr) === null || _a === void 0 ? void 0 : _a.on('data', chunk => {
+        cp.stderr?.on('data', chunk => {
             stderr += chunk;
-            if (options === null || options === void 0 ? void 0 : options.realtime)
+            if (options?.realtime)
                 process.stderr.write(chunk);
         });
-        (_b = cp.stdout) === null || _b === void 0 ? void 0 : _b.on('data', chunk => {
+        cp.stdout?.on('data', chunk => {
             stdout += chunk;
-            if (options === null || options === void 0 ? void 0 : options.realtime)
+            if (options?.realtime)
                 process.stdout.write(chunk);
         });
         cp.on('close', (code) => {
             if (spinner)
                 spinner.stop();
-            if (!spinner && (options === null || options === void 0 ? void 0 : options.realtime) && !(options === null || options === void 0 ? void 0 : options.keep_output)) {
+            if (!spinner && options?.realtime && !options?.keep_output) {
                 // if there's no spinner and keep_output=false, remove all output of the command
                 const terminal_width = process.stdout.columns;
                 let lines = (stdout ? stdout.split(os.EOL) : []).concat(stderr ? stderr.split(os.EOL) : []);
@@ -126,7 +125,7 @@ function execCmd(cmd, spinner, options) {
                     process.stdout.clearScreenDown();
                 }
             }
-            if (code !== 0 && !(options === null || options === void 0 ? void 0 : options.realtime) && !(options === null || options === void 0 ? void 0 : options.silent)) {
+            if (code !== 0 && !options?.realtime && !options?.silent) {
                 // by default, if not switched off and not realtime output, show error
                 console.error(stderr || stdout);
             }
@@ -313,7 +312,7 @@ function getMacroValues(folder_path, answers, prefix) {
             let script_content = fs.readFileSync(file_path, 'utf-8');
             // if script_content contains FUNCTIONS block we should cut it off  before searching for macro
             const fn_match = script_content.match(/FUNCTIONS/i);
-            if (fn_match === null || fn_match === void 0 ? void 0 : fn_match.index) {
+            if (fn_match?.index) {
                 script_content = script_content.substring(0, fn_match.index);
             }
             // notes on the regexp:
@@ -452,7 +451,19 @@ async function deployDashboard(answers, project_id, output_dataset, macro_bq) {
     fs.writeFileSync(DASHBOARD_LINK_FILE, dashboard_url);
     return dashboard_url;
 }
+// initialize google ads config and validate user credentials
 async function initializeGoogleAdsConfig(answers, serviceAccount, gaarfFolder) {
+    const [path_to_googleads_config, useServiceAccount] = await initializeGoogleAdsConfig2(answers, serviceAccount, gaarfFolder);
+    // call the gaarf cli tool from the cloned repo to validate the ads credentials
+    if (path_to_googleads_config &&
+        !useServiceAccount &&
+        fs.existsSync(path_to_googleads_config) &&
+        !answers.disable_ads_validation) {
+        await validateGoogleAdsConfig(gaarfFolder, path_to_googleads_config);
+    }
+    return path_to_googleads_config;
+}
+async function initializeGoogleAdsConfig2(answers, serviceAccount, gaarfFolder) {
     const googleads_config_candidate = fs.readdirSync(cwd).find(f => {
         const file_name = path.basename(f);
         return !!(file_name.includes('google-ads') &&
@@ -489,7 +500,7 @@ async function initializeGoogleAdsConfig(answers, serviceAccount, gaarfFolder) {
             process.exit(-1);
         }
         // user has provide a path to google-ads.yaml and it exists, we're done
-        return path_to_googleads_config;
+        return [path_to_googleads_config, false];
     }
     const answers1 = await prompt([
         {
@@ -541,7 +552,7 @@ async function initializeGoogleAdsConfig(answers, serviceAccount, gaarfFolder) {
             }
             // TODO: what about MCC?
             // regardless of whether the secret was created we won't use google-ads.yaml, we're done
-            return null;
+            return [null, true];
         }
         // otherwise, we use service account but with google-ads.yaml
     }
@@ -616,7 +627,7 @@ refresh_token: ${refresh_token || ''}
         encoding: 'utf8',
     });
     console.log(`Google Ads API credentials were saved to ${path_to_googleads_config}`);
-    return path_to_googleads_config;
+    return [path_to_googleads_config, useServiceAccount];
 }
 async function validateGoogleAdsConfig(gaarf_folder, path_to_googleads_config) {
     await execCmd('npm install --prod', new clui.Spinner('Installing dependencies...'), {
@@ -738,8 +749,7 @@ async function init() {
     answers.name = name;
     const ads_queries_folder_candidates = fs
         .readdirSync(cwd)
-        .find(f => path.basename(f).includes('ads') &&
-        path.basename(f).includes('queries'));
+        .find(f => path.basename(f).includes('ads') && path.basename(f).includes('queries'));
     const bq_queries_folder_candidates = fs
         .readdirSync(cwd)
         .find(f => path.basename(f).includes('bq') && path.basename(f).includes('queries'));
@@ -800,12 +810,6 @@ async function init() {
         console.log(chalk.red(`Please place your ads scripts into '${path_to_ads_queries}' folder`));
     }
     gcs_bucket = (gcs_bucket || gcp_project_id).trim();
-    // call the gaarf cli tool from the cloned repo to validate the ads credentials
-    if (path_to_googleads_config &&
-        fs.existsSync(path_to_googleads_config) &&
-        !answers.disable_ads_validation) {
-        await validateGoogleAdsConfig(gaarf_folder, path_to_googleads_config);
-    }
     const gcp_region = await askForGcpRegion(answers);
     // create a bucket if it doesn't exist
     // TODO: move this to setup.sh and just call it with create_bucket task
