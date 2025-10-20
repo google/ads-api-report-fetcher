@@ -1,50 +1,46 @@
-name: Publish Python package to PyPI
+name: Publish to PyPI - garf-io
 
 on:
   push:
-    tags: [ "*-py" ]
+    branches:
+      - main
+    paths:
+      - 'py/**'
+
 jobs:
-  build:
-    name: Build distribution
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.x"
-    - name: Install pypa/build
-      run: >-
-        python3 -m
-        pip install
-        build
-        --user
-    - name: Build a binary wheel and a source tarball
-      run: python3 -m build py
-    - name: Store the distribution packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-
-  publish-to-pypi:
-    name: >-
-      Publish Python package to PyPI
-    needs:
-    - build
+  publish:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/google-ads-api-report-fetcher
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
-
+      id-token: write
     steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Get versions and check for change
+        id: version_check
+        run: |
+          PREV_VERSION=$(git show HEAD~1:py/google_ads_api_report_fetcher/__init__.py | grep -oE "__version__ = '([0-9]+\.[0-9]+\.[0-9]+)'" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          CURRENT_VERSION=$(grep -oE "__version__ = '([0-9]+\.[0-9]+\.[0-9]+)'" py/google_ads_api_report_fetcher/__init__.py | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+          if [[ "$CURRENT_VERSION" != "$PREV_VERSION" ]]; then
+            echo "Version change detected: $PREV_VERSION -> $CURRENT_VERSION"
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No version change. Skipping publish."
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build the package
+        if: steps.version_check.outputs.should_publish == 'true'
+        run: uv build py
+
+      - name: Publish to PyPI
+        if: steps.version_check.outputs.should_publish == 'true'
+        run: uv publish py/dist/*
