@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module defining key query elements for building and parsing GAQL query."""
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ VALID_VIRTUAL_COLUMN_OPERATORS = (
   ast.BinOp,
   ast.UnaryOp,
   ast.operator,
-  ast.Num,
+  ast.Constant,
   ast.Expression,
 )
 
@@ -280,8 +283,9 @@ class QuerySpecification(
     ]
     if virtual_fields:
       fields = fields + virtual_fields
+    joined_fields = ', '.join(fields)
     query_text = (
-      f'SELECT {", ".join(fields)} '
+      f'SELECT {joined_fields} '
       f'FROM {self._extract_resource_from_query()} '
       f'{self._extract_filters()}'
     )
@@ -335,7 +339,7 @@ class QuerySpecification(
     if where_statement := re.search(
       ' (WHERE|LIMIT|ORDER BY|PARAMETERS) .+',
       self.expanded_query,
-      re.IGNORECASE,
+      flags=re.IGNORECASE,
     ):
       return where_statement.group(0)
     return ''
@@ -469,7 +473,7 @@ class QuerySpecification(
     return re.sub(r'\.', '_', column_name)
 
   def _remove_trailing_comma(self, query: str) -> str:
-    return re.sub(r',\s+from', ' FROM', query, re.IGNORECASE)
+    return re.sub(r',\s+from', ' FROM', query, flags=re.IGNORECASE)
 
   def _unformat_type_field_name(self, query: str) -> str:
     return re.sub(r'\.type_', '.type', query)
