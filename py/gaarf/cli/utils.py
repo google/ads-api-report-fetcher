@@ -17,9 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
-import logging
 import os
-import sys
 import traceback
 from collections.abc import MutableSequence, Sequence
 from typing import Any, Callable, TypedDict
@@ -27,8 +25,8 @@ from typing import Any, Callable, TypedDict
 import smart_open
 import yaml
 from dateutil import relativedelta
+from garf_executors.entrypoints import utils as garf_utils
 from google.ads.googleads import errors as google_ads_errors
-from rich import logging as rich_logging
 
 from gaarf import api_clients, query_editor
 from gaarf.io import writer
@@ -331,7 +329,6 @@ def convert_date(date_string: str) -> str:
       ValueError:
           If dynamic lookback value (:YYYYMMDD-N) is incorrect.
   """
-
   if isinstance(date_string, list) or date_string.find(':YYYY') == -1:
     return date_string
   current_date = datetime.date.today()
@@ -463,26 +460,4 @@ def postprocessor_runner(query: str, callback: Callable, logger) -> None:
     logger.error('%s generated an exception: %s', query, str(e))
 
 
-def init_logging(
-  loglevel: str = 'INFO', logger_type: str = 'local', name: str = __name__
-) -> logging.Logger:
-  if logger_type == 'rich':
-    logging.basicConfig(
-      format='%(message)s',
-      level=loglevel,
-      datefmt='%Y-%m-%d %H:%M:%S',
-      handlers=[
-        rich_logging.RichHandler(rich_tracebacks=True),
-      ],
-    )
-  else:
-    logging.basicConfig(
-      format='[%(asctime)s][%(name)s][%(levelname)s] %(message)s',
-      stream=sys.stdout,
-      level=loglevel,
-      datefmt='%Y-%m-%d %H:%M:%S',
-    )
-  logging.getLogger('google.ads.googleads.client').setLevel(logging.WARNING)
-  logging.getLogger('smart_open.smart_open_lib').setLevel(logging.WARNING)
-  logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-  return logging.getLogger(name)
+init_logging = garf_utils.init_logging

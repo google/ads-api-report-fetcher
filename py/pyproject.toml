@@ -13,7 +13,8 @@ dependencies = [
   'rich',
   'tenacity',
   'garf-core',
-  'garf-io',
+  'garf-io>=0.0.14',
+  'garf-executors',
 ]
 requires-python = ">=3.9"
 description = "Library for fetching reports from Google Ads API and saving them locally & remotely."

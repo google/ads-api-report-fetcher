@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 """Module for defing `gaarf` CLI utility.
 
 `gaarf-sql` allows to execute SQL queries in various Databases via SqlAlchemy.
@@ -20,10 +23,12 @@ from __future__ import annotations
 
 import argparse
 import functools
+import logging
 import sys
 from concurrent import futures
 
 import sqlalchemy
+from garf_executors.entrypoints import utils as garf_utils
 from garf_io import reader  # type: ignore
 
 from gaarf.cli import utils
@@ -44,6 +49,7 @@ def main():
   )
   parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
   parser.add_argument('--logger', dest='logger', default='local')
+  parser.add_argument('--log-name', dest='log_name', default='gaarf')
   parser.add_argument('--dry-run', dest='dry_run', action='store_true')
   parser.add_argument(
     '--parallel-queries', dest='parallel_queries', action='store_true'
@@ -60,8 +66,10 @@ def main():
   args = parser.parse_known_args()
   main_args = args[0]
 
-  logger = utils.init_logging(
-    loglevel=main_args.loglevel.upper(), logger_type=main_args.logger
+  logger = garf_utils.init_logging(
+    loglevel=main_args.loglevel.upper(),
+    logger_type=main_args.logger,
+    name=main_args.log_name,
   )
 
   config = utils.ConfigBuilder('gaarf-sql').build(vars(main_args), args[1])
@@ -103,6 +111,7 @@ def main():
         executor.execute, query, reader_client.read(query), config.params
       )
       utils.postprocessor_runner(query, callback, logger)
+  logging.shutdown()
 
 
 if __name__ == '__main__':

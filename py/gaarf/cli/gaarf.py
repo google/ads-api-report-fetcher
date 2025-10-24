@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import logging
 import sys
 from collections.abc import MutableSequence
 from concurrent import futures
@@ -30,6 +31,7 @@ from pathlib import Path
 
 import smart_open
 import yaml
+from garf_executors.entrypoints import utils as garf_utils
 from garf_io import reader, writer
 
 import gaarf
@@ -50,6 +52,7 @@ def main():
   parser.add_argument('--api-version', dest='api_version', default=None)
   parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
   parser.add_argument('--logger', dest='logger', default='local')
+  parser.add_argument('--log-name', dest='log_name', default='gaarf')
   parser.add_argument(
     '--customer-ids-query', dest='customer_ids_query', default=None
   )
@@ -93,8 +96,10 @@ def main():
     print(f'gaarf version {gaarf.__version__}')
     sys.exit()
 
-  logger = utils.init_logging(
-    loglevel=main_args.loglevel.upper(), logger_type=main_args.logger
+  logger = garf_utils.init_logging(
+    loglevel=main_args.loglevel.upper(),
+    logger_type=main_args.logger,
+    name=main_args.log_name,
   )
   if not main_args.query:
     logger.error('Please provide one or more queries to run')
@@ -144,7 +149,7 @@ def main():
 
   if main_args.disable_account_expansion:
     logger.info(
-      'Skipping account expansion because of ' 'disable_account_expansion flag'
+      'Skipping account expansion because of disable_account_expansion flag'
     )
     customer_ids = (
       config.account
@@ -206,6 +211,7 @@ def main():
         main_args.optimize_performance,
       )
       utils.gaarf_runner(query, callback, logger)
+  logging.shutdown()
 
 
 if __name__ == '__main__':

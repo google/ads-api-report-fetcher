@@ -22,8 +22,10 @@ and store results in local/remote storage.
 from __future__ import annotations
 
 import argparse
+import logging
 
 import yaml
+from garf_executors.entrypoints import utils as garf_utils
 from garf_io import reader, writer
 
 from gaarf import api_clients, simulation
@@ -47,6 +49,7 @@ def main():
   )
   parser.add_argument('--log', '--loglevel', dest='loglevel', default='info')
   parser.add_argument('--logger', dest='logger', default='local')
+  parser.add_argument('--log-name', dest='log_name', default='gaarf')
   parser.add_argument(
     '--customer-ids-query', dest='customer_ids_query', default=None
   )
@@ -64,8 +67,10 @@ def main():
   args = parser.parse_known_args()
   main_args = args[0]
 
-  logger = utils.init_logging(
-    loglevel=main_args.loglevel.upper(), logger_type=main_args.logger
+  logger = garf_utils.init_logging(
+    loglevel=main_args.loglevel.upper(),
+    logger_type=main_args.logger,
+    name=main_args.log_name,
   )
 
   config = utils.ConfigBuilder('gaarf').build(vars(args[0]), args[1])
@@ -95,6 +100,7 @@ def main():
       writer_client.write(report, query)
     else:
       logger.info('Cannot simulate data for query %s', query)
+  logging.shutdown()
 
 
 if __name__ == '__main__':
