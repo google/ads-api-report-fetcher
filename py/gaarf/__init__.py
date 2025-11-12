@@ -28,4 +28,4 @@ __all__ = [
   'AdsReportFetcher',
 ]
 
-__version__ = '1.17.4'
+__version__ = '1.18.0'

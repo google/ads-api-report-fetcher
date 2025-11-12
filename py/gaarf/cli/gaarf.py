@@ -70,7 +70,13 @@ def main():
     '--parallel-queries', dest='parallel_queries', action='store_true'
   )
   parser.add_argument(
+    '--parallel-accounts', dest='parallel_accounts', action='store_true'
+  )
+  parser.add_argument(
     '--no-parallel-queries', dest='parallel_queries', action='store_false'
+  )
+  parser.add_argument(
+    '--no-parallel-accounts', dest='parallel_accounts', action='store_false'
   )
   parser.add_argument(
     '--optimize-performance', dest='optimize_performance', default='NONE'
@@ -85,8 +91,15 @@ def main():
   parser.add_argument(
     '--parallel-threshold', dest='parallel_threshold', default=None, type=int
   )
+  parser.add_argument(
+    '--parallel-threshold-accounts',
+    dest='parallel_threshold_accounts',
+    default=10,
+    type=int,
+  )
   parser.set_defaults(save_config=False)
   parser.set_defaults(parallel_queries=True)
+  parser.set_defaults(parallel_accounts=True)
   parser.set_defaults(dry_run=False)
   parser.set_defaults(disable_account_expansion=False)
   args = parser.parse_known_args()
@@ -136,7 +149,12 @@ def main():
     use_proto_plus=main_args.optimize_performance
     not in ('PROTOBUF', 'BATCH_PROTOBUF'),
   )
-  ads_query_executor = executors.AdsQueryExecutor(ads_client)
+  ads_query_executor = executors.AdsQueryExecutor(
+    api_client=ads_client,
+    parallel_threshold=main_args.parallel_threshold_accounts
+    if main_args.parallel_accounts
+    else 1,
+  )
   reader_client = reader.create_reader(main_args.input)
 
   if config.customer_ids_query:

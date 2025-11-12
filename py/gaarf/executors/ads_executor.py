@@ -35,25 +35,31 @@ class AdsQueryExecutor:
   """Gets data from Ads API and writes them to local/remote storage.
 
   Attributes:
-      api_client: a client used for connecting to Ads API.
+    api_client: a client used for connecting to Ads API.
+    parallel_threshold: Maximum accounts to process in parallel.
   """
 
   def __init__(
     self,
     api_client: api_clients.GoogleAdsApiClient
     | googleads_client.GoogleAdsClient,
+    parallel_threshold: int = 10,
   ) -> None:
     """Initializes QueryExecutor.
 
     Args:
-        api_client: a client used for connecting to Ads API.
+      api_client: a client used for connecting to Ads API.
+      parallel_threshold: Maximum accounts to process in parallel.
     """
     self.api_client = api_client
+    self.parallel_threshold = parallel_threshold
 
   @property
   def report_fetcher(self) -> report_fetcher.AdsReportFetcher:
     """Initializes AdsReportFetcher to get data from Ads API."""
-    return report_fetcher.AdsReportFetcher(self.api_client)
+    return report_fetcher.AdsReportFetcher(
+      api_client=self.api_client, parallel_threshold=self.parallel_threshold
+    )
 
   async def aexecute(
     self,

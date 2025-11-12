@@ -21,9 +21,11 @@ AdsReportFetcher performs fetching data from Ads API, parsing it
 from __future__ import annotations
 
 import enum
+import functools
 import importlib
 import itertools
 import logging
+import operator
 import warnings
 from collections.abc import MutableSequence, Sequence
 from concurrent import futures
@@ -63,7 +65,8 @@ class AdsReportFetcher:
   """Class responsible for getting data from Ads API.
 
   Attributes:
-      api_client: a client used for connecting to Ads API.
+    api_client: a client used for connecting to Ads API.
+    parallel_threshold: Maximum accounts to process in parallel.
   """
 
   def __init__(
@@ -71,6 +74,7 @@ class AdsReportFetcher:
     api_client: api_clients.GoogleAdsApiClient
     | googleads_client.GoogleAdsClient
     | None = None,
+    parallel_threshold: int = 10,
     *args: str,
     **kwargs: str,
   ) -> None:
@@ -78,6 +82,7 @@ class AdsReportFetcher:
 
     Args:
       api_client: Instantiated GoogleAdsClient or GoogleAdsApiClient.
+      parallel_threshold: Maximum accounts to process in parallel.
     """
     if isinstance(api_client, googleads_client.GoogleAdsClient):
       self.api_client = api_clients.GoogleAdsApiClient.from_googleads_client(
@@ -87,6 +92,9 @@ class AdsReportFetcher:
       self.api_client = api_clients.GoogleAdsApiClient()
     else:
       self.api_client = api_client
+    self.parallel_threshold = (
+      parallel_threshold if parallel_threshold > 1 else 1
+    )
     if customer_ids := args or kwargs.get('customer_ids'):
       warnings.warn(
         '`AdsReportFetcher` will deprecate passing `customer_ids` '
@@ -208,7 +216,6 @@ class AdsReportFetcher:
         )
     else:
       customer_ids = []
-    total_results: list[list[tuple]] = []
     if not isinstance(query_specification, query_editor.QueryElements):
       query_specification = query_editor.QuerySpecification(
         text=str(query_specification),
@@ -228,45 +235,111 @@ class AdsReportFetcher:
       return builtin_report(self, accounts=customer_ids)
     optimize_strategy = OptimizeStrategy[optimize_strategy]
     parser = parsers.GoogleAdsRowParser(query_specification)
-    for customer_id in customer_ids:
-      logger.debug(
-        'Running query %s for customer_id %s',
+    if not customer_ids:
+      logger.warning(
+        'No customer_ids provided, using placeholders to infer schema '
+        'for query %s',
         query_specification.query_title,
-        customer_id,
       )
-      try:
-        results = self._parse_ads_response(
-          query_specification, customer_id, parser, optimize_strategy
-        )
-        total_results.extend(results)
-        if query_specification.is_constant_resource:
-          logger.debug('Constant resource query: running only once')
-          break
-      except googleads_exceptions.GoogleAdsException as e:
-        logger.error(
-          'Cannot execute query %s for %s due to the following error: %s',
-          query_specification.query_title,
-          customer_id,
-          e.failure.errors[0].message,
-        )
-        raise
-    if not total_results:
       results_placeholder = [
         parser.parse_ads_row(self.api_client.google_ads_row)
       ]
-      if not isinstance(self.api_client, api_clients.BaseClient):
-        logger.warning(
-          'Query %s generated zero results, using placeholders to infer schema',
-          query_specification.query_title,
-        )
-    else:
-      results_placeholder = []
-    return report.GaarfReport(
-      results=total_results,
-      column_names=query_specification.column_names,
-      results_placeholder=results_placeholder,
-      query_specification=query_specification,
+      return report.GaarfReport(
+        results=None,
+        column_names=query_specification.column_names,
+        results_placeholder=results_placeholder,
+        query_specification=query_specification,
+      )
+
+    if query_specification.is_constant_resource or len(customer_ids) == 1:
+      if query_specification.is_constant_resource:
+        logger.debug('Constant resource query: running only once')
+      return self._process_customer(
+        customer_id=customer_ids[0],
+        query_specification=query_specification,
+        parser=parser,
+        optimize_strategy=optimize_strategy,
+      )
+    with futures.ThreadPoolExecutor(
+      max_workers=self.parallel_threshold
+    ) as executor:
+      future_to_customer = {
+        executor.submit(
+          self._process_customer,
+          customer_id,
+          query_specification,
+          parser,
+          optimize_strategy,
+        ): customer_id
+        for customer_id in customer_ids
+      }
+      results = []
+
+      for future in futures.as_completed(future_to_customer):
+        try:
+          results.append(future.result())
+        except googleads_exceptions.GoogleAdsException:
+          raise
+      return functools.reduce(operator.add, results)
+
+  def _process_customer(
+    self,
+    customer_id: str,
+    query_specification: query_editor.QueryElements,
+    parser: parsers.GoogleAdsRowParser,
+    optimize_strategy: str,
+  ) -> report.GaarfReport:
+    """Fetches data from a single Ads account based on query_specification.
+
+    Args:
+      customer_id: Account from which data should be fetched.
+      query_specification: Query text that will be passed to Ads API
+        alongside column_names, customizers and virtual columns.
+      parser: Initialized GoogleAdsRowParser.
+      optimize_strategy: strategy for speeding up query execution
+        ("NONE", "PROTOBUF", "BATCH", "BATCH_PROTOBUF").
+
+    Returns:
+      GaarfReport with results of query execution.
+
+    Raises:
+      GoogleAdsException: When Google Ads API returns an error.
+    """
+    logger.debug(
+      'Running query %s for customer_id %s',
+      query_specification.query_title,
+      customer_id,
     )
+    try:
+      result = self._parse_ads_response(
+        query_specification, customer_id, parser, optimize_strategy
+      )
+      if not result:
+        results_placeholder = [
+          parser.parse_ads_row(self.api_client.google_ads_row)
+        ]
+        if not isinstance(self.api_client, api_clients.BaseClient):
+          logger.warning(
+            'Query %s generated zero results, '
+            'using placeholders to infer schema',
+            query_specification.query_title,
+          )
+      else:
+        results_placeholder = []
+      return report.GaarfReport(
+        results=result,
+        column_names=query_specification.column_names,
+        results_placeholder=results_placeholder,
+        query_specification=query_specification,
+      )
+    except googleads_exceptions.GoogleAdsException as e:
+      logger.error(
+        'Cannot execute query %s for %s due to the following error: %s',
+        query_specification.query_title,
+        customer_id,
+        e.failure.errors[0].message,
+      )
+      raise
 
   def _parse_ads_response(
     self,
@@ -475,7 +548,8 @@ class AdsReportFetcher:
     ).to_list()
     if customer_ids_query:
       query_specification = query_editor.QuerySpecification(
-        customer_ids_query
+        text=customer_ids_query,
+        title='get_customer_ids',
       ).generate()
       child_customer_ids = self.fetch(query_specification, child_customer_ids)
       child_customer_ids = [

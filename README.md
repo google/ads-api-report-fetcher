@@ -104,7 +104,7 @@ Options:
 * `disable-account-expansion` - disable MCC account expansion into child accounts (useful when you need to execute a query at MCC level or for speeding up if you provided leaf accounts).
   By default Gaarf does account expansion (even with `customer-ids-query`).
 
-* `parallel-accounts` - how one query is processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel (*NodeJS version only*, for Python - always sequentially)
+* `parallel-accounts` - how one query is processed for multiple accounts: in parallel (true) or sequentially (false). By default - in parallel.
 * `parallel-queries` - how to process queries files: all in parallel (true) or sequentially (false). By default - in parallel (*Python version only*, for NodeJS - always sequentially)
 * `parallel-threshold` - a number, maximum number of parallel queries.
 
