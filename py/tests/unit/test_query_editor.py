@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# pylint: disable=C0330, g-bad-import-order, g-multiple-import
+
 from __future__ import annotations
 
 import datetime
@@ -220,7 +223,10 @@ class TestRegularQuery:
     spec = query_editor.QuerySpecification(
       title='sample_query', text=query, args=None
     )
-    with pytest.raises(exceptions.GaarfVirtualColumnException):
+    with pytest.raises(
+      exceptions.GaarfVirtualColumnException,
+      match='Virtual attributes should be aliased: 1',
+    ):
       spec.generate()
 
   def test_incorrect_field_raises_value_error(self):

@@ -369,7 +369,7 @@ class QuerySpecification(
       customizer = {}
     if virtual_column and not alias:
       raise exceptions.GaarfVirtualColumnException(
-        'Virtual attributes should be aliased'
+        f'Virtual attributes should be aliased: {virtual_column.value}'
       )
     return ExtractedLineElements(
       field=self._format_type_field_name(field)
