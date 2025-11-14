@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from garf_core import report
+from garf.core import report
 
 
 class GaarfException(Exception):

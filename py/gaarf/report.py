@@ -23,7 +23,7 @@ Module exposes two classes:
       row in GaarfReport.
 """
 
-from garf_core import report
+from garf.core import report
 
 GaarfReport = report.GarfReport
 GaarfRow = report.GarfRow

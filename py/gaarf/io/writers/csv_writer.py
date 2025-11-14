@@ -13,6 +13,6 @@
 # limitations under the License.
 """Module for writing data with CSV."""
 
-from garf_io.writers import csv_writer
+from garf.io.writers import csv_writer
 
 CsvWriter = csv_writer.CsvWriter

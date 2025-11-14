@@ -16,7 +16,7 @@
 
 """Loads queries to be processed by Gaarf."""
 
-from garf_io import reader
+from garf.io import reader
 
 from gaarf import exceptions
 

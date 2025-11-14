@@ -13,6 +13,6 @@
 # limitations under the License.
 """Module for writing data to BigQuery."""
 
-from garf_io.writers import bigquery_writer
+from garf.io.writers import bigquery_writer
 
 BigQueryWriter = bigquery_writer.BigQueryWriter

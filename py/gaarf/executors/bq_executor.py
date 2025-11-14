@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 
 import pandas as pd
-from garf_executors import bq_executor, execution_context
+from garf.executors import bq_executor, execution_context
 
 logger = logging.getLogger(__name__)
 

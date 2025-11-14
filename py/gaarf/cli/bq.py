@@ -27,8 +27,8 @@ import logging
 import sys
 from concurrent import futures
 
-from garf_executors.entrypoints import utils as garf_utils
-from garf_io import reader  # type: ignore
+from garf.executors.entrypoints import utils as garf_utils
+from garf.io import reader  # type: ignore
 
 from gaarf.cli import utils
 from gaarf.executors import bq_executor

@@ -15,6 +15,6 @@
 
 # pylint: disable=C0330, g-bad-import-order, g-multiple-import, g-bare-generic
 
-from garf_io.writers import json_writer
+from garf.io.writers import json_writer
 
 JsonWriter = json_writer.JsonWriter

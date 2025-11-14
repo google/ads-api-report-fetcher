@@ -13,6 +13,6 @@
 # limitations under the License.
 """Module for writing data with console."""
 
-from garf_io.writers import console_writer
+from garf.io.writers import console_writer
 
 ConsoleWriter = console_writer.ConsoleWriter

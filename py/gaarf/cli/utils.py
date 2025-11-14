@@ -25,7 +25,7 @@ from typing import Any, Callable, TypedDict
 import smart_open
 import yaml
 from dateutil import relativedelta
-from garf_executors.entrypoints import utils as garf_utils
+from garf.executors.entrypoints import utils as garf_utils
 from google.ads.googleads import errors as google_ads_errors
 
 from gaarf import api_clients, query_editor

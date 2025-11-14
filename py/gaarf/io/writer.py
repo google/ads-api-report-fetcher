@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from garf_io import writer
+from garf.io import writer
 
 from gaarf import exceptions
 

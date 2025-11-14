@@ -31,8 +31,8 @@ from pathlib import Path
 
 import smart_open
 import yaml
-from garf_executors.entrypoints import utils as garf_utils
-from garf_io import reader, writer
+from garf.executors.entrypoints import utils as garf_utils
+from garf.io import reader, writer
 
 import gaarf
 from gaarf import api_clients, exceptions, executors

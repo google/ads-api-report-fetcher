@@ -13,6 +13,6 @@
 # limitations under the License.
 """Module for writing data to Google Sheets."""
 
-from garf_io.writers import sheets_writer
+from garf.io.writers import sheets_writer
 
 SheetWriter = sheets_writer.SheetWriter

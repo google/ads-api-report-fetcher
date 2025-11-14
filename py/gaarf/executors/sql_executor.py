@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from garf_executors import execution_context, sql_executor
+from garf.executors import execution_context, sql_executor
 
 
 class SqlAlchemyQueryExecutor(sql_executor.SqlAlchemyQueryExecutor):

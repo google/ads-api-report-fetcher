@@ -12,9 +12,9 @@ dependencies = [
   'typing-extensions',
   'rich',
   'tenacity',
-  'garf-core',
-  'garf-io>=0.0.14',
-  'garf-executors',
+  'garf-core>=1.0.1',
+  'garf-io>=1.0.0',
+  'garf-executors>=1.0.0',
 ]
 requires-python = ">=3.9"
 description = "Library for fetching reports from Google Ads API and saving them locally & remotely."
@@ -82,3 +82,6 @@ gaarf-bq="gaarf.cli.bq:main"
 gaarf-py-bq="gaarf.cli.bq:main"
 gaarf-simulator="gaarf.cli.simulator:main"
 gaarf-sql="gaarf.cli.sql:main"
+
+[tool.pytest]
+norecursedirs=tests/unit

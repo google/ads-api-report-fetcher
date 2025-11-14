@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableSequence
 
-from garf_io.writers import abs_writer, console_writer
+from garf.io.writers import abs_writer, console_writer
 from google.ads.googleads import client as googleads_client
 
 from gaarf import api_clients, query_editor, report_fetcher

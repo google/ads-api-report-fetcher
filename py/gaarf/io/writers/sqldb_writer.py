@@ -13,6 +13,6 @@
 # limitations under the License.
 """Module for writing data with SqlAlchemy."""
 
-from garf_io.writers import sqldb_writer
+from garf.io.writers import sqldb_writer
 
 SqlAlchemyWriter = sqldb_writer.SqlAlchemyWriter
