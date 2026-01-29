@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "google-ads-api-report-fetcher"
 dependencies = [
-  'google-ads>=25.1.0',
+  'google-ads>=29.0.0',
   'smart_open',
   'jinja2',
   'python-dateutil',
@@ -82,6 +82,3 @@ gaarf-bq="gaarf.cli.bq:main"
 gaarf-py-bq="gaarf.cli.bq:main"
 gaarf-simulator="gaarf.cli.simulator:main"
 gaarf-sql="gaarf.cli.sql:main"
-
-[tool.pytest]
-norecursedirs=tests/unit
