@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.5.0 - 2026-01-09
+- support Google Ads API v23 (updated google-ads-api to v23)
+
+## 3.4.0 - 2026-01-09
+- support Google Ads API v22 (updated google-ads-api to v22)
+
 ## 3.3.0 - 2025-08-17
 - support Google Ads API v21 (updated google-ads-api to v21)
 
