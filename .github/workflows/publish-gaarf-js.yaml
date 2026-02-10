@@ -29,18 +29,18 @@ jobs:
 
             - name: Install dependencies
               if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm ci      
+              run: npm install
 
             - name: Compile TS
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm run tsc
-                  
+
             # NOTE: setting our registry url should be done after installing deps
             - uses: actions/setup-node@v3
               with:
                 node-version: '19'
                 registry-url: 'https://wombat-dressing-room.appspot.com/'
-                
+
             - name: Publish new version
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm publish
@@ -70,11 +70,11 @@ jobs:
 
             - name: Install dependencies
               if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm ci      
+              run: npm install
 
             - name: Compile and run tests
               if: steps.cpv.outputs.is-new-version == 'true'
-              run: | 
+              run: |
                   npm run tsc
                   npm run test
 
@@ -83,7 +83,7 @@ jobs:
               with:
                 node-version: '19'
                 registry-url: 'https://wombat-dressing-room.appspot.com/'
-                
+
             - name: Publish new version
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm publish
