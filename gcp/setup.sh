@@ -208,10 +208,10 @@ deploy_functions() {
 
 
 enable_debug_logging() {
-  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
-  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
-  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
-  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs20
+  gcloud functions deploy $NAME --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs22
+  gcloud functions deploy $NAME-getcids --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs22
+  gcloud functions deploy $NAME-bq --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs22
+  gcloud functions deploy $NAME-bq-view --update-env-vars LOG_LEVEL=debug --region $REGION --source ./functions --runtime=nodejs22
 }
 
 
