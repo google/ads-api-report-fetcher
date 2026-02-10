@@ -9,3 +9,4 @@ coverage/
 dist/test/
 .npmrc
 .nycrc
+package-lock.json
