@@ -148,8 +148,8 @@ set_iam_permissions() {
 
 create_gcs() {
   echo -e "${CYAN}Creating GCS...${NC}"
-  if ! gsutil ls gs://${PROJECT_ID} > /dev/null 2> /dev/null; then
-    gsutil mb -l ${GCS_REGION} -b on gs://${PROJECT_ID}
+  if ! gcloud storage ls gs://${PROJECT_ID} > /dev/null 2> /dev/null; then
+    gcloud storage buckets create gs://${PROJECT_ID} --location ${GCS_REGION} --uniform-bucket-level-access
   fi
 }
 
