@@ -148,7 +148,11 @@ export class AdsQueryEditor implements IAdsQueryEditor {
       text += selectFields.join(', ');
     } else {
       for (const f of query.select.fields) {
-        text += f.expression.selector;
+        if (f.expression.type === 'mathExpression') {
+          text += '`' + f.expression.selector + '`';
+        } else {
+          text += f.expression.selector;
+        }
         if (f.alias) {
           text += ' AS ' + f.alias;
         }
