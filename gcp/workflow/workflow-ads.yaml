@@ -16,6 +16,7 @@ main:
           - bq_dataset: ${default(map.get(args, "bq_dataset"), "")}
           - bq_dataset_location: ${default(map.get(args, "bq_dataset_location"), "")}
           - macros: ${map.get(args, "macros")}
+          - template_params: ${map.get(args, "template_params")}
           - writer_options: ${map.get(args, "writer_options")}
           - output_path: ${default(map.get(args, "output_path"), "")}
           - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
@@ -67,6 +68,7 @@ main:
                     account: ${accounts[0]}
                     root_cid: ${root_cid}
                     macros: ${macros}
+                    template_params: ${template_params}
                     project: ${project}
                     writer: ${writer}
                     bq_dataset: ${bq_dataset}
@@ -101,6 +103,7 @@ main:
                                   account: ${account}
                                   root_cid: ${root_cid}
                                   macros: ${macros}
+                                  template_params: ${template_params}
                                   project: ${project}
                                   writer: ${writer}
                                   bq_dataset: ${bq_dataset}
@@ -161,6 +164,7 @@ executeAdsQuery:
       account,
       root_cid,
       macros,
+      template_params,
       project,
       writer,
       bq_dataset,
@@ -195,7 +199,8 @@ executeAdsQuery:
               root_cid: ${root_cid}
               output_path: ${output_path}
             body:
-              macro: ${macros}
+              macros: ${macros}
+              template_params: ${template_params}
               writer_options: ${writer_options}
             auth:
               type: OIDC

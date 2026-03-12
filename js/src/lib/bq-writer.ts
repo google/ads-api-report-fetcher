@@ -100,7 +100,7 @@ export class BigQueryWriter extends FileWriterBase {
   constructor(
     projectId: string,
     dataset: string,
-    options?: BigQueryWriterOptions
+    options?: BigQueryWriterOptions,
   ) {
     super({filePerCustomer: true, outputPath: options?.outputPath});
     const datasetLocation = options?.datasetLocation || 'us';
@@ -141,7 +141,7 @@ export class BigQueryWriter extends FileWriterBase {
     this.dataset = await getDataset(
       this.bigquery,
       this.datasetId,
-      this.datasetLocation
+      this.datasetLocation,
     );
     this.query = query;
     const schema: TableSchema = this.createSchema(query);
@@ -163,14 +163,18 @@ export class BigQueryWriter extends FileWriterBase {
     if (this.insertMethod === BigQueryInsertMethod.loadTable) {
       const tableFullName = this.getTableFullname(customerId);
       const filepath = this.getDataFilePath(`.${tableFullName}.json`);
-      const stream = this.createOutput(filepath);
-      if (this.useFilePerCustomer()) {
-        this.streamsByCustomer[customerId] = stream;
-      } else {
-        this.streamsByCustomer[''] = stream;
+      let stream = this.useFilePerCustomer()
+        ? undefined
+        : this.streamsByCustomer[''];
+      if (!stream) {
+        stream = this.createOutput(filepath);
+        if (this.useFilePerCustomer()) {
+          this.streamsByCustomer[customerId] = stream;
+        } else {
+          this.streamsByCustomer[''] = stream;
+        }
       }
       this.logger.verbose(`Temp output is ${stream.path}`);
-      await stream.deleteFile();
     } else {
       this.rowsByCustomer[customerId] = [];
     }
@@ -179,7 +183,7 @@ export class BigQueryWriter extends FileWriterBase {
   private getTableFullname(customerId: string): string {
     if (!this.tableId)
       throw new Error(
-        'tableId is not set (probably beginScript method was not called)'
+        'tableId is not set (probably beginScript method was not called)',
       );
     const tableFullName = this.query?.resource.isConstant
       ? this.tableId
@@ -194,7 +198,7 @@ export class BigQueryWriter extends FileWriterBase {
       {
         customerId: customerId,
         scriptName: this.tableId,
-      }
+      },
     );
     const table = this.dataset!.table(tableFullName);
     const output = this.getOutput(customerId);
@@ -204,7 +208,7 @@ export class BigQueryWriter extends FileWriterBase {
         schema: this.schema,
         sourceFormat: 'NEWLINE_DELIMITED_JSON',
         writeDisposition: 'WRITE_TRUNCATE',
-      }
+      },
     );
     const errors = job.status?.errors;
     if (errors && errors.length > 0) {
@@ -216,7 +220,7 @@ export class BigQueryWriter extends FileWriterBase {
       {
         customerId: customerId,
         scriptName: this.tableId,
-      }
+      },
     );
   }
 
@@ -257,7 +261,7 @@ export class BigQueryWriter extends FileWriterBase {
   private async insertRows(
     rows: Record<string, unknown>[],
     customerId: string,
-    tableFullName: string
+    tableFullName: string,
   ) {
     const tableId = this.tableId!;
     try {
@@ -299,7 +303,7 @@ export class BigQueryWriter extends FileWriterBase {
             `#${i} row:\n${JSON.stringify(err.row, null, 2)}\nError: ${
               err.errors[0].message
             }`,
-            {customerId: customerId}
+            {customerId: customerId},
           );
         }
       } else if (e.code === 404) {
@@ -319,7 +323,7 @@ export class BigQueryWriter extends FileWriterBase {
       `${rows.length} rows inserted into '${tableFullName}' table`,
       {
         customerId: customerId,
-      }
+      },
     );
   }
 
@@ -359,7 +363,7 @@ export class BigQueryWriter extends FileWriterBase {
           {
             customerId: customerId,
             scriptName: this.tableId,
-          }
+          },
         );
       }
     }
@@ -387,7 +391,7 @@ export class BigQueryWriter extends FileWriterBase {
         });
       } catch (e) {
         this.logger.error(
-          `Creation of empty table '${tableFullName}' failed: ${e}`
+          `Creation of empty table '${tableFullName}' failed: ${e}`,
         );
         throw e;
       }
@@ -418,7 +422,7 @@ export class BigQueryWriter extends FileWriterBase {
       const table_fq = await this.bqExecutor.createUnifiedView(
         this.datasetId,
         this.tableId,
-        this.customers
+        this.customers,
       );
 
       this.logger.info(`Created a union view '${table_fq}'`, {
@@ -504,7 +508,7 @@ export class BigQueryWriter extends FileWriterBase {
       }
     }
     throw new Error(
-      `Failed to create a table ${tableFullName} after ${maxRetries} attempts`
+      `Failed to create a table ${tableFullName} after ${maxRetries} attempts`,
     );
   }
 }

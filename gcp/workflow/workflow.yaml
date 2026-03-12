@@ -14,7 +14,7 @@ main:
           - gcs_bucket: ${default(map.get(args, "gcs_bucket"), project)}
           # full GCS path to google-ads.yaml (optional)
           - ads_config_path: ${default(map.get(args, "ads_config_path"), "")}
-          # Google Ads API endpoint to use: 'rest' or 'grpc'
+          # Deprecated: Google Ads API endpoint to use: 'rest' or 'grpc'
           - api: ${default(map.get(args, "api"), "rest")}
           # Google Ads API version to override
           - api_version: ${default(map.get(args, "api_version"), "")}
@@ -53,6 +53,7 @@ main:
           bq_dataset: ${default(map.get(args,"dataset"), "")}
           bq_dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "ads_macro")}
+          template_params: ${map.get(args, "ads_template_params")}
           writer_options: ${default(map.get(args, "writer_options"), map.get(args, "bq_writer_options"))}
           output_path: ${map.get(args, "output_path")}
           concurrency_limit: ${concurrency_limit}
@@ -69,6 +70,7 @@ main:
           queries_path: ${args.bq_queries_path}
           dataset_location: ${bq_dataset_location}
           macros: ${map.get(args, "bq_macro")}
+          template_params: ${map.get(args, "bq_template_params")}
           sqlParams: ${map.get(args, "bq_sql")}
     - create_completion_message:
         assign:
@@ -106,6 +108,7 @@ runAdsQueries:
       bq_dataset,
       bq_dataset_location,
       macros,
+      template_params,
       writer_options,
       output_path,
       concurrency_limit,
@@ -260,6 +263,7 @@ runAdsQueries:
                     bq_dataset: ${bq_dataset}
                     bq_dataset_location: ${bq_dataset_location}
                     macros: ${macros}
+                    template_params: ${template_params}
                     writer_options: ${writer_options}
                     output_path: ${output_path}
                     concurrency_limit: ${concurrency_limit}
@@ -310,6 +314,7 @@ runBigQueryQueries:
       gcs_bucket,
       queries_path,
       macros,
+      template_params,
       sqlParams,
       dataset_location,
     ]
@@ -386,6 +391,7 @@ runBigQueryQueries:
                       dataset_location: ${dataset_location}
                     body:
                       macro: ${macros}
+                      template_params: ${template_params}
                       sql: ${sqlParams}
                     auth:
                       type: OIDC

@@ -36,7 +36,6 @@ import {
   parseCustomerIds,
   getMemoryUsage,
   IGoogleAdsApiClient,
-  GoogleAdsRpcApiClient,
   getCustomerIds,
   filterCustomerIds,
 } from 'google-ads-api-report-fetcher';
@@ -84,12 +83,8 @@ async function main_getcids_unsafe(
     adsConfig.login_customer_id = customerIds[0];
   }
   let adsClient: IGoogleAdsApiClient;
-  if (req.query.api === 'rest') {
-    const apiVersion = <string>req.query.api_version;
-    adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
-  } else {
-    adsClient = new GoogleAdsRpcApiClient(adsConfig);
-  }
+  const apiVersion = <string>req.query.api_version;
+  adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
 
   customerIds = await getCustomerIds(adsClient, customerIds);
   let customer_ids_query = '';

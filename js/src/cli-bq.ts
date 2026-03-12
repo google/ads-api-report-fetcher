@@ -64,18 +64,18 @@ const argv = yargs(hideBin(process.argv))
   })
   .help()
   .usage(
-    'gaarf-bq - a tool for executing BigQuery queries, a companion tool for Google Ads API Report Fetcher (gaarf).'
+    'gaarf-bq - a tool for executing BigQuery queries, a companion tool for Google Ads API Report Fetcher (gaarf).',
   )
   .example(
     '$0 bq-queries/**/*.sql --project=myproject --macro.dataset=mydata',
-    'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)'
+    'Execute BigQuery queries w/o creating tables (assuming they are DDL queries, e.g. create views)',
   )
   .example(
     '$0 bq-queries/**/*.sql --config=gaarf_bq.json',
-    'Execute BigQuery queries with passing arguments via config file'
+    'Execute BigQuery queries with passing arguments via config file',
   )
   .epilog(
-    `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`
+    `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`,
   )
   .parseSync();
 
@@ -86,8 +86,8 @@ async function main() {
   if (!argv.files || !argv.files.length) {
     console.log(
       chalk.redBright(
-        'Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'
-      )
+        'Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)',
+      ),
     );
     process.exit(-1);
   }

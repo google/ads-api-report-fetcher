@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-import {enums} from 'google-ads-api';
-import {isNumber, isArray, isString, forIn, isPlainObject} from 'lodash-es';
-
-import {
-  ApiType,
-  Column,
-  Customizer,
-  CustomizerType,
-  FieldTypeKind,
-  QueryElements,
-} from './types.js';
+import {isArray, isString, forIn, isPlainObject} from 'lodash-es';
+import {Column, Customizer, CustomizerType, QueryElements} from './types.js';
 import {navigateObject, tryParseNumber} from './utils.js';
 import {ILogger} from './logger.js';
 
@@ -39,7 +30,7 @@ export interface IAdsRowParser {
   parseRow(
     row: Record<string, unknown>,
     query: QueryElements,
-    objectMode?: boolean
+    objectMode?: boolean,
   ): unknown[] | Record<string, unknown>;
 }
 
@@ -60,12 +51,14 @@ export enum ParseResultMode {
 }
 
 export function transformObject(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   obj: any,
-  convertName?: (name: string) => string
+  convertName?: (name: string) => string,
 ): Record<string, unknown> {
   // result object containing both structured and flattened fields
   const result: Record<string, unknown> = {};
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function traverse(currentObj: any, parentPath: string[] = []): any {
     if (isArray(currentObj)) {
       return currentObj.map(item => traverse(item, parentPath));
@@ -84,12 +77,14 @@ export function transformObject(
       const keyNew = convertName ? convertName(key) : key;
       const currentPath = [...parentPath, keyNew];
 
+      // Transform nested value before assigning
+      const transformedValue = traverse(value, currentPath);
+
       // Add flattened field to result
       const flattenedKey = currentPath.join('.');
-      result[flattenedKey] = value;
+      result[flattenedKey] = transformedValue;
 
-      // Transform nested value
-      transformedObj[keyNew] = traverse(value, currentPath);
+      transformedObj[keyNew] = transformedValue;
     });
 
     return transformedObj;
@@ -103,26 +98,21 @@ export function transformObject(
 }
 
 export class AdsRowParser implements IAdsRowParser {
-  constructor(
-    private apiType: ApiType,
-    private logger: ILogger
-  ) {}
+  constructor(private logger: ILogger) {}
 
   parseRow(
     row: Record<string, unknown>,
     query: QueryElements,
-    objectMode = false
+    objectMode = false,
   ) {
     // flatten the tree of object into a flat object with all properties
     const rowValues: Record<string, unknown> = transformObject(
       row,
-      this.apiType === ApiType.REST
-        ? (name: string) =>
-            name.replace(
-              CAMEL_TO_SNAKE_REGEX,
-              (letter: string) => `_${letter.toLowerCase()}`
-            )
-        : undefined
+      (name: string) =>
+        name.replace(
+          CAMEL_TO_SNAKE_REGEX,
+          (letter: string) => `_${letter.toLowerCase()}`,
+        ),
     );
 
     // process customizers and flatten row object into array
@@ -135,7 +125,7 @@ export class AdsRowParser implements IAdsRowParser {
           rowValues,
           column,
           column.customizer,
-          query
+          query,
         );
       } else {
         value = rowValues[column.expression];
@@ -148,58 +138,6 @@ export class AdsRowParser implements IAdsRowParser {
       }
     }
 
-    // post process enum (convert number to enum field names) and structs
-    if (this.apiType === ApiType.gRPC) {
-      // NOTE: gRPC API returns enums as numbers, while REST API returns strings
-      for (let i = 0; i < query.columns.length; i++) {
-        const column = query.columns[i];
-        const value: unknown = objectMode
-          ? rowValues[column.name]
-          : rowValuesArr[i];
-        const colType = column.type;
-        if (
-          colType.kind === FieldTypeKind.enum &&
-          colType.repeated &&
-          isArray(value)
-        ) {
-          for (let j = 0; j < value.length; j++) {
-            const subval = value[j];
-            if (isNumber(subval)) {
-              const enumType = (
-                enums as Record<string, Record<number, string>>
-              )[colType.typeName];
-              if (enumType) {
-                value[j] = enumType[subval];
-              }
-            }
-          }
-        } else if (colType.kind === FieldTypeKind.enum) {
-          if (isNumber(value)) {
-            const enumType = (enums as Record<string, Record<number, string>>)[
-              colType.typeName
-            ];
-            if (enumType) {
-              if (objectMode) {
-                rowValues[column.name] = enumType[value];
-              } else {
-                rowValuesArr[i] = enumType[value];
-              }
-            }
-          }
-        } else if (colType.kind === FieldTypeKind.struct) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (value && (value as any).toJSON) {
-            if (objectMode) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              rowValues[column.name] = (value as any).toJSON();
-            } else {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              rowValuesArr[i] = (value as any).toJSON();
-            }
-          }
-        }
-      }
-    }
     return objectMode ? rowValues : rowValuesArr;
   }
 
@@ -207,7 +145,7 @@ export class AdsRowParser implements IAdsRowParser {
     row: Record<string, unknown>,
     column: Column,
     customizer: Customizer,
-    query: QueryElements
+    query: QueryElements,
   ): unknown {
     let value;
     if (customizer.type === CustomizerType.VirtualColumn) {
@@ -218,7 +156,7 @@ export class AdsRowParser implements IAdsRowParser {
           value = null;
         } else {
           this.logger.warn(
-            `Evaluation of expression for column ${column.name} failed: ${e.message}, expression: ${column.expression}`
+            `Evaluation of expression for column ${column.name} failed: ${e.message}, expression: ${column.expression}`,
           );
         }
       }
@@ -267,7 +205,7 @@ export class AdsRowParser implements IAdsRowParser {
         } else {
           throw new Error(
             `Unexpected value for ResourceIndex source: ${JSON.stringify(value)}.` +
-              'We expect either a string or a struct with fields name/text/asset/value'
+              'We expect either a string or a struct with fields name/text/asset/value',
           );
         }
       }

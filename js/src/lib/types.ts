@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /**
  * Copyright 2025 Google LLC
  *
@@ -115,12 +116,8 @@ export interface IQueryExecutor {
   execute(
     query: QueryElements,
     customerId: string,
-    executor: AdsQueryExecutor
+    executor: AdsQueryExecutor,
   ): AsyncGenerator<Record<string, unknown>>;
-}
-export enum ApiType {
-  gRPC = 'gRPC',
-  REST = 'REST',
 }
 
 export class QueryElements {
@@ -134,7 +131,7 @@ export class QueryElements {
     query: string,
     columns: Column[],
     resource: ResourceInfo,
-    functions: Record<string, Function>
+    functions: Record<string, Function>,
   ) {
     this.queryText = query;
     this.columns = columns;
@@ -174,7 +171,7 @@ export interface IResultWriter {
   addRow(
     customerId: string,
     parsedRow: unknown[],
-    rawRow: Record<string, unknown>
+    rawRow: Record<string, unknown>,
   ): Promise<void> | void;
   endCustomer(customerId: string): Promise<void> | void;
   endScript(): Promise<void> | void;

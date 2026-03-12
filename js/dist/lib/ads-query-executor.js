@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { AdsApiVersion } from './ads-query-editor.js';
 import { getLogger } from './logger.js';
 import { executeWithRetry, getElapsed, getMemoryUsage } from './utils.js';
 import { mapLimit } from 'async';
-export { AdsApiVersion };
 /**
  * The main component for Adq query execution.
  */
@@ -25,13 +23,14 @@ export class AdsQueryExecutor {
     constructor(client) {
         this.client = client;
         this.editor = client.getQueryEditor();
+        this.apiVersion = client.apiVersion;
         this.parser = client.getRowParser();
         this.logger = getLogger();
         this.maxRetryCount = AdsQueryExecutor.DEFAULT_RETRY_COUNT;
     }
-    parseQuery(queryText, scriptName, params) {
+    async parseQuery(queryText, scriptName, params) {
         try {
-            return this.editor.parseQuery(queryText, params === null || params === void 0 ? void 0 : params.macros, params === null || params === void 0 ? void 0 : params.templateParams);
+            return await this.editor.parseQuery(queryText, params === null || params === void 0 ? void 0 : params.macros, params === null || params === void 0 ? void 0 : params.templateParams);
         }
         catch (e) {
             e.message = (scriptName ? scriptName + ': ' : '') + e.message;
@@ -55,12 +54,12 @@ export class AdsQueryExecutor {
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
         const threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
         if (customers.length > 1) {
-            this.logger.verbose(`Executing (API ${AdsApiVersion}) '${scriptName}' query for ${customers.length} accounts in ${sync ? 'synchronous' : 'parallel'} mode`, { scriptName });
+            this.logger.verbose(`Executing (API ${this.apiVersion}) '${scriptName}' query for ${customers.length} accounts in ${sync ? 'synchronous' : 'parallel'} mode`, { scriptName });
         }
         else {
-            this.logger.verbose(`Executing (API ${AdsApiVersion}) '${scriptName}' query for single account (${customers[0]})`);
+            this.logger.verbose(`Executing (API ${this.apiVersion}) '${scriptName}' query for single account (${customers[0]})`);
         }
-        const query = this.parseQuery(queryText, scriptName, params);
+        const query = await this.parseQuery(queryText, scriptName, params);
         const isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {
@@ -123,7 +122,7 @@ export class AdsQueryExecutor {
      */
     async *executeGen(scriptName, queryText, customers, params, options) {
         const skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
-        const query = this.parseQuery(queryText, scriptName, params);
+        const query = await this.parseQuery(queryText, scriptName, params);
         const isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {

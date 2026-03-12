@@ -17,20 +17,21 @@
 /**
  * Cloud Function 'gaarf' - executes Ads query (supplied either via body or as a GCS path) and writes data to BigQuery (or other writer)
  * arguments:
- *  - (required) ads config - different sources are supported, see `getAdsConfig` function
+ *  - (required) ads_config - different sources are supported, see `getAdsConfig` function
  *  - writer - writer to use: "bq", "json", "csv". By default - "bq" (BigQuery)
+ *  - writer_options - writer options (object)
  *  - bq_dataset - (can be taken from envvar DATASET) output BQ dataset id
  *  - bq_project_id - BigQuery project id, be default the current project is used
  *  - customer_id - Ads customer id (a.k.a. CID), can be taken from google-ads.yaml if specified
  *  - expand_mcc - true to expand account in `customer_id` argument. By default (if false) it also disables creating union views.
  *  - bq_dataset_location - BigQuery dataset location ('us' or 'europe'), optional, by default 'us' is used
  *  - output_path - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
+ *  - schema_dir - path for Gaarf schema location
  */
 import {
   AdsQueryExecutor,
   BigQueryWriter,
   BigQueryWriterOptions,
-  GoogleAdsRpcApiClient,
   getMemoryUsage,
   getCustomerIds,
   GoogleAdsApiConfig,
@@ -107,6 +108,10 @@ async function main_unsafe(
   projectId =
     <string>req.query.bq_project_id || process.env.PROJECT_ID || projectId;
 
+  if (req.query.schema_dir) {
+    process.env.GAARF_SCHEMA_DIR = req.query.schema_dir as string;
+  }
+
   const customerId = req.query.customer_id || adsConfig.customer_id;
   if (!customerId)
     throw new Error(
@@ -117,12 +122,8 @@ async function main_unsafe(
   }
 
   let adsClient: IGoogleAdsApiClient;
-  if ((req.query.api as string)?.toLocaleLowerCase() === 'rest') {
-    const apiVersion = <string>req.query.api_version;
-    adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
-  } else {
-    adsClient = new GoogleAdsRpcApiClient(adsConfig);
-  }
+  const apiVersion = <string>req.query.api_version;
+  adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
 
   const {queryText, scriptName} = await getScript(req, logger);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
@@ -131,7 +132,7 @@ async function main_unsafe(
   );
   ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;
   logger.info(
-    `Running Cloud Function ${functionName}, Ads API ${adsClient.apiType} ${
+    `Running Cloud Function ${functionName}, Ads API ${adsClient.apiVersion} ${
       adsClient.apiVersion
     }, ${
       req.query.expand_mcc
@@ -161,19 +162,21 @@ async function main_unsafe(
   const executor = new AdsQueryExecutor(adsClient);
   const writer = getQueryWriter(req, projectId);
 
-  logger.info(`Starting executing script via Gaarf (${adsClient.apiType})`, {
+  // NOTE: 'macro' is deprecated but still used
+  const macros = req.body.macros || req.body.macro;
+  logger.info(`Starting executing script via Gaarf`, {
     customers,
     scriptName,
     queryText,
-    macro: req.body.macro,
-    templateParams: req.body.templateParams,
+    macro: macros,
+    templateParams: req.body.template_params,
   });
 
   const result = await executor.execute(
     scriptName,
     queryText,
     customers,
-    {macros: req.body.macro, templateParams: req.body.templateParams},
+    {macros: macros, templateParams: req.body.template_params},
     writer
   );
 

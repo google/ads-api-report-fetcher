@@ -72,7 +72,7 @@ export class ConsoleQueryReader implements IQueryReader {
         script = script.substring(scriptName.length + 1);
       }
       this.logger.info(
-        `Processing inline query ${scriptName}:\n ${chalk.gray(script)}`
+        `Processing inline query ${scriptName}:\n ${chalk.gray(script)}`,
       );
       const item = {name: scriptName, text: script};
       yield item;

@@ -23,7 +23,6 @@ import yargs from 'yargs';
 import {hideBin} from 'yargs/helpers';
 
 import {
-  GoogleAdsRpcApiClient,
   GoogleAdsApiConfig,
   GoogleAdsRestApiClient,
   IGoogleAdsApiClient,
@@ -31,8 +30,8 @@ import {
 import {
   AdsQueryExecutor,
   AdsQueryExecutorOptions,
-  AdsApiVersion,
 } from './lib/ads-query-executor.js';
+import {AdsApiDefaultVersion} from './lib/ads-api-schema.js';
 import {
   BigQueryInsertMethod,
   BigQueryWriter,
@@ -266,14 +265,9 @@ const argv = yargs(hideBin(process.argv))
     type: 'boolean',
     description: 'Output GAQL quesries to console before execution',
   })
-  .option('api', {
-    type: 'string',
-    choices: ['grpc', 'rest'],
-    description: 'API to use: gRPC or REST',
-  })
   .option('api-version', {
     type: 'string',
-    description: 'API versin (supported only for REST API)',
+    description: 'API version',
   })
   .group(
     [
@@ -289,7 +283,7 @@ const argv = yargs(hideBin(process.argv))
       'bq.array-separator',
       'bq.key-file-path',
     ],
-    'BigQuery writer options:'
+    'BigQuery writer options:',
   )
   .group(
     [
@@ -298,7 +292,7 @@ const argv = yargs(hideBin(process.argv))
       'csv.array-separator',
       'csv.quoted',
     ],
-    'CSV writer options:'
+    'CSV writer options:',
   )
   .group(
     [
@@ -307,7 +301,7 @@ const argv = yargs(hideBin(process.argv))
       'json.format',
       'json.value-format',
     ],
-    'JSON writer options:'
+    'JSON writer options:',
   )
   .group(['console.transpose', 'console.page_size'], 'Console writer options:')
   .env('GAARF')
@@ -320,22 +314,22 @@ const argv = yargs(hideBin(process.argv))
     return JSON.parse(content);
   })
   .usage(
-    `Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${AdsApiVersion}.`
+    `Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${AdsApiDefaultVersion}.`,
   )
   .example(
     '$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds',
-    'Execute ads queries and upload results to BigQuery, table per script'
+    'Execute ads queries and upload results to BigQuery, table per script',
   )
   .example(
     '$0 queries/**/*.sql --output=csv --csv.destination-folder=output',
-    'Execute ads queries and output results to csv files, one per script'
+    'Execute ads queries and output results to csv files, one per script',
   )
   .example(
     '$0 queries/**/*.sql --config=gaarf.json',
-    'Execute ads queries with passing arguments via config file'
+    'Execute ads queries with passing arguments via config file',
   )
   .epilog(
-    `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`
+    `(c) Google 2022-${new Date().getFullYear()}. Not officially supported product.`,
   )
   // TODO: .completion()
   .parseSync();
@@ -358,7 +352,7 @@ function getWriter(): IResultWriter {
     // TODO: move all options to BigQueryWriterOptions
     if (!argv.bq) {
       console.warn(
-        'For BigQuery writer (---output=bq) you should specify at least a dataset id (--bq.dataset)'
+        'For BigQuery writer (---output=bq) you should specify at least a dataset id (--bq.dataset)',
       );
       process.exit(-1);
     }
@@ -367,14 +361,14 @@ function getWriter(): IResultWriter {
     const dataset = bq_opts.dataset;
     if (!dataset) {
       console.warn(
-        'bq.dataset option should be specified (BigQuery dataset id)'
+        'bq.dataset option should be specified (BigQuery dataset id)',
       );
       process.exit(-1);
     }
     const projectId = bq_opts.project;
     if (!projectId) {
       console.warn(
-        "GCP project id was not specified explicitly (bq.project option), so we're using the current default project"
+        "GCP project id was not specified explicitly (bq.project option), so we're using the current default project",
       );
     }
     const opts: BigQueryWriterOptions = {};
@@ -410,16 +404,7 @@ function getReader(): IQueryReader {
 }
 
 function getApiClient(adsConfig: GoogleAdsApiConfig): IGoogleAdsApiClient {
-  let client;
-  if (argv.api === 'rest') {
-    client = new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
-  } else {
-    client = new GoogleAdsRpcApiClient(adsConfig);
-    if (argv.apiVersion) {
-      console.warn('api-version is not supported for gRPC API (api=grpc)');
-    }
-  }
-  return client;
+  return new GoogleAdsRestApiClient(adsConfig, argv.apiVersion as string);
 }
 
 async function main() {
@@ -450,8 +435,8 @@ async function main() {
     if (argv.loglevel !== 'off') {
       console.log(
         chalk.red(
-          "Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting"
-        )
+          "Neither Ads API config file was specified ('ads-config' agrument) nor ads.* arguments (either explicitly or via config files) nor google-ads.yaml found. Exiting",
+        ),
       );
     }
     process.exit(-1);
@@ -465,8 +450,8 @@ async function main() {
         developer_token: '<hidden>',
       }),
       null,
-      2
-    )
+      2,
+    ),
   );
 
   const customerIds = parseCustomerIds(argv.account, adsConfig);
@@ -482,7 +467,7 @@ async function main() {
   }
 
   const client = getApiClient(adsConfig);
-  logger.info(`Using ${client.apiType} API (${client.apiVersion})`);
+  logger.info(`Using REST API (${client.apiVersion})`);
 
   const executor = new AdsQueryExecutor(client);
 
@@ -514,8 +499,8 @@ async function main() {
     if (argv.loglevel !== 'off') {
       console.log(
         chalk.redBright(
-          'Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)'
-        )
+          'Please specify a positional argument with a file path mask for queries (e.g. ./ads-queries/**/*.sql)',
+        ),
       );
     }
     process.exit(-1);
@@ -538,14 +523,14 @@ async function main() {
     customer_ids_query = <string>argv.customer_ids_query;
   } else if (argv.customer_ids_query_file) {
     customer_ids_query = await getFileContent(
-      <string>argv.customer_ids_query_file
+      <string>argv.customer_ids_query_file,
     );
   }
 
   let customers: string[];
   if (argv.disable_account_expansion) {
     logger.info(
-      'Skipping account expansion because of disable_account_expansion flag'
+      'Skipping account expansion because of disable_account_expansion flag',
     );
     customers = customerIds;
   } else {
@@ -553,13 +538,13 @@ async function main() {
     logger.info(
       `Expanding customer ids ${
         customer_ids_query ? '(using custom query)' : ''
-      }`
+      }`,
     );
     customers = await getCustomerIds(client, customerIds);
     logger.verbose(
       `Customer ids from the root account(s) ${customerIds.join(',')} (${
         customers.length
-      }):`
+      }):`,
     );
     logger.verbose(customers);
     if (customer_ids_query) {
@@ -569,11 +554,11 @@ async function main() {
         customers = await filterCustomerIds(
           client,
           customers,
-          customer_ids_query
+          customer_ids_query,
         );
       } catch (e) {
         logger.error(
-          'Fetching customer ids using customer_ids_query failed: ' + e
+          'Fetching customer ids using customer_ids_query failed: ' + e,
         );
         process.exit(-1);
       }
@@ -609,18 +594,18 @@ async function main() {
       customers,
       {macros, templateParams},
       writer,
-      options
+      options,
     );
     const elapsed_script = getElapsed(started_script);
     logger.info(
       `Query from ${chalk.gray(
-        query.name
-      )} processing for all customers completed. Elapsed: ${elapsed_script}`
+        query.name,
+      )} processing for all customers completed. Elapsed: ${elapsed_script}`,
     );
   }
   const elapsed = getElapsed(started);
   logger.info(
-    chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`)
+    chalk.green('All done!') + ' ' + chalk.gray(`Elapsed: ${elapsed}`),
   );
 }
 
@@ -631,8 +616,8 @@ async function loadAdsConfig(configFilepath: string) {
     if (argv.loglevel !== 'off') {
       console.log(
         chalk.red(
-          `Failed to load Ads API configuration from ${configFilepath}: ${e}`
-        )
+          `Failed to load Ads API configuration from ${configFilepath}: ${e}`,
+        ),
       );
     }
     process.exit(-1);

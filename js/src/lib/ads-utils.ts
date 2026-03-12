@@ -28,7 +28,7 @@ import {AdsQueryExecutor} from './ads-query-executor.js';
  */
 export function parseCustomerIds(
   customerId: string | undefined,
-  adsConfig: GoogleAdsApiConfig
+  adsConfig: GoogleAdsApiConfig,
 ) {
   let customerIds: string[] | undefined;
   if (!customerId) {
@@ -67,7 +67,7 @@ export function parseCustomerIds(
  * @returns Ads credentials
  */
 export async function loadAdsConfigFromFile(
-  configFilepath: string
+  configFilepath: string,
 ): Promise<GoogleAdsApiConfig> {
   try {
     const content = await getFileContent(configFilepath);
@@ -87,7 +87,7 @@ export async function loadAdsConfigFromFile(
     };
   } catch (e) {
     throw new Error(
-      `Failed to load Ads API configuration from ${configFilepath}: ${e}`
+      `Failed to load Ads API configuration from ${configFilepath}: ${e}`,
     );
   }
 }
@@ -108,7 +108,7 @@ export interface CustomerInfo {
  */
 export async function getCustomerInfo(
   adsClient: IGoogleAdsApiClient,
-  customerId: string
+  customerId: string,
 ): Promise<CustomerInfo> {
   const queryText = `SELECT
       customer_client.id,
@@ -124,12 +124,12 @@ export async function getCustomerInfo(
   //
   const queryText2 = 'SELECT customer.descriptive_name FROM customer';
   let customer: CustomerInfo | undefined = undefined;
-  const query = adsClient.getQueryEditor().parseQuery(queryText);
-  const query2 = adsClient.getQueryEditor().parseQuery(queryText2);
+  const query = await adsClient.getQueryEditor().parseQuery(queryText);
+  const query2 = await adsClient.getQueryEditor().parseQuery(queryText2);
   const executor = new AdsQueryExecutor(adsClient);
   const result = await executor.executeQueryAndParseToObjects(
     query,
-    customerId
+    customerId,
   );
   for (const row of result.rows!) {
     const cid = row['id'].toString();
@@ -162,7 +162,7 @@ export async function getCustomerInfo(
  */
 export async function getCustomerIds(
   adsClient: IGoogleAdsApiClient,
-  customerId: string | string[]
+  customerId: string | string[],
 ): Promise<string[]> {
   const queryText = `SELECT
       customer_client.id as cid
@@ -176,7 +176,7 @@ export async function getCustomerIds(
   }
   const all_ids = [];
   const executor = new AdsQueryExecutor(adsClient);
-  const query = adsClient.getQueryEditor().parseQuery(queryText);
+  const query = await adsClient.getQueryEditor().parseQuery(queryText);
   for (const cid of customerId) {
     const res = await executor.executeQueryAndParse(query, cid);
     const ids = res!.rows!.map(row => row[0].toString());
@@ -195,9 +195,9 @@ export async function getCustomerIds(
 export async function filterCustomerIds(
   adsClient: IGoogleAdsApiClient,
   ids: string[],
-  customer_ids_query: string
+  customer_ids_query: string,
 ): Promise<string[]> {
-  const query = adsClient.getQueryEditor().parseQuery(customer_ids_query);
+  const query = await adsClient.getQueryEditor().parseQuery(customer_ids_query);
   const accounts: Set<string> = new Set();
   const executor = new AdsQueryExecutor(adsClient);
   for (const id of ids) {

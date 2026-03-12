@@ -169,6 +169,26 @@ function getFullPropertyChain(node) {
     }
     return null;
 }
+export function inferMathExprType(node, dummyScope) {
+    try {
+        const compiled = node.compile();
+        const result = compiled.evaluate(dummyScope);
+        if (typeof result === 'number') {
+            return Number.isInteger(result) ? 'int64' : 'double';
+        }
+        else if (typeof result === 'boolean') {
+            return 'bool';
+        }
+        else if (typeof result === 'string') {
+            return 'string';
+        }
+    }
+    catch (e) {
+        // If evaluation fails with dummy scope (e.g. division by zero, missing property), default to string
+        console.warn('Type inference failed, defaulting to string:', e);
+    }
+    return 'string';
+}
 /**
  * Extract all field accesses from a mathjs expression.
  * @param node a mathjs ast node
@@ -222,6 +242,12 @@ export function extractFieldAccesses(node) {
             const chain = getFullPropertyChain(node);
             if (chain) {
                 fieldAccesses.add(chain);
+            }
+            else {
+                traverse(node.object);
+                if (node.index && node.index.dimensions) {
+                    node.index.dimensions.forEach((dim) => traverse(dim));
+                }
             }
         }
         if (isRangeNode(node)) {

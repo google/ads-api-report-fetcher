@@ -139,7 +139,7 @@ class Output implements IOutput {
   constructor(
     path: string,
     stream: stream.Writable,
-    getStorageFile: (() => File) | undefined
+    getStorageFile: (() => File) | undefined,
   ) {
     this.path = path;
     this.stream = stream;
@@ -273,7 +273,7 @@ export abstract class FileWriterBase implements IResultWriter {
       };
       writeStream.on('error', e => {
         this.logger.error(
-          `Error on writing to remote stream ${filePath}: ${e}`
+          `Error on writing to remote stream ${filePath}: ${e}`,
         );
       });
     } else {
@@ -297,7 +297,7 @@ export abstract class FileWriterBase implements IResultWriter {
   async addRow(
     customerId: string,
     parsedRow: unknown[],
-    rawRow: Record<string, unknown>
+    rawRow: Record<string, unknown>,
   ): Promise<void> {
     let firstRow;
     if (!parsedRow || parsedRow.length === 0) return;
@@ -320,7 +320,7 @@ export abstract class FileWriterBase implements IResultWriter {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     rawRow: Record<string, unknown>,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    firstRow: boolean
+    firstRow: boolean,
   ): Promise<void> {}
 
   async endCustomer(customerId: string): Promise<void> {
@@ -354,7 +354,7 @@ export abstract class FileWriterBase implements IResultWriter {
     await new Promise((resolve, reject) => {
       stream.once('close', () => {
         this.logger.debug(
-          `Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`
+          `Closed stream ${output.path}, exists: ${fs.existsSync(output.path)}`,
         );
         stream.removeAllListeners('error');
         resolve(null);
@@ -412,7 +412,7 @@ export class JsonWriter extends FileWriterBase {
 
   protected serializeRow(
     parsedRow: unknown[],
-    rawRow: Record<string, unknown>
+    rawRow: Record<string, unknown>,
   ) {
     let rowObj: unknown;
     if (this.valueFormat === JsonValueFormat.raw) {
@@ -420,7 +420,7 @@ export class JsonWriter extends FileWriterBase {
     } else if (this.valueFormat === JsonValueFormat.objects) {
       const obj = this.query!.columnNames.reduce(
         (obj, key, index) => ({...obj, [key]: parsedRow[index]}),
-        {}
+        {},
       );
       rowObj = obj;
     } else {
@@ -430,7 +430,7 @@ export class JsonWriter extends FileWriterBase {
     const content = JSON.stringify(
       rowObj,
       null,
-      this.formatted ? 2 : undefined
+      this.formatted ? 2 : undefined,
     );
     return content;
   }
@@ -439,7 +439,7 @@ export class JsonWriter extends FileWriterBase {
     customerId: string,
     parsedRow: unknown[],
     rawRow: Record<string, unknown>,
-    firstRow: boolean
+    firstRow: boolean,
   ) {
     let content = '';
     if (firstRow) {
@@ -510,7 +510,7 @@ export class CsvWriter extends FileWriterBase {
     customerId: string,
     parsedRow: unknown[],
     rawRow: Record<string, unknown>,
-    firstRow: boolean
+    firstRow: boolean,
   ) {
     let opts = this.csvOptions;
     if (firstRow) {
@@ -531,7 +531,7 @@ export class NullWriter implements IResultWriter {
   addRow(
     customerId: string,
     parsedRow: unknown[],
-    rawRow: Record<string, unknown>
+    rawRow: Record<string, unknown>,
   ): void {}
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   endCustomer(customerId: string): void | Promise<void> {}

@@ -31,5 +31,5 @@ export * from './lib/utils.js';
 export * from './lib/ads-utils.js';
 
 // for backward-compatibility
-export {GoogleAdsRpcApiClient as GoogleAdsApiClient} from './lib/ads-api-client.js';
+export {GoogleAdsRestApiClient as GoogleAdsApiClient} from './lib/ads-api-client.js';
 export {loadAdsConfigFromFile as loadAdsConfigYaml} from './lib/ads-utils.js';

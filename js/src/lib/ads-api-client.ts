@@ -14,30 +14,23 @@
  * limitations under the License.
  */
 
-import {Customer, errors, GoogleAdsApi} from 'google-ads-api';
 import {GoogleAuth} from 'google-auth-library';
-import {createRequire} from 'module';
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line n/no-extraneous-require
-const ads_protos = require('google-ads-node/build/protos/protos.json');
-const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
-const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
 import {executeWithRetry} from './utils.js';
 import {getLogger, ILogger} from './logger.js';
 import axios from 'axios';
-import {ApiType} from './types.js';
+
 import {AdsQueryEditor, IAdsQueryEditor} from './ads-query-editor.js';
 import {AdsRowParser, IAdsRowParser} from './ads-row-parser.js';
+import {
+  IAdsApiSchema,
+  AdsApiSchemaRest,
+  AdsApiDefaultVersion,
+} from './ads-api-schema.js';
 
 /**
  * Google Ads API abstraction.
  */
 export interface IGoogleAdsApiClient {
-  /**
-   * API enpoint type (REST or RPC).
-   */
-  get apiType(): ApiType;
-
   /**
    * Current API version.
    */
@@ -60,7 +53,7 @@ export interface IGoogleAdsApiClient {
    */
   executeQueryStream(
     query: string,
-    customerId: string
+    customerId: string,
   ): AsyncGenerator<Record<string, unknown>>;
 
   /**
@@ -71,7 +64,7 @@ export interface IGoogleAdsApiClient {
    */
   executeQuery(
     query: string,
-    customerId: string
+    customerId: string,
   ): Promise<Record<string, unknown>[]>;
 }
 
@@ -89,18 +82,13 @@ export type GoogleAdsApiConfig = {
 };
 
 export class GoogleAdsError extends Error {
-  failure: errors.GoogleAdsFailure;
   query?: string;
   account?: string;
   retryable: boolean;
   logged = false;
 
-  constructor(
-    message: string | null | undefined,
-    failure: errors.GoogleAdsFailure
-  ) {
+  constructor(message: string | null | undefined) {
     super(message || 'Unknown error on calling Google Ads API occurred');
-    this.failure = failure;
     this.retryable = false;
   }
 }
@@ -110,218 +98,40 @@ export class GoogleAdsError extends Error {
  */
 export abstract class GoogleAdsApiClientBase implements IGoogleAdsApiClient {
   adsConfig: GoogleAdsApiConfig;
-  _apiType: ApiType;
   apiVersion: string;
   logger: ILogger;
+  schema: IAdsApiSchema;
 
-  constructor(
-    adsConfig: GoogleAdsApiConfig,
-    apiType: ApiType,
-    apiVersion?: string
-  ) {
+  constructor(adsConfig: GoogleAdsApiConfig, apiVersion?: string) {
     if (!adsConfig) {
       throw new Error('GoogleAdsApiConfig instance was not passed');
     }
     this.adsConfig = adsConfig;
-    this._apiType = apiType;
     this.logger = getLogger();
     if (apiVersion && !apiVersion.startsWith('v')) {
       apiVersion = 'v' + apiVersion;
     }
-    this.apiVersion = apiVersion || protoVer;
-  }
-
-  get apiType() {
-    return this._apiType;
+    this.apiVersion = apiVersion || AdsApiDefaultVersion;
+    this.schema = new AdsApiSchemaRest(this.apiVersion);
   }
 
   getQueryEditor(): IAdsQueryEditor {
-    return new AdsQueryEditor(this.apiType, this.apiVersion);
+    return new AdsQueryEditor(this.schema);
   }
 
   getRowParser(): IAdsRowParser {
-    return new AdsRowParser(this.apiType, this.logger);
+    return new AdsRowParser(this.logger);
   }
 
   abstract executeQueryStream(
     query: string,
-    customerId: string
+    customerId: string,
   ): AsyncGenerator<Record<string, unknown>>;
 
   abstract executeQuery(
     query: string,
-    customerId: string
-  ): Promise<Record<string, unknown>[]>;
-}
-
-/**
- * Google Ads API client using gRPC API (library opteo/google-ads-api).
- */
-export class GoogleAdsRpcApiClient
-  extends GoogleAdsApiClientBase
-  implements IGoogleAdsApiClient
-{
-  client: GoogleAdsApi;
-  customers: Record<string, Customer>;
-
-  constructor(adsConfig: GoogleAdsApiConfig) {
-    super(adsConfig, ApiType.gRPC);
-    this.client = new GoogleAdsApi({
-      client_id: adsConfig.client_id!,
-      client_secret: adsConfig.client_secret!,
-      developer_token: adsConfig.developer_token,
-    });
-    this.customers = {};
-  }
-
-  protected getCustomer(customerId: string): Customer {
-    let customer: Customer;
-    if (!customerId) {
-      throw new Error('Customer id should be specified ');
-    }
-    customer = this.customers[customerId];
-    if (!customer) {
-      customer = this.client.Customer({
-        customer_id: customerId,
-        login_customer_id: this.adsConfig.login_customer_id,
-        refresh_token: this.adsConfig.refresh_token!,
-      });
-      this.customers[customerId] = customer;
-    }
-    return customer;
-  }
-
-  protected handleGoogleAdsError(
-    error: errors.GoogleAdsFailure | Error,
     customerId: string,
-    query?: string
-  ) {
-    try {
-      console.error(error);
-      this.logger.error(
-        `An error occurred on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
-          JSON.stringify(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (error as any).toJSON
-              ? (<errors.GoogleAdsFailure>error).toJSON()
-              : error,
-            null,
-            2
-          ),
-        {customerId, query}
-      );
-    } catch (e) {
-      // a very unfortunate situation
-      console.error(e);
-      this.logger.error(
-        `An error occurred on executing query and on logging it afterwards: ${query}\n.Logging error: ${e}`,
-        {customerId, query, originalError: error}
-      );
-    }
-    if (error instanceof errors.GoogleAdsFailure && error.errors) {
-      const message = error.errors.length
-        ? error.errors[0].message
-        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (error as any).message || 'Unknown GoogleAdsFailure error';
-      const ex = new GoogleAdsError(message, error);
-      if (error.errors.length) {
-        if (
-          error.errors[0].error_code?.internal_error ||
-          error.errors[0].error_code?.quota_error
-        ) {
-          ex.retryable = true;
-        }
-      } else {
-        // it's an unknown error (no `errors` collection), it happens sometime
-        // we'll treat such errors as retyable
-        ex.retryable = true;
-      }
-      ex.account = customerId;
-      ex.query = query;
-      ex.logged = true;
-      this.logger.debug(
-        `API error parsed into GoogleAdsFailure: ${message}, error_code: ${
-          error.errors ? error.errors[0]?.error_code : ''
-        })`,
-        {customerId, query}
-      );
-      return ex;
-    } else {
-      // it could be an error from gRPC
-      // we expect an Error instance with interface of ServiceError from @grpc/grpc-js library
-      // We used to handle only a subset of error by error code
-      // (see status codes: https://grpc.github.io/grpc/core/md_doc_statuscodes.html)
-      // particularly 14 (unavailable), 13 (internal server error),
-      // 8(RESOURCE_EXHAUSTED), 4 (DEADLINE_EXCEEDED)
-      // But there was always something new that we didn't expect, so
-      // in the end it seems much safer to treat any error not from the API
-      // server as transient and allow retrying.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error as any).retryable = true;
-      return error;
-    }
-  }
-
-  async executeQuery(
-    query: string,
-    customerId: string
-  ): Promise<Record<string, unknown>[]> {
-    const customer = this.getCustomer(customerId);
-    return executeWithRetry(
-      async () => {
-        try {
-          // actual type is services.IGoogleAdsRow[]
-          return await customer.query(query);
-        } catch (e) {
-          throw (
-            this.handleGoogleAdsError(
-              <errors.GoogleAdsFailure>e,
-              customerId,
-              query
-            ) || e
-          );
-        }
-      },
-      (error, attempt) => {
-        const retry = attempt <= 3 && error.retryable;
-        this.logger.verbose(
-          retry
-            ? `Retrying on transient error, attempt ${attempt}, error: ${error}`
-            : `Breaking on ${
-                error.retryable ? 'retriable' : 'non-retriable'
-              } error, attempt ${attempt}, error: ${error}`,
-          {customerId, query}
-        );
-        return retry;
-      },
-      {
-        baseDelayMs: 100,
-        delayStrategy: 'linear',
-      }
-    );
-  }
-
-  async *executeQueryStream(query: string, customerId: string) {
-    try {
-      const customer = this.getCustomer(customerId);
-      // As we return an AsyncGenerator here we can't use executeWithRetry,
-      // instead usages of the method should be wrapped with executeWithRetry
-      // NOTE: we're iterating over the stream instead of returning it
-      // for the sake of error handling
-      const stream = customer.queryStream(query);
-      for await (const row of stream) {
-        yield row as Record<string, unknown>;
-      }
-    } catch (e) {
-      throw (
-        this.handleGoogleAdsError(
-          <errors.GoogleAdsFailure>e,
-          customerId,
-          query
-        ) || e
-      );
-    }
-  }
+  ): Promise<Record<string, unknown>[]>;
 }
 
 interface SearchResponse {
@@ -349,7 +159,7 @@ export class GoogleAdsRestApiClient
   private authClient: GoogleAuth | null = null;
 
   constructor(adsConfig: GoogleAdsApiConfig, apiVersion?: string) {
-    super(adsConfig, ApiType.REST, apiVersion);
+    super(adsConfig, apiVersion);
     this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
     if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
       this.authClient = new GoogleAuth({
@@ -362,7 +172,7 @@ export class GoogleAdsRestApiClient
   protected async refreshAccessToken(
     clientId: string,
     clientSecret: string,
-    refreshToken: string
+    refreshToken: string,
   ): Promise<TokenResponse> {
     const tokenUrl = 'https://www.googleapis.com/oauth2/v3/token';
     const data = {
@@ -381,7 +191,7 @@ export class GoogleAdsRestApiClient
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(
-          `Failed to refresh token: ${error.response?.status}, ${JSON.stringify(error.response?.data)}`
+          `Failed to refresh token: ${error.response?.status}, ${JSON.stringify(error.response?.data)}`,
         );
       }
       throw error;
@@ -403,7 +213,7 @@ export class GoogleAdsRestApiClient
       const {access_token, expires_in} = await this.refreshAccessToken(
         this.adsConfig.client_id!,
         this.adsConfig.client_secret!,
-        this.adsConfig.refresh_token!
+        this.adsConfig.refresh_token!,
       );
       this.currentToken = access_token;
       this.tokenExpiration = Date.now() + expires_in * 1000;
@@ -414,7 +224,7 @@ export class GoogleAdsRestApiClient
 
   async executeQuery(
     query: string,
-    customerId: string
+    customerId: string,
   ): Promise<Record<string, unknown>[]> {
     this.logger.debug(`Executing GAQL query: ${query}`);
     const url = `${this.baseUrl}customers/${customerId}/googleAds:search`;
@@ -430,7 +240,7 @@ export class GoogleAdsRestApiClient
             return await this.sendApiRequest<SearchResponse>(
               url,
               payload,
-              headers
+              headers,
             );
           } catch (e) {
             throw this.handleGoogleAdsError(e, customerId, query) || e;
@@ -444,14 +254,14 @@ export class GoogleAdsRestApiClient
               : `Breaking on ${
                   error.retryable ? 'retriable' : 'non-retriable'
                 } error, attempt ${attempt}, error: ${error}`,
-            {customerId, query}
+            {customerId, query},
           );
           return retry;
         },
         {
           baseDelayMs: 100,
           delayStrategy: 'linear',
-        }
+        },
       );
       if (data?.results) {
         if (!results) {
@@ -488,7 +298,7 @@ export class GoogleAdsRestApiClient
 
   async *executeQueryStream(
     query: string,
-    customerId: string
+    customerId: string,
   ): AsyncGenerator<Record<string, unknown>> {
     this.logger.debug(`Executing GAQL query: ${query}`);
     const url = `${this.baseUrl}customers/${customerId}/googleAds:search`;
@@ -507,7 +317,7 @@ export class GoogleAdsRestApiClient
         const data = await this.sendApiRequest<SearchResponse>(
           url,
           payload,
-          headers
+          headers,
         );
         if (data?.results) {
           for (const row of data.results) {
@@ -529,7 +339,7 @@ export class GoogleAdsRestApiClient
   protected async sendApiRequest<T>(
     url: string,
     data: unknown,
-    headers: Record<string, string>
+    headers: Record<string, string>,
   ): Promise<T> {
     try {
       const response = await axios.post<T>(url, data, {
@@ -538,10 +348,9 @@ export class GoogleAdsRestApiClient
       return response.data;
     } catch (error) {
       if (error.response && error.response.data) {
-        const ex = error.response.data.length
-          ? error.response.data[0]?.error
-          : error.response.data.error;
-        if (ex) throw ex;
+        let errData = error.response.data;
+        if (errData.length) errData = errData[0];
+        if (errData?.error) throw errData.error;
       }
       throw error;
     }
@@ -551,20 +360,20 @@ export class GoogleAdsRestApiClient
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     error: any,
     customerId: string,
-    query?: string
+    query?: string,
   ) {
     try {
       console.error(error);
       this.logger.error(
         `An error occurred on executing query (cid: ${customerId}): ${query}\nRaw error: ` +
           JSON.stringify(error, null, 2),
-        {customerId, query}
+        {customerId, query},
       );
     } catch (e) {
       // a very unfortunate situation
       console.error(e);
       this.logger.error(
-        `An error occurred on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`
+        `An error occurred on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`,
       );
     }
     const failure =
@@ -584,7 +393,7 @@ export class GoogleAdsRestApiClient
     if (failure.errors && failure.errors.length) {
       message += ': ' + failure.errors[0].message;
     }
-    const ex = new GoogleAdsError(message, failure);
+    const ex = new GoogleAdsError(message);
     const transientStatusCodes = [408, 429, 500, 502, 503, 504];
     if (error.code && transientStatusCodes.includes(error.code)) {
       ex.retryable = true;
@@ -608,7 +417,7 @@ export class GoogleAdsRestApiClient
       `API error parsed into GoogleAdsFailure: ${ex.message}, error_code: ${
         error.errors ? error.errors[0]?.errorCode : ''
       })`,
-      {customerId, query}
+      {customerId, query},
     );
 
     return ex;

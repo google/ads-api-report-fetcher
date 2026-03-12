@@ -319,8 +319,9 @@ function getMacroValues(folder_path, answers, prefix) {
             // notes on the regexp:
             //  "(?<!\$)" - is a lookbehind expression (catch the following exp if it's
             //  not prepended with '$'), with that we're capturing {smth} expressions
-            //  and not ${smth} expressions
-            const re = /(?<!\$)\{(?<macro>[^}]+)\}/gi;
+            //  and neither ${smth} expressions or {%smth%} expressions.
+            //  "(?!%)" - negative lookahead to prevent matching {%smth%} template expressions.
+            const re = /(?<!\$)\{(?!%)(?<macro>[^}]+)\}/gi;
             const matches = [...script_content.matchAll(re)];
             for (const match of matches) {
                 if (match.groups) {
@@ -829,10 +830,10 @@ async function init() {
     const gcp_region = await askForGcpRegion(answers);
     // create a bucket if it doesn't exist
     // TODO: move this to setup.sh and just call it with create_bucket task
-    let res = await execCmd(`gsutil ls gs://${gcs_bucket}`, new clui.Spinner(`Checking if GCS bucket ${gcs_bucket} exists`), { silent: true });
+    let res = await execCmd(`gcloud storage ls gs://${gcs_bucket}`, new clui.Spinner(`Checking if GCS bucket ${gcs_bucket} exists`), { silent: true });
     if (res.code !== 0) {
         // bucket doesn't exist
-        res = await execCmd(`gsutil mb -l ${getMultiRegion(gcp_region)} -b on gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
+        res = await execCmd(`gcloud storage buckets create --location=${getMultiRegion(gcp_region)} --uniform-bucket-level-access gs://${gcs_bucket}`, new clui.Spinner(`Creating a GCS bucket ${gcs_bucket}`), { silent: true });
         if (res.code !== 0) {
             console.log(chalk.red(`Could not create a bucket ${gcs_bucket}. Most likely the installation will fail`));
             console.log(res.stderr || res.stdout);
@@ -847,12 +848,12 @@ async function init() {
             console.log(chalk.red(`Could not find script '${custom_ids_query_path}'`));
         }
         custom_query_gcs_path = `${gcs_base_path}/get-accounts.sql`;
-        deploy_custom_query_snippet = `gsutil -m cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
+        deploy_custom_query_snippet = `gcloud storage cp ${custom_ids_query_path} $GCS_BASE_PATH/get-accounts.sql`;
     }
     let deploy_googleads_config_snippet = '';
     if (path_to_googleads_config) {
         deploy_googleads_config_snippet = `if [[  -f ${path_to_googleads_config} ]]; then
-  gsutil -m cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
+  gcloud storage cp ${path_to_googleads_config} $GCS_BASE_PATH/google-ads.yaml
 fi`;
     }
     // Note that we deploy queries to hard-coded paths
@@ -862,14 +863,14 @@ GCS_BASE_PATH=${gcs_base_path}
 ${deploy_googleads_config_snippet}
 ${deploy_custom_query_snippet}
 
-gsutil -m rm -r $GCS_BASE_PATH/${path_to_ads_queries}
+gcloud storage rm --recursive $GCS_BASE_PATH/${path_to_ads_queries}
 if ls ./${path_to_ads_queries}/* 1> /dev/null 2>&1; then
-  gsutil -m cp -R ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
+  gcloud storage cp --recursive ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
 fi
 
-gsutil -m rm -r $GCS_BASE_PATH/${path_to_bq_queries}
+gcloud storage rm --recursive $GCS_BASE_PATH/${path_to_bq_queries}
 if ls ./${path_to_bq_queries}/* 1> /dev/null 2>&1; then
-  gsutil -m cp -R ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
+  gcloud storage cp --recursive ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
 fi
 `);
     // Create deploy-wf.sh
@@ -946,12 +947,14 @@ cd ..
     ], answers);
     // now we detect macro used in queries and ask for their values
     const macro_ads = await getMacroValues(path.join(cwd, path_to_ads_queries), answers, 'ads_macro');
+    const ads_template_params = answers['ads_template_params'];
     const macro_bq = await getMacroValues(path.join(cwd, path_to_bq_queries), answers, 'bq_macro');
     const writer_options = answers.writer_options;
     const bq_location = gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
     const output_dataset = answers2.output_dataset;
     const customer_id = sanitizeCustomerId(answers2.customer_id);
     const wf_data = {
+        api_version: answers['api_version'],
         cloud_function: name,
         gcs_bucket: gcs_bucket,
         location: gcp_region,
@@ -965,6 +968,7 @@ cd ..
         bq_dataset_location: bq_location,
         writer_options: writer_options,
         ads_macro: macro_ads,
+        ads_template_params: ads_template_params,
         bq_macro: macro_bq,
     };
     if (path_to_googleads_config) {
@@ -1101,18 +1105,18 @@ cd ..
         default: false,
     }, answers)).clone_dashboard) {
         await deployDashboard(answers, gcp_project_id, output_dataset, macro_bq);
-        await execCmd(`gsutil cp ${DASHBOARD_LINK_FILE} ${gcs_base_path}/`, new clui.Spinner(`Copying ${DASHBOARD_LINK_FILE} to GCS ${gcs_base_path}/`), { silent: true });
+        await execCmd(`gcloud storage cp ${DASHBOARD_LINK_FILE} ${gcs_base_path}/`, new clui.Spinner(`Copying ${DASHBOARD_LINK_FILE} to GCS ${gcs_base_path}/`), { silent: true });
     }
     // at last stage we'll copy all shell scripts to same GCS bucket in scrips folders, so another users could manage the project easily
-    await execCmd(`gsutil -m cp *.sh ${gcs_base_path}/scripts/;gsutil -m cp ${settings_file} ${gcs_base_path}/scripts/;gsutil -m cp ${wf_data_file} ${gcs_base_path}/scripts/`, new clui.Spinner(`Copying all shell scripts to GCS ${gcs_base_path}/scripts`), { silent: true });
+    await execCmd(`gcloud storage cp *.sh ${gcs_base_path}/scripts/;gcloud storage cp ${settings_file} ${gcs_base_path}/scripts/;gcloud storage cp ${wf_data_file} ${gcs_base_path}/scripts/`, new clui.Spinner(`Copying all shell scripts to GCS ${gcs_base_path}/scripts`), { silent: true });
     // create download-script.sh shell script to download scripts back from GCS
     deployShellScript('download-scripts.sh', `for file in *.sh; do
   [ -e "$file" ] || continue
   cp -- "$file" "$\{file}.bak"
 done
-gsutil -m cp ${gcs_base_path}/scripts/*.sh .
-gsutil -m cp ${gcs_base_path}/scripts/${settings_file} .
-gsutil -m cp ${gcs_base_path}/scripts/${wf_data_file} .
+gcloud storage cp ${gcs_base_path}/scripts/*.sh .
+gcloud storage cp ${gcs_base_path}/scripts/${settings_file} .
+gcloud storage cp ${gcs_base_path}/scripts/${wf_data_file} .
 `);
     console.log(`All generated shell scripts were uploaded to GCS ${chalk.cyan(gcs_base_path + '/scripts')}`);
     console.log(chalk.green('All done'));

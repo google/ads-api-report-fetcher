@@ -37,4 +37,11 @@ export async function getFileFromGCS(filePath) {
         });
     });
 }
+export async function saveFileToGCS(filePath, data) {
+    const parsed = new URL(filePath);
+    const bucket = parsed.hostname;
+    const filename = parsed.pathname.substring(1);
+    const storage = new Storage();
+    await storage.bucket(bucket).file(filename).save(data);
+}
 //# sourceMappingURL=google-cloud.js.map

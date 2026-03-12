@@ -45,7 +45,7 @@ export class BigQueryExecutor {
 
   constructor(
     projectId?: string | undefined,
-    options?: BigQueryExecutorOptions
+    options?: BigQueryExecutorOptions,
   ) {
     const datasetLocation = options?.datasetLocation || 'us';
     this.bigquery =
@@ -64,7 +64,7 @@ export class BigQueryExecutor {
   async execute(
     scriptName: string,
     queryText: string,
-    params?: BigQueryExecutorParams
+    params?: BigQueryExecutorParams,
   ): // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Promise<any[][]> {
     if (params?.macroParams) {
@@ -85,7 +85,7 @@ export class BigQueryExecutor {
     const res = substituteMacros(queryText, params?.macroParams);
     if (res.unknown_params.length) {
       throw new Error(
-        `The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`
+        `The following parameters used in '${scriptName}' query were not specified: ${res.unknown_params}`,
       );
     }
     const query: Query = {
@@ -115,7 +115,7 @@ export class BigQueryExecutor {
   async createUnifiedView(
     dataset: Dataset | string,
     tableId: string,
-    customers: string[]
+    customers: string[],
   ): Promise<string> {
     if (typeof dataset === 'string') {
       dataset = await getDataset(this.bigquery, dataset, this.datasetLocation);
@@ -142,11 +142,11 @@ export class BigQueryExecutor {
       return table_fq;
     } catch (e) {
       this.logger.error(
-        `An error occurred during creating the unified view (${table_fq}): ${e.message}`
+        `An error occurred during creating the unified view (${table_fq}): ${e.message}`,
       );
       if (e.message.includes('Views cannot be queried through prefix')) {
         this.logger.warn(
-          `You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`
+          `You have to rename the script ${tableId} to a name so the wildcard expression ${tableId}_* would not catch other views`,
         );
       }
       throw e;

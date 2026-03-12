@@ -48,7 +48,7 @@ suite('substituteMacros', () => {
     assert.equal(getElapsed(started, now), '00:00:00.000');
     assert.equal(
       getElapsed(started, new Date(2022, 5, 24, 22, 49, 45, 111)),
-      '10:10:01.011'
+      '10:10:01.011',
     );
   });
 
@@ -80,7 +80,7 @@ suite('substituteMacros', () => {
     console.log(query.text);
     assert.deepEqual(
       query.text,
-      `segments.date >= '${from}' AND segments.date <= '${to}'`
+      `segments.date >= '${from}' AND segments.date <= '${to}'`,
     );
   });
 
@@ -102,7 +102,7 @@ suite('substituteMacros', () => {
     query = substituteMacros(query_text);
     assert.deepEqual(
       query.text,
-      formatDateISO(date_add(new Date(), {days: 2}), '-')
+      formatDateISO(date_add(new Date(), {days: 2}), '-'),
     );
 
     // calling method on Date object (plusMonths)
@@ -252,15 +252,15 @@ suite('renderTemplate', () => {
 
     assert.equal(
       renderTemplate(template, {}),
-      'SELECT field_one, field_three FROM some_table'
+      'SELECT field_one, field_three FROM some_table',
     );
     assert.equal(
       renderTemplate(template, {key: 'field_2'}),
-      'SELECT field_one, field_two FROM some_table'
+      'SELECT field_one, field_two FROM some_table',
     );
     assert.equal(
       renderTemplate(template, {key: 'field_3'}),
-      'SELECT field_one, field_three FROM some_table'
+      'SELECT field_one, field_three FROM some_table',
     );
   });
 
@@ -270,15 +270,15 @@ suite('renderTemplate', () => {
 
     assert.equal(
       renderTemplate(template, {cohort_days: '1,2'}),
-      'SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table'
+      'SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table',
     );
     assert.equal(
       renderTemplate(template, {cohort_days: [1, 2]}),
-      'SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table'
+      'SELECT field_one, 1 AS day_1, 2 AS day_2, FROM some_table',
     );
     assert.equal(
       renderTemplate(template, {}),
-      'SELECT field_one, FROM some_table'
+      'SELECT field_one, FROM some_table',
     );
   });
 });

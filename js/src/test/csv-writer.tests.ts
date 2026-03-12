@@ -34,20 +34,18 @@ suite('CsvWriter', () => {
         OUTPUT_DIR,
         customerId
           ? SCRIPT_NAME + '_' + customerId + '.csv'
-          : SCRIPT_NAME + '.csv'
+          : SCRIPT_NAME + '.csv',
       ),
-      'utf-8'
+      'utf-8',
     );
-    const csvData: Array<Record<string, any>> = parse(csvText, {
+    const csvData = parse(csvText, {
       columns: true,
       skipEmptyLines: true,
-    });
+    }) as Record<string, any>[];
     assert.equal(csvData.length, mockResults.length);
     for (let i = 0; i < mockResults.length; i++) {
       const expected = mockResults[i];
       const actual = csvData[i];
-      console.log('Serialized CSV: ');
-      console.log(actual);
       assert.deepStrictEqual(Object.keys(actual), Object.keys(expected));
       const keys = Object.keys(expected);
       for (let j = 0; j < keys.length; j++) {
@@ -111,13 +109,13 @@ suite('CsvWriter', () => {
       customers[0],
       mock_result['customer1'].map(o => {
         return {id: o.campaign.id, resource_name: o.campaign.resource_name};
-      })
+      }),
     );
     assertCsvEqual(
       customers[1],
       mock_result['customer2'].map(o => {
         return {id: o.campaign.id, resource_name: o.campaign.resource_name};
-      })
+      }),
     );
 
     // act #2: all customers in the same file
@@ -137,7 +135,7 @@ suite('CsvWriter', () => {
         })
         .sort((a, b) => {
           return a.id > b.id ? 1 : -1;
-        })
+        }),
     );
   });
 
@@ -197,20 +195,19 @@ suite('CsvWriter', () => {
     // assert
     const csvText = fs.readFileSync(
       path.join(OUTPUT_DIR, SCRIPT_NAME + '.csv'),
-      'utf-8'
+      'utf-8',
     );
-    const csvData: Array<Record<string, any>> = parse(csvText, {
+    const csvData = parse(csvText, {
       columns: true,
       skipEmptyLines: true,
-    });
-    console.log(csvData);
+    }) as Record<string, any>[];
     assert(csvData);
     assert.equal(csvData.length, 1);
     const row = csvData[0];
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,
-      mock_result[0].ad_group_ad.ad.final_urls.join('|')
+      mock_result[0].ad_group_ad.ad.final_urls.join('|'),
     );
   });
 });

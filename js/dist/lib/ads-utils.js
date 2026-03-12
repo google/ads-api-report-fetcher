@@ -104,8 +104,8 @@ export async function getCustomerInfo(adsClient, customerId) {
     //
     const queryText2 = 'SELECT customer.descriptive_name FROM customer';
     let customer = undefined;
-    const query = adsClient.getQueryEditor().parseQuery(queryText);
-    const query2 = adsClient.getQueryEditor().parseQuery(queryText2);
+    const query = await adsClient.getQueryEditor().parseQuery(queryText);
+    const query2 = await adsClient.getQueryEditor().parseQuery(queryText2);
     const executor = new AdsQueryExecutor(adsClient);
     const result = await executor.executeQueryAndParseToObjects(query, customerId);
     for (const row of result.rows) {
@@ -149,7 +149,7 @@ export async function getCustomerIds(adsClient, customerId) {
     }
     const all_ids = [];
     const executor = new AdsQueryExecutor(adsClient);
-    const query = adsClient.getQueryEditor().parseQuery(queryText);
+    const query = await adsClient.getQueryEditor().parseQuery(queryText);
     for (const cid of customerId) {
         const res = await executor.executeQueryAndParse(query, cid);
         const ids = res.rows.map(row => row[0].toString());
@@ -165,7 +165,7 @@ export async function getCustomerIds(adsClient, customerId) {
  * @returns a filtered list of customer ids
  */
 export async function filterCustomerIds(adsClient, ids, customer_ids_query) {
-    const query = adsClient.getQueryEditor().parseQuery(customer_ids_query);
+    const query = await adsClient.getQueryEditor().parseQuery(customer_ids_query);
     const accounts = new Set();
     const executor = new AdsQueryExecutor(adsClient);
     for (const id of ids) {

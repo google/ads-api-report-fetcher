@@ -95,15 +95,19 @@ export class BigQueryWriter extends FileWriterBase {
         if (this.insertMethod === BigQueryInsertMethod.loadTable) {
             const tableFullName = this.getTableFullname(customerId);
             const filepath = this.getDataFilePath(`.${tableFullName}.json`);
-            const stream = this.createOutput(filepath);
-            if (this.useFilePerCustomer()) {
-                this.streamsByCustomer[customerId] = stream;
-            }
-            else {
-                this.streamsByCustomer[''] = stream;
+            let stream = this.useFilePerCustomer()
+                ? undefined
+                : this.streamsByCustomer[''];
+            if (!stream) {
+                stream = this.createOutput(filepath);
+                if (this.useFilePerCustomer()) {
+                    this.streamsByCustomer[customerId] = stream;
+                }
+                else {
+                    this.streamsByCustomer[''] = stream;
+                }
             }
             this.logger.verbose(`Temp output is ${stream.path}`);
-            await stream.deleteFile();
         }
         else {
             this.rowsByCustomer[customerId] = [];

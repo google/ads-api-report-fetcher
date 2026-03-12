@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { enums } from 'google-ads-api';
-import { isNumber, isArray, isString, forIn, isPlainObject } from 'lodash-es';
-import { ApiType, CustomizerType, FieldTypeKind, } from './types.js';
+import { isArray, isString, forIn, isPlainObject } from 'lodash-es';
+import { CustomizerType } from './types.js';
 import { navigateObject, tryParseNumber } from './utils.js';
 const CAMEL_TO_SNAKE_REGEX = /[A-Z]/g;
 /**
@@ -32,9 +31,12 @@ export var ParseResultMode;
      */
     ParseResultMode[ParseResultMode["Object"] = 2] = "Object";
 })(ParseResultMode || (ParseResultMode = {}));
-export function transformObject(obj, convertName) {
+export function transformObject(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+obj, convertName) {
     // result object containing both structured and flattened fields
     const result = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function traverse(currentObj, parentPath = []) {
         if (isArray(currentObj)) {
             return currentObj.map(item => traverse(item, parentPath));
@@ -49,11 +51,12 @@ export function transformObject(obj, convertName) {
         forIn(currentObj, (value, key) => {
             const keyNew = convertName ? convertName(key) : key;
             const currentPath = [...parentPath, keyNew];
+            // Transform nested value before assigning
+            const transformedValue = traverse(value, currentPath);
             // Add flattened field to result
             const flattenedKey = currentPath.join('.');
-            result[flattenedKey] = value;
-            // Transform nested value
-            transformedObj[keyNew] = traverse(value, currentPath);
+            result[flattenedKey] = transformedValue;
+            transformedObj[keyNew] = transformedValue;
         });
         return transformedObj;
     }
@@ -63,15 +66,12 @@ export function transformObject(obj, convertName) {
     return result;
 }
 export class AdsRowParser {
-    constructor(apiType, logger) {
-        this.apiType = apiType;
+    constructor(logger) {
         this.logger = logger;
     }
     parseRow(row, query, objectMode = false) {
         // flatten the tree of object into a flat object with all properties
-        const rowValues = transformObject(row, this.apiType === ApiType.REST
-            ? (name) => name.replace(CAMEL_TO_SNAKE_REGEX, (letter) => `_${letter.toLowerCase()}`)
-            : undefined);
+        const rowValues = transformObject(row, (name) => name.replace(CAMEL_TO_SNAKE_REGEX, (letter) => `_${letter.toLowerCase()}`));
         // process customizers and flatten row object into array
         const rowValuesArr = [];
         for (let i = 0; i < query.columns.length; i++) {
@@ -88,56 +88,6 @@ export class AdsRowParser {
             }
             else {
                 rowValuesArr.push(value);
-            }
-        }
-        // post process enum (convert number to enum field names) and structs
-        if (this.apiType === ApiType.gRPC) {
-            // NOTE: gRPC API returns enums as numbers, while REST API returns strings
-            for (let i = 0; i < query.columns.length; i++) {
-                const column = query.columns[i];
-                const value = objectMode
-                    ? rowValues[column.name]
-                    : rowValuesArr[i];
-                const colType = column.type;
-                if (colType.kind === FieldTypeKind.enum &&
-                    colType.repeated &&
-                    isArray(value)) {
-                    for (let j = 0; j < value.length; j++) {
-                        const subval = value[j];
-                        if (isNumber(subval)) {
-                            const enumType = enums[colType.typeName];
-                            if (enumType) {
-                                value[j] = enumType[subval];
-                            }
-                        }
-                    }
-                }
-                else if (colType.kind === FieldTypeKind.enum) {
-                    if (isNumber(value)) {
-                        const enumType = enums[colType.typeName];
-                        if (enumType) {
-                            if (objectMode) {
-                                rowValues[column.name] = enumType[value];
-                            }
-                            else {
-                                rowValuesArr[i] = enumType[value];
-                            }
-                        }
-                    }
-                }
-                else if (colType.kind === FieldTypeKind.struct) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    if (value && value.toJSON) {
-                        if (objectMode) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            rowValues[column.name] = value.toJSON();
-                        }
-                        else {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            rowValuesArr[i] = value.toJSON();
-                        }
-                    }
-                }
             }
         }
         return objectMode ? rowValues : rowValuesArr;

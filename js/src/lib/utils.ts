@@ -33,7 +33,7 @@ export function traverseObject(
   object: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   visitor: (name: string, value: any, path: string[], object: Object) => void,
-  path: string[]
+  path: string[],
 ): boolean {
   path = path || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,10 +77,18 @@ export function traverseObject(
 export function navigateObject(object: any, path: string) {
   let ctx = object;
   for (const name of path.split('.')) {
-    ctx = ctx[name];
-    if (!ctx) return ctx;
+    ctx = ctx?.[name];
+    if (ctx === undefined) return ctx;
   }
   return ctx;
+}
+
+export function snakeToCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, g => g[1].toUpperCase());
+}
+
+export function camelToSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 
 /**
@@ -118,7 +126,7 @@ function convert_date(name: string, value: string): string {
   let [pattern, delta, ...other] = value.split('-');
   if (!pattern || other.length) {
     throw new Error(
-      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
+      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `,
     );
   }
   if (!delta) {
@@ -136,7 +144,7 @@ function convert_date(name: string, value: string): string {
     duration = {years: -ago};
   } else {
     throw new Error(
-      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `
+      `Macro ${name} has incorrect format, expected :YYYYMMDD-1, or :YYYYMM-1, or :YYYY-1 `,
     );
   }
   const dt = date_add(new Date(), duration);
@@ -152,7 +160,7 @@ function convert_date(name: string, value: string): string {
 export function substituteMacros(
   text: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  macros?: Record<string, string | number>
+  macros?: Record<string, string | number>,
 ): {text: string; unknown_params: string[]} {
   const unknown_params: Record<string, boolean> = {};
   // Support for macro's values containing special syntax for dynamic dates:
@@ -207,7 +215,7 @@ export function substituteMacros(
 
 export function renderTemplate(
   template: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
 ) {
   //nunjucks.configure("views", { autoescape: true });
   if (params) {
@@ -323,7 +331,7 @@ export function executeWithRetry<T>(
   fn: () => T,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   checkToRetry: (error: any, attempt: number) => boolean,
-  options?: RetryOptions
+  options?: RetryOptions,
 ): Promise<T> {
   let attempt = 1;
 

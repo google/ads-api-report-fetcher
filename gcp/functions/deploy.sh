@@ -75,6 +75,27 @@ while :; do
   shift
 done
 
+function reference_npm_package() {
+  # Build and pack the package
+  cd ../../js
+  npm run build
+  npm pack --pack-destination ../gcp/functions
+  cd ..
+
+  # Temporarily update the dependency to use tarball
+  cd gcp/functions
+  TARBALL=$(ls *.tgz | head -1)
+  npm pkg set "dependencies.google-ads-api-report-fetcher=file:./$TARBALL"
+  npm install
+}
+
+function clear_npm_package() {
+  # Clean up (optional - restore workspace reference)
+  npm pkg set "dependencies.google-ads-api-report-fetcher=*"
+  rm *.tgz
+}
+
+
 statusfile=$(mktemp)  # a file for saving exitcode from gcloud commands
 logfile=$(mktemp)     # a file for saving output from gcloud commands
 function execute_deploy() {
@@ -88,6 +109,7 @@ function execute_deploy() {
 
   gcloud functions deploy $deployable_function \
       --trigger-http \
+      --ingress-settings=internal-and-gclb \
       --entry-point=$entry_point \
       --runtime=nodejs22 \
       --timeout=3600s \
@@ -149,6 +171,8 @@ function redeploy_cf() {
   fi
 }
 
+reference_npm_package
+
 redeploy_cf $FUNCTION_NAME main $MEMORY
 
 redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS
@@ -156,5 +180,7 @@ redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS
 redeploy_cf $FUNCTION_NAME-bq main_bq
 
 redeploy_cf $FUNCTION_NAME-bq-view main_bq_view
+
+clear_npm_package
 
 popd > /dev/null

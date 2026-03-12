@@ -22,7 +22,7 @@ export class BuiltinQueryProcessor implements IQueryExecutor {
   constructor(public queryEditor: AdsQueryEditor) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  parse(name: string, query: string) {
+  async parse(name: string, query: string) {
     if (name === 'ocid_mapping' || name === 'ocid') {
       const queryNew =
         'SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1';
@@ -46,7 +46,8 @@ export class BuiltinQueryProcessor implements IQueryExecutor {
           },
         },
       ];
-      const resourceTypeFrom = this.queryEditor.getResource('customer');
+      const resourceTypeFrom =
+        await this.queryEditor.schema.getResource('customer');
       const resourceInfo = {
         name: 'ocid',
         typeName: resourceTypeFrom.name,
@@ -101,16 +102,16 @@ export class BuiltinQueryProcessor implements IQueryExecutor {
   async *execute(
     query: QueryElements,
     customerId: string,
-    executor: AdsQueryExecutor
+    executor: AdsQueryExecutor,
   ): AsyncGenerator<Record<string, unknown>> {
     if (query.resource.name === 'ocid') {
       const queryRealText =
         'SELECT customer.id, metrics.optimization_score_url as url FROM customer LIMIT 1';
       // we need to parse result so we wrap generator
-      const queryReal = executor.editor.parseQuery(queryRealText);
+      const queryReal = await executor.editor.parseQuery(queryRealText);
       const result = await executor.executeQueryAndParseToObjects(
         queryReal,
-        customerId
+        customerId,
       );
       if (result.rows)
         for (const row of result.rows) {

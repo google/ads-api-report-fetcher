@@ -56,7 +56,7 @@ mathjs.import(
         });
         return LocalDateTime;
       },
-      {lazy: false}
+      {lazy: false},
     ),
 
     factory(
@@ -69,7 +69,7 @@ mathjs.import(
         });
         return LocalDate;
       },
-      {lazy: false}
+      {lazy: false},
     ),
 
     factory(
@@ -82,7 +82,7 @@ mathjs.import(
         });
         return Duration;
       },
-      {lazy: false}
+      {lazy: false},
     ),
 
     factory(
@@ -95,7 +95,7 @@ mathjs.import(
         });
         return Period;
       },
-      {lazy: false}
+      {lazy: false},
     ),
 
     // conversion functions and factory functions
@@ -185,9 +185,8 @@ mathjs.import(
       return () => LocalDateTime.now();
     }),
   ],
-  {override: true}
+  {override: true},
 );
-
 mathjs.import({
   some: mathjs.typed('some', {
     'Array, function': function (arr, callback) {
@@ -195,7 +194,6 @@ mathjs.import({
     },
   }),
 });
-
 // Helper to build full property access chain
 function getFullPropertyChain(node: MathNode): string | null {
   if (!node) return null;
@@ -226,6 +224,28 @@ function getFullPropertyChain(node: MathNode): string | null {
     return node.name;
   }
   return null;
+}
+
+export function inferMathExprType(
+  node: MathNode,
+  dummyScope: Record<string, unknown>,
+): string {
+  try {
+    const compiled = node.compile();
+    const result = compiled.evaluate(dummyScope);
+
+    if (typeof result === 'number') {
+      return Number.isInteger(result) ? 'int64' : 'double';
+    } else if (typeof result === 'boolean') {
+      return 'bool';
+    } else if (typeof result === 'string') {
+      return 'string';
+    }
+  } catch (e) {
+    // If evaluation fails with dummy scope (e.g. division by zero, missing property), default to string
+    console.warn('Type inference failed, defaulting to string:', e);
+  }
+  return 'string';
 }
 
 /**
@@ -284,6 +304,11 @@ export function extractFieldAccesses(node: MathNode): string[] {
       const chain = getFullPropertyChain(node);
       if (chain) {
         fieldAccesses.add(chain);
+      } else {
+        traverse(node.object);
+        if (node.index && node.index.dimensions) {
+          node.index.dimensions.forEach((dim: any) => traverse(dim));
+        }
       }
     }
     if (isRangeNode(node)) {

@@ -109,7 +109,7 @@ suite('JsonWriter', () => {
   function getJson() {
     const jsonText = fs.readFileSync(
       path.join(OUTPUT_DIR, SCRIPT_NAME + '.json'),
-      'utf-8'
+      'utf-8',
     );
     console.log(jsonText);
     const json = JSON.parse(jsonText);
@@ -136,7 +136,7 @@ suite('JsonWriter', () => {
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,
-      mock_result[0].ad_group_ad.ad.final_urls
+      mock_result[0].ad_group_ad.ad.final_urls,
     );
   });
 
@@ -184,7 +184,7 @@ suite('JsonWriter', () => {
     assert.equal(row.ad_group_ad.ad.id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.ad_group_ad.ad.final_urls,
-      mock_result[0].ad_group_ad.ad.final_urls
+      mock_result[0].ad_group_ad.ad.final_urls,
     );
   });
 
@@ -202,7 +202,7 @@ suite('JsonWriter', () => {
     // assert
     const jsonText = fs.readFileSync(
       path.join(OUTPUT_DIR, SCRIPT_NAME + '.json'),
-      'utf-8'
+      'utf-8',
     );
     console.log(jsonText);
     const lines = jsonText.split('\n').filter(s => s.length > 0);
@@ -211,7 +211,7 @@ suite('JsonWriter', () => {
     assert.equal(row.ad_id, mock_result[0].ad_group_ad.ad.id);
     assert.deepStrictEqual(
       row.final_urls,
-      mock_result[0].ad_group_ad.ad.final_urls
+      mock_result[0].ad_group_ad.ad.final_urls,
     );
   });
 });

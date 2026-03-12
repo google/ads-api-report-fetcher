@@ -57,15 +57,15 @@ formats.push(
     info =>
       `${info.timestamp}: ${wrap(info.scriptName as string)}${wrap(info.customerId as string)} ${
         info.message
-      }`
-  )
+      }`,
+  ),
 );
 export const defaultTransports: winston.transport[] = [];
 defaultTransports.push(
   new winston.transports.Console({
     format: format.combine(...formats),
     handleRejections: LOG_LEVEL === 'debug',
-  })
+  }),
 );
 
 export function createConsoleLogger(): winston.Logger {
@@ -74,7 +74,7 @@ export function createConsoleLogger(): winston.Logger {
     level: LOG_LEVEL, // NOTE: we use same log level for all transports
     format: format.combine(
       format.errors({stack: true}),
-      format.timestamp({format: 'YYYY-MM-DD HH:mm:ss:SSS'})
+      format.timestamp({format: 'YYYY-MM-DD HH:mm:ss:SSS'}),
     ),
     transports: defaultTransports,
     exitOnError: false,
@@ -91,7 +91,7 @@ export function createCloudLogger(): winston.Logger {
         info.trace = process.env.TRACE_ID;
         info[LOGGING_TRACE_KEY] = process.env.TRACE_ID;
         return info;
-      })()
+      })(),
     ),
     defaultMeta: getDefaultMetadataForTracing(),
     transports: [

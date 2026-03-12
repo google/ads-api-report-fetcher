@@ -25,9 +25,9 @@ suite('AdsQueryExecutor', () => {
     // arrange
     const mockResult = [
       {
-        campaign: {id: 2, resource_name: 'customers/1/campaigns/2'},
-        campaign_criterion: {
-          ad_schedule: {day_of_week: 2}, // DayOfWeekEnum
+        campaign: {id: 2, resourceName: 'customers/1/campaigns/2'},
+        campaignCriterion: {
+          adSchedule: {dayOfWeek: 'MONDAY'}, // DayOfWeekEnum
         },
       },
     ];
@@ -100,7 +100,7 @@ suite('AdsQueryExecutor', () => {
     const executor = new AdsQueryExecutor(client);
 
     // act (using executeOne)
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const result = await executor.executeOne(query, <string>customerId);
 
     // assert
@@ -113,29 +113,29 @@ suite('AdsQueryExecutor', () => {
       {
         campaign: {
           id: 2,
-          resource_name: 'customers/1/campaigns/2',
-          frequency_caps: [
+          resourceName: 'customers/1/campaigns/2',
+          frequencyCaps: [
             {
               key: {
-                level: 2, // FrequencyCapLevel.AD_GROUP_AD
-                event_type: 2, // FrequencyCapEventType.IMPRESSION
-                time_unit: 2, // FrequencyCapTimeUnit.DAY
-                time_length: 10,
+                level: 'AD_GROUP_AD', // FrequencyCapLevel.AD_GROUP_AD
+                eventType: 'IMPRESSION', // FrequencyCapEventType.IMPRESSION
+                timeUnit: 'DAY', // FrequencyCapTimeUnit.DAY
+                timeLength: 10,
               },
               cap: 100,
             },
             {
               key: {
-                level: 3, // FrequencyCapLevel.AD_GROUP
-                event_type: 3, // FrequencyCapEventType.VIDEO_VIEW
-                time_unit: 3, // FrequencyCapTimeUnit.WEEK
-                time_length: 20,
+                level: 'AD_GROUP', // FrequencyCapLevel.AD_GROUP
+                eventType: 'VIDEO_VIEW', // FrequencyCapEventType.VIDEO_VIEW
+                timeUnit: 'WEEK', // FrequencyCapTimeUnit.WEEK
+                timeLength: 20,
               },
               cap: 200,
             },
           ],
-          manual_cpc: {
-            enhanced_cpc_enabled: true,
+          manualCpc: {
+            enhancedCpcEnabled: true,
           },
         },
       },
@@ -152,7 +152,7 @@ suite('AdsQueryExecutor', () => {
     const executor = new AdsQueryExecutor(client);
 
     // act (using executeOne)
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const result = await executor.executeOne(query, <string>customerId);
 
     // assert
@@ -164,10 +164,10 @@ suite('AdsQueryExecutor', () => {
     // arrange
     const mock_result = [
       {
-        campaign: {id: 2, resource_name: 'customers/1/campaigns/2'},
-        campaign_criterion: {
-          ad_schedule: {day_of_week: 7}, // DayOfWeekEnum
-          resource_name: 'customers/1/campaignCriteria/2~340096',
+        campaign: {id: 2, resourceName: 'customers/1/campaigns/2'},
+        campaignCriterion: {
+          adSchedule: {dayOfWeek: 'SATURDAY'}, // DayOfWeekEnum
+          resourceName: 'customers/1/campaignCriteria/2~340096',
         },
       },
     ];
@@ -181,9 +181,9 @@ suite('AdsQueryExecutor', () => {
       FROM campaign_criterion
       FUNCTIONS
       function formatDay(val) {
-        let days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-        if (!val) return '';
-        return val === 8 ? days[6] : days[val-2];
+        let days = {'MONDAY': 'пн', 'TUESDAY': 'вт', 'WEDNESDAY': 'ср', 'THURSDAY': 'чт', 'FRIDAY': 'пт', 'SATURDAY': 'сб', 'SUNDAY': 'вс'};
+        if (!val || val === 'UNSPECIFIED') return '';
+        return days[val];
       }
     `;
     const customerId = '1';
@@ -192,7 +192,7 @@ suite('AdsQueryExecutor', () => {
     const executor = new AdsQueryExecutor(client);
 
     // act (using executeOne)
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const result = await executor.executeOne(query, <string>customerId);
 
     // assert
@@ -206,7 +206,7 @@ suite('AdsQueryExecutor', () => {
     const campaignId = 2;
     const resId = 853097294612;
     const resName = `customers/${customerId}/campaignAudienceViews/${campaignId}~${resId}`;
-    const mockResult = [{campaign_audience_view: {resource_name: resName}}];
+    const mockResult = [{campaignAudienceView: {resourceName: resName}}];
     const queryText = `
       SELECT
         campaign_audience_view.resource_name as res_name,
@@ -220,7 +220,7 @@ suite('AdsQueryExecutor', () => {
     const executor = new AdsQueryExecutor(client);
 
     // act (using executeOne)
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const res = await executor.executeOne(query, customerId);
 
     // assert
@@ -254,14 +254,14 @@ suite('AdsQueryExecutor', () => {
       {
         campaign: {
           name: 'part1.part2.part3',
-          tracking_url_template: 'https://example.org',
-          app_campaign_setting: {
-            bidding_strategy_goal_type: 2, // OPTIMIZE_INSTALLS_TARGET_INSTALL_COST
+          trackingUrlTemplate: 'https://example.org',
+          appCampaignSetting: {
+            biddingStrategyGoalType: 'OPTIMIZE_INSTALLS_TARGET_INSTALL_COST', // OPTIMIZE_INSTALLS_TARGET_INSTALL_COST
           },
-          target_cpa: {
-            target_cpa_micros: 1000000,
+          targetCpa: {
+            targetCpaMicros: 1000000,
           },
-          final_urls: [
+          finalUrls: [
             {key: 'key1', value: 'value1'},
             {key: 'key2', value: 'value2'},
           ],
@@ -269,7 +269,7 @@ suite('AdsQueryExecutor', () => {
         metrics: {
           clicks: 10,
           impressions: 2,
-          cost_micros: 3,
+          costMicros: 3,
         },
       },
     ];
@@ -277,7 +277,7 @@ suite('AdsQueryExecutor', () => {
     const client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [
@@ -302,11 +302,11 @@ FROM change_event
     `;
     const mockResult = [
       {
-        change_event: {
-          new_resource: {
+        changeEvent: {
+          newResource: {
             campaign: {
-              target_cpa: {
-                target_cpa_micros: 1000000,
+              targetCpa: {
+                targetCpaMicros: 1000000,
               },
             },
           },
@@ -318,7 +318,7 @@ FROM change_event
     const client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [1]);
@@ -335,14 +335,14 @@ FROM change_event
           id: customerId,
         },
         metrics: {
-          optimization_score_url: url,
+          optimizationScoreUrl: url,
         },
       },
     ];
     const client = new MockGoogleAdsApiClient();
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     const res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [customerId, ocid]);
@@ -353,19 +353,19 @@ FROM change_event
     const customerId = '1';
     const mockResult = [
       {
-        customer_client: {
-          applied_labels: ['customers/1/labels/1'],
-          client_customer: 'customerClients/2',
-          currency_code: 'USD',
-          descriptive_name: 'test customer',
+        customerClient: {
+          appliedLabels: ['customers/1/labels/1'],
+          clientCustomer: 'customerClients/2',
+          currencyCode: 'USD',
+          descriptiveName: 'test customer',
           hidden: false,
           id: 1,
           level: 0,
           manager: false,
-          resource_name: 'customers/1/customerClients/2',
-          status: 3, // CustomerStatus
-          test_account: false,
-          time_zone: 'UTC',
+          resourceName: 'customers/1/customerClients/2',
+          status: 'CANCELED', // CustomerStatus
+          testAccount: false,
+          timeZone: 'UTC',
         },
       },
     ];
@@ -382,19 +382,19 @@ FROM change_event
     const executor = new AdsQueryExecutor(client);
 
     // act
-    const query = executor.parseQuery(queryText);
+    const query = await executor.parseQuery(queryText);
     assert.deepStrictEqual(query.columnNames, [
       'id',
-      'resource_name',
-      'client_customer',
-      'hidden',
+      'currency_code',
+      'test_account',
       'level',
       'time_zone',
-      'test_account',
-      'manager',
       'descriptive_name',
-      'currency_code',
+      'hidden',
+      'resource_name',
+      'client_customer',
       'status',
+      'manager',
       'is_manager',
     ]);
 
@@ -406,16 +406,16 @@ FROM change_event
     assert.strictEqual(status, 'CANCELED');
     assert.deepStrictEqual(result.rows[0], [
       1, // id
-      'customers/1/customerClients/2', //resource_name
-      'customerClients/2', // client_customer
-      false, // hidden
+      'USD', // currency_code
+      false, // test_account
       0, // level
       'UTC', // time_zone
-      false, // test_account
-      false, // manager
       'test customer', // descriptive_name
-      'USD', // currency_code
+      false, // hidden
+      'customers/1/customerClients/2', // resource_name
+      'customerClients/2', // client_customer
       'CANCELED', // status
+      false, // manager
       false, // is_manager
     ]);
   });

@@ -27,7 +27,7 @@ export const OAUTH_SCOPES = [
 export async function getDataset(
   bigquery: BigQuery,
   datasetId: string,
-  datasetLocation?: string
+  datasetLocation?: string,
 ): Promise<Dataset> {
   let dataset: Dataset;
   const options: CreateDatasetOptions = {

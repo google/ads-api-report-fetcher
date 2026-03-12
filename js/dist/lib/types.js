@@ -15,11 +15,6 @@ export var FieldTypeKind;
 export function isEnumType(type) {
     return !!type.values;
 }
-export var ApiType;
-(function (ApiType) {
-    ApiType["gRPC"] = "gRPC";
-    ApiType["REST"] = "REST";
-})(ApiType || (ApiType = {}));
 export class QueryElements {
     constructor(query, columns, resource, functions) {
         this.queryText = '';

@@ -71,7 +71,7 @@ export class ConsoleWriter implements IResultWriter {
     customerId: string,
     parsedRow: unknown[],
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    rawRow: Record<string, unknown>
+    rawRow: Record<string, unknown>,
   ): void {
     if (
       this.pageSize > 0 &&
@@ -106,7 +106,7 @@ export class ConsoleWriter implements IResultWriter {
       return;
     }
     console.log(
-      `${this.scriptName} (${customerId}), ${this.hasMoreRows ? 'first ' : ''}${rows.length} rows`
+      `${this.scriptName} (${customerId}), ${this.hasMoreRows ? 'first ' : ''}${rows.length} rows`,
     );
 
     rows = rows.map(row => {
@@ -126,7 +126,7 @@ export class ConsoleWriter implements IResultWriter {
     const data = [this.query!.columnNames as unknown[]].concat(rows);
     // transpose table (rows become columns)
     const data_trans = data[0].map((_, colIndex) =>
-      data.map(row => row[colIndex])
+      data.map(row => row[colIndex]),
     );
     // and a row with indexes
     data_trans.splice(0, 0, [
@@ -157,7 +157,7 @@ export class ConsoleWriter implements IResultWriter {
       if (!use_trans) {
         const first_line = data_formatted_orig.slice(
           0,
-          data_formatted_orig.indexOf('\n')
+          data_formatted_orig.indexOf('\n'),
         );
         if (first_line.length > process.stdout.columns) {
           // table isn't fitting into terminal window, transpose it
@@ -167,13 +167,13 @@ export class ConsoleWriter implements IResultWriter {
       if (use_trans) {
         const first_line_trans = data_formatted_trans.slice(
           0,
-          data_formatted_trans.indexOf('\n')
+          data_formatted_trans.indexOf('\n'),
         );
         if (first_line_trans.length > process.stdout.columns) {
           // transposed table also isn't fitting, split it onto several tables
           data_formatted = this.processTransposedTable(
             data_trans,
-            this.query!.columnNames
+            this.query!.columnNames,
           );
         }
       }
@@ -228,7 +228,7 @@ export class ConsoleWriter implements IResultWriter {
           let submatrix_formatted = table(submatrix, tableConfig);
           const first_line = submatrix_formatted.slice(
             0,
-            submatrix_formatted.indexOf('\n')
+            submatrix_formatted.indexOf('\n'),
           );
           if (first_line.length >= process.stdout.columns) {
             // currently accumulated matrix has come too long horizontally,

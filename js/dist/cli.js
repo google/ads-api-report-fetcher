@@ -20,8 +20,9 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { GoogleAdsRpcApiClient, GoogleAdsRestApiClient, } from './lib/ads-api-client.js';
-import { AdsQueryExecutor, AdsApiVersion, } from './lib/ads-query-executor.js';
+import { GoogleAdsRestApiClient, } from './lib/ads-api-client.js';
+import { AdsQueryExecutor, } from './lib/ads-query-executor.js';
+import { AdsApiDefaultVersion } from './lib/ads-api-schema.js';
 import { BigQueryInsertMethod, BigQueryWriter, } from './lib/bq-writer.js';
 import { ConsoleWriter } from './lib/console-writer.js';
 import { CsvWriter, JsonWriter, NullWriter, } from './lib/file-writers.js';
@@ -225,14 +226,9 @@ const argv = yargs(hideBin(process.argv))
     type: 'boolean',
     description: 'Output GAQL quesries to console before execution',
 })
-    .option('api', {
-    type: 'string',
-    choices: ['grpc', 'rest'],
-    description: 'API to use: gRPC or REST',
-})
     .option('api-version', {
     type: 'string',
-    description: 'API versin (supported only for REST API)',
+    description: 'API version',
 })
     .group([
     'bq.project',
@@ -269,7 +265,7 @@ const argv = yargs(hideBin(process.argv))
     }
     return JSON.parse(content);
 })
-    .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${AdsApiVersion}.`)
+    .usage(`Google Ads API Report Fetcher (gaarf) - a tool for executing Google Ads queries (aka reports, GAQL) with optional exporting to different targets (e.g. BigQuery, CSV) or dumping to the console.\n Built for Ads API ${AdsApiDefaultVersion}.`)
     .example('$0 queries/**/*.sql --output=bq --bq.project=myproject --bq.dataset=myds', 'Execute ads queries and upload results to BigQuery, table per script')
     .example('$0 queries/**/*.sql --output=csv --csv.destination-folder=output', 'Execute ads queries and output results to csv files, one per script')
     .example('$0 queries/**/*.sql --config=gaarf.json', 'Execute ads queries with passing arguments via config file')
@@ -336,17 +332,7 @@ function getReader() {
     return new FileQueryReader(argv.files);
 }
 function getApiClient(adsConfig) {
-    let client;
-    if (argv.api === 'rest') {
-        client = new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
-    }
-    else {
-        client = new GoogleAdsRpcApiClient(adsConfig);
-        if (argv.apiVersion) {
-            console.warn('api-version is not supported for gRPC API (api=grpc)');
-        }
-    }
-    return client;
+    return new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
 }
 async function main() {
     logger.verbose(JSON.stringify(argv, null, 2));
@@ -395,7 +381,7 @@ async function main() {
         adsConfig.login_customer_id = customerIds[0];
     }
     const client = getApiClient(adsConfig);
-    logger.info(`Using ${client.apiType} API (${client.apiVersion})`);
+    logger.info(`Using REST API (${client.apiVersion})`);
     const executor = new AdsQueryExecutor(client);
     if (argv._ && argv._[0] === 'validate') {
         try {

@@ -29,7 +29,7 @@ export async function getFileFromGCS(filePath: string): Promise<string> {
       .createReadStream()
       .on('error', err => {
         reject(
-          `Failed to download '${filePath}' file content from GCS: ` + err
+          `Failed to download '${filePath}' file content from GCS: ` + err,
         );
       })
       .on('data', chunk => {
@@ -40,4 +40,15 @@ export async function getFileFromGCS(filePath: string): Promise<string> {
         resolve(content);
       });
   });
+}
+
+export async function saveFileToGCS(
+  filePath: string,
+  data: string,
+): Promise<void> {
+  const parsed = new URL(filePath);
+  const bucket = parsed.hostname;
+  const filename = parsed.pathname.substring(1);
+  const storage = new Storage();
+  await storage.bucket(bucket).file(filename).save(data);
 }

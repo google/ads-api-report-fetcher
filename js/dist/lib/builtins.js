@@ -19,7 +19,7 @@ export class BuiltinQueryProcessor {
         this.queryEditor = queryEditor;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    parse(name, query) {
+    async parse(name, query) {
         if (name === 'ocid_mapping' || name === 'ocid') {
             const queryNew = 'SELECT customer.id, metrics.optimization_score_url FROM customer LIMIT 1';
             const fields = [
@@ -42,7 +42,7 @@ export class BuiltinQueryProcessor {
                     },
                 },
             ];
-            const resourceTypeFrom = this.queryEditor.getResource('customer');
+            const resourceTypeFrom = await this.queryEditor.schema.getResource('customer');
             const resourceInfo = {
                 name: 'ocid',
                 typeName: resourceTypeFrom.name,
@@ -97,7 +97,7 @@ export class BuiltinQueryProcessor {
         if (query.resource.name === 'ocid') {
             const queryRealText = 'SELECT customer.id, metrics.optimization_score_url as url FROM customer LIMIT 1';
             // we need to parse result so we wrap generator
-            const queryReal = executor.editor.parseQuery(queryRealText);
+            const queryReal = await executor.editor.parseQuery(queryRealText);
             const result = await executor.executeQueryAndParseToObjects(queryReal, customerId);
             if (result.rows)
                 for (const row of result.rows) {

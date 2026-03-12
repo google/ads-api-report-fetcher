@@ -14,44 +14,37 @@
  * limitations under the License.
  */
 import { isInteger, isNumber, isString } from 'lodash-es';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line n/no-extraneous-require
-const ads_protos = require('google-ads-node/build/protos/protos.json');
 import { getLogger } from './logger.js';
 import { CustomizerType, FieldTypeKind, isEnumType, QueryElements, } from './types.js';
 import { assertIsError, renderTemplate, substituteMacros } from './utils.js';
-import { extractFieldAccesses, mathjs } from './math-engine.js';
+import { extractFieldAccesses, inferMathExprType, mathjs, } from './math-engine.js';
 import { BuiltinQueryProcessor } from './builtins.js';
 import { parse } from './parser.js';
-const protoRoot = ads_protos.nested.google.nested.ads.nested.googleads.nested;
-const protoVer = Object.keys(protoRoot)[0]; // e.g. "v9"
-export const AdsApiVersion = protoVer;
-const protoRowType = protoRoot[protoVer].nested.services.nested.GoogleAdsRow;
-const protoResources = protoRoot[protoVer].nested.resources.nested;
-const protoEnums = protoRoot[protoVer].nested.enums.nested;
-const protoCommonTypes = protoRoot[protoVer].nested.common.nested;
+// Protobuf specific constants are removed as schema access is now through IAdsApiSchema
 class InvalidQuerySyntax extends Error {
 }
 export class AdsQueryEditor {
-    constructor(apiType, apiVersion) {
+    constructor(schema) {
         this.logger = getLogger();
-        this.resourcesMap = {};
         this.primitiveTypes = ['string', 'int64', 'int32', 'float', 'double', 'bool'];
-        this.apiType = apiType;
-        this.apiVersion = apiVersion;
+        this.schema = schema;
         this.builtinQueryProcessor = new BuiltinQueryProcessor(this);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     parseFunctions(query) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         const functions = {};
         const code = query;
-        const iter = query.matchAll(/function\s+([^(]+)\s*\(\s*([^)]+)\s*\)\s*\{/gi);
+        const iter = query.matchAll(/function\s+([^(]+)\s*\(\s*([^)]*)\s*\)\s*\{/gi);
         for (const funcBlock of iter) {
+            if (funcBlock.index === undefined)
+                continue;
             const funcName = funcBlock[1];
             const argName = funcBlock[2];
-            const idx = funcBlock[0].length;
+            const startIndex = funcBlock.index + funcBlock[0].length;
             let brackets = 1;
-            for (let i = idx; i < code.length; i++) {
+            let i = startIndex;
+            for (; i < code.length; i++) {
                 if (code[i] === '{')
                     brackets++;
                 else if (code[i] === '}')
@@ -59,19 +52,19 @@ export class AdsQueryEditor {
                 if (brackets === 0) {
                     // found the closing '}' of the function body, cut off the body w/o
                     // enclosing {}
-                    const funcBody = code.slice(idx, i - 1);
+                    const funcBody = code.slice(startIndex, i);
                     try {
                         functions[funcName] = new Function(argName, funcBody);
                     }
                     catch (e) {
                         this.logger.error(`InvalidQuerySyntax: failed to parse '${funcName}' function's body:\n ${e}`);
+                        this.logger.error(`Function's body\n:${funcBody}`);
                         throw e;
                     }
                     break;
                 }
             }
         }
-        //}
         return functions;
     }
     compileAst(query, selectFields) {
@@ -109,15 +102,15 @@ export class AdsQueryEditor {
         }
         return text;
     }
-    parseQuery(query, macros, templateParams) {
+    async parseQuery(query, macros, templateParams) {
         var _a;
+        if (templateParams) {
+            query = renderTemplate(query, templateParams);
+        }
         let ast = parse(query);
         let queryNormalized = this.compileAst(ast);
         const functions = this.parseFunctions(((_a = ast.functions) === null || _a === void 0 ? void 0 : _a.clause) || '');
         mathjs.import(functions, { override: true });
-        if (templateParams) {
-            query = renderTemplate(query, templateParams);
-        }
         // substitute parameters and detect unspecified ones
         const res = substituteMacros(queryNormalized, macros);
         if (res.unknown_params.length) {
@@ -143,10 +136,10 @@ export class AdsQueryEditor {
         if (resourceName.startsWith('builtin.')) {
             // it's a builtin query, but it still can query an Ads resource
             resourceName = resourceName.substring('builtin.'.length);
-            return this.builtinQueryProcessor.parse(resourceName, query);
+            return await this.builtinQueryProcessor.parse(resourceName, query);
         }
         else {
-            resourceTypeFrom = this.getResource(resourceName);
+            resourceTypeFrom = await this.schema.getResource(resourceName);
         }
         const resourceInfo = {
             name: resourceName,
@@ -185,8 +178,8 @@ export class AdsQueryEditor {
             else if (parsedExpr.customizer) {
                 raw_select_fields.push(select_expr_parsed);
                 const nameParts = select_expr_parsed.split('.');
-                const curType = this.getResource(nameParts[0]);
-                fieldType = this.getFieldType(curType, nameParts.slice(1));
+                const curType = await this.schema.getResource(nameParts[0]);
+                fieldType = await this.schema.getFieldType(curType, nameParts.slice(1));
                 if (parsedExpr.customizer.type === CustomizerType.NestedField) {
                     // we expect a field with nested_field customizer should ends with a
                     // type (not primitive, not enum) i.e. ProtoTypeMeta
@@ -197,7 +190,7 @@ export class AdsQueryEditor {
                         throw new Error(`InvalidQuery: field ${column_name} contains nested field accessor (:) but selected field's type enum (${fieldType.typeName})`);
                     }
                     const repeated = fieldType.repeated;
-                    fieldType = this.getFieldType(fieldType.type, parsedExpr.customizer.selector.split('.'));
+                    fieldType = await this.schema.getFieldType(fieldType.type, parsedExpr.customizer.selector.split('.'));
                     fieldType.repeated = repeated || fieldType.repeated;
                 }
                 else if (parsedExpr.customizer.type === CustomizerType.ResourceIndex) {
@@ -239,7 +232,9 @@ export class AdsQueryEditor {
                         parsed_expression = mathjs.parse(select_expr_parsed);
                     }
                     catch (e) {
-                        console.warn(`Failed to parse: ${select_expr_parsed}, at index ${field_index}`);
+                        this.logger.warn(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        `Failed to parse: ${select_expr_parsed}, at index ${field_index}: ${e.message}`);
                         throw e;
                     }
                     let field = undefined;
@@ -257,6 +252,45 @@ export class AdsQueryEditor {
                                 raw_select_fields.push(f);
                             }
                         }
+                        // We already extracted `raw_accessors` representing a list of full paths!
+                        // E.g., ['campaign.asset_automation_settings', 'metrics.clicks']
+                        // Populate dummyScope with mock values for these known accessors!
+                        const flatDummyScope = {
+                            equalText: () => true,
+                            match: () => true,
+                            some: () => true,
+                            every: () => true,
+                            filter: () => [],
+                            map: () => [],
+                        };
+                        // Make sure mathjs functions are available in the scope or it will error
+                        for (const funcName of Object.keys(functions)) {
+                            flatDummyScope[funcName] = functions[funcName];
+                        }
+                        for (const acc of raw_accessors) {
+                            try {
+                                // If it's a substituted path (like nested pairs), use the original or substituted?
+                                // `raw_accessors` has original like `metrics.clicks`
+                                const fieldType = await this.getColumnType(acc, acc);
+                                const mockValue = this.createDummyValue(fieldType.type);
+                                // Removed double wrap for fieldType.repeated
+                                // Set the deeply nested value in flatDummyScope
+                                const parts = acc.split('.');
+                                let current = flatDummyScope;
+                                for (let i = 0; i < parts.length - 1; i++) {
+                                    if (!current[parts[i]]) {
+                                        current[parts[i]] = {};
+                                    }
+                                    current = current[parts[i]];
+                                }
+                                const last = parts[parts.length - 1];
+                                current[last] = fieldType.repeated ? [mockValue] : mockValue;
+                            }
+                            catch (_) {
+                                // If getColumnType fails, ignore and use string mock
+                            }
+                        }
+                        const inferredType = inferMathExprType(parsed_expression, flatDummyScope);
                         field = {
                             name: column_name,
                             customizer: {
@@ -266,9 +300,8 @@ export class AdsQueryEditor {
                             expression: select_expr_parsed,
                             type: {
                                 kind: FieldTypeKind.primitive,
-                                // TODO: detect expression type
-                                type: 'string',
-                                typeName: 'string',
+                                type: inferredType,
+                                typeName: inferredType,
                             },
                         };
                     }
@@ -334,27 +367,24 @@ export class AdsQueryEditor {
                 name: column_name,
                 customizer: parsedExpr.customizer,
                 expression: select_expr_parsed,
-                type: this.getColumnType(column_name, select_expr_parsed, parsedExpr.customizer),
+                type: await this.getColumnType(column_name, select_expr_parsed, parsedExpr.customizer),
             };
             fields.push(field);
             field_index++;
         }
         if (expandWildcardAt > -1) {
-            // expand wildcard expression '*' to fields that weren't specified easier
-            // TODO: currently expanding only to scalar primitive fields (no nested types or enum)
+            // expand wildcard expression '*' to fields that weren't specified earlier
             const new_fields = [];
-            for (const fieldName of Object.keys(resourceInfo.typeMeta.fields)) {
-                const field = resourceInfo.typeMeta.fields[fieldName];
-                if (field.rule !== 'repeated' &&
-                    !column_names.includes(fieldName) &&
-                    (this.primitiveTypes.includes(field.type) ||
-                        field.type.match('google\\.ads.googleads.\\w+.enums'))) {
-                    //"google.ads.googleads.v14.enums.CustomerStatusEnum.CustomerStatus"
-                    raw_select_fields.push(resourceInfo.name + '.' + fieldName);
+            const primitiveFields = await this.schema.getTypePrimitiveFields(resourceInfo.typeMeta);
+            for (const field of primitiveFields) {
+                if (!column_names.includes(field.name)) {
+                    // ensure camelCase names from the REST parser are correctly resolved
+                    // when building the final native field names!
+                    raw_select_fields.push(resourceInfo.name + '.' + field.name);
                     const column = {
-                        name: fieldName,
-                        expression: resourceInfo.name + '.' + fieldName,
-                        type: this.getColumnType(fieldName, resourceInfo.name + '.' + fieldName),
+                        name: field.name,
+                        expression: resourceInfo.name + '.' + field.name,
+                        type: await this.getColumnType(field.name, resourceInfo.name + '.' + field.name),
                     };
                     new_fields.push(column);
                 }
@@ -374,10 +404,10 @@ export class AdsQueryEditor {
         const queryNative = this.compileAst(ast, raw_select_fields);
         return new QueryElements(queryNative, fields, resourceInfo, functions);
     }
-    getColumnType(columnName, columnExpression, customizer) {
+    async getColumnType(columnName, columnExpression, customizer) {
         const nameParts = columnExpression.split('.');
-        const curType = this.getResource(nameParts[0]);
-        let fieldType = this.getFieldType(curType, nameParts.slice(1));
+        const curType = await this.schema.getResource(nameParts[0]);
+        let fieldType = await this.schema.getFieldType(curType, nameParts.slice(1));
         if (customizer) {
             if (customizer.type === CustomizerType.NestedField) {
                 // we expect a field with nested_field customizer should ends with a
@@ -389,7 +419,7 @@ export class AdsQueryEditor {
                     throw new Error(`InvalidQuery: field ${columnName} contains nested field accessor (:) but selected field's type enum (${fieldType.typeName})`);
                 }
                 const repeated = fieldType.repeated;
-                fieldType = this.getFieldType(fieldType.type, customizer.selector.split('.'));
+                fieldType = await this.schema.getFieldType(fieldType.type, customizer.selector.split('.'));
                 fieldType.repeated = repeated || fieldType.repeated;
             }
             else if (customizer.type === CustomizerType.ResourceIndex) {
@@ -412,148 +442,41 @@ export class AdsQueryEditor {
         }
         return fieldType;
     }
-    getFieldType(type, nameParts) {
-        if (!nameParts || !nameParts.length)
-            throw new Error('ArgumentException: namePart is empty');
-        if (!type)
-            throw new Error('ArgumentException: type was not specified');
-        const rootType = type.name;
-        for (let i = 0; i < nameParts.length; i++) {
-            const isLastPart = i === nameParts.length - 1;
-            let fieldType;
-            const field = type.fields[nameParts[i]];
-            if (!field) {
-                if (isLastPart) {
-                    // it's an unknown field (probably from a future version)
-                    fieldType = {
-                        repeated: false,
-                        type: 'string',
-                        typeName: 'string',
-                        kind: FieldTypeKind.primitive,
-                    };
-                    return fieldType;
-                }
-                throw new Error(`Resource or type '${type.name}' does not have field '${nameParts[i]}' (initial property chain is ${nameParts.join('.')} and resource is '${rootType}')`);
-            }
-            const repeated = field.rule === 'repeated';
-            if (repeated && !isLastPart) {
-                throw new Error(`InternalError: repeated field '${nameParts[i]}' in the middle of prop chain '${nameParts.join('.')}'`);
-            }
-            const fieldTypeName = field.type;
-            // is it a primitive type?
-            if (this.primitiveTypes.includes(fieldTypeName)) {
-                fieldType = {
-                    repeated,
-                    type: fieldTypeName,
-                    typeName: fieldTypeName,
-                    kind: FieldTypeKind.primitive,
-                };
-                // field with primitive type can be only at the end of property chain
-                if (!isLastPart) {
-                    throw new Error(`InternalError: field '${nameParts[i]}' in prop chain '${nameParts.join('.')}' has primitive type ${fieldTypeName}`);
-                }
-                return fieldType;
-            }
-            // is it a link to common type or enum
-            else if (fieldTypeName.startsWith(`google.ads.googleads.${protoVer}.enums.`)) {
-                // google.ads.googleads.v9.enums
-                // e.g. "google.ads.googleads.v9.enums.CriterionTypeEnum.CriterionType"
-                const match = fieldTypeName.match(/google\.ads\.googleads\.v[\d]+\.enums\.([^.]+)\.([^.]+)/i);
-                if (!match || match.length < 3) {
-                    throw new Error(`Could parse enum type reference ${fieldTypeName}`);
-                }
-                const enumType = protoEnums[match[1]].nested[match[2]];
-                enumType['name'] = match[2];
-                fieldType = {
-                    repeated,
-                    type: enumType,
-                    typeName: match[2],
-                    kind: FieldTypeKind.enum,
-                };
-                // field with primitive type can be only at the end of property chain
-                if (!isLastPart) {
-                    throw new Error(`InternalError: field '${nameParts[i]}' in prop chain '${nameParts.join('.')}' has enum type ${fieldTypeName}`);
-                }
-                return fieldType;
-            }
-            else if (fieldTypeName.startsWith(`google.ads.googleads.${protoVer}.common.`)) {
-                // google.ads.googleads.v9.common
-                const match = fieldTypeName.match(/google\.ads\.googleads\.v[\d]+\.common\.([^.]+)/i);
-                if (!match || match.length < 2) {
-                    throw new Error(`Could parse common type reference ${fieldTypeName}`);
-                }
-                const commonType = protoCommonTypes[match[1]];
-                commonType['name'] = match[1];
-                fieldType = {
-                    repeated,
-                    type: commonType,
-                    typeName: match[1],
-                    kind: FieldTypeKind.struct,
-                };
-            }
-            else {
-                // then it's either another resource or a nested type
-                if (type.nested && type.nested[fieldTypeName]) {
-                    fieldType = {
-                        repeated,
-                        type: type.nested[fieldTypeName],
-                        typeName: fieldTypeName,
-                        kind: FieldTypeKind.struct,
-                    };
-                }
-                else if (protoResources[fieldTypeName]) {
-                    fieldType = {
-                        repeated,
-                        type: protoResources[fieldTypeName],
-                        typeName: fieldTypeName,
-                        kind: FieldTypeKind.struct,
-                    };
-                }
-                else if (protoCommonTypes[fieldTypeName]) {
-                    // yes, some fields refer to common types by a full name but some by a
-                    // short one
-                    fieldType = {
-                        repeated,
-                        type: protoCommonTypes[fieldTypeName],
-                        typeName: fieldTypeName,
-                        kind: FieldTypeKind.struct,
-                    };
-                }
-                else {
-                    throw new Error(`InternalError: could not find a type proto for ${fieldTypeName} (field ${nameParts})`);
-                }
-            }
-            type = fieldType.type;
-            if (isLastPart)
-                return fieldType;
-        }
-        throw new Error('InternalError');
-    }
-    getResource(fieldName) {
-        let resourceType = this.resourcesMap[fieldName];
-        if (resourceType)
-            return resourceType;
-        const resource = protoRowType.fields[fieldName];
-        if (!resource)
-            throw new Error(`Could not find resource '${fieldName}' in protobuf schema`);
-        // resource.type will be a full name like
-        // "google.ads.googleads.v9.resources.AdGroup" or
-        // "google.ads.googleads.v9.common.Metrics"
-        // we need to get the last part and find such a resource in protos
-        const nameParts = resource.type.split('.');
-        const resourceTypeName = nameParts[nameParts.length - 1];
-        if (resource.type.startsWith(`google.ads.googleads.${protoVer}.resources.`)) {
-            resourceType = protoResources[resourceTypeName];
-        }
-        else if (resource.type.startsWith(`google.ads.googleads.${protoVer}.common.`)) {
-            resourceType = protoCommonTypes[resourceTypeName];
-        }
-        if (!resourceType) {
-            throw new Error(`InternalError: could find resource ${resourceTypeName}`);
-        }
-        this.resourcesMap[fieldName] = resourceType;
-        resourceType['name'] = resourceTypeName;
-        return resourceType;
+    createDummyValue(type) {
+        if (type === 'int64' || type === 'int32')
+            return 1;
+        if (type === 'double' || type === 'float')
+            return 1.0;
+        if (type === 'bool')
+            return true;
+        if (type === 'string')
+            return '';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const buildSafeProxy = () => {
+            return new Proxy({}, {
+                get: (t, p) => {
+                    if (p === 'valueOf' || p === Symbol.toPrimitive)
+                        return () => 1;
+                    if (p === 'toString')
+                        return () => '';
+                    if (p === 'constructor')
+                        return Object;
+                    if (p === 'hasOwnProperty')
+                        return () => true;
+                    if (p === 'length')
+                        return 0;
+                    if (typeof p === 'string' && p in String.prototype) {
+                        const val = String.prototype[p];
+                        if (typeof val === 'function')
+                            return val.bind('');
+                        return val;
+                    }
+                    return buildSafeProxy();
+                },
+                has: () => true,
+            });
+        };
+        return buildSafeProxy();
     }
     parseExpression(selectExpr) {
         // a normal field: resource.field.may_be_another.may_be_yet_another

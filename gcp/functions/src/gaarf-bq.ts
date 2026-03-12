@@ -37,11 +37,12 @@ async function main_bq_unsafe(
 
   const body = req.body || {};
   const sqlParams = body.sql;
-  const macroParams = body.macro;
+  const macroParams = body.macros || body.macro;
 
   const result = await executor.execute(scriptName, queryText, {
     sqlParams,
     macroParams,
+    templateParams: body.template_params,
   });
   if (result && result.length) {
     res.json({rowCount: result.length});

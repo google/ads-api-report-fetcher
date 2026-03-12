@@ -18,21 +18,17 @@
 import {isArray} from 'lodash-es';
 
 import {GoogleAdsApiClientBase} from '../lib/ads-api-client.js';
-import {ApiType} from '../lib/types.js';
 
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
 
   constructor() {
-    super(
-      {
-        client_id: '',
-        client_secret: '',
-        developer_token: '',
-        refresh_token: '',
-      },
-      ApiType.gRPC
-    );
+    super({
+      client_id: '',
+      client_secret: '',
+      developer_token: '',
+      refresh_token: '',
+    });
   }
 
   setupResult(result: any[] | Record<string, any[]>) {

@@ -65,11 +65,17 @@ visitor, path) {
 export function navigateObject(object, path) {
     let ctx = object;
     for (const name of path.split('.')) {
-        ctx = ctx[name];
-        if (!ctx)
+        ctx = ctx === null || ctx === void 0 ? void 0 : ctx[name];
+        if (ctx === undefined)
             return ctx;
     }
     return ctx;
+}
+export function snakeToCamelCase(str) {
+    return str.replace(/_([a-z])/g, g => g[1].toUpperCase());
+}
+export function camelToSnakeCase(str) {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 /**
  * Parses numbers from strings
