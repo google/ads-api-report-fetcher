@@ -127,6 +127,13 @@ mathjs.import([
         return () => LocalDateTime.now();
     }),
 ], { override: true });
+mathjs.import({
+    some: mathjs.typed('some', {
+        'Array, function': function (arr, callback) {
+            return arr.some((item) => callback(item));
+        },
+    }),
+});
 // Helper to build full property access chain
 function getFullPropertyChain(node) {
     if (!node)

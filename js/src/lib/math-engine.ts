@@ -188,6 +188,14 @@ mathjs.import(
   {override: true}
 );
 
+mathjs.import({
+  some: mathjs.typed('some', {
+    'Array, function': function (arr, callback) {
+      return arr.some((item: any) => callback(item));
+    },
+  }),
+});
+
 // Helper to build full property access chain
 function getFullPropertyChain(node: MathNode): string | null {
   if (!node) return null;

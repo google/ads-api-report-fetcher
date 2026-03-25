@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable n/no-process-exit */
 /* eslint-disable no-process-exit */
 /**
  * Copyright 2025 Google LLC
@@ -351,7 +352,7 @@ async function prompt(questions, answers) {
     Object.assign(answers, actual_answers);
     return actual_answers;
 }
-function getLookerstudioCreateReportUrl(report_id, report_name, project_id, dataset_id, datasources) {
+function getLookerStudioCreateReportUrl(report_id, report_name, project_id, dataset_id, datasources) {
     let url = 'https://lookerstudio.google.com/reporting/create?';
     report_name = encodeURIComponent(report_name);
     url += `c.mode=edit&c.reportId=${report_id}&r.reportName=${report_name}&ds.*.refreshFields=false`;
@@ -445,7 +446,7 @@ async function deployDashboard(answers, project_id, output_dataset, macro_bq) {
         datasources = await askForDashboardDatasources(datasources);
         answers.dashboard_datasources = datasources;
     }
-    const dashboard_url = getLookerstudioCreateReportUrl(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
+    const dashboard_url = getLookerStudioCreateReportUrl(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
     console.log('As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):');
     console.log(chalk.cyanBright(dashboard_url));
     fs.writeFileSync(DASHBOARD_LINK_FILE, dashboard_url);
@@ -674,9 +675,14 @@ function getMultiRegion(region) {
 function sanitizeCustomerId(cid) {
     return cid.toString().replaceAll('-', '').replaceAll(' ', '');
 }
-async function gitCloneRepo(url, gaarf_folder) {
+async function gitCloneRepo(url, gaarf_folder, gaarf_version) {
     if (!fs.existsSync(gaarf_folder)) {
-        await execCmd(`git clone ${url} --depth 1 ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${url}), please wait...`));
+        if (gaarf_version) {
+            await execCmd(`git clone ${url} --depth 1 --branch ${gaarf_version} ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${url}) with branch ${gaarf_version}, please wait...`));
+        }
+        else {
+            await execCmd(`git clone ${url} --depth 1 ${gaarf_folder}`, new clui.Spinner(`Cloning Gaarf repository (${url}), please wait...`));
+        }
     }
     else {
         let git_user_name = '';
@@ -702,7 +708,15 @@ async function gitCloneRepo(url, gaarf_folder) {
                 cwd: path.join(cwd, gaarf_folder),
             });
         }
-        execSync('git pull --ff', { cwd: path.join(cwd, gaarf_folder) });
+        if (gaarf_version) {
+            await execCmd('git fetch', null, { cwd: path.join(cwd, gaarf_folder) });
+            await execCmd(`git checkout ${gaarf_version}`, null, {
+                cwd: path.join(cwd, gaarf_folder),
+            });
+        }
+        else {
+            execSync('git pull --ff', { cwd: path.join(cwd, gaarf_folder) });
+        }
     }
 }
 function dumpSettings(settings) {
@@ -720,6 +734,7 @@ function dumpSettings(settings) {
 }
 async function init() {
     const answers = getAnswers();
+    const gaarf_version = argv.gaarf_version || answers.gaarf_version;
     const status_log = `Running create-gaarf-wf in ${cwd}`;
     if (is_debug) {
         fs.writeFileSync(LOG_FILE, `[${new Date()}]${status_log}`);
@@ -731,7 +746,7 @@ async function init() {
     console.log('It is best to run this script in a folder that is a parent for your queries');
     // clone gaarf repo
     const gaarf_folder = 'ads-api-fetcher';
-    await gitCloneRepo(GIT_REPO, gaarf_folder);
+    await gitCloneRepo(GIT_REPO, gaarf_folder, gaarf_version);
     const gcp_project_id = await initializeGcpProject(answers);
     const PATH_ADS_QUERIES = 'ads-queries';
     const PATH_BQ_QUERIES = 'bq-queries';
@@ -749,7 +764,8 @@ async function init() {
     answers.name = name;
     const ads_queries_folder_candidates = fs
         .readdirSync(cwd)
-        .find(f => path.basename(f).includes('ads') && path.basename(f).includes('queries'));
+        .find(f => path.basename(f).includes('ads') &&
+        path.basename(f).includes('queries'));
     const bq_queries_folder_candidates = fs
         .readdirSync(cwd)
         .find(f => path.basename(f).includes('bq') && path.basename(f).includes('queries'));
@@ -893,10 +909,11 @@ fi
     if (answers.disable_grants) {
         aux_args = '--disable-grants';
     }
+    const git_update_cmd = gaarf_version ? '' : 'git pull --ff';
     deployShellScript('deploy-wf.sh', `# Deploy Cloud Functions and Cloud Workflows
 set -e
 cd ./${gaarf_folder}
-git pull --ff
+${git_update_cmd}
 cd ..
 ./${gaarf_folder}/gcp/setup.sh deploy_all --settings $(readlink -f "./${settings_file}") ${aux_args}
 `);

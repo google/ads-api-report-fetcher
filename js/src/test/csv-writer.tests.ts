@@ -38,7 +38,10 @@ suite('CsvWriter', () => {
       ),
       'utf-8'
     );
-    const csvData = parse(csvText, {columns: true, skipEmptyLines: true});
+    const csvData: Array<Record<string, any>> = parse(csvText, {
+      columns: true,
+      skipEmptyLines: true,
+    });
     assert.equal(csvData.length, mockResults.length);
     for (let i = 0; i < mockResults.length; i++) {
       const expected = mockResults[i];
@@ -196,7 +199,10 @@ suite('CsvWriter', () => {
       path.join(OUTPUT_DIR, SCRIPT_NAME + '.csv'),
       'utf-8'
     );
-    const csvData = parse(csvText, {columns: true, skipEmptyLines: true});
+    const csvData: Array<Record<string, any>> = parse(csvText, {
+      columns: true,
+      skipEmptyLines: true,
+    });
     console.log(csvData);
     assert(csvData);
     assert.equal(csvData.length, 1);
