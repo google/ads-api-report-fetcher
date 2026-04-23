@@ -37,6 +37,7 @@ from google.api_core import exceptions as google_exceptions
 
 from gaarf import (
   api_clients,
+  base_query,
   builtin_queries,
   exceptions,
   parsers,
@@ -129,7 +130,9 @@ class AdsReportFetcher:
 
   async def afetch(
     self,
-    query_specification: str | query_editor.QueryElements,
+    query_specification: str
+    | query_editor.QueryElements
+    | base_query.BaseQuery,
     customer_ids: list[str] | str | None = None,
     customer_ids_query: str | None = None,
     expand_mcc: bool = False,
@@ -163,7 +166,9 @@ class AdsReportFetcher:
 
   def fetch(
     self,
-    query_specification: str | query_editor.QueryElements,
+    query_specification: str
+    | query_editor.QueryElements
+    | base_query.BaseQuery,
     customer_ids: list[str] | str | None = None,
     customer_ids_query: str | None = None,
     expand_mcc: bool = False,
