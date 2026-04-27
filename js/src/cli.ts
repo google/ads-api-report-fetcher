@@ -24,14 +24,14 @@ import {hideBin} from 'yargs/helpers';
 
 import {
   GoogleAdsApiConfig,
-  GoogleAdsRestApiClient,
   IGoogleAdsApiClient,
-} from './lib/ads-api-client.js';
+} from './lib/ads-api-client-base.js';
+import {GoogleAdsRestApiClient} from './lib/ads-api-client-rest.js';
 import {
   AdsQueryExecutor,
   AdsQueryExecutorOptions,
 } from './lib/ads-query-executor.js';
-import {AdsApiDefaultVersion} from './lib/ads-api-schema.js';
+import {AdsApiDefaultVersion} from './lib/ads-api-schema-base.js';
 import {
   BigQueryInsertMethod,
   BigQueryWriter,
@@ -337,7 +337,7 @@ const argv = yargs(hideBin(process.argv))
 function getWriter(): IResultWriter {
   const output = (argv.output || '').toString();
   if (output === '') {
-    return new NullWriter();
+    return new ConsoleWriter(<ConsoleWriterOptions>argv.console);
   }
   if (output === 'console') {
     return new ConsoleWriter(<ConsoleWriterOptions>argv.console);

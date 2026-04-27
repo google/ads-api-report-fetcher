@@ -16,7 +16,7 @@
 
 import {isArray} from 'lodash-es';
 import yaml from 'js-yaml';
-import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client.js';
+import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client-base.js';
 import {getFileContent} from './file-utils.js';
 import {AdsQueryExecutor} from './ads-query-executor.js';
 

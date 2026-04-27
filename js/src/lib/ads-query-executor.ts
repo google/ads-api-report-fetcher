@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {IGoogleAdsApiClient} from './ads-api-client.js';
+import {IGoogleAdsApiClient} from './ads-api-client-base.js';
 import {IAdsQueryEditor} from './ads-query-editor.js';
 import {IAdsRowParser} from './ads-row-parser.js';
 import {getLogger} from './logger.js';

@@ -15,7 +15,7 @@
  */
 
 import assert from 'assert';
-import {GoogleAdsRestApiClient} from '../lib/ads-api-client.js';
+import {GoogleAdsRestApiClient} from '../lib/ads-api-client-rest.js';
 
 suite('GoogleAdsRestApiClient', () => {
   test('init API version', () => {

@@ -16,7 +16,7 @@
 
 import {isInteger, isNumber, isString} from 'lodash-es';
 import {getLogger} from './logger.js';
-import {IAdsApiSchema} from './ads-api-schema.js';
+import {IAdsApiSchema} from './ads-api-schema-base.js';
 import {
   Customizer,
   CustomizerType,

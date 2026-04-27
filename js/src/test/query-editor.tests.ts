@@ -17,7 +17,7 @@
 import assert from 'assert';
 
 import {AdsQueryEditor} from '../lib/ads-query-editor.js';
-import {AdsApiSchemaRest} from '../lib/ads-api-schema.js';
+import {AdsApiSchemaRest} from '../lib/ads-api-schema-base.js';
 import {FieldTypeKind} from '../lib/types.js';
 
 suite('AdsQueryEditor', () => {

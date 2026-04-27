@@ -17,7 +17,7 @@
 
 import {isArray} from 'lodash-es';
 
-import {GoogleAdsApiClientBase} from '../lib/ads-api-client.js';
+import {GoogleAdsApiClientBase} from '../lib/ads-api-client-base.js';
 
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {AdsApiSchemaRest} from '../lib/ads-api-schema.js';
+import {AdsApiSchemaRest} from '../lib/ads-api-schema-base.js';
 
 suite('AdsApiSchemaRest', () => {
   let schema: AdsApiSchemaRest;

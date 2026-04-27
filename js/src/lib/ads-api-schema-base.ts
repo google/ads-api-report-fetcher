@@ -20,22 +20,11 @@ import {
   ProtoFieldMeta,
   ProtoTypeMeta,
   ProtoEnumMeta,
-  // isEnumType, // Will be used when getFieldType's enum handling is complete
 } from './types.js';
-import axios from 'axios';
-import fsPromises from 'fs/promises'; // Use fs/promises
-import fs from 'fs'; // For readdirSync in static method
-import path from 'path';
-import {fileURLToPath} from 'url';
 import {getLogger, ILogger} from './logger.js';
 import {camelToSnakeCase} from './utils.js';
-import {getFileFromGCS, saveFileToGCS} from './google-cloud.js';
 
 export const AdsApiDefaultVersion = 'v23';
-
-// Helper to get __dirname in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export interface IAdsApiSchema {
   getResource(name: string): Promise<ProtoTypeMeta & {name: string}>;
@@ -43,6 +32,11 @@ export interface IAdsApiSchema {
   getTypePrimitiveFields(
     type: ProtoTypeMeta,
   ): Promise<Array<ProtoFieldMeta & {name: string}>>;
+}
+
+export interface ISchemaLoader {
+  loadSchema(version: string): Promise<any>;
+  getLatestVersion(): string;
 }
 
 // Helper functions
@@ -64,134 +58,20 @@ export class AdsApiSchemaRest implements IAdsApiSchema {
   private schemaCache: Record<string, ProtoTypeMeta & {name: string}> = {};
   public readonly version: string;
 
-  private static getLatestLocalSchemaVersion(logger: ILogger): string {
-    const schemasDirs: string[] = [];
-    if (
-      process.env.GAARF_SCHEMA_DIR &&
-      !process.env.GAARF_SCHEMA_DIR.startsWith('gs://')
-    ) {
-      schemasDirs.push(process.env.GAARF_SCHEMA_DIR);
+  constructor(version?: string, loader?: ISchemaLoader) {
+    if (!loader) {
+      throw new Error('ISchemaLoader must be provided');
     }
-    schemasDirs.push(path.resolve(__dirname, 'schemas'));
-
-    const allVersions: string[] = [];
-
-    for (const schemasDir of schemasDirs) {
-      try {
-        const entries = fs.readdirSync(schemasDir, {withFileTypes: true});
-        const versions = entries
-          .filter(entry => entry.isDirectory() && /^v\d+$/.test(entry.name))
-          .map(entry => entry.name);
-        allVersions.push(...versions);
-      } catch (error) {
-        logger.warn(
-          `Could not read local schema versions from ${schemasDir}:`,
-          error,
-        );
-      }
-    }
-
-    if (allVersions.length > 0) {
-      allVersions.sort((a, b) => parseInt(b.substring(1)) - parseInt(a.substring(1)));
-      logger.debug(
-        `Determined latest local schema version: ${allVersions[0]} from combined directories`,
-      );
-      return allVersions[0];
-    }
-
-    logger.warn(
-      `Could not determine latest local schema version, defaulting to ${AdsApiDefaultVersion}`,
-    );
-    return AdsApiDefaultVersion; // Fallback
-  }
-
-  constructor(version?: string) {
-    this.version =
-      version || AdsApiSchemaRest.getLatestLocalSchemaVersion(this.logger);
+    this.version = version || loader.getLatestVersion() || AdsApiDefaultVersion;
     if (!this.version.startsWith('v')) {
       this.version = 'v' + this.version;
     }
-    this.loadedSchemaPromise = this.loadSchema(this.version);
+    this.loadedSchemaPromise = loader.loadSchema(this.version);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async getLoadedSchema(): Promise<any> {
     return this.loadedSchemaPromise;
-  }
-
-  async loadSchema(version: string) {
-    const localSchemaDir = path.resolve(__dirname, 'schemas', version);
-    const localSchemaPath = path.join(localSchemaDir, 'api-schema.json');
-    let customSchemaPath = '';
-
-    if (process.env.GAARF_SCHEMA_DIR) {
-      if (process.env.GAARF_SCHEMA_DIR.startsWith('gs://')) {
-        customSchemaPath = `${process.env.GAARF_SCHEMA_DIR}/${version}/api-schema.json`;
-      } else {
-        customSchemaPath = path.join(
-          process.env.GAARF_SCHEMA_DIR,
-          version,
-          'api-schema.json',
-        );
-      }
-    }
-
-    // 1. Try local bundled schema
-    try {
-      const schemaData = await fsPromises.readFile(localSchemaPath, 'utf8');
-      this.logger.debug(`Loaded schema from ${localSchemaPath}`);
-      return JSON.parse(schemaData);
-    } catch (_) {
-      // ignore
-    }
-
-    // 2. Try GAARF_SCHEMA_DIR if configured
-    if (customSchemaPath) {
-      try {
-        let schemaData;
-        if (customSchemaPath.startsWith('gs://')) {
-          schemaData = await getFileFromGCS(customSchemaPath);
-        } else {
-          schemaData = await fsPromises.readFile(customSchemaPath, 'utf8');
-        }
-        this.logger.debug(`Loaded schema from ${customSchemaPath}`);
-        return JSON.parse(schemaData);
-      } catch (_) {
-        // ignore
-      }
-    }
-
-    // 3. Download from API
-    this.logger.info(
-      `Schema not found locally at ${localSchemaPath}${customSchemaPath ? ` or ${customSchemaPath}` : ''}. Fetching schema for version ${version} from Google Ads API...`,
-    );
-    let schema;
-    try {
-      const response = await axios.get(
-        `https://googleads.googleapis.com/$discovery/rest?version=${version}`,
-        {headers: {Accept: 'application/json'}},
-      );
-      schema = response.data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (apiErr: any) {
-      throw new Error(`Failed to fetch schema: ${apiErr.message}`);
-    }
-
-    // 4. Save to GAARF_SCHEMA_DIR if specified, otherwise local bundled dir
-    const savePath = customSchemaPath || localSchemaPath;
-    this.logger.info(`Saving schema to ${savePath}`);
-    try {
-      if (savePath.startsWith('gs://')) {
-        await saveFileToGCS(savePath, JSON.stringify(schema, null, 2));
-      } else {
-        await fsPromises.mkdir(path.dirname(savePath), {recursive: true});
-        await fsPromises.writeFile(savePath, JSON.stringify(schema, null, 2));
-      }
-    } catch (e) {
-      this.logger.warn(`Failed to save schema to ${savePath}: ${e}`);
-    }
-
-    return schema;
   }
 
   async getResource(name: string): Promise<ProtoTypeMeta & {name: string}> {
@@ -381,8 +261,6 @@ export class AdsApiSchemaRest implements IAdsApiSchema {
         (!currentRestSchema.properties[camelCasePart] &&
           !currentRestSchema.properties[snakeCasePart])
       ) {
-        // NOTE: theriotically we can search for the field in other schemas to
-        // let the user know that the field might be depricated
         throw new Error(
           `Field part '${snakeCasePart}' (tried '${camelCasePart}') not found in resource ${parentType.name} (schema '${currentRestSchema.id}')`,
         );

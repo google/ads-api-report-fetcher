@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import {GoogleAdsRestApiClient} from '../lib/ads-api-client.js';
+import {GoogleAdsRestApiClient} from '../lib/ads-api-client-rest.js';
 
 suite('AdsQueries', () => {
   const client = new GoogleAdsRestApiClient({developer_token: ''});
