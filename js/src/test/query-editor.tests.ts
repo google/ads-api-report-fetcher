@@ -19,9 +19,10 @@ import assert from 'assert';
 import {AdsQueryEditor} from '../lib/ads-query-editor.js';
 import {AdsApiSchemaRest} from '../lib/ads-api-schema-base.js';
 import {FieldTypeKind} from '../lib/types.js';
+import {RestSchemaLoader} from '../lib/ads-api-schema-loader-rest.js';
 
 suite('AdsQueryEditor', () => {
-  const schema = new AdsApiSchemaRest('v20');
+  const schema = new AdsApiSchemaRest(new RestSchemaLoader());
   const editor = new AdsQueryEditor(schema);
 
   test('parse aliases', async () => {

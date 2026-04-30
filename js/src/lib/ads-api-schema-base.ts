@@ -32,6 +32,7 @@ export interface IAdsApiSchema {
   getTypePrimitiveFields(
     type: ProtoTypeMeta,
   ): Promise<Array<ProtoFieldMeta & {name: string}>>;
+  get version(): string;
 }
 
 export interface ISchemaLoader {
@@ -58,7 +59,7 @@ export class AdsApiSchemaRest implements IAdsApiSchema {
   private schemaCache: Record<string, ProtoTypeMeta & {name: string}> = {};
   public readonly version: string;
 
-  constructor(version?: string, loader?: ISchemaLoader) {
+  constructor(loader: ISchemaLoader, version?: string) {
     if (!loader) {
       throw new Error('ISchemaLoader must be provided');
     }

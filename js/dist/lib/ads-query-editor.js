@@ -104,6 +104,9 @@ export class AdsQueryEditor {
     }
     async parseQuery(query, macros, templateParams) {
         var _a;
+        if (!query || query.trim().length === 0) {
+            throw new Error('Query text cannot be empty');
+        }
         if (templateParams) {
             query = renderTemplate(query, templateParams);
         }

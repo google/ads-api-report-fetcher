@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import {GoogleAdsRestApiClient} from '../lib/ads-api-client-rest.js';
+import {GoogleAdsApiClient} from '../lib/ads-api-client-rest.js';
 
 suite('AdsQueries', () => {
-  const client = new GoogleAdsRestApiClient({developer_token: ''});
+  const client = new GoogleAdsApiClient({developer_token: ''});
   const editor = client.getQueryEditor();
 
   const queriesDir = path.resolve(process.cwd(), '../../ads-queries');

@@ -14,48 +14,19 @@
  * limitations under the License.
  */
 import { GoogleAuth } from 'google-auth-library';
-import { executeWithRetry } from './utils.js';
-import { getLogger } from './logger.js';
 import axios from 'axios';
-import { AdsQueryEditor } from './ads-query-editor.js';
-import { AdsRowParser } from './ads-row-parser.js';
-import { AdsApiSchemaRest, AdsApiDefaultVersion, } from './ads-api-schema.js';
-export class GoogleAdsError extends Error {
-    constructor(message) {
-        super(message || 'Unknown error on calling Google Ads API occurred');
-        this.logged = false;
-        this.retryable = false;
-    }
-}
-/**
- * Base class for Google Ads API clients.
- */
-export class GoogleAdsApiClientBase {
-    constructor(adsConfig, apiVersion) {
-        if (!adsConfig) {
-            throw new Error('GoogleAdsApiConfig instance was not passed');
-        }
-        this.adsConfig = adsConfig;
-        this.logger = getLogger();
-        if (apiVersion && !apiVersion.startsWith('v')) {
-            apiVersion = 'v' + apiVersion;
-        }
-        this.apiVersion = apiVersion || AdsApiDefaultVersion;
-        this.schema = new AdsApiSchemaRest(this.apiVersion);
-    }
-    getQueryEditor() {
-        return new AdsQueryEditor(this.schema);
-    }
-    getRowParser() {
-        return new AdsRowParser(this.logger);
-    }
-}
+import { executeWithRetry } from './utils.js';
+import { GoogleAdsApiClientBase, GoogleAdsError, } from './ads-api-client-base.js';
+import { RestSchemaLoader } from './ads-api-schema-loader-rest.js';
+import { AdsApiSchemaRest } from './ads-api-schema-base.js';
 /**
  * Google Ads API client using REST API.
  */
-export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
+export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
     constructor(adsConfig, apiVersion) {
-        super(adsConfig, apiVersion);
+        const loader = new RestSchemaLoader();
+        const schema = new AdsApiSchemaRest(loader, apiVersion);
+        super(adsConfig, schema);
         this.currentToken = null;
         this.tokenExpiration = 0;
         this.refreshInterval = 300000; // 5 minutes
@@ -172,12 +143,6 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
             query,
         };
         do {
-            // The current implementation is using batched 'search' method,
-            // simply iterating over results. Ideally we should use 'searchStream' method
-            // with axios' responseType: 'stream' and parse results w/o buffering.
-            // Additionally there's a difference how executeQueryStream and executeQuery
-            // are used. The former is called by AdsQueryExecuter wrapped in executeWithRetry,
-            // while the latter is expected to implement retry on its own.
             try {
                 const data = await this.sendApiRequest(url, payload, headers);
                 if (data === null || data === void 0 ? void 0 : data.results) {
@@ -225,7 +190,6 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
                 JSON.stringify(error, null, 2), { customerId, query });
         }
         catch (e) {
-            // a very unfortunate situation
             console.error(e);
             this.logger.error(`An error occurred on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`);
         }
@@ -255,8 +219,6 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
             }
         }
         else {
-            // it's an unknown error (no `errors` collection), it happens sometimes
-            // we'll treat such errors as retryable
             ex.retryable = true;
         }
         ex.account = customerId;
@@ -266,4 +228,4 @@ export class GoogleAdsRestApiClient extends GoogleAdsApiClientBase {
         return ex;
     }
 }
-//# sourceMappingURL=ads-api-client.js.map
+//# sourceMappingURL=ads-api-client-rest.js.map

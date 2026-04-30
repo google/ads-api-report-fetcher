@@ -156,11 +156,15 @@ How to use Gaarf as a library in your own code.
 First you need to create an instance of `GoogleAdsApiClient` which represents the Ads API
 (it's a tiny wrapper around [Opteo/google-ads-api library](https://github.com/Opteo/google-ads-api) - open-source Ads API client for NodeJS).
 
-> NOTE: there is no an official Ads API client for NodeJS from Google, but the Opteo's client
-> is a result of collaboration between Opteo and Google, so it's kinda a semi-official client.
+> NOTE: there's an unofficial Google Ads API client for NodeJS from Opteo - 
+[google-ads-api](https://github.com/Opteo/google-ads-api). 
+>It's a result of collaboration between Opteo and Google, 
+so it's kinda a semi-official client. But Gaarf doesn't use it anymore. Instead we use directly REST API endpoints. 
+> It gives us flexibility to call any API version without updating the client library. 
 
-`GoogleAdsApiClient` expects an object with Ads API access settings (TS-interface `GoogleAdsApiConfig`).
-You can construct it manually or load from a yaml or json file (e.g. google-ads.yaml)
+`GoogleAdsApiClient` expects an object with Ads API access settings (TS-interface `GoogleAdsApiConfig`)
+and an optional API version.
+You can construct settings manually or load from a yaml or json file (e.g. google-ads.yaml)
 using `loadAdsConfigFromFile` function.
 
 ```ts
@@ -173,15 +177,17 @@ import {
 
 const adsConfig = await loadAdsConfigFromFile('google-ads.yaml');
 const client = new GoogleAdsApiClient(adsConfig);
-let customers = await client.getCustomerIds();
-let writer = new CsvWriter('.tmp');
-let executor = new AdsQueryExecutor(client);
-let params = {};
-let scriptPaths = ['list of sql files'];
-for (let scriptPath of scriptPaths) {
-  let queryText = fs.readFileSync(scriptPath, 'utf-8');
-  let scriptName = path.basename(scriptPath).split('.sql')[0];
-  await executor.execute(scriptName, queryText, customers, params, writer);
+const seedCid = adsConfig.customer_id;
+const customers = await getCustomerIds(client, seedCid);
+
+const writer = new CsvWriter({ outputPath: '.tmp' });
+const executor = new AdsQueryExecutor(client);
+const params = {};
+const scriptPaths = ['examples/sample_query.sql'];
+
+for (const scriptPath of scriptPaths) {
+  const queryText = fs.readFileSync(scriptPath, 'utf-8');
+  await executor.execute('', queryText, customers, params, writer);
 }
 ```
 

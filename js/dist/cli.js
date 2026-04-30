@@ -20,17 +20,18 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { GoogleAdsRestApiClient, } from './lib/ads-api-client.js';
+import { GoogleAdsApiClient } from './lib/ads-api-client-rest.js';
 import { AdsQueryExecutor, } from './lib/ads-query-executor.js';
-import { AdsApiDefaultVersion } from './lib/ads-api-schema.js';
+import { AdsApiDefaultVersion } from './lib/ads-api-schema-base.js';
 import { BigQueryInsertMethod, BigQueryWriter, } from './lib/bq-writer.js';
 import { ConsoleWriter } from './lib/console-writer.js';
-import { CsvWriter, JsonWriter, NullWriter, } from './lib/file-writers.js';
+import { CsvWriter, JsonWriter, } from './lib/file-writers.js';
 import { getFileContent } from './lib/file-utils.js';
 import { getLogger } from './lib/logger.js';
 import { getElapsed } from './lib/utils.js';
 import { ConsoleQueryReader, FileQueryReader } from './lib/query-reader.js';
 import { filterCustomerIds, getCustomerIds, getCustomerInfo, loadAdsConfigFromFile, parseCustomerIds, } from './lib/ads-utils.js';
+import { SheetsWriter } from './lib/sheets-writer.js';
 const configPath = findUpSync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath
     ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
@@ -103,7 +104,7 @@ const argv = yargs(hideBin(process.argv))
     description: 'Different types of input besides the default file input',
 })
     .option('output', {
-    choices: ['csv', 'bq', 'bigquery', 'console', 'json'],
+    choices: ['csv', 'bq', 'bigquery', 'console', 'json', 'sheets'],
     alias: 'o',
     description: 'Output writer to use',
 })
@@ -169,9 +170,22 @@ const argv = yargs(hideBin(process.argv))
     alias: ['maxrows', 'max-rows', 'page_size'],
     description: 'Maximum rows count to output per each script',
 })
+    .option('sheets.spreadsheet-id', {
+    type: 'string',
+    description: 'Google Spreadsheet docid',
+})
+    .option('sheets.sheet-name', {
+    type: 'string',
+    description: 'Google Spreadsheet sheet name',
+})
+    .option('sheets.include-headers', {
+    type: 'boolean',
+    description: 'Include headers in the sheet',
+})
     .option('bq', { hidden: true })
     .option('csv', { hidden: true })
     .option('console', { hidden: true })
+    .option('sheets', { hidden: true })
     .option('bq.project', {
     type: 'string',
     description: 'GCP project id for BigQuery',
@@ -256,6 +270,7 @@ const argv = yargs(hideBin(process.argv))
     'json.value-format',
 ], 'JSON writer options:')
     .group(['console.transpose', 'console.page_size'], 'Console writer options:')
+    .group(['sheets.spreadsheet-id', 'sheets.sheet-name', 'sheets.include-headers'], 'Google Sheets writer options:')
     .env('GAARF')
     .config(configObj)
     .config('config', 'Path to JSON or YAML config file', async (configPath) => {
@@ -275,7 +290,7 @@ const argv = yargs(hideBin(process.argv))
 function getWriter() {
     const output = (argv.output || '').toString();
     if (output === '') {
-        return new NullWriter();
+        return new ConsoleWriter(argv.console);
     }
     if (output === 'console') {
         return new ConsoleWriter(argv.console);
@@ -321,6 +336,9 @@ function getWriter() {
         logger.debug(opts);
         return new BigQueryWriter(projectId, dataset, opts);
     }
+    if (output === 'sheets') {
+        return new SheetsWriter(argv.sheets);
+    }
     // TODO: if (output === 'sqldb')
     throw new Error(`Unknown output format: '${output}'`);
 }
@@ -332,7 +350,7 @@ function getReader() {
     return new FileQueryReader(argv.files);
 }
 function getApiClient(adsConfig) {
-    return new GoogleAdsRestApiClient(adsConfig, argv.apiVersion);
+    return new GoogleAdsApiClient(adsConfig, argv.apiVersion);
 }
 async function main() {
     logger.verbose(JSON.stringify(argv, null, 2));

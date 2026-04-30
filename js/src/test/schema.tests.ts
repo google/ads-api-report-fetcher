@@ -1,11 +1,12 @@
 import assert from 'assert';
 import {AdsApiSchemaRest} from '../lib/ads-api-schema-base.js';
+import {MockSchemaLoader} from './helpers.js';
 
 suite('AdsApiSchemaRest', () => {
   let schema: AdsApiSchemaRest;
 
   setup(() => {
-    schema = new AdsApiSchemaRest();
+    schema = new AdsApiSchemaRest(new MockSchemaLoader());
   });
 
   test('Parsing schema for Campaign resource', async () => {

@@ -15,11 +15,15 @@
  */
 
 import assert from 'assert';
-import {GoogleAdsRestApiClient} from '../lib/ads-api-client-rest.js';
+import {GoogleAdsApiClient} from '../lib/ads-api-client-rest.js';
+import {AdsApiDefaultVersion} from '../lib/ads-api-schema-base.js';
 
 suite('GoogleAdsRestApiClient', () => {
   test('init API version', () => {
-    const client = new GoogleAdsRestApiClient({developer_token: ''}, 'v18');
-    assert.equal(client.apiVersion, 'v18');
+    const client = new GoogleAdsApiClient(
+      {developer_token: ''},
+      AdsApiDefaultVersion,
+    );
+    assert.equal(client.apiVersion, AdsApiDefaultVersion);
   });
 });

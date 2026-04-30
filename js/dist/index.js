@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export * from './lib/ads-api-client.js';
+export * from './lib/ads-api-client-base.js';
+export * from './lib/ads-api-client-rest.js';
 export * from './lib/ads-query-editor.js';
 export * from './lib/ads-query-executor.js';
 export * from './lib/bq-executor.js';
@@ -28,6 +29,6 @@ export * from './lib/logger-factory.js';
 export * from './lib/utils.js';
 export * from './lib/ads-utils.js';
 // for backward-compatibility
-export { GoogleAdsRestApiClient as GoogleAdsApiClient } from './lib/ads-api-client.js';
+export { GoogleAdsApiClient } from './lib/ads-api-client-rest.js';
 export { loadAdsConfigFromFile as loadAdsConfigYaml } from './lib/ads-utils.js';
 //# sourceMappingURL=index.js.map

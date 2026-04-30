@@ -178,6 +178,9 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     macros?: Record<string, string>,
     templateParams?: Record<string, string>,
   ): Promise<QueryElements> {
+    if (!query || query.trim().length === 0) {
+      throw new Error('Query text cannot be empty');
+    }
     if (templateParams) {
       query = renderTemplate(query, templateParams);
     }

@@ -16,19 +16,44 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {isArray} from 'lodash-es';
+import fs from 'fs';
+import path from 'path';
+import {fileURLToPath} from 'url';
 
 import {GoogleAdsApiClientBase} from '../lib/ads-api-client-base.js';
+import {
+  AdsApiDefaultVersion,
+  AdsApiSchemaRest,
+  ISchemaLoader,
+} from '../lib/ads-api-schema-base.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export class MockSchemaLoader implements ISchemaLoader {
+  async loadSchema(version: string): Promise<any> {
+    const schemaPath = path.resolve(__dirname, '../lib/schemas', version, 'api-schema.json');
+    const data = fs.readFileSync(schemaPath, 'utf8');
+    return JSON.parse(data);
+  }
+  getLatestVersion(): string {
+    return AdsApiDefaultVersion;
+  }
+}
 
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
 
   constructor() {
-    super({
-      client_id: '',
-      client_secret: '',
-      developer_token: '',
-      refresh_token: '',
-    });
+    super(
+      {
+        client_id: '',
+        client_secret: '',
+        developer_token: '',
+        refresh_token: '',
+      },
+      new AdsApiSchemaRest(new MockSchemaLoader()),
+    );
   }
 
   setupResult(result: any[] | Record<string, any[]>) {

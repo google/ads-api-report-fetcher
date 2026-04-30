@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.1.0 - 2026-04-30
+- added SheetsWriter (use --output=sheets in cli)
+
+## 4.0.0 - 2026-04-08
+- Rewrite of API client. Opteo packages (`google-ads-node` and `google-ads-api`) were removed.
+Now there's only one client - REST.
+Query parsing is based on JSON schemas downloaded from https://googleads.googleapis.com/$discovery/rest
+(not JS object generated from protobuf as previously).
+This gives full backward and forward compatibility with all API version.
+I.e. there no need to update the tool to support a next released version.
+
 ## 3.5.0 - 2026-01-09
 - support Google Ads API v23 (updated google-ads-api to v23)
 

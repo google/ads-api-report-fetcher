@@ -72,16 +72,13 @@ export abstract class GoogleAdsApiClientBase implements IGoogleAdsApiClient {
   logger: ILogger;
   schema: IAdsApiSchema;
 
-  constructor(adsConfig: GoogleAdsApiConfig, schema: IAdsApiSchema, apiVersion?: string) {
+  constructor(adsConfig: GoogleAdsApiConfig, schema: IAdsApiSchema) {
     if (!adsConfig) {
       throw new Error('GoogleAdsApiConfig instance was not passed');
     }
     this.adsConfig = adsConfig;
     this.logger = getLogger();
-    if (apiVersion && !apiVersion.startsWith('v')) {
-      apiVersion = 'v' + apiVersion;
-    }
-    this.apiVersion = apiVersion || AdsApiDefaultVersion;
+    this.apiVersion = schema.version;
     this.schema = schema;
   }
 

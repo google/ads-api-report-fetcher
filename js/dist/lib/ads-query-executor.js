@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { isString } from 'lodash-es';
 import { getLogger } from './logger.js';
 import { executeWithRetry, getElapsed, getMemoryUsage } from './utils.js';
 import { mapLimit } from 'async';
@@ -50,8 +51,15 @@ export class AdsQueryExecutor {
      * @returns a map from customer-id to row counts
      */
     async execute(scriptName, queryText, customers, params, writer, options) {
+        if (isString(customers)) {
+            customers = [customers];
+        }
         const skipConstants = !!(options === null || options === void 0 ? void 0 : options.skipConstants);
+        const query = await this.parseQuery(queryText, scriptName, params);
         let sync = (options === null || options === void 0 ? void 0 : options.parallelAccounts) === false || customers.length === 1;
+        if (!scriptName) {
+            scriptName = query.resource.name;
+        }
         const threshold = (options === null || options === void 0 ? void 0 : options.parallelThreshold) || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
         if (customers.length > 1) {
             this.logger.verbose(`Executing (API ${this.apiVersion}) '${scriptName}' query for ${customers.length} accounts in ${sync ? 'synchronous' : 'parallel'} mode`, { scriptName });
@@ -59,7 +67,6 @@ export class AdsQueryExecutor {
         else {
             this.logger.verbose(`Executing (API ${this.apiVersion}) '${scriptName}' query for single account (${customers[0]})`);
         }
-        const query = await this.parseQuery(queryText, scriptName, params);
         const isConstResource = query.resource.isConstant;
         if (skipConstants && isConstResource) {
             this.logger.verbose(`Skipping constant resource '${query.resource.name}'`, {

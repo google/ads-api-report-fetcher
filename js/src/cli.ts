@@ -26,7 +26,7 @@ import {
   GoogleAdsApiConfig,
   IGoogleAdsApiClient,
 } from './lib/ads-api-client-base.js';
-import {GoogleAdsRestApiClient} from './lib/ads-api-client-rest.js';
+import {GoogleAdsApiClient} from './lib/ads-api-client-rest.js';
 import {
   AdsQueryExecutor,
   AdsQueryExecutorOptions,
@@ -58,6 +58,7 @@ import {
   loadAdsConfigFromFile,
   parseCustomerIds,
 } from './lib/ads-utils.js';
+import {SheetsWriter, SheetsWriterOptions} from './lib/sheets-writer.js';
 
 const configPath = findUpSync(['.gaarfrc', '.gaarfrc.json']);
 const configObj = configPath
@@ -136,7 +137,7 @@ const argv = yargs(hideBin(process.argv))
     description: 'Different types of input besides the default file input',
   })
   .option('output', {
-    choices: ['csv', 'bq', 'bigquery', 'console', 'json'],
+    choices: ['csv', 'bq', 'bigquery', 'console', 'json', 'sheets'],
     alias: 'o',
     description: 'Output writer to use',
   })
@@ -206,9 +207,22 @@ const argv = yargs(hideBin(process.argv))
     alias: ['maxrows', 'max-rows', 'page_size'],
     description: 'Maximum rows count to output per each script',
   })
+  .option('sheets.spreadsheet-id', {
+    type: 'string',
+    description: 'Google Spreadsheet docid',
+  })
+  .option('sheets.sheet-name', {
+    type: 'string',
+    description: 'Google Spreadsheet sheet name',
+  })
+  .option('sheets.include-headers', {
+    type: 'boolean',
+    description: 'Include headers in the sheet',
+  })
   .option('bq', {hidden: true})
   .option('csv', {hidden: true})
   .option('console', {hidden: true})
+  .option('sheets', {hidden: true})
   .option('bq.project', {
     type: 'string',
     description: 'GCP project id for BigQuery',
@@ -304,6 +318,10 @@ const argv = yargs(hideBin(process.argv))
     'JSON writer options:',
   )
   .group(['console.transpose', 'console.page_size'], 'Console writer options:')
+  .group(
+    ['sheets.spreadsheet-id', 'sheets.sheet-name', 'sheets.include-headers'],
+    'Google Sheets writer options:',
+  )
   .env('GAARF')
   .config(configObj)
   .config('config', 'Path to JSON or YAML config file', async configPath => {
@@ -390,6 +408,9 @@ function getWriter(): IResultWriter {
     logger.debug(opts);
     return new BigQueryWriter(projectId, dataset, opts);
   }
+  if (output === 'sheets') {
+    return new SheetsWriter(<SheetsWriterOptions>argv.sheets);
+  }
   // TODO: if (output === 'sqldb')
 
   throw new Error(`Unknown output format: '${output}'`);
@@ -404,7 +425,7 @@ function getReader(): IQueryReader {
 }
 
 function getApiClient(adsConfig: GoogleAdsApiConfig): IGoogleAdsApiClient {
-  return new GoogleAdsRestApiClient(adsConfig, argv.apiVersion as string);
+  return new GoogleAdsApiClient(adsConfig, argv.apiVersion as string);
 }
 
 async function main() {

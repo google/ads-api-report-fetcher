@@ -23,7 +23,7 @@ import {
   IGoogleAdsApiClient,
   GoogleAdsError,
 } from './ads-api-client-base.js';
-import {RestSchemaLoader} from './ads-api-schema-rest.js';
+import {RestSchemaLoader} from './ads-api-schema-loader-rest.js';
 import {AdsApiSchemaRest} from './ads-api-schema-base.js';
 
 interface SearchResponse {
@@ -40,7 +40,7 @@ interface TokenResponse {
 /**
  * Google Ads API client using REST API.
  */
-export class GoogleAdsRestApiClient
+export class GoogleAdsApiClient
   extends GoogleAdsApiClientBase
   implements IGoogleAdsApiClient
 {
@@ -52,8 +52,8 @@ export class GoogleAdsRestApiClient
 
   constructor(adsConfig: GoogleAdsApiConfig, apiVersion?: string) {
     const loader = new RestSchemaLoader();
-    const schema = new AdsApiSchemaRest(apiVersion, loader);
-    super(adsConfig, schema, apiVersion);
+    const schema = new AdsApiSchemaRest(loader, apiVersion);
+    super(adsConfig, schema);
     this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
     if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
       this.authClient = new GoogleAuth({

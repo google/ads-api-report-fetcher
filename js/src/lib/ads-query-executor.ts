@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import {isString} from 'lodash-es';
 import {IGoogleAdsApiClient} from './ads-api-client-base.js';
 import {IAdsQueryEditor} from './ads-query-editor.js';
 import {IAdsRowParser} from './ads-row-parser.js';
@@ -112,13 +113,20 @@ export class AdsQueryExecutor {
   async execute(
     scriptName: string,
     queryText: string,
-    customers: string[],
+    customers: string[] | string,
     params: AdsQueryParams,
     writer?: IResultWriter | undefined,
     options?: AdsQueryExecutorOptions,
   ): Promise<Record<string, number>> {
+    if (isString(customers)) {
+      customers = [customers];
+    }
     const skipConstants = !!options?.skipConstants;
+    const query = await this.parseQuery(queryText, scriptName, params);
     let sync = options?.parallelAccounts === false || customers.length === 1;
+    if (!scriptName) {
+      scriptName = query.resource.name;
+    }
     const threshold =
       options?.parallelThreshold || AdsQueryExecutor.DEFAULT_PARALLEL_THRESHOLD;
     if (customers.length > 1) {
@@ -134,7 +142,6 @@ export class AdsQueryExecutor {
       );
     }
 
-    const query = await this.parseQuery(queryText, scriptName, params);
     const isConstResource = query.resource.isConstant;
     if (skipConstants && isConstResource) {
       this.logger.verbose(
