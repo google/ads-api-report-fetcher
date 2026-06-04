@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {isString} from 'lodash-es';
+import isString from 'lodash-es/isString.js';
 import {IGoogleAdsApiClient} from './ads-api-client-base.js';
 import {IAdsQueryEditor} from './ads-query-editor.js';
 import {IAdsRowParser} from './ads-row-parser.js';
@@ -355,7 +355,7 @@ export class AdsQueryExecutor {
   ): Promise<QueryObjectResult> {
     const rows = await this.client.executeQuery(query.queryText, customerId);
     let rowCount = 0;
-    const parsedRows: Record<string, unknown>[] = [];
+    const parsedRows: Array<Record<string, unknown>> = [];
     // NOTE: as we're iterating over an AsyncGenerator any error if happens
     // will be thrown on iterating not on creating of the generator
     for (const row of rows) {
@@ -391,7 +391,7 @@ export class AdsQueryExecutor {
           this.logger.debug(getMemoryUsage('Query executed'));
         }
         let rowCount = 0;
-        const rawRows: Record<string, unknown>[] = [];
+        const rawRows: Array<Record<string, unknown>> = [];
         const parsedRows: unknown[][] = [];
         // NOTE: as we're iterating over an AsyncGenerator any error if happens
         // will be thrown on iterating not on creating of the generator

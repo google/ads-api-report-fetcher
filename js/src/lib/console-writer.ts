@@ -20,7 +20,11 @@ import {
   table,
   TableUserConfig,
 } from 'table';
-import {isNumber, isBoolean, isString, isArray, max} from 'lodash-es';
+import isNumber from 'lodash-es/isNumber.js';
+import isBoolean from 'lodash-es/isBoolean.js';
+import isString from 'lodash-es/isString.js';
+import isArray from 'lodash-es/isArray.js';
+import max from 'lodash-es/max.js';
 
 import {IResultWriter, QueryElements} from './types.js';
 

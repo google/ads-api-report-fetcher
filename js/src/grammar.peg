@@ -167,7 +167,7 @@ OrderByClause
 
 LimitClause
   = __ LIMIT __ limit:([0-9]+) __
-    { return { type: 'limit', value: parseInt(limit.join(''), 10) }; }
+    { return { type: 'limit', value: Number(limit.join('')) }; }
 
 ParametersClause
   = __ PARAMETERS __ clause:RawClause

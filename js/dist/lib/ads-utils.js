@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-import { isArray } from 'lodash-es';
+import isArray from 'lodash-es/isArray.js';
 import yaml from 'js-yaml';
 import { getFileContent } from './file-utils.js';
 import { AdsQueryExecutor } from './ads-query-executor.js';

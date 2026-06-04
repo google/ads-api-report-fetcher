@@ -57,7 +57,7 @@ export class AdsApiSchemaRest implements IAdsApiSchema {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private loadedSchemaPromise: Promise<any>;
   private schemaCache: Record<string, ProtoTypeMeta & {name: string}> = {};
-  public readonly version: string;
+  readonly version: string;
 
   constructor(loader: ISchemaLoader, version?: string) {
     if (!loader) {
@@ -179,7 +179,7 @@ export class AdsApiSchemaRest implements IAdsApiSchema {
 
     return {
       type: fieldType,
-      rule: rule,
+      rule,
       id: -1,
       options: {},
     };

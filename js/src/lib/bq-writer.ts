@@ -21,7 +21,9 @@ import {
   TableField,
 } from '@google-cloud/bigquery';
 import fs_async from 'node:fs/promises';
-import {isObjectLike, isArray, isString} from 'lodash-es';
+import isObjectLike from 'lodash-es/isObjectLike.js';
+import isArray from 'lodash-es/isArray.js';
+import isString from 'lodash-es/isString.js';
 
 import {
   ArrayHandling,
@@ -88,7 +90,7 @@ export class BigQueryWriter extends FileWriterBase {
   schema: TableSchema | undefined;
   tableId: string | undefined;
   dataset: Dataset | undefined;
-  rowsByCustomer: Record<string, Record<string, unknown>[]>;
+  rowsByCustomer: Record<string, Array<Record<string, unknown>>>;
   tableTemplate: string | undefined;
   dumpSchema: boolean;
   dumpData: boolean;
@@ -259,7 +261,7 @@ export class BigQueryWriter extends FileWriterBase {
   }
 
   private async insertRows(
-    rows: Record<string, unknown>[],
+    rows: Array<Record<string, unknown>>,
     customerId: string,
     tableFullName: string,
   ) {

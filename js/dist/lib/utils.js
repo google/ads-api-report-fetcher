@@ -15,7 +15,13 @@
  */
 import fs from 'node:fs';
 import { add as date_add, format } from 'date-fns';
-import { forIn, isPlainObject, isString, isBoolean, isNumber, isFinite, isArray, } from 'lodash-es';
+import forIn from 'lodash-es/forIn.js';
+import isPlainObject from 'lodash-es/isPlainObject.js';
+import isString from 'lodash-es/isString.js';
+import isBoolean from 'lodash-es/isBoolean.js';
+import isNumber from 'lodash-es/isNumber.js';
+import isFinite from 'lodash-es/isFinite.js';
+import isArray from 'lodash-es/isArray.js';
 import nunjucks from 'nunjucks';
 import { math_parse } from './math-engine.js';
 export function traverseObject(

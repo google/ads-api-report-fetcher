@@ -15,7 +15,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {isArray} from 'lodash-es';
+import isArray from 'lodash-es/isArray.js';
 import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';

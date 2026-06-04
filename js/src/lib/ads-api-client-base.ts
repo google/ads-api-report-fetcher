@@ -37,7 +37,7 @@ export interface IGoogleAdsApiClient {
   executeQuery(
     query: string,
     customerId: string,
-  ): Promise<Record<string, unknown>[]>;
+  ): Promise<Array<Record<string, unknown>>>;
 }
 
 export type GoogleAdsApiConfig = {
@@ -98,5 +98,5 @@ export abstract class GoogleAdsApiClientBase implements IGoogleAdsApiClient {
   abstract executeQuery(
     query: string,
     customerId: string,
-  ): Promise<Record<string, unknown>[]>;
+  ): Promise<Array<Record<string, unknown>>>;
 }

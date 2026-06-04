@@ -1,0 +1,41 @@
+{
+  "name": "gaarf-appsscript",
+  "version": "1.0.0",
+  "description": "Apps Script library for Gaarf",
+  "main": "dist/bundle.gs",
+  "license": "Apache-2.0",
+  "scripts": {
+    "clean": "rimraf dist",
+    "lint": "npm run license",
+    "license": "license-check-and-add add -f license-config.json",
+    "bundle": "rollup -c rollup.config.mjs",
+    "build": "npm run clean && npm run bundle && ncp appsscript.json dist/appsscript.json && npm run copy-static",
+    "copy-static": "mkdirp dist/static && ncp src/static/ dist/static",
+    "deploy": "npm run lint && npm run build && ncp .clasp-dev.json .clasp.json && clasp push -f",
+    "deploy:prod": "npm run lint && npm run build && ncp .clasp-prod.json .clasp.json && clasp push",
+    "push": "clasp push"
+  },
+  "dependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
+    "@google/clasp": "^2.4.2",
+    "@rollup/plugin-alias": "^5.1.0",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "@types/google-apps-script": "^1.0.84",
+    "license-check-and-add": "^4.0.5",
+    "mkdirp": "^3.0.1",
+    "ncp": "^2.0.0",
+    "rimraf": "^5.0.5",
+    "rollup": "^4.24.0",
+    "rollup-plugin-cleanup": "^3.2.1",
+    "rollup-plugin-license": "^3.5.3",
+    "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-replace": "^6.0.3"
+  }
+}

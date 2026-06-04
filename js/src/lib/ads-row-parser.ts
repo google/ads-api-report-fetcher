@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import {isArray, isString, forIn, isPlainObject} from 'lodash-es';
+import isArray from 'lodash-es/isArray.js';
+import isString from 'lodash-es/isString.js';
+import forIn from 'lodash-es/forIn.js';
+import isPlainObject from 'lodash-es/isPlainObject.js';
 import {Column, Customizer, CustomizerType, QueryElements} from './types.js';
 import {navigateObject, tryParseNumber} from './utils.js';
 import {ILogger} from './logger.js';

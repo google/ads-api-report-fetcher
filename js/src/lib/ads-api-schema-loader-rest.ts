@@ -58,7 +58,9 @@ export class RestSchemaLoader implements ISchemaLoader {
     }
 
     if (allVersions.length > 0) {
-      allVersions.sort((a, b) => parseInt(b.substring(1)) - parseInt(a.substring(1)));
+      allVersions.sort(
+        (a, b) => Number(b.substring(1)) - Number(a.substring(1)),
+      );
       this.logger.debug(
         `Determined latest local schema version: ${allVersions[0]} from combined directories`,
       );

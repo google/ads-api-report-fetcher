@@ -14,7 +14,7 @@
  limitations under the License.
  */
 
-import {isArray} from 'lodash-es';
+import isArray from 'lodash-es/isArray.js';
 import yaml from 'js-yaml';
 import {GoogleAdsApiConfig, IGoogleAdsApiClient} from './ads-api-client-base.js';
 import {getFileContent} from './file-utils.js';

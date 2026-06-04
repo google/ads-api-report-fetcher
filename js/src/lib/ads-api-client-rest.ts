@@ -27,7 +27,7 @@ import {RestSchemaLoader} from './ads-api-schema-loader-rest.js';
 import {AdsApiSchemaRest} from './ads-api-schema-base.js';
 
 interface SearchResponse {
-  results: Record<string, unknown>[];
+  results: Array<Record<string, unknown>>;
   nextPageToken?: string;
   totalResultsCount: string;
 }
@@ -119,7 +119,7 @@ export class GoogleAdsApiClient
   async executeQuery(
     query: string,
     customerId: string,
-  ): Promise<Record<string, unknown>[]> {
+  ): Promise<Array<Record<string, unknown>>> {
     this.logger.debug(`Executing GAQL query: ${query}`);
     const url = `${this.baseUrl}customers/${customerId}/googleAds:search`;
     const headers: Record<string, string> = await this.createHeaders();

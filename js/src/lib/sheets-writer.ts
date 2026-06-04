@@ -29,7 +29,7 @@ export interface SheetsWriterOptions {
 export class SheetsWriter implements IResultWriter {
   private spreadsheetId?: string;
   private sheetName?: string;
-  private currentSheetName: string = '';
+  private currentSheetName = '';
   private includeHeaders: boolean;
   private arraySeparator: string;
   private data: unknown[][] = [];
@@ -90,7 +90,6 @@ export class SheetsWriter implements IResultWriter {
     }
     return val;
   }
-
 
   endCustomer(customerId: string): void {
     // No-op.

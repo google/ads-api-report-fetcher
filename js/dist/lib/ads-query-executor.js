@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isString } from 'lodash-es';
+import isString from 'lodash-es/isString.js';
 import { getLogger } from './logger.js';
 import { executeWithRetry, getElapsed, getMemoryUsage } from './utils.js';
 import { mapLimit } from 'async';

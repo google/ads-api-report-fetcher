@@ -43,7 +43,6 @@ import {
   CsvWriterOptions,
   JsonWriter,
   JsonWriterOptions,
-  NullWriter,
 } from './lib/file-writers.js';
 import {getFileContent} from './lib/file-utils.js';
 import {getLogger} from './lib/logger.js';
@@ -355,16 +354,16 @@ const argv = yargs(hideBin(process.argv))
 function getWriter(): IResultWriter {
   const output = (argv.output || '').toString();
   if (output === '') {
-    return new ConsoleWriter(<ConsoleWriterOptions>argv.console);
+    return new ConsoleWriter(argv.console as ConsoleWriterOptions);
   }
   if (output === 'console') {
-    return new ConsoleWriter(<ConsoleWriterOptions>argv.console);
+    return new ConsoleWriter(argv.console as ConsoleWriterOptions);
   }
   if (output === 'csv') {
-    return new CsvWriter(<CsvWriterOptions>argv.csv);
+    return new CsvWriter(argv.csv as CsvWriterOptions);
   }
   if (output === 'json') {
-    return new JsonWriter(<JsonWriterOptions>argv.json);
+    return new JsonWriter(argv.json as JsonWriterOptions);
   }
   if (output === 'bq' || output === 'bigquery') {
     // TODO: move all options to BigQueryWriterOptions

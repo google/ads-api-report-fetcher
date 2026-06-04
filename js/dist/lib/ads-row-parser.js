@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isArray, isString, forIn, isPlainObject } from 'lodash-es';
+import isArray from 'lodash-es/isArray.js';
+import isString from 'lodash-es/isString.js';
+import forIn from 'lodash-es/forIn.js';
+import isPlainObject from 'lodash-es/isPlainObject.js';
 import { CustomizerType } from './types.js';
 import { navigateObject, tryParseNumber } from './utils.js';
 const CAMEL_TO_SNAKE_REGEX = /[A-Z]/g;

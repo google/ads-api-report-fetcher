@@ -15,7 +15,9 @@
  */
 import { BigQuery, } from '@google-cloud/bigquery';
 import fs_async from 'node:fs/promises';
-import { isObjectLike, isArray, isString } from 'lodash-es';
+import isObjectLike from 'lodash-es/isObjectLike.js';
+import isArray from 'lodash-es/isArray.js';
+import isString from 'lodash-es/isString.js';
 import { ArrayHandling, FieldTypeKind, isEnumType, } from './types.js';
 import { delay, substituteMacros } from './utils.js';
 import { getDataset, OAUTH_SCOPES } from './bq-common.js';

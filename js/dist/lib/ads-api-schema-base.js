@@ -123,7 +123,7 @@ export class AdsApiSchemaRest {
         }
         return {
             type: fieldType,
-            rule: rule,
+            rule,
             id: -1,
             options: {},
         };

@@ -1,0 +1,268 @@
+<!--
+Copyright 2026 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: rgba(0, 0, 0, 0.2);
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--input-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.875rem;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    textarea {
+      height: 150px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background: #4b5563;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      text-align: center;
+      min-height: 1.5rem;
+    }
+
+    .status.success {
+      color: #34d399;
+    }
+
+    .status.error {
+      color: #f87171;
+    }
+
+    .status.running {
+      color: #60a5fa;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.6;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.6;
+      }
+    }
+
+    .running {
+      animation: pulse 1.5s infinite;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Gaarf Query Runner</h1>
+
+  <div class="card">
+    <div class="form-group">
+      <label for="cid">Customer ID (CID)</label>
+      <input type="text" id="cid" placeholder="e.g. 1234567890 (Optional)">
+    </div>
+
+    <div class="form-group">
+      <label for="query">GAQL Query</label>
+      <textarea id="query" placeholder="SELECT ... FROM ..."></textarea>
+    </div>
+
+    <button id="executeBtn" onclick="execute()">Execute</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    // Load persisted query on open
+    window.onload = function () {
+      try {
+        google.script.run
+          .withSuccessHandler(function (values) {
+            if (values) {
+              if (values.cid) {
+                document.getElementById('cid').value = values.cid;
+              }
+              if (values.query) {
+                document.getElementById('query').value = values.query;
+              }
+            }
+          })
+          .onClientCall('restoreClientValues');
+      } catch (e) {
+        console.error('Failed to load persisted query', e);
+      }
+    };
+
+    function execute() {
+      const cid = document.getElementById('cid').value.trim();
+      const query = document.getElementById('query').value.trim();
+      const statusDiv = document.getElementById('status');
+      const btn = document.getElementById('executeBtn');
+
+      if (!query) {
+        statusDiv.textContent = 'Please enter a query.';
+        statusDiv.className = 'status error';
+        return;
+      }
+
+      statusDiv.textContent = 'Executing query...';
+      statusDiv.className = 'status running';
+      btn.disabled = true;
+
+      try {
+        // Persist client values
+        google.script.run.onClientCall('saveClientValues', { 'query': query, 'cid': cid });
+
+        google.script.run
+          .withSuccessHandler(function (response) {
+            let message = 'Success! ';
+            if (response) {
+              const accounts = Object.keys(response);
+              let totalRows = 0;
+              for (const cid of accounts) {
+                totalRows += response[cid];
+              }
+              message += `Processed ${accounts.length} accounts with ${totalRows} total rows.`;
+            }
+            statusDiv.textContent = message;
+            statusDiv.className = 'status success';
+            btn.disabled = false;
+          })
+          .withFailureHandler(function (error) {
+            statusDiv.textContent = 'Error: ' + error.message;
+            statusDiv.className = 'status error';
+            btn.disabled = false;
+          })
+          .onClientCall(
+            'executeGaarfFromSidebar',
+            { customerId: cid, query: query }
+          );
+      } catch (e) {
+        statusDiv.textContent = 'Error: ' + e.message;
+        statusDiv.className = 'status error';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+
+</html>

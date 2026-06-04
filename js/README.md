@@ -156,11 +156,11 @@ How to use Gaarf as a library in your own code.
 First you need to create an instance of `GoogleAdsApiClient` which represents the Ads API
 (it's a tiny wrapper around [Opteo/google-ads-api library](https://github.com/Opteo/google-ads-api) - open-source Ads API client for NodeJS).
 
-> NOTE: there's an unofficial Google Ads API client for NodeJS from Opteo - 
-[google-ads-api](https://github.com/Opteo/google-ads-api). 
->It's a result of collaboration between Opteo and Google, 
-so it's kinda a semi-official client. But Gaarf doesn't use it anymore. Instead we use directly REST API endpoints. 
-> It gives us flexibility to call any API version without updating the client library. 
+> NOTE: there's an unofficial Google Ads API client for NodeJS from Opteo -
+> [google-ads-api](https://github.com/Opteo/google-ads-api).
+> It's a result of collaboration between Opteo and Google,
+> so it's kinda a semi-official client. But Gaarf doesn't use it anymore. Instead we use directly REST API endpoints.
+> It gives us flexibility to call any API version without updating the client library.
 
 `GoogleAdsApiClient` expects an object with Ads API access settings (TS-interface `GoogleAdsApiConfig`)
 and an optional API version.
@@ -180,7 +180,7 @@ const client = new GoogleAdsApiClient(adsConfig);
 const seedCid = adsConfig.customer_id;
 const customers = await getCustomerIds(client, seedCid);
 
-const writer = new CsvWriter({ outputPath: '.tmp' });
+const writer = new CsvWriter({outputPath: '.tmp'});
 const executor = new AdsQueryExecutor(client);
 const params = {};
 const scriptPaths = ['examples/sample_query.sql'];
@@ -200,7 +200,7 @@ let results = await executor.executeGen(
   queryText,
   customers,
   params,
-  writer
+  writer,
 );
 for await (let res of results) {
   //res.rows - array of rows for one customer

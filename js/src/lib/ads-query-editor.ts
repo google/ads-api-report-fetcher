@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import {isInteger, isNumber, isString} from 'lodash-es';
+import isInteger from 'lodash-es/isInteger.js';
+import isNumber from 'lodash-es/isNumber.js';
+import isString from 'lodash-es/isString.js';
 import {getLogger} from './logger.js';
 import {IAdsApiSchema} from './ads-api-schema-base.js';
 import {

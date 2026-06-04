@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es2015",
+    "module": "es2020",
+    "lib": ["es2021"],
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": "..",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false
+  },
+  "include": [
+    "src/**/*",
+    "rollup.config.mjs",
+    "src/lib/ads-api-schema-loader-bundled.ts",
+    "src/lib/bundled-schema.ts"
+  ]
+}
