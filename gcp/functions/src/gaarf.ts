@@ -35,7 +35,7 @@ import {
   getMemoryUsage,
   getCustomerIds,
   GoogleAdsApiConfig,
-  GoogleAdsRestApiClient,
+  GoogleAdsApiClient,
   IGoogleAdsApiClient,
   CsvWriter,
   CsvWriterOptions,
@@ -123,7 +123,7 @@ async function main_unsafe(
 
   let adsClient: IGoogleAdsApiClient;
   const apiVersion = <string>req.query.api_version;
-  adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
+  adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
 
   const {queryText, scriptName} = await getScript(req, logger);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars

@@ -27,7 +27,7 @@
  *  - output_path - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
  *  - schema_dir - path for Gaarf schema location
  */
-import { AdsQueryExecutor, BigQueryWriter, getMemoryUsage, getCustomerIds, GoogleAdsRestApiClient, CsvWriter, JsonWriter, } from 'google-ads-api-report-fetcher';
+import { AdsQueryExecutor, BigQueryWriter, getMemoryUsage, getCustomerIds, GoogleAdsApiClient, CsvWriter, JsonWriter, } from 'google-ads-api-report-fetcher';
 import { getAdsConfig, getProject, getScript, startPeriodicMemoryLogging, } from './utils.js';
 import { createLogger } from './logger.js';
 function getQueryWriter(req, projectId) {
@@ -83,7 +83,7 @@ async function main_unsafe(req, res, projectId, logger, functionName) {
     }
     let adsClient;
     const apiVersion = req.query.api_version;
-    adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
+    adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
     const { queryText, scriptName } = await getScript(req, logger);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     const { refresh_token, developer_token, ...ads_config_wo_token } = (adsConfig);

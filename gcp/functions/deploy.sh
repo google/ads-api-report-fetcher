@@ -78,6 +78,7 @@ done
 function reference_npm_package() {
   # Build and pack the package
   cd ../../js
+  npm i --prod
   npm run build
   npm pack --pack-destination ../gcp/functions
   cd ..
@@ -86,6 +87,10 @@ function reference_npm_package() {
   cd gcp/functions
   TARBALL=$(ls *.tgz | head -1)
   npm pkg set "dependencies.google-ads-api-report-fetcher=file:./$TARBALL"
+  # NOTE: if you're building in dev time and tar-package is updated
+  #       but version hasn't changed you should delete package-lock.json
+  #       Because npm caches it and reuses the cache even if the file content
+  #       changes but the version number stays the same
   npm install
 }
 

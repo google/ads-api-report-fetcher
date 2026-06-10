@@ -31,7 +31,7 @@
  **/
 import {
   getFileContent,
-  GoogleAdsRestApiClient,
+  GoogleAdsApiClient,
   GoogleAdsApiConfig,
   parseCustomerIds,
   getMemoryUsage,
@@ -84,7 +84,7 @@ async function main_getcids_unsafe(
   }
   let adsClient: IGoogleAdsApiClient;
   const apiVersion = <string>req.query.api_version;
-  adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
+  adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
 
   customerIds = await getCustomerIds(adsClient, customerIds);
   let customer_ids_query = '';

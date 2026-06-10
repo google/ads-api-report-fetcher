@@ -29,7 +29,7 @@
    the list will be a subset of CIDs otherwise it will be the whole list of accounts,
    ignoring batching (regadless of the customer_ids_batchsize's value).
  **/
-import { getFileContent, GoogleAdsRestApiClient, parseCustomerIds, getMemoryUsage, getCustomerIds, filterCustomerIds, } from 'google-ads-api-report-fetcher';
+import { getFileContent, GoogleAdsApiClient, parseCustomerIds, getMemoryUsage, getCustomerIds, filterCustomerIds, } from 'google-ads-api-report-fetcher';
 import { getAdsConfig, getProject, splitIntoChunks, startPeriodicMemoryLogging, } from './utils.js';
 import { createLogger } from './logger.js';
 const DEFAULT_BATCH_SIZE = 500;
@@ -59,7 +59,7 @@ async function main_getcids_unsafe(req, res, logger) {
     }
     let adsClient;
     const apiVersion = req.query.api_version;
-    adsClient = new GoogleAdsRestApiClient(adsConfig, apiVersion);
+    adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
     customerIds = await getCustomerIds(adsClient, customerIds);
     let customer_ids_query = '';
     if (req.body && req.body.customer_ids_query) {
