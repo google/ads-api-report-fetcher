@@ -16,7 +16,7 @@
 import { FieldTypeKind, } from './types.js';
 import { getLogger } from './logger.js';
 import { camelToSnakeCase } from './utils.js';
-export const AdsApiDefaultVersion = 'v23';
+export const AdsApiDefaultVersion = 'v24';
 // Helper functions
 function snakeToPascalCase(str) {
     return str

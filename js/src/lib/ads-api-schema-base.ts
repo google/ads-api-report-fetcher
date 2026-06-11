@@ -24,7 +24,7 @@ import {
 import {getLogger, ILogger} from './logger.js';
 import {camelToSnakeCase} from './utils.js';
 
-export const AdsApiDefaultVersion = 'v23';
+export const AdsApiDefaultVersion = 'v24';
 
 export interface IAdsApiSchema {
   getResource(name: string): Promise<ProtoTypeMeta & {name: string}>;
