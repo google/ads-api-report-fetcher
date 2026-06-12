@@ -354,7 +354,7 @@ async function prompt(questions, answers) {
     return actual_answers;
 }
 function getLookerStudioCreateReportUrl(report_id, report_name, project_id, dataset_id, datasources) {
-    let url = 'https://lookerstudio.google.com/reporting/create?';
+    let url = 'https://datastudio.google.com/reporting/create?';
     report_name = encodeURIComponent(report_name);
     url += `c.mode=edit&c.reportId=${report_id}&r.reportName=${report_name}&ds.*.refreshFields=false`;
     if (datasources) {
@@ -863,12 +863,12 @@ GCS_BASE_PATH=${gcs_base_path}
 ${deploy_googleads_config_snippet}
 ${deploy_custom_query_snippet}
 
-gcloud storage rm --recursive $GCS_BASE_PATH/${path_to_ads_queries}
+gcloud storage rm --recursive $GCS_BASE_PATH/${PATH_ADS_QUERIES}
 if ls ./${path_to_ads_queries}/* 1> /dev/null 2>&1; then
   gcloud storage cp --recursive ./${path_to_ads_queries}/* $GCS_BASE_PATH/${PATH_ADS_QUERIES}/
 fi
 
-gcloud storage rm --recursive $GCS_BASE_PATH/${path_to_bq_queries}
+gcloud storage rm --recursive $GCS_BASE_PATH/${PATH_BQ_QUERIES}
 if ls ./${path_to_bq_queries}/* 1> /dev/null 2>&1; then
   gcloud storage cp --recursive ./${path_to_bq_queries}/* $GCS_BASE_PATH/${PATH_BQ_QUERIES}/
 fi
