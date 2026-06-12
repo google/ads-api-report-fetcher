@@ -32,7 +32,12 @@ const __dirname = path.dirname(__filename);
 
 export class MockSchemaLoader implements ISchemaLoader {
   async loadSchema(version: string): Promise<any> {
-    const schemaPath = path.resolve(__dirname, '../lib/schemas', version, 'api-schema.json');
+    const schemaPath = path.resolve(
+      __dirname,
+      '../lib/schemas',
+      version,
+      'api-schema.json',
+    );
     const data = fs.readFileSync(schemaPath, 'utf8');
     return JSON.parse(data);
   }
@@ -44,7 +49,7 @@ export class MockSchemaLoader implements ISchemaLoader {
 export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
   results: Record<string, any[]> = {};
 
-  constructor() {
+  constructor(version?: string) {
     super(
       {
         client_id: '',
@@ -52,7 +57,7 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
         developer_token: '',
         refresh_token: '',
       },
-      new AdsApiSchemaRest(new MockSchemaLoader()),
+      new AdsApiSchemaRest(new MockSchemaLoader(), version),
     );
   }
 

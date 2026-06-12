@@ -355,17 +355,17 @@ FROM change_event
       {
         customerClient: {
           appliedLabels: ['customers/1/labels/1'],
-          clientCustomer: 'customerClients/2',
-          currencyCode: 'USD',
-          descriptiveName: 'test customer',
-          hidden: false,
-          id: 1,
-          level: 0,
-          manager: false,
-          resourceName: 'customers/1/customerClients/2',
-          status: 'CANCELED', // CustomerStatus
-          testAccount: false,
           timeZone: 'UTC',
+          hidden: false,
+          currencyCode: 'USD',
+          level: 0,
+          testAccount: false,
+          manager: false,
+          descriptiveName: 'test customer',
+          status: 'CANCELED', // CustomerStatus
+          clientCustomer: 'customerClients/2',
+          id: 1,
+          resourceName: 'customers/1/customerClients/2',
         },
       },
     ];
@@ -377,24 +377,25 @@ FROM change_event
       FROM customer_client
     `;
 
-    const client = new MockGoogleAdsApiClient();
+    // unfortunately the order if properties changes from version to version
+    const client = new MockGoogleAdsApiClient('v24');
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
 
     // act
     const query = await executor.parseQuery(queryText);
-    assert.deepStrictEqual(query.columnNames, [
+    assert.deepStrictEqual(query.columnNames.slice(), [
       'id',
-      'currency_code',
-      'test_account',
-      'level',
       'time_zone',
-      'descriptive_name',
       'hidden',
-      'resource_name',
-      'client_customer',
-      'status',
+      'currency_code',
+      'level',
+      'test_account',
       'manager',
+      'descriptive_name',
+      'status',
+      'client_customer',
+      'resource_name',
       'is_manager',
     ]);
 
@@ -406,16 +407,16 @@ FROM change_event
     assert.strictEqual(status, 'CANCELED');
     assert.deepStrictEqual(result.rows[0], [
       1, // id
-      'USD', // currency_code
-      false, // test_account
-      0, // level
       'UTC', // time_zone
-      'test customer', // descriptive_name
       false, // hidden
-      'customers/1/customerClients/2', // resource_name
-      'customerClients/2', // client_customer
-      'CANCELED', // status
+      'USD', // currency_code
+      0, // level
+      false, // test_account
       false, // manager
+      'test customer', // descriptive_name
+      'CANCELED', // status
+      'customerClients/2', // client_customer
+      'customers/1/customerClients/2', // resource_name
       false, // is_manager
     ]);
   });
