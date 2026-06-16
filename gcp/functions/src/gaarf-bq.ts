@@ -16,9 +16,11 @@
 import {
   BigQueryExecutor,
   BigQueryExecutorOptions,
+  OAUTH_SCOPES,
   getMemoryUsage,
 } from 'google-ads-api-report-fetcher';
 import type {HttpFunction} from '@google-cloud/functions-framework';
+import { BigQuery } from '@google-cloud/bigquery';
 import express from 'express';
 import {getProject, getScript, startPeriodicMemoryLogging} from './utils.js';
 import {createLogger, ILogger} from './logger.js';
@@ -31,6 +33,11 @@ async function main_bq_unsafe(
 ) {
   const options: BigQueryExecutorOptions = {
     datasetLocation: <string>req.query.dataset_location,
+    bigqueryClient: new BigQuery({
+        projectId: <string>projectId,
+        scopes: [...OAUTH_SCOPES, 'https://www.googleapis.com/auth/drive'],
+        location: <string>req.query.dataset_location,
+      })
   };
   const {queryText, scriptName} = await getScript(req, logger);
   const executor = new BigQueryExecutor(<string>projectId, options);

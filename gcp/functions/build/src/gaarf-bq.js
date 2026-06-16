@@ -13,12 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BigQueryExecutor, getMemoryUsage, } from 'google-ads-api-report-fetcher';
+import { BigQueryExecutor, OAUTH_SCOPES, getMemoryUsage, } from 'google-ads-api-report-fetcher';
+import { BigQuery } from '@google-cloud/bigquery';
 import { getProject, getScript, startPeriodicMemoryLogging } from './utils.js';
 import { createLogger } from './logger.js';
 async function main_bq_unsafe(req, res, projectId, logger) {
     const options = {
         datasetLocation: req.query.dataset_location,
+        bigqueryClient: new BigQuery({
+            projectId: projectId,
+            scopes: [...OAUTH_SCOPES, 'https://www.googleapis.com/auth/drive'],
+            location: req.query.dataset_location,
+        })
     };
     const { queryText, scriptName } = await getScript(req, logger);
     const executor = new BigQueryExecutor(projectId, options);
