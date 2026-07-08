@@ -414,7 +414,7 @@ async function prompt(
   return actual_answers;
 }
 
-function getLookerStudioCreateReportUrl(
+function getDataStudioCreateReportUrl(
   report_id: string,
   report_name: string,
   project_id: string,
@@ -448,12 +448,12 @@ async function askForDashboardDatasources(
     {
       type: 'input',
       name: 'dashboard_datasource',
-      message: `(${idx}) Enter a datasource alias in Looker Studio dashboard:`,
+      message: `(${idx}) Enter a datasource alias in Data Studio dashboard:`,
     },
     {
       type: 'input',
       name: 'dashboard_table',
-      message: `(${idx}) Enter a BigQuery table id with data for Looker Studio datasource:`,
+      message: `(${idx}) Enter a BigQuery table id with data for Data Studio datasource:`,
       when: answers => !!answers.dashboard_datasource,
     },
     {
@@ -486,12 +486,12 @@ async function deployDashboard(
         type: 'input',
         name: 'dashboard_id',
         message:
-          'Looker Studio dashboard id (00000000-0000-0000-0000-000000000000):',
+          'Data Studio dashboard id (00000000-0000-0000-0000-000000000000):',
       },
       {
         type: 'input',
         name: 'dashboard_name',
-        message: 'Looker Studio dashboard name:',
+        message: 'Data Studio dashboard name:',
       },
     ],
     answers,
@@ -526,14 +526,14 @@ async function deployDashboard(
     }
   }
 
-  // for cloning datasources we need BQ table-id AND datasource alias in Looker Studio
-  // (see https://developers.google.com/looker-studio/integrate/linking-api#data-source-alias)
+  // for cloning datasources we need BQ table-id AND datasource alias in Data Studio
+  // (see https://developers.google.com/data-studio/integrate/linking-api#data-source-alias)
   let datasources = answers.dashboard_datasources || {};
   if (Object.keys(datasources).length === 0) {
     datasources = await askForDashboardDatasources(datasources);
     answers.dashboard_datasources = datasources;
   }
-  const dashboard_url = getLookerStudioCreateReportUrl(
+  const dashboard_url = getDataStudioCreateReportUrl(
     dash_answers.dashboard_id,
     dash_answers.dashboard_name,
     project_id,
@@ -1475,7 +1475,7 @@ cd ..
         {
           type: 'confirm',
           name: 'clone_dashboard',
-          message: 'Do you want to clone a Looker Studio dashboard:',
+          message: 'Do you want to clone a Data Studio dashboard:',
           default: false,
         },
         answers,

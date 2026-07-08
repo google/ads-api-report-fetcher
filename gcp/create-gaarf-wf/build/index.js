@@ -353,7 +353,7 @@ async function prompt(questions, answers) {
     Object.assign(answers, actual_answers);
     return actual_answers;
 }
-function getLookerStudioCreateReportUrl(report_id, report_name, project_id, dataset_id, datasources) {
+function getDataStudioCreateReportUrl(report_id, report_name, project_id, dataset_id, datasources) {
     let url = 'https://datastudio.google.com/reporting/create?';
     report_name = encodeURIComponent(report_name);
     url += `c.mode=edit&c.reportId=${report_id}&r.reportName=${report_name}&ds.*.refreshFields=false`;
@@ -378,12 +378,12 @@ async function askForDashboardDatasources(datasources) {
         {
             type: 'input',
             name: 'dashboard_datasource',
-            message: `(${idx}) Enter a datasource alias in Looker Studio dashboard:`,
+            message: `(${idx}) Enter a datasource alias in Data Studio dashboard:`,
         },
         {
             type: 'input',
             name: 'dashboard_table',
-            message: `(${idx}) Enter a BigQuery table id with data for Looker Studio datasource:`,
+            message: `(${idx}) Enter a BigQuery table id with data for Data Studio datasource:`,
             when: answers => !!answers.dashboard_datasource,
         },
         {
@@ -408,12 +408,12 @@ async function deployDashboard(answers, project_id, output_dataset, macro_bq) {
         {
             type: 'input',
             name: 'dashboard_id',
-            message: 'Looker Studio dashboard id (00000000-0000-0000-0000-000000000000):',
+            message: 'Data Studio dashboard id (00000000-0000-0000-0000-000000000000):',
         },
         {
             type: 'input',
             name: 'dashboard_name',
-            message: 'Looker Studio dashboard name:',
+            message: 'Data Studio dashboard name:',
         },
     ], answers);
     // extract datasource from bq_macros
@@ -440,14 +440,14 @@ async function deployDashboard(answers, project_id, output_dataset, macro_bq) {
             })).dashboard_dataset;
         }
     }
-    // for cloning datasources we need BQ table-id AND datasource alias in Looker Studio
-    // (see https://developers.google.com/looker-studio/integrate/linking-api#data-source-alias)
+    // for cloning datasources we need BQ table-id AND datasource alias in Data Studio
+    // (see https://developers.google.com/data-studio/integrate/linking-api#data-source-alias)
     let datasources = answers.dashboard_datasources || {};
     if (Object.keys(datasources).length === 0) {
         datasources = await askForDashboardDatasources(datasources);
         answers.dashboard_datasources = datasources;
     }
-    const dashboard_url = getLookerStudioCreateReportUrl(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
+    const dashboard_url = getDataStudioCreateReportUrl(dash_answers.dashboard_id, dash_answers.dashboard_name, project_id, dataset_id, datasources);
     console.log('As soon as your workflow completes successfully, open the following link in the browser for cloning template dashboard (you can find it inside dashboard_url.txt):');
     console.log(chalk.cyanBright(dashboard_url));
     fs.writeFileSync(DASHBOARD_LINK_FILE, dashboard_url);
@@ -1101,7 +1101,7 @@ cd ..
     if ((await prompt({
         type: 'confirm',
         name: 'clone_dashboard',
-        message: 'Do you want to clone a Looker Studio dashboard:',
+        message: 'Do you want to clone a Data Studio dashboard:',
         default: false,
     }, answers)).clone_dashboard) {
         await deployDashboard(answers, gcp_project_id, output_dataset, macro_bq);
