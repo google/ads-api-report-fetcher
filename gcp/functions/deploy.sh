@@ -75,10 +75,14 @@ while :; do
   shift
 done
 
+# When we build and deploy functions we need to use 
+# the exact same version of gaarf that is in the repository,
+# regardless of its version and what's published on npm.
+# So we build a local tar package and reference it explicitly in package.json.
 function reference_npm_package() {
   # Build and pack the package
   cd ../../js
-  npm i --prod
+  npm i --production
   npm run build
   npm pack --pack-destination ../gcp/functions
   cd ..

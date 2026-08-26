@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.3.0 - 2026-08-26
+- added v25 schema
+
+## 4.2.0 - 2026-06-11
+- added v24, v23.1 schemas
+
 ## 4.1.0 - 2026-04-30
 - added SheetsWriter (use --output=sheets in cli)
 
