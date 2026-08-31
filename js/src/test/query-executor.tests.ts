@@ -386,16 +386,16 @@ FROM change_event
     const query = await executor.parseQuery(queryText);
     assert.deepStrictEqual(query.columnNames.slice(), [
       'id',
-      'time_zone',
-      'hidden',
-      'currency_code',
-      'level',
-      'test_account',
-      'manager',
-      'descriptive_name',
       'status',
       'client_customer',
+      'level',
+      'time_zone',
+      'currency_code',
+      'test_account',
+      'manager',
+      'hidden',
       'resource_name',
+      'descriptive_name',
       'is_manager',
     ]);
 
@@ -407,16 +407,16 @@ FROM change_event
     assert.strictEqual(status, 'CANCELED');
     assert.deepStrictEqual(result.rows[0], [
       1, // id
-      'UTC', // time_zone
-      false, // hidden
-      'USD', // currency_code
-      0, // level
-      false, // test_account
-      false, // manager
-      'test customer', // descriptive_name
       'CANCELED', // status
       'customerClients/2', // client_customer
+      0, // level
+      'UTC', // time_zone
+      'USD', // currency_code
+      false, // test_account
+      false, // manager
+      false, // hidden
       'customers/1/customerClients/2', // resource_name
+      'test customer', // descriptive_name
       false, // is_manager
     ]);
   });

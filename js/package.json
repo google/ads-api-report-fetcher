@@ -12,7 +12,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=15.0.0"
+    "node": ">=15.0.0 <25"
   },
   "repository": "https://github.com/google/ads-api-report-fetcher",
   "homepage": "https://github.com/google/ads-api-report-fetcher/js",
@@ -60,7 +60,7 @@
     "date-fns": "^4.1.0",
     "find-up": "^8.0.0",
     "glob": "^13.0.6",
-    "google-auth-library": "^10.6.1",
+    "google-auth-library": "^11.0.2",
     "js-yaml": "^4.1.1",
     "lodash-es": "^4.17.23",
     "mathjs": "^15.1.1",

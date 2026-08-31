@@ -32,7 +32,7 @@ Please see the full documentation in the root [README](https://github.com/google
 ## Overview
 
 > You need [Node.js](https://nodejs.org/) to run the tool.
-> v16 should be sufficient.
+> >=v16 should be sufficient.
 
 ## Command Line
 
