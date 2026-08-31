@@ -71,10 +71,12 @@ export const main_bq_view: HttpFunction = async (
 
   try {
     await main_bq_view_unsafe(req, res, projectId, logger);
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
     logger.error(e.message, {error: e});
-    res.status(500).send(e.message).end();
+    const status = e.status || e.statusCode || e.code;
+    const httpStatus = status === 429 || status === 503 ? status : 400;
+    res.status(httpStatus).send(e.message).end();
   } finally {
     if (dumpMemory) {
       if (dispose) dispose();

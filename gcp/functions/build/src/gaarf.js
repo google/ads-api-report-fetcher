@@ -150,7 +150,9 @@ export const main = async (req, res) => {
             body: req.body,
             query: req.query,
         });
-        res.status(500).send(e.message).end();
+        const status = e.status || e.statusCode || e.code;
+        const httpStatus = status === 429 || status === 503 ? status : 400;
+        res.status(httpStatus).send(e.message).end();
     }
     finally {
         if (dumpMemory) {

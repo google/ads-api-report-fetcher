@@ -40,99 +40,92 @@ main:
 
     - initialize:
         assign:
+          - tasks: []
           - error_occurred: false
           - error_message: ""
-    - iterate_over_scripts:
+
+    # build a flattened list of tasks (script + account combinations)
+    - build_tasks_list:
+        for:
+          value: script_item
+          in: ${scripts}
+          steps:
+            - check_for_constant:
+                switch:
+                  - condition: ${text.match_regex(script_item, "_constant")}
+                    next: add_constant_task
+                next: add_account_tasks
+            - add_constant_task:
+                assign:
+                  - current_task:
+                      script: ${script_item}
+                      account: ${accounts[0]}
+                      is_constant: true
+                  - tasks: ${list.concat(tasks, current_task)}
+                next: continue
+            - add_account_tasks:
+                for:
+                  value: account_item
+                  in: ${accounts}
+                  steps:
+                    - add_task:
+                        assign:
+                          - current_task:
+                              script: ${script_item}
+                              account: ${account_item}
+                              is_constant: false
+                          - tasks: ${list.concat(tasks, current_task)}
+
+    - log_tasks:
+        call: sys.log
+        args:
+          data:
+            text: "Executing Ads queries"
+            total_tasks: ${len(tasks)}
+            concurrency_limit: ${concurrency_limit}
+          severity: "INFO"
+
+    - parallel_loop_over_tasks:
         parallel:
-          shared: [scripts, accounts, error_occurred, error_message]
+          shared: [error_occurred, error_message]
           concurrency_limit: ${concurrency_limit}
           for:
-            value: script_item
-            in: ${scripts}
+            value: task
+            in: ${tasks}
             steps:
               - check_for_errors:
                   switch:
                     - condition: ${error_occurred}
                       next: continue
-              - check_for_constant:
-                  switch:
-                    - condition: ${text.match_regex(script_item, "_constant")}
-                      next: execute_constant_script
-                  next: parallel_loop_over_accounts
-              # execute constant query for a single (first) account
-              - execute_constant_script:
-                  call: executeAdsQuery
-                  args:
-                    cf_uri: ${gaarf_main_cf_uri}
-                    script_path: ${script_item}
-                    account: ${accounts[0]}
-                    root_cid: ${root_cid}
-                    macros: ${macros}
-                    template_params: ${template_params}
-                    project: ${project}
-                    writer: ${writer}
-                    bq_dataset: ${bq_dataset}
-                    bq_dataset_location: ${bq_dataset_location}
-                    ads_config_path: ${ads_config_path}
-                    api: ${api}
-                    api_version: ${api_version}
-                    writer_options: ${writer_options}
-                    output_path: ${output_path}
-                    is_constant: true
-                  next: continue # continue loop over queries
-              # parallel nested loop over accounts
-              - parallel_loop_over_accounts:
+              - execute_task:
                   try:
-                    parallel:
-                      shared: [accounts, error_occurred, error_message]
-                      concurrency_limit: ${concurrency_limit}
-                      for:
-                        value: account
-                        in: ${accounts}
-                        steps:
-                          - check_for_errors_nested:
-                              switch:
-                                - condition: ${error_occurred}
-                                  next: continue
-                          - execute_script:
-                              try:
-                                call: executeAdsQuery
-                                args:
-                                  cf_uri: ${gaarf_main_cf_uri}
-                                  script_path: ${script_item}
-                                  account: ${account}
-                                  root_cid: ${root_cid}
-                                  macros: ${macros}
-                                  template_params: ${template_params}
-                                  project: ${project}
-                                  writer: ${writer}
-                                  bq_dataset: ${bq_dataset}
-                                  bq_dataset_location: ${bq_dataset_location}
-                                  ads_config_path: ${ads_config_path}
-                                  api: ${api}
-                                  api_version: ${api_version}
-                                  writer_options: ${writer_options}
-                                  output_path: ${output_path}
-                              except:
-                                as: e
-                                steps:
-                                  - set_error_nested:
-                                      assign:
-                                        - error_occurred: true
-                                        - error_message: ${"Error in script " + script_item + " for account " + account + ":" + e.message}
-                                  - exit_loop:
-                                      next: continue
-                          - end_nested_loop:
-                              next: continue
+                    call: executeAdsQuery
+                    args:
+                      cf_uri: ${gaarf_main_cf_uri}
+                      script_path: ${task.script}
+                      account: ${task.account}
+                      root_cid: ${root_cid}
+                      macros: ${macros}
+                      template_params: ${template_params}
+                      project: ${project}
+                      writer: ${writer}
+                      bq_dataset: ${bq_dataset}
+                      bq_dataset_location: ${bq_dataset_location}
+                      ads_config_path: ${ads_config_path}
+                      api: ${api}
+                      api_version: ${api_version}
+                      writer_options: ${writer_options}
+                      output_path: ${output_path}
+                      is_constant: ${task.is_constant}
                   except:
                     as: e
                     steps:
                       - set_error:
                           assign:
                             - error_occurred: true
-                            - error_message: ${e.message}
-                      - returnError:
-                          raise: ${error_message}
+                            - error_message: ${"Error in script " + task.script + " for account " + task.account + ":" + e.message}
+                      - exit_loop:
+                          next: continue
 
     - final_error_check:
         switch:
@@ -207,11 +200,11 @@ executeAdsQuery:
           result: script_results
         retry:
           predicate: ${custom_retry_predicate}
-          max_retries: 3
+          max_retries: 8
           backoff:
-            initial_delay: 2
-            max_delay: 60
-            multiplier: 2
+            initial_delay: 15
+            max_delay: 120
+            multiplier: 1.5
     - log_script_result:
         call: sys.log
         args:
@@ -240,12 +233,13 @@ custom_retry_predicate:
         switch:
           # We'll repeat if it's a ConnectionError, TimeoutError or http statuses:
           #   429 - Too Many Requests
+          #   500 - Internal Server Error
           #   502 - Bad Gateway
           #   503 - Service Unavailable
           #   504 - Gateway Timeout
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
-          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or "SystemError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
+          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or "SystemError" in tags or code == 429 or code == 500 or code == 502 or code == 503 or code == 504}
             next: log_call_gaarf_cf_retry
     - otherwise:
         steps:

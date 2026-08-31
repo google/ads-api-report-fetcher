@@ -59,7 +59,9 @@ export const main_bq = async (req, res) => {
     catch (e) {
         console.error(e);
         logger.error(e.message, { error: e });
-        res.status(500).send(e.message).end();
+        const status = e.status || e.statusCode || e.code;
+        const httpStatus = status === 429 || status === 503 ? status : 400;
+        res.status(httpStatus).send(e.message).end();
     }
     finally {
         if (dumpMemory) {

@@ -427,12 +427,13 @@ custom_retry_predicate:
         switch:
           # We'll repeat if it's a ConnectionError, TimeoutError or http statuses:
           #   429 - Too Many Requests
+          #   500 - Internal Server Error
           #   502 - Bad Gateway
           #   503 - Service Unavailable
           #   504 - Gateway Timeout
           # NOTE: sometime errors happen inside Workflow and there's no any code
           # (i.e. "code" can be null, so DO NOT use operand ==,<,>,>=,<= without wrapping with `default`
-          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or code == 429 or code == 502 or code == 503 or code == 504}
+          - condition: ${"ConnectionFailedError" in tags or "ConnectionError" in tags or "TimeoutError" in tags or code == 429 or code == 500 or code == 502 or code == 503 or code == 504}
             return: true
     - otherwise:
         return: false
