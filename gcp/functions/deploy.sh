@@ -104,17 +104,19 @@ function clear_npm_package() {
   rm *.tgz
 }
 
-
-statusfile=$(mktemp)  # a file for saving exitcode from gcloud commands
-logfile=$(mktemp)     # a file for saving output from gcloud commands
 function execute_deploy() {
   local deployable_function=$1
   local entry_point=$2
   local memory=$3
+  local statusfile=$4
   local set_secret
   if [[ $USE_SECRET_MANAGER ]]; then
     set_secret="--set-secrets DEVELOPER_TOKEN=google-ads-dev-token:latest"
   fi
+
+  # we provide GAARF_SCHEMA_DIR envvar to Function for storing Ads json schemas
+  local PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
+  local set_env_vars="--set-env-vars GAARF_SCHEMA_DIR=gs://${PROJECT_ID}/gaarf/schemas"
 
   gcloud functions deploy $deployable_function \
       --trigger-http \
@@ -129,67 +131,107 @@ function execute_deploy() {
       $MAX_INSTANCES \
       $SERVICE_ACCOUNT \
       $set_secret \
+      $set_env_vars \
       --source=.
-  echo $? > $statusfile
+  echo $? > "$statusfile"
 }
 
 function redeploy_cf() {
   local deployable_function=$1
   local entry_point=$2
   local memory=$3
-  if [ ! $memory ]; then
+  if [ ! "$memory" ]; then
     memory='512MB' # default memory for CF Gen2 usually not enough to build them, with 512 it works fine
   fi
-  # it's ok if it fails:
-  gcloud functions delete $deployable_function --gen2 $REGION --quiet 2> /dev/null
+
+  local statusfile=$(mktemp)
+  local logfile=$(mktemp)
+  local exitcode=0
 
   echo -e "${CYAN}Deploying $deployable_function Cloud Function${NC}"
+
   if [[ $NO_RETRY ]]; then
-    execute_deploy $deployable_function $entry_point $memory
-    exitcode=$?
+    execute_deploy $deployable_function $entry_point $memory "$statusfile"
+    exitcode=$(cat "$statusfile")
     if [ $exitcode -ne 0 ]; then
-      echo 'Breaking script as gcloud command failed'
-      exit $exitcode
+      echo -e "${RED}Deploying $deployable_function failed. Attempting fallback: delete and redeploy.${NC}"
+      gcloud functions delete $deployable_function --gen2 $REGION --quiet 2> /dev/null
+      execute_deploy $deployable_function $entry_point $memory "$statusfile"
+      exitcode=$(cat "$statusfile")
+      if [ $exitcode -ne 0 ]; then
+        echo -e "${RED}Breaking script as gcloud command failed for $deployable_function${NC}"
+        rm -f "$statusfile" "$logfile"
+        exit $exitcode
+      fi
     fi
   else
     # deploy with retrying on error
     for ((i=1; i<=RETRIES; i++)); do
-      execute_deploy $deployable_function $entry_point $memory 2>&1 | tee $logfile
-      output=$(cat $logfile)
-      rm $logfile
-      exitcode=$(cat $statusfile)
-      rm $statusfile
+      execute_deploy $deployable_function $entry_point $memory "$statusfile" 2>&1 | tee "$logfile"
+      output=$(cat "$logfile")
+      exitcode=$(cat "$statusfile")
+
       if [[ $exitcode -eq 0 ]]; then
-        echo -e "${CYAN}Deployment is successful${NC}"
+        echo -e "${CYAN}Deployment of $deployable_function is successful${NC}"
         break
       else
         if [[ $output == *"OperationError: code=7, message=Unable to retrieve the repository metadata"* ]]; then
           if [[ $i -eq $RETRIES ]]; then
-            echo -e "${RED}Breaking script as maximum number of retries ($RETRIES) exceeded${NC}"
+            echo -e "${RED}Breaking script as maximum number of retries ($RETRIES) exceeded for $deployable_function${NC}"
+            rm -f "$statusfile" "$logfile"
             exit $exitcode
           fi
-          echo -e "${CAYN}Retrying the deployment ($i)...${NC}"
+          echo -e "${CYAN}Retrying the deployment of $deployable_function ($i)...${NC}"
+          sleep 10s
           continue
         else
-          echo -e "${RED}Breaking script as gcloud command failed${NC}"
+          # Fallback: if it failed for another reason, try deleting it and redeploying from scratch
+          echo -e "${RED}Deployment of $deployable_function failed. Attempting fallback: delete and redeploy.${NC}"
+          gcloud functions delete $deployable_function --gen2 $REGION --quiet 2> /dev/null
+
+          execute_deploy $deployable_function $entry_point $memory "$statusfile" 2>&1 | tee "$logfile"
+          exitcode=$(cat "$statusfile")
+          if [[ $exitcode -eq 0 ]]; then
+             echo -e "${CYAN}Deployment of $deployable_function is successful (after delete fallback)${NC}"
+             break
+          fi
+
+          echo -e "${RED}Breaking script as gcloud command failed for $deployable_function even after delete${NC}"
+          rm -f "$statusfile" "$logfile"
           exit $exitcode
         fi
       fi
-      sleep 10s
     done
   fi
+  rm -f "$statusfile" "$logfile"
 }
 
 reference_npm_package
 
-redeploy_cf $FUNCTION_NAME main $MEMORY
+redeploy_cf $FUNCTION_NAME main $MEMORY &
+PID1=$!
 
-redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS
+redeploy_cf $FUNCTION_NAME-getcids main_getcids $MEMORY_GETCIDS &
+PID2=$!
 
-redeploy_cf $FUNCTION_NAME-bq main_bq
+redeploy_cf $FUNCTION_NAME-bq main_bq &
+PID3=$!
 
-redeploy_cf $FUNCTION_NAME-bq-view main_bq_view
+redeploy_cf $FUNCTION_NAME-bq-view main_bq_view &
+PID4=$!
+
+FAIL=0
+wait $PID1 || FAIL=1
+wait $PID2 || FAIL=1
+wait $PID3 || FAIL=1
+wait $PID4 || FAIL=1
 
 clear_npm_package
+
+if [ $FAIL -ne 0 ]; then
+  echo -e "${RED}One or more deployments failed.${NC}"
+  popd > /dev/null
+  exit 1
+fi
 
 popd > /dev/null
