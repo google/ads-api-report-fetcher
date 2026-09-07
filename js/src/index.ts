@@ -30,6 +30,7 @@ export * from './lib/logger.js';
 export * from './lib/logger-factory.js';
 export * from './lib/utils.js';
 export * from './lib/ads-utils.js';
+export {mathjs} from './lib/math-engine.js';
 
 // for backward-compatibility
 export {GoogleAdsApiClient} from './lib/ads-api-client-rest.js';

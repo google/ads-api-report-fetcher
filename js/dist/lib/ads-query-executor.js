@@ -51,6 +51,7 @@ export class AdsQueryExecutor {
      * @returns a map from customer-id to row counts
      */
     async execute(scriptName, queryText, customers, params, writer, options) {
+        var _a;
         if (isString(customers)) {
             customers = [customers];
         }
@@ -110,7 +111,7 @@ export class AdsQueryExecutor {
         }
         if (writer)
             await writer.endScript();
-        if (process.env.DUMP_MEMORY) {
+        if (typeof process !== 'undefined' && ((_a = process.env) === null || _a === void 0 ? void 0 : _a.DUMP_MEMORY)) {
             this.logger.debug(getMemoryUsage('Script completed'));
         }
         return result_map;
@@ -161,13 +162,14 @@ export class AdsQueryExecutor {
      * @returns QueryResult, but `rows` and `rawRows` fields will be empty if you supplied a writer
      */
     async executeOne(query, customerId, writer, scriptName) {
+        var _a, _b;
         if (!customerId)
             throw new Error('customerId should be specified');
         this.logger.verbose(`Starting processing customer ${customerId}`, {
             scriptName,
             customerId,
         });
-        if (process.env.DUMP_MEMORY) {
+        if (typeof process !== 'undefined' && ((_a = process.env) === null || _a === void 0 ? void 0 : _a.DUMP_MEMORY)) {
             this.logger.debug(getMemoryUsage('Begin customer'));
         }
         const started = new Date();
@@ -185,7 +187,7 @@ export class AdsQueryExecutor {
             });
             if (writer)
                 await writer.endCustomer(customerId);
-            if (process.env.DUMP_MEMORY) {
+            if (typeof process !== 'undefined' && ((_b = process.env) === null || _b === void 0 ? void 0 : _b.DUMP_MEMORY)) {
                 this.logger.debug(getMemoryUsage('Customer completed'));
             }
             this.logger.info(`Customer processing completed. Elapsed: ${getElapsed(started)}`, {
@@ -245,10 +247,11 @@ export class AdsQueryExecutor {
      */
     async executeQueryAndParse(query, customerId, writer) {
         return executeWithRetry(async () => {
-            const dumpRawRow = process.env.GAARF_DUMP_API_ROW;
-            const dumpRow = process.env.GAARF_DUMP_ROW;
+            var _a, _b, _c, _d;
+            const dumpRawRow = typeof process !== 'undefined' && ((_a = process.env) === null || _a === void 0 ? void 0 : _a.GAARF_DUMP_API_ROW);
+            const dumpRow = typeof process !== 'undefined' && ((_b = process.env) === null || _b === void 0 ? void 0 : _b.GAARF_DUMP_ROW);
             const stream = this.executeNativeQuery(query, customerId);
-            if (process.env.DUMP_MEMORY) {
+            if (typeof process !== 'undefined' && ((_c = process.env) === null || _c === void 0 ? void 0 : _c.DUMP_MEMORY)) {
                 this.logger.debug(getMemoryUsage('Query executed'));
             }
             let rowCount = 0;
@@ -268,7 +271,7 @@ export class AdsQueryExecutor {
                 // NOTE: to decrease memory consumption we won't accumulate data if a writer was supplied
                 if (writer) {
                     await writer.addRow(customerId, parsedRow, row);
-                    if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
+                    if (typeof process !== 'undefined' && ((_d = process.env) === null || _d === void 0 ? void 0 : _d.DUMP_MEMORY) && rowCount % 10 === 0) {
                         this.logger.debug(getMemoryUsage('10 rows processed'));
                     }
                 }

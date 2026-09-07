@@ -154,7 +154,7 @@ export class AdsRowParser implements IAdsRowParser {
     if (customizer.type === CustomizerType.VirtualColumn) {
       try {
         value = customizer.evaluator.evaluate(row);
-      } catch (e) {
+      } catch (e: any) {
         if (e.message.includes('TypeError: Cannot read properties of null')) {
           value = null;
         } else {

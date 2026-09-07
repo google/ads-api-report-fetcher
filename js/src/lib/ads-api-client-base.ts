@@ -45,6 +45,7 @@ export type GoogleAdsApiConfig = {
   client_secret?: string;
   developer_token: string;
   refresh_token?: string;
+  access_token?: string;
   login_customer_id?: string;
   linked_customer_id?: string;
   customer_id?: string[] | string;

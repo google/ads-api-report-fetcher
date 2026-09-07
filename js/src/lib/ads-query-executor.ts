@@ -92,7 +92,7 @@ export class AdsQueryExecutor {
         params?.macros,
         params?.templateParams,
       );
-    } catch (e) {
+    } catch (e: any) {
       e.message = (scriptName ? scriptName + ': ' : '') + e.message;
       throw e;
     }
@@ -200,7 +200,7 @@ export class AdsQueryExecutor {
     }
 
     if (writer) await writer.endScript();
-    if (process.env.DUMP_MEMORY) {
+    if (typeof process !== 'undefined' && process.env?.DUMP_MEMORY) {
       this.logger.debug(getMemoryUsage('Script completed'));
     }
 
@@ -281,7 +281,7 @@ export class AdsQueryExecutor {
       scriptName,
       customerId,
     });
-    if (process.env.DUMP_MEMORY) {
+    if (typeof process !== 'undefined' && process.env?.DUMP_MEMORY) {
       this.logger.debug(getMemoryUsage('Begin customer'));
     }
     const started = new Date();
@@ -302,7 +302,7 @@ export class AdsQueryExecutor {
         },
       );
       if (writer) await writer.endCustomer(customerId);
-      if (process.env.DUMP_MEMORY) {
+      if (typeof process !== 'undefined' && process.env?.DUMP_MEMORY) {
         this.logger.debug(getMemoryUsage('Customer completed'));
       }
       this.logger.info(
@@ -313,7 +313,7 @@ export class AdsQueryExecutor {
         },
       );
       return result;
-    } catch (e) {
+    } catch (e: any) {
       if (!e.logged) {
         console.error(e);
         this.logger.error(
@@ -384,10 +384,10 @@ export class AdsQueryExecutor {
   ): Promise<QueryResult> {
     return executeWithRetry(
       async () => {
-        const dumpRawRow = process.env.GAARF_DUMP_API_ROW;
-        const dumpRow = process.env.GAARF_DUMP_ROW;
+        const dumpRawRow = typeof process !== 'undefined' && process.env?.GAARF_DUMP_API_ROW;
+        const dumpRow = typeof process !== 'undefined' && process.env?.GAARF_DUMP_ROW;
         const stream = this.executeNativeQuery(query, customerId);
-        if (process.env.DUMP_MEMORY) {
+        if (typeof process !== 'undefined' && process.env?.DUMP_MEMORY) {
           this.logger.debug(getMemoryUsage('Query executed'));
         }
         let rowCount = 0;
@@ -407,7 +407,7 @@ export class AdsQueryExecutor {
           // NOTE: to decrease memory consumption we won't accumulate data if a writer was supplied
           if (writer) {
             await writer.addRow(customerId, parsedRow, row);
-            if (process.env.DUMP_MEMORY && rowCount % 10 === 0) {
+            if (typeof process !== 'undefined' && process.env?.DUMP_MEMORY && rowCount % 10 === 0) {
               this.logger.debug(getMemoryUsage('10 rows processed'));
             }
           } else {

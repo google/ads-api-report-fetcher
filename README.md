@@ -20,6 +20,7 @@ Google Ads API Report Fetcher (gaarf)
  - [Docker](#docker)
  - [Gaarf Cloud Workflow](#gaarf-cloud-workflow)
  - [Differencies in Python and NodeJS versions](#differencies-in-python-and-nodejs-versions)
+ - [Other environments](#other-environments)
 
 
 ## Overview
@@ -88,7 +89,7 @@ Options:
   * `csv` - write data to CSV files
   * `json` - writes data to JSON files
   * `sqldb` - writes data to a database supported by SQL Alchemy (Python only)
-  * `sheet` - writes data to a Google Sheets (Python only)
+  * `sheet` - writes data to a Google Sheets
 * `loglevel` - logging level: 'debug', 'verbose', 'info', 'warn', 'error'
 * `skip-constants` - do not execute scripts for constant resources (e.g. language_constant) (*NodeJS version only*)
 * `dump-query` - outputs query text to console after resolving all macros and expressions (*NodeJS version only*), loglevel should be not less than 'verbose'
@@ -130,18 +131,20 @@ Options specific for BigQuery writer:
 Options specific for Console writer:
 * `console.transpose` - whenever and how to transpose (switch rows and columns) result tables in output:
 `auto` (default) - transpose only if table does not fit into terminal window, `always` - transpose all the time, `never` - never transpose (*NodeJS version only*).
-* `console.page_size` - maximum rows count to output per each script (aliases: `page-size`, `maxrows`)
+* `console.page-size` - maximum rows count to output per each script (aliases: `page_size`, `maxrows`)
 * `console.format` - output format: "json" or "table" (*Python version only).
 
 Options specific for SqlAlchemy writer (*Python version only*):
 * `sqldb.connection-string` to specify where to write the data (see [more](https://docs.sqlalchemy.org/en/14/core/engines.html))
 * `sqldb.if-exists` - specify how to behave if the table already exists (see [more](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_sql.html))
 
-Options specific for Sheet writer (*Python version only*):
+Options specific for Sheet writer:
 * `sheet.spreadsheet-url` - optional URL of spreadsheet where data should be saved; if not provided a new spreadsheet will be created.
-* `sheet.share-with` - with whom the newly created spreadsheet should be shared.
-* `sheet.credentials-file` - path to service account used to write data. More at [gspread authentication](https://docs.gspread.org/en/v5.10.0/oauth2.html)
-* `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended.
+* `sheet.share-with` - with whom the newly created spreadsheet should be shared. (*Python version only*)
+* `sheet.credentials-file` - path to service account used to write data. More at [gspread authentication](https://docs.gspread.org/en/v5.10.0/oauth2.html) (*Python version only*)
+* `sheet.is-append` - whether data in the sheet should be overwritten (default) or appended. (*Python version only*)
+* `sheet.sheet-name` - a name for the sheet (*NodeJS version only*)
+* `sheet.include-headers` - flag whether to add a header row (*NodeJS version only*)
 
 Options specific for JSON writer:
 * `json.output-path` - output folder where json files will be created
@@ -186,7 +189,7 @@ gaarf-sql <files> [options]
 ```
 
 If your query contains macros, templates, or sql  you need to pass `--macro.`, `--template.`, or `--sql.` CLI flags to to `gaarf-bq` or `gaarf-sql`.
-Lear more about each of those in [How to write queries](docs/how-to-write-queries.md) document:
+Learn more about each of those in [How to write queries](docs/how-to-write-queries.md) document:
 * [Macros](docs/how-to-write-queries.md#macros)
 * [Templates](docs/how-to-write-queries.md#templates)
 * [Sql](docs/how-to-write-queries.md#sql)
@@ -265,6 +268,7 @@ But you can override it via arguments if needed (e.g. `--macro.date_iso=:YYYYMMD
 
 You can run Gaarf as a Docker container.
 
+To run a container with Gaarf Python:
 ```
 export GAARF_ACCOUNT=123456
 docker run  \
@@ -321,8 +325,8 @@ with all Ads scripts that we're passing by wildcard mask (it'll be expanded to a
 
 ## Gaarf Cloud Workflow
 Inside [gcp](gcp) folder you can find code for deploying Gaarf to Google Cloud. There are the following components provided:
-* Cloud Function (in [gcp/functions](gcp/functions) folder) - two CFs that you can use for running gaarf with scripts located on GCS
-* Cloud Workflow (in [gcp/workflow](gcp/workflow) folder) - a Cloud Workflow that orchestrates enumeration scripts on GCS and calling CFs
+* Cloud Function (in [gcp/functions](gcp/functions) folder) - Functions that you can use for running gaarf with scripts located on GCS
+* Cloud Workflow (in [gcp/workflow](gcp/workflow) folder) - a Cloud Workflow that orchestrates iterating scripts on GCS and calling CFs
 
 Please see the [README](gcp/README.md) there for all information.
 
@@ -338,7 +342,7 @@ NodeJS-only features:
 
 ### Output BigQuery structure
 There are differences in how tools process Ads queries.
-Python version sends queries to Ads API and parses the result. From the result it creates a BigQuery schema. That's becasue tables in BQ are created only when a query retuned some data.
+Python version sends queries to Ads API and parses the result. From the result it creates a BigQuery schema. That's because tables in BQ are created only when a query retuned some data.
 NodeJS on the contrary parses queries and initializes BigQuery schema before execution. So that it creates BQ tables regardless of the results.
 
 There are differences in BigQuery table structures as well.
@@ -351,9 +355,15 @@ In NodeJS version the result by default will be a repeated field (array) but can
 If values of an array from Ads API are also arrays or structs, they will be converted to JSON.
 
 ### API support
-Python version supports any API version (currently available).
-While as NodeJS parses query structure it supports only one particular version (it's printed when you run `gaarf` without arguments).
+Python version supports all API versions that supported by native Ads API client (package 'google-ads') which gaarf depends on.
 
+NodeJS version supports all released version by default (with bundled schemas) and any future version via automatic schema downloading (from https://googleads.googleapis.com/$discovery/rest).
+
+## Other environments
+
+Gaarf is available as a CLI tool and a library via either Gaarf Python or Gaarf NodeJS. Besides that Gaarf can be used in Google Sheets (see the [js/apps-script](js/apps-script/) folder) and in the browser (see `gaarf-web` npm package).
+
+Also there's a VSCode-like IDE for executing GAQL queries interactively, called [Gaarf Studio](https://gaarf-studio.web.app/).
 
 ## Disclaimer
 This is not an officially supported Google product.

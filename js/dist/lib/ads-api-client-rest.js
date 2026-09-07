@@ -23,8 +23,8 @@ import { AdsApiSchemaRest } from './ads-api-schema-base.js';
  * Google Ads API client using REST API.
  */
 export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
-    constructor(adsConfig, apiVersion) {
-        const loader = new RestSchemaLoader();
+    constructor(adsConfig, apiVersion, schemaLoader) {
+        const loader = schemaLoader || new RestSchemaLoader();
         const schema = new AdsApiSchemaRest(loader, apiVersion);
         super(adsConfig, schema);
         this.currentToken = null;
@@ -32,11 +32,17 @@ export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
         this.refreshInterval = 300000; // 5 minutes
         this.authClient = null;
         this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
-        if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
-            this.authClient = new GoogleAuth({
-                keyFile: this.adsConfig.json_key_file_path,
-                scopes: 'https://www.googleapis.com/auth/adwords',
-            });
+        if (!this.adsConfig.access_token &&
+            (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token)) {
+            try {
+                this.authClient = new GoogleAuth({
+                    keyFile: this.adsConfig.json_key_file_path,
+                    scopes: 'https://www.googleapis.com/auth/adwords',
+                });
+            }
+            catch (_) {
+                // Ignore auth client initialization errors in environments without GoogleAuth credentials
+            }
         }
     }
     async refreshAccessToken(clientId, clientSecret, refreshToken) {
@@ -63,6 +69,9 @@ export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
         }
     }
     async getValidToken() {
+        if (this.adsConfig.access_token) {
+            return this.adsConfig.access_token;
+        }
         if (this.authClient) {
             // working under a service account
             const accessToken = await this.authClient.getAccessToken();

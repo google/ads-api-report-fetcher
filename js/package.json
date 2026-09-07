@@ -39,7 +39,7 @@
     "Google Ads API",
     "GAQL"
   ],
-  "author": "Google Inc. (gTech gPS CSE team)",
+  "author": "Sergei Dorogin",
   "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",

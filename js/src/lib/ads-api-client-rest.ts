@@ -24,7 +24,7 @@ import {
   GoogleAdsError,
 } from './ads-api-client-base.js';
 import {RestSchemaLoader} from './ads-api-schema-loader-rest.js';
-import {AdsApiSchemaRest} from './ads-api-schema-base.js';
+import {ISchemaLoader, AdsApiSchemaRest} from './ads-api-schema-base.js';
 
 interface SearchResponse {
   results: Array<Record<string, unknown>>;
@@ -50,16 +50,27 @@ export class GoogleAdsApiClient
   private readonly refreshInterval = 300000; // 5 minutes
   private authClient: GoogleAuth | null = null;
 
-  constructor(adsConfig: GoogleAdsApiConfig, apiVersion?: string) {
-    const loader = new RestSchemaLoader();
+  constructor(
+    adsConfig: GoogleAdsApiConfig,
+    apiVersion?: string,
+    schemaLoader?: ISchemaLoader,
+  ) {
+    const loader = schemaLoader || new RestSchemaLoader();
     const schema = new AdsApiSchemaRest(loader, apiVersion);
     super(adsConfig, schema);
     this.baseUrl = `https://googleads.googleapis.com/${this.apiVersion}/`;
-    if (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token) {
-      this.authClient = new GoogleAuth({
-        keyFile: this.adsConfig.json_key_file_path,
-        scopes: 'https://www.googleapis.com/auth/adwords',
-      });
+    if (
+      !this.adsConfig.access_token &&
+      (this.adsConfig.json_key_file_path || !this.adsConfig.refresh_token)
+    ) {
+      try {
+        this.authClient = new GoogleAuth({
+          keyFile: this.adsConfig.json_key_file_path,
+          scopes: 'https://www.googleapis.com/auth/adwords',
+        });
+      } catch (_) {
+        // Ignore auth client initialization errors in environments without GoogleAuth credentials
+      }
     }
   }
 
@@ -93,6 +104,9 @@ export class GoogleAdsApiClient
   }
 
   protected async getValidToken(): Promise<string> {
+    if (this.adsConfig.access_token) {
+      return this.adsConfig.access_token;
+    }
     if (this.authClient) {
       // working under a service account
       const accessToken = await this.authClient.getAccessToken();
@@ -234,7 +248,7 @@ export class GoogleAdsApiClient
         headers,
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response && error.response.data) {
         let errData = error.response.data;
         if (errData.length) errData = errData[0];

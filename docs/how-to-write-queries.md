@@ -14,6 +14,7 @@
  - [Templates](#templates)
  - [Expressions and Macros](#expressions-and-macros)
  - [Functions](#functions)
+ - [Working with Repeated (Array) Fields](#working-with-repeated-array-fields)
  - [Built-in queries](#built-in-queries)
  - [SQL parameters](#sql-parameters)
 
@@ -232,7 +233,8 @@ It will create 4 columns (named `installs_0_day`, `installs_1_day`, etc).
 
 
 ## Expressions and Macros
-> *Note*: currently expressions are supported only in NodeJS version.
+
+> **Expressions are supported only in JavaScript Version (Node.js, Apps Script & Web)**
 
 Your queries can contain expressions. The syntax for expressions is `${expression}`.
 They will be executed right after macros substitution. So macros can contain expressions inside.
@@ -322,16 +324,17 @@ output: "2022-08-20"
 
 ## Functions
 
-NodeJS version support in-place functions in JavaScript.
+> **JavaScript Version Only (Node.js, Apps Script & Web)**
+
 The functions support consists of two parts:
-* function execution - it's suffix `:$func` at any select field (where func is a funciton name)
+* function call - it should be inside an expression block
 * function definition - a block below the main query starting with `FUNCTIONS` after which a normal JS code with a function definition follows
 
 Example:
 ```
 SELECT
   campaign.id AS campaign_id,
-  campaign_criterion.ad_schedule.day_of_week:$format AS ad_schedule_day_of_week
+  `format(campaign_criterion.ad_schedule.day_of_week)` AS ad_schedule_day_of_week
 FROM campaign_criterion
 FUNCTIONS
 function format(val) {
@@ -345,6 +348,120 @@ Here we defined a function `format` (converts a numeric week day into a localize
 So functions always accept only one parameter - a field value.
 
 
+## Working with Repeated (Array) Fields
+
+> **JavaScript Version Only (Node.js, Apps Script & Web)**
+
+Google Ads API often returns repeated fields (arrays of objects or primitives, such as `campaign.frequency_caps`, `customer.applied_labels`, or `ad_group_ad.ad.responsive_search_ad.headlines`). Gaarf provides specialized query syntax and expression capabilities to work with arrays directly in GAQL:
+
+---
+
+### 1. Nested Field Extraction Across Arrays (`:`)
+
+When querying an array of structs/messages, the colon (`:`) customizer automatically **maps across all elements** in the array and extracts the designated sub-property:
+
+* **Syntax:** `resource.array_field:nested_property` or multi-level `resource.array_field:sub_object.nested_property`
+* **Result:** Returns an array containing the extracted values.
+
+```sql
+SELECT
+  campaign.id,
+  -- Extracts `key.level` from each FrequencyCapEntry in the array:
+  campaign.frequency_caps:key.level AS frequency_cap_levels,
+  -- Extracts `asset` from each MarketingImage in the array:
+  ad_group_ad.ad.responsive_display_ad.marketing_images:asset AS marketing_asset_ids
+FROM campaign
+```
+```sql
+SELECT
+  -- Extracts `asset` from each MarketingImage in the array:
+  ad_group_ad.ad.responsive_display_ad.marketing_images:asset AS marketing_asset_ids
+FROM ad_group_ad
+```
+
+
+*Example Output:* If `campaign.frequency_caps` contains `[{ key: { level: 'AD_GROUP_AD' } }, { key: { level: 'AD_GROUP' } }]`, the resulting value is `['AD_GROUP_AD', 'AD_GROUP']`.
+
+---
+
+### 2. Resource ID Extraction on Arrays (`~N`)
+
+Extract specific integer or string ID segments from resource names (e.g. extracting `456` and `789` from `customers/123/campaigns/456~789`). When applied to an array of resource names, it automatically transforms each item in the array:
+
+```sql
+SELECT
+  customer_client.applied_labels~0 AS label_ids
+FROM customer_client
+```
+
+---
+
+### 3. Array Element Access via Math.js Expressions
+
+Virtual columns allow accessing specific array elements using bracket notation. Note that **Math.js uses 1-based indexing**:
+
+```sql
+SELECT
+  campaign.id,
+  -- Access 1st item in array and read its nested property:
+  (campaign.final_urls[1].key).toString() AS first_url_key,
+  (campaign.frequency_caps[1].cap) AS first_cap_limit
+FROM campaign
+```
+
+---
+
+### 4. Higher-Order Array Operations (`some`, `every`, `filter`, `size`)
+
+Gaarf integrates custom array functions into the Math.js expression engine (enclosed in backticks or standard expressions):
+
+* `some(array, f(item) = predicate)`: Returns `true` if at least one element satisfies the condition.
+* `every(array, f(item) = predicate)`: Returns `true` if all elements satisfy the condition.
+* `filter(array, f(item) = predicate)`: Returns a filtered subarray.
+* `size(array)[1]`: Returns the number of elements in the array.
+
+```sql
+SELECT
+  campaign.id,
+  -- Check if any setting matches a specific type and status:
+  `some(campaign.asset_automation_settings, f(s) = equalText(s.asset_automation_type, 'FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION') and equalText(s.asset_automation_status, 'OPTED_OUT'))` AS url_expansion_opt_out,
+  -- Count filtered items:
+  `size(filter(campaign.asset_automation_settings, f(s) = equalText(s.asset_automation_status, 'OPTED_IN')))[1] > 0` AS has_opted_in
+FROM campaign
+```
+
+---
+
+### 5. Custom JavaScript Functions for Array Processing (`FUNCTIONS` Block)
+
+For advanced array manipulation (custom string joins, aggregation, complex reductions), define a custom JavaScript function in the `FUNCTIONS` block. The function receives the raw array as its argument:
+
+```sql
+SELECT
+  campaign.id,
+  formatCaps(campaign.frequency_caps) AS caps_summary,
+  countPinnedHeadlines(ad_group_ad.ad.responsive_search_ad.headlines) AS pinned_headlines_count
+FROM campaign
+FUNCTIONS
+function formatCaps(caps) {
+  if (!caps || !caps.length) return 'None';
+  return caps.map(c => `${c.key.level}: ${c.cap} per ${c.key.timeUnit}`).join('; ');
+}
+function countPinnedHeadlines(headlines) {
+  return headlines ? headlines.filter(h => h.pinnedField).length : 0;
+}
+```
+
+---
+
+### 6. Writer Output Formatting for Arrays
+
+* **`CsvWriter`**: Serializes arrays into a single delimited cell (default delimiter is `|`, customizable via `arraySeparator` option).
+* **`JsonWriter`**: Emits native JSON arrays `["val1", "val2"]` or objects.
+* **`BigQueryWriter`**: Creates native BigQuery `REPEATED` mode columns or stringifies arrays based on `arrayHandling`.
+* **`SheetsWriter`**: Formats arrays cleanly into spreadsheet cells.
+
+
 ## Built-in queries
 
 Google Ads API Report Fetcher can also works with built-in queries, which use the following syntax:
@@ -353,15 +470,12 @@ Google Ads API Report Fetcher can also works with built-in queries, which use th
 SELECT * FROM builtin.builtin_query_name
 ```
 
-It expacts to provide a built-in query name when selecting from special `builtin` namespace.
-
-Currently the following queries are  available:
+Currently the following builton queries are available:
 * `ocid_mapping` - return  `account_id` and `ocid` from each child account under MCC; `ocid` can be used to build links to Google Ads UI.
 
 
 ## SQL Parameters
-
-You can use normal sql type parameters with `sql` argument (NodeJS only):
+For sql queries executed via `gaarf-bq` (i.e. in BigQuery) sql parameters are supported via `sql` argument (NodeJS only):
 ```
 SELECT *
 FROM {dst_dataset}.{table-src}

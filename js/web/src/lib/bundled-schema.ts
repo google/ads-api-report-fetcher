@@ -13,5 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import bundledSchema from '../../../src/lib/schemas/v25/api-schema.json';
+import bundledSchema from '../../../src/lib/schemas/v25/api-schema.json' with {type: 'json'};
 export default bundledSchema;

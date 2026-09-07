@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 import typescript from '@rollup/plugin-typescript';
-import cleanup from 'rollup-plugin-cleanup';
-import license from 'rollup-plugin-license';
 import {fileURLToPath} from 'url';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import alias from '@rollup/plugin-alias';
-import path from 'path';
-import babel from '@rollup/plugin-babel';
 import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
+import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,121 +29,143 @@ const __dirname = path.dirname(__filename);
 const emptyStub = path.resolve(__dirname, 'src/lib/stubs/empty.ts');
 const loggerStub = path.resolve(__dirname, 'src/lib/stubs/logger.ts');
 const processStub = path.resolve(__dirname, 'src/lib/stubs/process.ts');
+const schemaLoaderWeb = path.resolve(
+  __dirname,
+  'src/lib/ads-api-schema-loader-web.ts',
+);
 
 export default {
-  input: 'src/index.ts',
-  treeshake: false,
-  output: {
-    dir: 'dist',
-    format: 'esm',
-    entryFileNames: 'code.gs',
+  input: {
+    index: 'src/index.ts',
+    'schema/v25': 'src/lib/bundled-schema.ts',
   },
+  output: [
+    {
+      dir: 'dist',
+      format: 'esm',
+      entryFileNames: '[name].js',
+      chunkFileNames: 'chunks/[name]-[hash].js',
+      sourcemap: true,
+    },
+  ],
   plugins: [
     alias({
       entries: [
         {
-          find: './logger.js',
+          find: /^\.\.?\/ads-api-schema-loader-rest(\.js)?$/,
+          replacement: schemaLoaderWeb,
+        },
+        {
+          find: /^\.\.?\/logger(\.js)?$/,
           replacement: loggerStub,
         },
         {
-          find: 'fs',
+          find: /^google-auth-library$/,
           replacement: emptyStub,
         },
         {
-          find: 'path',
+          find: /^@google-cloud\/.*/,
           replacement: emptyStub,
         },
         {
-          find: 'url',
+          find: /^winston$/,
           replacement: emptyStub,
         },
         {
-          find: 'fs/promises',
+          find: /^fs\/promises$/,
           replacement: emptyStub,
         },
         {
-          find: 'node:fs',
+          find: /^node:fs$/,
           replacement: emptyStub,
         },
         {
-          find: 'module',
+          find: /^fs$/,
           replacement: emptyStub,
         },
         {
-          find: 'zlib',
+          find: /^path$/,
           replacement: emptyStub,
         },
         {
-          find: 'http',
+          find: /^url$/,
           replacement: emptyStub,
         },
         {
-          find: 'https',
+          find: /^module$/,
           replacement: emptyStub,
         },
         {
-          find: 'stream',
+          find: /^zlib$/,
           replacement: emptyStub,
         },
         {
-          find: 'querystring',
+          find: /^http$/,
           replacement: emptyStub,
         },
         {
-          find: 'assert',
+          find: /^https$/,
           replacement: emptyStub,
         },
         {
-          find: 'crypto',
+          find: /^stream$/,
           replacement: emptyStub,
         },
         {
-          find: 'events',
+          find: /^querystring$/,
           replacement: emptyStub,
         },
         {
-          find: 'os',
+          find: /^assert$/,
           replacement: emptyStub,
         },
         {
-          find: 'util',
+          find: /^crypto$/,
           replacement: emptyStub,
         },
         {
-          find: 'node:util',
+          find: /^node:events$/,
           replacement: emptyStub,
         },
         {
-          find: 'tls',
+          find: /^events$/,
           replacement: emptyStub,
         },
         {
-          find: 'net',
+          find: /^os$/,
           replacement: emptyStub,
         },
         {
-          find: 'node:events',
+          find: /^node:util$/,
           replacement: emptyStub,
         },
         {
-          find: 'node:process',
+          find: /^util$/,
+          replacement: emptyStub,
+        },
+        {
+          find: /^tls$/,
+          replacement: emptyStub,
+        },
+        {
+          find: /^net$/,
+          replacement: emptyStub,
+        },
+        {
+          find: /^buffer$/,
+          replacement: emptyStub,
+        },
+        {
+          find: /^child_process$/,
+          replacement: emptyStub,
+        },
+        {
+          find: /^node:process$/,
           replacement: processStub,
         },
         {
-          find: 'buffer',
-          replacement: emptyStub,
-        },
-        {
-          find: 'process',
+          find: /^process$/,
           replacement: processStub,
-        },
-        {
-          find: 'child_process',
-          replacement: emptyStub,
-        },
-        {
-          find: '@google-cloud/storage',
-          replacement: emptyStub,
         },
       ],
     }),
@@ -159,49 +178,13 @@ export default {
     typescript({
       tsconfig: './tsconfig.json',
     }),
-    {
-      name: 'bigint-and-process-replacement',
-      transform(code) {
-        return {
-          code: code
-            .replace(/\b(\d+)n\b/g, 'BigInt($1)')
-            .replace(/process\.env/g, '({})'),
-          map: null,
-        };
-      },
-    },
-    // it's a workaround for issue in lodash (in isPrototype method) cause the library to fail on load
-    // because of this new limitation in AppsScript:
-    // https://developers.devsite.corp.google.com/apps-script/guides/support/troubleshooting#prohibited-constructor-access
     replace({
       preventAssignment: true,
-      delimiters: ['', ''],
       values: {
-        'value && value.constructor':
-          '(value && typeof value !== "function" ? value.constructor : null)',
+        'process.env.NODE_ENV': JSON.stringify('production'),
+        'process.env': '({})',
       },
     }),
-    babel({
-      babelHelpers: 'bundled',
-      presets: ['@babel/preset-env'],
-    }),
-    cleanup({comments: 'none', extensions: ['.ts']}),
-    terser({
-      compress: {
-        unused: false,
-      },
-      mangle: {
-        toplevel: false,
-        keep_fnames: true,
-      },
-    }),
-    license({
-      banner: {
-        content: {
-          file: fileURLToPath(new URL('license-header.txt', import.meta.url)),
-        },
-      },
-    }),
+    terser(),
   ],
-  context: 'this',
 };

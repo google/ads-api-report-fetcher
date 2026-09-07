@@ -82,11 +82,12 @@ async function executeGaarfQuery(
 }
 
 /** Reads configuration from the Settings sheet. */
-function readSettings() {
+function readSettings(): Record<string, string> {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Settings');
   if (!sheet) {
-    throw new Error("Sheet 'Settings' not found");
+    console.log("Sheet 'Settings' not found");
+    return {};
   }
   const data = sheet.getDataRange().getValues();
   const settings: Record<string, string> = {};
@@ -156,7 +157,11 @@ function onOpen(var_name: string) {
   ss.addMenu('Gaarf', [
     {
       name: 'Open sidebar',
-      functionName: var_name + '.open_sidebar',
+      functionName: var_name ? var_name + '.open_sidebar' : 'open_sidebar',
+    },
+    {
+      name: 'Open Syntax Help',
+      functionName: var_name ? var_name + '.openDocsDialog' : 'openDocsDialog',
     },
   ]);
 }
@@ -174,4 +179,40 @@ function open_sidebar() {
 function getApiVersion() {
   const loader = new BundledSchemaLoader();
   return loader.getLatestVersion();
+}
+
+/** Opens a modal dialog with rendered documentation. */
+function openDocsDialog() {
+  const html = HtmlService.createTemplateFromFile('static/docs_dialog')
+    .evaluate()
+    .setWidth(900)
+    .setHeight(650)
+    .setTitle('Gaarf Syntax Documentation');
+
+  SpreadsheetApp.getUi().showModalDialog(html, 'Gaarf Syntax Documentation');
+}
+
+/** Fetches markdown documentation content from GitHub. */
+function getDocsMarkdown(): string {
+  try {
+    const url =
+      'https://raw.githubusercontent.com/google/ads-api-report-fetcher/main/docs/how-to-write-queries.md';
+    const response = UrlFetchApp.fetch(url, {muteHttpExceptions: true});
+    if (response.getResponseCode() === 200) {
+      return response.getContentText();
+    }
+  } catch (e) {
+    console.error('Failed to fetch docs markdown via UrlFetchApp', e);
+  }
+  return '';
+}
+
+const globalScope: any = this;
+
+function onClientCall(func: string, arg: any) {
+  console.log(`Calling ${func}`);
+  if (globalScope && globalScope[func]) {
+    return globalScope[func](arg);
+  }
+  throw new Error('Unknown function ' + func);
 }

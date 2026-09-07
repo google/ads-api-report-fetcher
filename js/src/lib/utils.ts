@@ -289,6 +289,9 @@ export function getDirectorySize(path: string): number | undefined {
  * @returns formatted info
  */
 export function getMemoryUsage(phase: string): string {
+  if (typeof process === 'undefined' || !process.memoryUsage) {
+    return `${phase} - Memory Usage: N/A`;
+  }
   const used = process.memoryUsage();
   // NOTE: Additionally v8.getHeapStatistics() can be used
   let memUsage = '';
@@ -298,7 +301,7 @@ export function getMemoryUsage(phase: string): string {
     } MB\n`;
   }
   let extra = '';
-  if (process.env.K_SERVICE) {
+  if (process.env?.K_SERVICE) {
     const tmpSize = getDirectorySize('/tmp');
     if (Number.isInteger(tmpSize)) {
       extra = `/tmp Directory Size: ${tmpSize} MB`;

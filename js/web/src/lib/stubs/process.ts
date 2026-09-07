@@ -13,5 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import bundledSchema from '../../../src/lib/schemas/v25/api-schema.json';
-export default bundledSchema;
+
+export default {
+  env: {},
+  memoryUsage: () => ({
+    heapUsed: 0,
+    heapTotal: 0,
+    external: 0,
+    rss: 0,
+  }),
+};
