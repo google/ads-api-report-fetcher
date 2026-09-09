@@ -19,15 +19,15 @@ import {getLogger, ILogger} from 'google-ads-api-report-fetcher';
 export {ILogger} from 'google-ads-api-report-fetcher';
 
 export function createLogger(
-  req: express.Request,
+  req: express.Request | null | undefined,
   projectId: string,
   component: string
 ): ILogger {
-  const logLevel = <string>req.query.log_level || process.env.LOG_LEVEL;
+  const logLevel = <string>req?.query?.log_level || process.env.LOG_LEVEL;
   if (logLevel) {
     process.env.LOG_LEVEL = logLevel;
   }
-  const traceHeader = req.header('X-Cloud-Trace-Context');
+  const traceHeader = req?.header?.('X-Cloud-Trace-Context');
   if (traceHeader && projectId) {
     const [trace] = traceHeader.split('/');
     process.env.TRACE_ID = `projects/${projectId}/traces/${trace}`;

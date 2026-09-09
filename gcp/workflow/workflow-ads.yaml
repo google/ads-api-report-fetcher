@@ -10,7 +10,6 @@ main:
           - function_name: ${default(map.get(args, "function_name"), "gaarf")}
           - function_location: ${default(map.get(args, "function_location"), "us-central1")}
           - ads_config_path: ${args.ads_config_path}
-          - api: ${map.get(args, "api")}
           - api_version: ${default(map.get(args, "api_version"), "")}
           - writer: ${default(map.get(args, "writer"), "bq")}
           - bq_dataset: ${default(map.get(args, "bq_dataset"), "")}
@@ -20,6 +19,7 @@ main:
           - writer_options: ${map.get(args, "writer_options")}
           - output_path: ${default(map.get(args, "output_path"), "")}
           - concurrency_limit: ${default(map.get(args, "concurrency_limit"), 20)}
+          - heavy_scripts: ${default(map.get(args, "heavy_scripts"), [])}
 
     # get CF 'gaarf' function's URL
     - get_function:
@@ -50,6 +50,12 @@ main:
           value: script_item
           in: ${scripts}
           steps:
+            - extract_script_name:
+                assign:
+                  - script_parts: ${text.split(script_item, "/")}
+                  - script_file: ${script_parts[len(script_parts) - 1]}
+                  - script_base: ${text.split(script_file, ".")[0]}
+                  - is_heavy: ${script_file in heavy_scripts or script_base in heavy_scripts}
             - check_for_constant:
                 switch:
                   - condition: ${text.match_regex(script_item, "_constant")}
@@ -61,6 +67,7 @@ main:
                       script: ${script_item}
                       account: ${accounts[0]}
                       is_constant: true
+                      is_heavy: ${is_heavy}
                   - tasks: ${list.concat(tasks, current_task)}
                 next: continue
             - add_account_tasks:
@@ -74,6 +81,7 @@ main:
                               script: ${script_item}
                               account: ${account_item}
                               is_constant: false
+                              is_heavy: ${is_heavy}
                           - tasks: ${list.concat(tasks, current_task)}
 
     - log_tasks:
@@ -112,11 +120,13 @@ main:
                       bq_dataset: ${bq_dataset}
                       bq_dataset_location: ${bq_dataset_location}
                       ads_config_path: ${ads_config_path}
-                      api: ${api}
                       api_version: ${api_version}
                       writer_options: ${writer_options}
                       output_path: ${output_path}
                       is_constant: ${task.is_constant}
+                      function_name: ${function_name}
+                      function_location: ${function_location}
+                      is_heavy: ${task.is_heavy}
                   except:
                     as: e
                     steps:
@@ -163,16 +173,23 @@ executeAdsQuery:
       bq_dataset,
       bq_dataset_location,
       ads_config_path,
-      api,
       api_version,
       writer_options,
       output_path,
       is_constant: false,
+      function_name: "gaarf",
+      function_location: "us-central1",
+      is_heavy: false,
     ]
   steps:
     - init_vars:
         assign:
           - started: ${sys.now()}
+    - check_execution_mode:
+        switch:
+          - condition: ${is_heavy}
+            next: prepare_job_payload
+        next: call_gaarf_cf
     - call_gaarf_cf:
         try:
           call: http.post
@@ -182,7 +199,6 @@ executeAdsQuery:
             query:
               script_path: ${script_path}
               ads_config_path: ${ads_config_path}
-              api: ${api}
               api_version: ${api_version}
               bq_project_id: ${project}
               writer: ${writer}
@@ -205,17 +221,65 @@ executeAdsQuery:
             initial_delay: 15
             max_delay: 120
             multiplier: 1.5
+        next: log_script_result
     - log_script_result:
         call: sys.log
         args:
           data:
             is_constant: ${is_constant}
+            mode: "http"
             query: ${script_path}
             account: ${account}
             rowCount: ${map.get(script_results.body, "" + account)}
             started: ${time.format(started)}
             elapsed: ${sys.now() - started}
           severity: "INFO"
+        next: return_step
+    - prepare_job_payload:
+        assign:
+          - job_payload:
+              scriptPath: ${script_path}
+              customerId: ${account}
+              rootCid: ${root_cid}
+              adsConfigPath: ${ads_config_path}
+              apiVersion: ${api_version}
+              projectId: ${project}
+              writer: ${writer}
+              bqDataset: ${bq_dataset}
+              bqDatasetLocation: ${bq_dataset_location}
+              outputPath: ${output_path}
+              macros: ${macros}
+              templateParams: ${template_params}
+              writerOptions: ${writer_options}
+    - execute_via_cloud_run_job:
+        call: googleapis.run.v2.projects.locations.jobs.run
+        args:
+          name: ${"projects/" + project + "/locations/" + function_location + "/jobs/" + function_name + "-job"}
+          body:
+            overrides:
+              containerOverrides:
+                - env:
+                    - name: GAARF_PAYLOAD
+                      value: ${text.decode(json.encode(job_payload))}
+          connector_params:
+            timeout: 86400 # 24 hours max
+        result: job_execution
+        next: log_job_result
+    - log_job_result:
+        call: sys.log
+        args:
+          data:
+            is_constant: ${is_constant}
+            mode: "job"
+            query: ${script_path}
+            account: ${account}
+            execution: ${job_execution}
+            started: ${time.format(started)}
+            elapsed: ${sys.now() - started}
+          severity: "INFO"
+        next: return_step
+    - return_step:
+        return: "OK"
 
 custom_retry_predicate:
   params: [e]

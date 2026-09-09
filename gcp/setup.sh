@@ -119,8 +119,9 @@ set_iam_permissions() {
     # Permissions for Workflow:
     # Cloud Storage
     roles/storage.admin
-    # Cloud Functions gen2 (CF)
+    # Cloud Functions gen2 (CF) and Cloud Run Jobs
     roles/run.invoker
+    roles/run.developer
     # Cloud Logging
     roles/logging.logWriter
     # view permissions (cloudfunctions.functions.get) on CF
@@ -296,6 +297,8 @@ delete_all() {
   gcloud functions delete $NAME-getcids --region $REGION --quiet 2> /dev/null
   gcloud functions delete $NAME-bq --region $REGION --quiet 2> /dev/null
   gcloud functions delete $NAME-bq-view --region $REGION --quiet 2> /dev/null
+  # delete cloud run job
+  gcloud run jobs delete $NAME-job --region $REGION --quiet 2> /dev/null
   # delete workflows
   echo "Deleting Workflows"
   gcloud workflows delete $WORKFLOW_NAME --location=$REGION --quiet 2> /dev/null

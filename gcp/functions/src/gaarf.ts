@@ -48,28 +48,51 @@ import {
   getAdsConfig,
   getProject,
   getScript,
+  loadAdsConfig,
+  loadScript,
   startPeriodicMemoryLogging,
 } from './utils.js';
 import {ILogger, createLogger} from './logger.js';
 
-function getQueryWriter(req: express.Request, projectId: string) {
-  const body = req.body || {};
+export interface GaarfTaskArgs {
+  scriptPath?: string;
+  script?: {query: string; name: string};
+  adsConfigPath?: string;
+  adsConfig?: Record<string, any>;
+  customerId: string;
+  rootCid?: string;
+  apiVersion?: string;
+  projectId?: string;
+  writer?: string;
+  bqDataset?: string;
+  bqDatasetLocation?: string;
+  outputPath?: string;
+  expandMcc?: boolean;
+  macros?: Record<string, any>;
+  templateParams?: Record<string, any>;
+  writerOptions?: Record<string, any>;
+  schemaDir?: string;
+  callbackUrl?: string;
+}
 
-  if (!req.query.writer || req.query.writer === 'bq') {
+function getQueryWriter(args: GaarfTaskArgs, projectId: string) {
+  const writerType = args.writer || 'bq';
+
+  if (!writerType || writerType === 'bq' || writerType === 'bigquery') {
     const bqWriterOptions: BigQueryWriterOptions = {
-      datasetLocation: <string>req.query.bq_dataset_location,
-      arrayHandling: body.writer_options?.array_handling,
-      arraySeparator: body.writer_options?.array_separator,
-      outputPath: <string>req.query.output_path,
+      datasetLocation: args.bqDatasetLocation,
+      arrayHandling: args.writerOptions?.array_handling,
+      arraySeparator: args.writerOptions?.array_separator,
+      outputPath: args.outputPath,
       noUnionView: true,
     };
-    if (req.query.expand_mcc) {
+    if (args.expandMcc) {
       bqWriterOptions.noUnionView = false;
     }
-    const dataset = req.query.bq_dataset || process.env.DATASET;
+    const dataset = args.bqDataset || process.env.DATASET;
     if (!dataset)
       throw new Error(
-        "Dataset is not specified in either 'bq_dataset' query argument or DATASET envvar"
+        "Dataset is not specified in either 'bq_dataset' argument or DATASET envvar"
       );
     const writer = new BigQueryWriter(
       <string>projectId,
@@ -78,64 +101,66 @@ function getQueryWriter(req: express.Request, projectId: string) {
     );
     return writer;
   }
-  if (req.query.writer === 'csv') {
+  if (writerType === 'csv') {
     const options: CsvWriterOptions = {
-      quoted: body.writer_options?.quoted,
-      arraySeparator: body.writer_options?.array_separator,
-      outputPath: <string>req.query.output_path || `gs://${projectId}/tmp`,
+      quoted: args.writerOptions?.quoted,
+      arraySeparator: args.writerOptions?.array_separator,
+      outputPath: args.outputPath || `gs://${projectId}/tmp`,
     };
     return new CsvWriter(options);
   }
-  if (req.query.writer === 'json') {
+  if (writerType === 'json') {
     const options: JsonWriterOptions = {
-      format: body.writer_options?.format,
-      valueFormat: body.writer_options?.value_format,
-      outputPath: <string>req.query.output_path || `gs://${projectId}/tmp`,
+      format: args.writerOptions?.format,
+      valueFormat: args.writerOptions?.value_format,
+      outputPath: args.outputPath || `gs://${projectId}/tmp`,
     };
     return new JsonWriter(options);
   }
 }
 
-async function main_unsafe(
-  req: express.Request,
-  res: express.Response,
-  projectId: string,
+export async function executeGaarfQuery(
+  args: GaarfTaskArgs,
   logger: ILogger,
-  functionName: string
-) {
+  functionName = 'gaarf'
+): Promise<Record<string, number>> {
   // prepare Ads API parameters
-  const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
-  projectId =
-    <string>req.query.bq_project_id || process.env.PROJECT_ID || projectId;
+  const adsConfig: GoogleAdsApiConfig = await loadAdsConfig(
+    args.adsConfigPath,
+    args.adsConfig
+  );
+  const projectId =
+    args.projectId || process.env.PROJECT_ID || (await getProject());
 
-  if (req.query.schema_dir) {
-    process.env.GAARF_SCHEMA_DIR = req.query.schema_dir as string;
+  if (args.schemaDir) {
+    process.env.GAARF_SCHEMA_DIR = args.schemaDir;
   }
 
-  const customerId = req.query.customer_id || adsConfig.customer_id;
+  const customerId = args.customerId || adsConfig.customer_id;
   if (!customerId)
     throw new Error(
-      "Customer id is not specified in either 'customer_id' query argument or google-ads.yaml"
+      "Customer id is not specified in either 'customer_id' argument or google-ads.yaml"
     );
   if (!adsConfig.login_customer_id) {
-    adsConfig.login_customer_id = (req.query.root_cid || customerId) as string;
+    adsConfig.login_customer_id = (args.rootCid || customerId) as string;
   }
 
-  let adsClient: IGoogleAdsApiClient;
-  const apiVersion = <string>req.query.api_version;
-  adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
+  const apiVersion = args.apiVersion;
+  const adsClient = new GoogleAdsApiClient(adsConfig, apiVersion);
 
-  const {queryText, scriptName} = await getScript(req, logger);
+  const {queryText, scriptName} = await loadScript(
+    args.scriptPath,
+    args.script,
+    logger
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   const {refresh_token, developer_token, ...ads_config_wo_token} = <any>(
     adsConfig
   );
   ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;
   logger.info(
-    `Running Cloud Function ${functionName}, Ads API ${adsClient.apiVersion} ${
-      adsClient.apiVersion
-    }, ${
-      req.query.expand_mcc
+    `Running ${functionName}, Ads API ${adsClient.apiVersion}, ${
+      args.expandMcc
         ? 'with MCC expansion (MCC=' + customerId + ')'
         : 'CID=' + customerId
     }, see Ads API config in metadata field`,
@@ -143,12 +168,12 @@ async function main_unsafe(
       adsConfig: ads_config_wo_token,
       scriptName,
       customerId,
-      request: {body: req.body, query: req.query},
+      args,
     }
   );
 
   let customers: string[];
-  if (req.query.expand_mcc) {
+  if (args.expandMcc) {
     customers = await getCustomerIds(adsClient, <string>customerId);
     logger.info(`[${scriptName}] Customers to process (${customers.length})`, {
       customerId,
@@ -160,32 +185,63 @@ async function main_unsafe(
   }
 
   const executor = new AdsQueryExecutor(adsClient);
-  const writer = getQueryWriter(req, projectId);
+  const writer = getQueryWriter(args, projectId);
 
   // NOTE: 'macro' is deprecated but still used
-  const macros = req.body.macros || req.body.macro;
+  const macros = args.macros;
   logger.info(`Starting executing script via Gaarf`, {
     customers,
     scriptName,
     queryText,
     macro: macros,
-    templateParams: req.body.template_params,
+    templateParams: args.templateParams,
   });
 
   const result = await executor.execute(
     scriptName,
     queryText,
     customers,
-    {macros: macros, templateParams: req.body.template_params},
+    {macros: macros, templateParams: args.templateParams},
     writer
   );
 
-  logger.info(`Cloud Function ${functionName} completed`, {
+  logger.info(`${functionName} completed`, {
     customerId,
     scriptName,
     result,
   });
-  // we're returning a map of customer to number of rows
+
+  return result;
+}
+
+async function main_unsafe(
+  req: express.Request,
+  res: express.Response,
+  projectId: string,
+  logger: ILogger,
+  functionName: string
+) {
+  const taskArgs: GaarfTaskArgs = {
+    scriptPath: <string>req.query.script_path,
+    script: req.body?.script,
+    adsConfigPath: <string>req.query.ads_config_path,
+    adsConfig: req.body?.ads_config,
+    customerId: <string>(req.query.customer_id || ''),
+    rootCid: <string>req.query.root_cid,
+    apiVersion: <string>req.query.api_version,
+    projectId: <string>req.query.bq_project_id || projectId,
+    writer: <string>req.query.writer,
+    bqDataset: <string>req.query.bq_dataset,
+    bqDatasetLocation: <string>req.query.bq_dataset_location,
+    outputPath: <string>req.query.output_path,
+    expandMcc: !!req.query.expand_mcc,
+    schemaDir: <string>req.query.schema_dir,
+    macros: req.body?.macros || req.body?.macro,
+    templateParams: req.body?.template_params,
+    writerOptions: req.body?.writer_options,
+  };
+
+  const result = await executeGaarfQuery(taskArgs, logger, functionName);
   res.json(result);
   res.end();
 }

@@ -93,13 +93,18 @@ Please notice the escaping of quotes for job's argument.
 * `customer_ids_batchsize` - a batch size for customer ids (cids), if not specified accounts will be processed by 1000 accounts (see gaarf-getids CF)
 * `customer_ids_offset` - an offset in resulting list of accounts if you need to implemented an external batching - i.e. execute workflow only for a subset of accounts from specified seed account(s). It differs from internal batching where accounts processed by batches to workaround the maximum steps limitation of Cloud Workflows (100K runtime steps).
 * `ads_config_path` - a full GCS path to your google-ads.yaml config, e.g. "gs://MYPROJECT/path/to/google-ads.yaml" (required)
+* `api_version` - Ads API version to overwrite the default API version in Gaarf Functions (optional)
 * `ads_macro` - an object with macro for Ads queries, see the root [README](../README.md) (optional)
 * `bq_macro` - an object with macro for BigQuery queries, see the root [README](../README.md) (optional)
 * `bq_sql` - an object with sql parameters for BigQuery queries, see the root [README](../README.md) (optional)
+* `ads_template_params` - an object with paramters for template engine to process query files (optional)
+* `writer` - a name of output writer in Gaarf. By default - 'bq' (BigQuery). You can use all writer supported by Gaarf for Node (csv, json, sheets) (optional)
 * `bq_writer_options` - additional options (as object) for BqWriter, see the root [README](../README.md) (optional)
-* `concurrency_limit` - a custom concurrency level to use instead of the default one (20) - it's a number of concurrent threads for parallel loop over scripts and over accounts. For example, if you specify 5 then there will be 5 parallel executions of scripts for each of them there will be 5 parallel running CF executions, so in total in a moment there will be 5*5=25 parallel executions of the CF. (optional)
-* `workflow_ads_id` - a workflow id for child Ads workflow, by default it's the parent name with the '-ads' suffix (optional)
+* `concurrency_limit` - a custom concurrency level to use instead of the default one (20) - it's a number of concurrent threads for parallel loop over script/account pairs (optional)
 * `disable_strict_views` - an option to pass to gaarf-bq-view CF to disable adding the WHERE condition with a list of accounts for views (optional)
+* `output_path` - output path for interim data (for BigQueryWriter) or generated data (Csv/Json writers)
+* `heavy_scripts` - an array of script file names (e.g. `["pmax_placement_view.sql"]`) or a string with script names (separated by commas) to execute via Cloud Run Job instead of Cloud Function HTTP calls, preventing Cloud Workflows 30-minute HTTP timeouts (optional)
+* `workflow_ads_id` - a workflow id for child Ads workflow, by default it's the parent name with the '-ads' suffix (optional)
 
 
 ## Cloud Functions

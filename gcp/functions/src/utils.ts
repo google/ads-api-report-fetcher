@@ -23,8 +23,40 @@ import {
   getMemoryUsage,
   ILogger,
 } from 'google-ads-api-report-fetcher';
+export {getMemoryUsage} from 'google-ads-api-report-fetcher';
 import path from 'node:path';
 import fs from 'node:fs';
+
+/**
+ * Load script from inline query or from a file path.
+ * @param scriptPath path to script (GCS or local)
+ * @param inlineScript optional inline script object
+ * @param logger optional logger
+ * @returns a promise resolving to queryText and scriptName
+ */
+export async function loadScript(
+  scriptPath?: string,
+  inlineScript?: {query: string; name: string},
+  logger?: ILogger
+): Promise<{queryText: string; scriptName: string}> {
+  let queryText: string | undefined;
+  let scriptName: string | undefined;
+  if (inlineScript) {
+    queryText = inlineScript.query;
+    scriptName = inlineScript.name;
+    logger?.info('Executing inline query from request');
+  } else if (scriptPath) {
+    queryText = await getFileContent(scriptPath);
+    scriptName = path.basename(scriptPath).split('.sql')[0];
+    logger?.info(`Executing query from '${scriptPath}'`);
+  }
+  if (!queryText)
+    throw new Error(
+      'Script was not specified in either script_path query argument or body.query'
+    );
+  if (!scriptName) throw new Error('Could not determine script name');
+  return {queryText, scriptName};
+}
 
 /**
  * Get script from request body or from a file specified in query parameters.
@@ -37,50 +69,36 @@ export async function getScript(
   req: express.Request,
   logger: ILogger
 ): Promise<{queryText: string; scriptName: string}> {
-  const scriptPath = req.query.script_path;
-  const body = req.body || {};
-  let queryText: string | undefined;
-  let scriptName: string | undefined;
-  if (body.script) {
-    queryText = body.script.query;
-    scriptName = body.script.name;
-    logger.info('Executing inline query from request');
-  } else if (scriptPath) {
-    queryText = await getFileContent(<string>scriptPath);
-    scriptName = path.basename(<string>scriptPath).split('.sql')[0];
-    logger.info(`Executing query from '${scriptPath}'`);
-  }
-  if (!queryText)
-    throw new Error(
-      'Script was not specified in either script_path query argument or body.query'
-    );
-  if (!scriptName) throw new Error('Could not determine script name');
-  return {queryText, scriptName};
+  return loadScript(
+    <string>req.query.script_path,
+    req.body?.script,
+    logger
+  );
 }
 
 /**
- * Get Ads API configuration from request body or from a file specified in query
- * parameters.
- * @param req request object
+ * Load Ads API configuration from file, config object, or environment variables.
+ * @param adsConfigFile optional path to ads config file
+ * @param adsConfigObj optional ads config object
  * @returns a promise that resolves to an object with Ads API configuration
  */
-export async function getAdsConfig(
-  req: express.Request
+export async function loadAdsConfig(
+  adsConfigFile?: string,
+  adsConfigObj?: any
 ): Promise<GoogleAdsApiConfig> {
   let adsConfig: GoogleAdsApiConfig | undefined;
-  const adsConfigFile =
-    <string>req.query.ads_config_path || process.env.ADS_CONFIG;
-  if (adsConfigFile) {
-    adsConfig = await loadAdsConfigYaml(adsConfigFile);
-  } else if (req.body && req.body.ads_config) {
-    // get from request body
+  const configFile = adsConfigFile || process.env.ADS_CONFIG;
+  if (configFile) {
+    adsConfig = await loadAdsConfigYaml(configFile);
+  } else if (adsConfigObj) {
+    // get from request body / config object
     // TODO: support service account key file
     adsConfig = <GoogleAdsApiConfig>{
-      developer_token: <string>req.body.ads_config.developer_token,
-      login_customer_id: <string>req.body.ads_config.login_customer_id,
-      client_id: <string>req.body.ads_config.client_id,
-      client_secret: <string>req.body.ads_config.client_secret,
-      refresh_token: <string>req.body.ads_config.refresh_token,
+      developer_token: <string>adsConfigObj.developer_token,
+      login_customer_id: <string>adsConfigObj.login_customer_id,
+      client_id: <string>adsConfigObj.client_id,
+      client_secret: <string>adsConfigObj.client_secret,
+      refresh_token: <string>adsConfigObj.refresh_token,
     };
   } else if (fs.existsSync('google-ads.yaml')) {
     // get from a local file (must be deployed with the Function)
@@ -101,6 +119,21 @@ export async function getAdsConfig(
   }
 
   return adsConfig;
+}
+
+/**
+ * Get Ads API configuration from request body or from a file specified in query
+ * parameters.
+ * @param req request object
+ * @returns a promise that resolves to an object with Ads API configuration
+ */
+export async function getAdsConfig(
+  req: express.Request
+): Promise<GoogleAdsApiConfig> {
+  return loadAdsConfig(
+    <string>req.query.ads_config_path,
+    req.body?.ads_config
+  );
 }
 
 /**

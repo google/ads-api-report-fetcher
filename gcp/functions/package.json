@@ -10,14 +10,15 @@
     "clean": "gts clean",
     "fix": "gts fix",
     "compile": "tsc",
-    "gcp-build": "npm i npm-install-peers",
+    "job": "node build/src/gaarf-job.js",
+    "gcp-build": "npm run compile",
     "build-gaarf": "cd ../../js && npm pack --pack-destination ../gcp/functions",
     "pretest": "npm run compile",
     "posttest": "npm run lint"
   },
   "type": "module",
   "keywords": [],
-  "author": "Google Inc. (gTech gPS CSE team)",
+  "author": "Sergei Dorogin",
   "private": true,
   "license": "Apache-2.0",
   "dependencies": {

@@ -54,6 +54,13 @@ while :; do
   --no-retry)
       NO_RETRY=true
       ;;
+  --no-job)
+      NO_JOB=true
+      ;;
+  --memory-job)
+      shift
+      MEMORY_JOB=$1
+      ;;
   --retries)
       shift
       RETRIES=$1
@@ -82,7 +89,7 @@ done
 function reference_npm_package() {
   # Build and pack the package
   cd ../../js
-  npm i --production
+  npm install
   npm run build
   npm pack --pack-destination ../gcp/functions
   cd ..
@@ -206,6 +213,46 @@ function redeploy_cf() {
   rm -f "$statusfile" "$logfile"
 }
 
+function deploy_job() {
+  local job_name=$1
+  local memory=$2
+  if [ ! "$memory" ]; then
+    memory='2048Mi'
+  fi
+
+  local set_secret
+  if [[ $USE_SECRET_MANAGER ]]; then
+    set_secret="--set-secrets DEVELOPER_TOKEN=google-ads-dev-token:latest"
+  fi
+
+  local PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
+  local set_env_vars="--set-env-vars GAARF_SCHEMA_DIR=gs://${PROJECT_ID}/gaarf/schemas"
+
+  echo -e "${CYAN}Deploying $job_name Cloud Run Job${NC}"
+
+  gcloud run jobs deploy $job_name \
+      --source=. \
+      --command="/cnb/lifecycle/launcher" \
+      --args="node,build/src/gaarf-job.js" \
+      --tasks=1 \
+      --max-retries=0 \
+      --task-timeout=86400s \
+      --memory=$memory \
+      --cpu=2 \
+      $REGION \
+      --quiet \
+      $SERVICE_ACCOUNT \
+      $set_secret \
+      $set_env_vars
+  local exitcode=$?
+  if [[ $exitcode -eq 0 ]]; then
+    echo -e "${CYAN}Deployment of $job_name Cloud Run Job is successful${NC}"
+  else
+    echo -e "${RED}Deployment of $job_name Cloud Run Job failed${NC}"
+  fi
+  return $exitcode
+}
+
 reference_npm_package
 
 redeploy_cf $FUNCTION_NAME main $MEMORY &
@@ -220,16 +267,24 @@ PID3=$!
 redeploy_cf $FUNCTION_NAME-bq-view main_bq_view &
 PID4=$!
 
+if [[ ! $NO_JOB ]]; then
+  deploy_job $FUNCTION_NAME-job $MEMORY_JOB &
+  PID5=$!
+fi
+
 FAIL=0
 wait $PID1 || FAIL=1
 wait $PID2 || FAIL=1
 wait $PID3 || FAIL=1
 wait $PID4 || FAIL=1
+if [[ ! $NO_JOB ]]; then
+  wait $PID5 || FAIL=1
+fi
 
 clear_npm_package
 
 if [ $FAIL -ne 0 ]; then
-  echo -e "${RED}One or more deployments failed.${NC}"
+  echo -e "${RED}One or more Function deployments failed.${NC}"
   popd > /dev/null
   exit 1
 fi

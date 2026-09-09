@@ -399,7 +399,7 @@ async function main() {
         adsConfig.login_customer_id = customerIds[0];
     }
     const client = getApiClient(adsConfig);
-    logger.info(`Using REST API (${client.apiVersion})`);
+    logger.info(`Using Ads API ${client.apiVersion}`);
     const executor = new AdsQueryExecutor(client);
     if (argv._ && argv._[0] === 'validate') {
         try {

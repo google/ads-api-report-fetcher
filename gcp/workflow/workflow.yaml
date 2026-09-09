@@ -14,8 +14,6 @@ main:
           - gcs_bucket: ${default(map.get(args, "gcs_bucket"), project)}
           # full GCS path to google-ads.yaml (optional)
           - ads_config_path: ${default(map.get(args, "ads_config_path"), "")}
-          # Deprecated: Google Ads API endpoint to use: 'rest' or 'grpc'
-          - api: ${default(map.get(args, "api"), "rest")}
           # Google Ads API version to override
           - api_version: ${default(map.get(args, "api_version"), "")}
           # skip running Ads scripts and execute only bq scripts
@@ -28,6 +26,23 @@ main:
           - workflow_ads_id: ${default(map.get(args, "workflow_ads_id"), sys.get_env("GOOGLE_CLOUD_WORKFLOW_ID") + "-ads")}
           #- recreate_dataset: ${default(map.get(args,"recreate_dataset"), false)}
           - disable_strict_views: ${default(map.get(args, "disable_strict_views"), false)}
+          # list of heavy scripts that should be executed via Cloud Run Job instead of HTTP Cloud Function
+          - heavy_scripts: ${default(map.get(args, "heavy_scripts"), [])}
+
+    # if heavy_scripts was passed as a string, split by comma or semicolon
+    - normalize_heavy_scripts:
+        try:
+          steps:
+            - split_heavy_scripts:
+                assign:
+                  - heavy_scripts: ${if(heavy_scripts == "", [], text.split(text.replace_all(text.replace_all(heavy_scripts, " ", ""), ";", ","), ","))}
+        except:
+          as: e
+          steps:
+            - keep_array:
+                assign:
+                  - heavy_scripts: ${heavy_scripts}
+
     - check_shortcut_arg:
         switch:
           - condition: ${only_run_bq}
@@ -42,7 +57,6 @@ main:
           gcs_bucket: ${gcs_bucket}
           queries_path: ${args.ads_queries_path}
           ads_config_path: ${ads_config_path}
-          api: ${api}
           api_version: ${api_version}
           cid: ${args.cid}
           cid_ignore: ${map.get(args, "cid_ignore")}
@@ -59,6 +73,7 @@ main:
           concurrency_limit: ${concurrency_limit}
           workflow_ads_id: ${workflow_ads_id}
           disable_strict_views: ${disable_strict_views}
+          heavy_scripts: ${heavy_scripts}
         result: accounts
     - run_bq_workflow:
         call: runBigQueryQueries
@@ -97,7 +112,6 @@ runAdsQueries:
       gcs_bucket,
       queries_path,
       ads_config_path,
-      api,
       api_version,
       cid,
       cid_ignore,
@@ -114,6 +128,7 @@ runAdsQueries:
       concurrency_limit,
       workflow_ads_id,
       disable_strict_views,
+      heavy_scripts,
     ]
   # NOTE: currently it's assumed that CF's project is the same as project for BQ datasets
   steps:
@@ -155,7 +170,6 @@ runAdsQueries:
             customer_ids_query: ${default(customer_ids_query, "")}
             customer_ids_offset: ${default(customer_ids_offset, "")}
             customer_ids_batchsize: ${default(customer_ids_batchsize, "")}
-            api: ${api}
             api_version: ${api_version}
           auth:
             type: OIDC
@@ -257,7 +271,6 @@ runAdsQueries:
                     function_name: ${function_name}
                     function_location: ${function_location}
                     ads_config_path: ${ads_config_path}
-                    api: ${api}
                     api_version: ${api_version}
                     writer: ${writer}
                     bq_dataset: ${bq_dataset}
@@ -267,6 +280,7 @@ runAdsQueries:
                     writer_options: ${writer_options}
                     output_path: ${output_path}
                     concurrency_limit: ${concurrency_limit}
+                    heavy_scripts: ${heavy_scripts}
                 result: execution_result
 
     - check_for_bq_writer:
