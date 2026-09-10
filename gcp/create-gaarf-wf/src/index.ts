@@ -1238,7 +1238,7 @@ cd ..
     gcp_region && gcp_region.startsWith('europe') ? 'europe' : '';
   const output_dataset = answers2.output_dataset;
   const customer_id = sanitizeCustomerId(answers2.customer_id);
-  const wf_data = {
+  let wf_data = {
     api_version: answers['api_version'],
     cloud_function: name,
     gcs_bucket: gcs_bucket,
@@ -1255,9 +1255,13 @@ cd ..
     ads_macro: macro_ads,
     ads_template_params: ads_template_params,
     bq_macro: macro_bq,
+    heavy_scripts: answers['heavy_scripts'],
   };
   if (path_to_googleads_config) {
     wf_data['ads_config_path'] = `${gcs_base_path}/google-ads.yaml`;
+  }
+  if (answers['aux']) {
+    wf_data = Object.assign({}, answers['aux'], wf_data);
   }
   const wf_data_file = 'data.json';
   fs.writeFileSync(wf_data_file, JSON.stringify(wf_data, null, 2));

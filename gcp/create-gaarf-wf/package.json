@@ -1,10 +1,10 @@
 {
   "name": "create-gaarf-wf",
-  "version": "1.14.2",
+  "version": "1.15.0",
   "description": "Interactive generator for Gaarf (Google Ads API Report Fetcher) Workflow",
   "type": "module",
   "bin": {
-    "create-gaarf-wf": "build/index.js"
+    "create-gaarf-wf": "create-gaarf-wf"
   },
   "repository": "https://github.com/google/ads-api-report-fetcher",
   "homepage": "https://github.com/google/ads-api-report-fetcher/gcp/create-gaarf-wf",
@@ -13,13 +13,14 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "gts lint",
-    "clean": "gts clean",
-    "compile": "tsc",
+    "clean": "shx rm -rf build tsconfig.tsbuildinfo",
     "tsc": "tsc",
+    "compile": "tsc",
+    "lint": "gts lint",
     "fix": "gts fix",
-    "prepare": "npm run compile",
-    "pretest": "npm run compile",
+    "build": "npm run clean && npm run compile",
+    "prepare": "npm run build",
+    "pretest": "npm run build",
     "posttest": "npm run lint"
   },
   "keywords": [
@@ -29,7 +30,7 @@
     "google cloud",
     "npm init"
   ],
-  "author": "Google Inc. (gTech gPS CSE team)",
+  "author": "Sergei Dorogin",
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/clui": "^0.3.1",
@@ -39,6 +40,7 @@
     "@types/node": "^18.7.13",
     "@types/prompts": "^2.0.14",
     "gts": "^6.0.2",
+    "shx": "^0.4.0",
     "ts-node": "^10.9.1",
     "typescript": "~5.9.3"
   },
