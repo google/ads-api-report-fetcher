@@ -116,7 +116,6 @@ async function executeGaarfFromSidebar(args: {
   }
 
   const adsConfig: GoogleAdsApiConfig = {
-    developer_token: settings['ADS_DEV_TOKEN'],
     login_customer_id: settings['MCC'],
   };
 

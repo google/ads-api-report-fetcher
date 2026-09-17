@@ -154,7 +154,7 @@ export async function executeGaarfQuery(
     logger
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-  const {refresh_token, developer_token, ...ads_config_wo_token} = <any>(
+  const {refresh_token, ...ads_config_wo_token} = <any>(
     adsConfig
   );
   ads_config_wo_token['ApiVersion'] = adsClient.apiVersion;

@@ -70,7 +70,6 @@ enable_apis() {
   gcloud services enable cloudbuild.googleapis.com
   gcloud services enable bigquery.googleapis.com
   gcloud services enable cloudfunctions.googleapis.com
-  gcloud services enable secretmanager.googleapis.com
   gcloud services enable googleads.googleapis.com
 
   if [ "$compute_enabled" = "true" ]; then
@@ -135,7 +134,6 @@ set_iam_permissions() {
     # For deploying Gen2 CF 'artifactregistry.repositories.list' and 'artifactregistry.repositories.get' permissions are required
     roles/artifactregistry.repoAdmin
     roles/iam.serviceAccountUser
-    roles/secretmanager.secretAccessor
   )
   for role in "${ROLES[@]}"
   do
@@ -165,35 +163,7 @@ create_wf_completion_topic() {
 }
 
 
-create_secret() {
-  local SECRET_NAME
-  SECRET_NAME=$(_get_arg_value "--secret" "$@")
-  local SECRET_VALUE
-  SECRET_VALUE=$(_get_arg_value "--value" "$@")
-  if [[ ! -n $SECRET_NAME ]]; then
-    echo -e "${RED}Please provide a secret name via --secret argument${NC}"
-    return 1
-  fi
-  if [[ ! -n $SECRET_VALUE ]]; then
-    echo -e "${RED}Please provide a secret value via --value argument${NC}"
-    return 1
-  fi
-  if gcloud secrets describe $SECRET_NAME >/dev/null 2>&1; then
-      # Secret exists - add new version
-      echo -n "$SECRET_VALUE" | gcloud secrets versions add $SECRET_NAME --data-file=-
-  else
-      # Secret doesn't exist - create new
-      echo -n "$SECRET_VALUE" | gcloud secrets create $SECRET_NAME --data-file=-
-  fi
-}
-
 deploy_functions() {
-  USE_SM=$(git config -f $SETTING_FILE functions.use-secret-manager || echo false)
-  if [[ "$USE_SM" == "true" ]]; then
-    USE_SM="--use-secret-manager"
-  else
-    USE_SM=""
-  fi
   CF_MEMORY=$(git config -f $SETTING_FILE functions.memory)
   if [[ -n $CF_MEMORY ]]; then
     CF_MEMORY="--memory $CF_MEMORY"
@@ -203,7 +173,7 @@ deploy_functions() {
   if [[ -n $MEMORY_GETCIDS ]]; then
     MEMORY_GETCIDS="--memory-getcids $MEMORY_GETCIDS"
   fi
-  ./functions/deploy.sh --name $NAME $CF_MEMORY $MEMORY_GETCIDS --region $REGION --service-account $SERVICE_ACCOUNT $USE_SM
+  ./functions/deploy.sh --name $NAME $CF_MEMORY $MEMORY_GETCIDS --region $REGION --service-account $SERVICE_ACCOUNT
   return $?
 }
 

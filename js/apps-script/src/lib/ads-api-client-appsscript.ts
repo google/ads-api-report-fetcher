@@ -128,7 +128,6 @@ export class GoogleAdsAppsScriptClient
         method: 'post',
         headers: {
           Authorization: 'Bearer ' + OAUTH_TOKEN,
-          'developer-token': this.adsConfig.developer_token,
           'Content-Type': 'application/json',
         },
         contentType: 'application/json',

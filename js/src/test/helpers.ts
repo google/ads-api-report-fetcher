@@ -54,7 +54,6 @@ export class MockGoogleAdsApiClient extends GoogleAdsApiClientBase {
       {
         client_id: '',
         client_secret: '',
-        developer_token: '',
         refresh_token: '',
       },
       new AdsApiSchemaRest(new MockSchemaLoader(), version),

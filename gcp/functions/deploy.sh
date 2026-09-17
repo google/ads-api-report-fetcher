@@ -73,16 +73,13 @@ while :; do
       shift
       SERVICE_ACCOUNT=--service-account=$1
       ;;
-  --use-secret-manager)
-      USE_SECRET_MANAGER=true
-      ;;
   *)
       break
     esac
   shift
 done
 
-# When we build and deploy functions we need to use 
+# When we build and deploy functions we need to use
 # the exact same version of gaarf that is in the repository,
 # regardless of its version and what's published on npm.
 # So we build a local tar package and reference it explicitly in package.json.
@@ -116,10 +113,6 @@ function execute_deploy() {
   local entry_point=$2
   local memory=$3
   local statusfile=$4
-  local set_secret
-  if [[ $USE_SECRET_MANAGER ]]; then
-    set_secret="--set-secrets DEVELOPER_TOKEN=google-ads-dev-token:latest"
-  fi
 
   # we provide GAARF_SCHEMA_DIR envvar to Function for storing Ads json schemas
   local PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
@@ -137,7 +130,6 @@ function execute_deploy() {
       --gen2 \
       $MAX_INSTANCES \
       $SERVICE_ACCOUNT \
-      $set_secret \
       $set_env_vars \
       --source=.
   echo $? > "$statusfile"
@@ -220,11 +212,6 @@ function deploy_job() {
     memory='2048Mi'
   fi
 
-  local set_secret
-  if [[ $USE_SECRET_MANAGER ]]; then
-    set_secret="--set-secrets DEVELOPER_TOKEN=google-ads-dev-token:latest"
-  fi
-
   local PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
   local set_env_vars="--set-env-vars GAARF_SCHEMA_DIR=gs://${PROJECT_ID}/gaarf/schemas"
 
@@ -242,7 +229,6 @@ function deploy_job() {
       $REGION \
       --quiet \
       $SERVICE_ACCOUNT \
-      $set_secret \
       $set_env_vars
   local exitcode=$?
   if [[ $exitcode -eq 0 ]]; then

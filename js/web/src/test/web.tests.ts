@@ -42,7 +42,6 @@ suite('Gaarf Web Flavor', () => {
   test('GoogleAdsApiClient can be instantiated with access_token', () => {
     const client = new GoogleAdsApiClient(
       {
-        developer_token: 'test-dev-token',
         access_token: 'test-access-token',
         login_customer_id: '1234567890',
       },

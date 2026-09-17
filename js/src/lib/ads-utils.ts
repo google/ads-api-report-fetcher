@@ -77,7 +77,6 @@ export async function loadAdsConfigFromFile(
       : yaml.load(content);
 
     return {
-      developer_token: doc['developer_token'],
       client_id: doc['client_id'],
       client_secret: doc['client_secret'],
       refresh_token: doc['refresh_token'],

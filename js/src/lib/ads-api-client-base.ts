@@ -43,7 +43,6 @@ export interface IGoogleAdsApiClient {
 export type GoogleAdsApiConfig = {
   client_id?: string;
   client_secret?: string;
-  developer_token: string;
   refresh_token?: string;
   access_token?: string;
   login_customer_id?: string;

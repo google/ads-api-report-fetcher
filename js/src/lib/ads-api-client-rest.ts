@@ -89,6 +89,9 @@ export class GoogleAdsApiClient
 
     try {
       const response = await axios.post<TokenResponse>(tokenUrl, data);
+      this.logger.debug(
+        `Refreshed access token, expires_in: ${response.data.expires_in}`,
+      );
       return {
         access_token: response.data.access_token,
         expires_in: response.data.expires_in || 3600,
@@ -134,7 +137,7 @@ export class GoogleAdsApiClient
     query: string,
     customerId: string,
   ): Promise<Array<Record<string, unknown>>> {
-    this.logger.debug(`Executing GAQL query: ${query}`);
+    this.logger.debug(`Executing GAQL query: ${query} (cid: ${customerId})`);
     const url = `${this.baseUrl}customers/${customerId}/googleAds:search`;
     const headers: Record<string, string> = await this.createHeaders();
     const payload: Record<string, unknown> = {
@@ -192,7 +195,6 @@ export class GoogleAdsApiClient
   protected async createHeaders() {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${await this.getValidToken()}`,
-      'developer-token': this.adsConfig.developer_token,
       'Content-Type': 'application/json',
     };
     if (this.authClient) {

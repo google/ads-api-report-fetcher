@@ -3,7 +3,7 @@ import path from 'path';
 import {GoogleAdsApiClient} from '../lib/ads-api-client-rest.js';
 
 suite('AdsQueries', () => {
-  const client = new GoogleAdsApiClient({developer_token: ''});
+  const client = new GoogleAdsApiClient({});
   const editor = client.getQueryEditor();
 
   const queriesDir = path.resolve(process.cwd(), '../../ads-queries');

@@ -94,7 +94,6 @@ export async function loadAdsConfig(
     // get from request body / config object
     // TODO: support service account key file
     adsConfig = <GoogleAdsApiConfig>{
-      developer_token: <string>adsConfigObj.developer_token,
       login_customer_id: <string>adsConfigObj.login_customer_id,
       client_id: <string>adsConfigObj.client_id,
       client_secret: <string>adsConfigObj.client_secret,
@@ -105,17 +104,12 @@ export async function loadAdsConfig(
     adsConfig = await loadAdsConfigYaml('google-ads.yaml');
   } else {
     // otherwise get settings from environment variables
-    // NOTE: Envvars can be mapped to secrets in Secret Manager
     adsConfig = <GoogleAdsApiConfig>{
-      developer_token: <string>process.env.DEVELOPER_TOKEN,
       login_customer_id: <string>process.env.LOGIN_CUSTOMER_ID,
       client_id: <string>process.env.CLIENT_ID,
       client_secret: <string>process.env.CLIENT_SECRET,
       refresh_token: <string>process.env.REFRESH_TOKEN,
     };
-  }
-  if (!adsConfig || !adsConfig.developer_token) {
-    throw new Error('Ads API configuration is not complete (missing developer_token).');
   }
 
   return adsConfig;

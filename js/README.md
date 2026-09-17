@@ -137,7 +137,7 @@ gaarf-bq bq-queries/*.sql --config=gaarf-bq.yaml
 
 #### Ads API config
 
-There are two mechanisms for supplying Ads API configuration (developer token, etc.).
+There are two mechanisms for supplying Ads API configuration (OAuth credentials, etc.).
 Either via a separate YAML file whose name is set in `ads-config` argument or
 via separate CLI arguments starting `ads.*` (e.g. `--ads.client_id`) or
 in a config file (`ads` object):
@@ -146,7 +146,7 @@ in a config file (`ads` object):
 {
   "ads": {
     "client_id": "...",
-    "developer_token": ".."
+    "client_secret": "..."
   },
   "output": "bq"
 }
@@ -322,7 +322,6 @@ import {
 
 // Initialize with an OAuth access token obtained in the browser
 const client = new GoogleAdsApiClient({
-  developer_token: 'YOUR_DEVELOPER_TOKEN',
   access_token: tokenFromGoogleIdentityServices,
   login_customer_id: '1234567890', // optional manager account CID
 });

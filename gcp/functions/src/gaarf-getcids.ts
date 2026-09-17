@@ -59,7 +59,7 @@ async function main_getcids_unsafe(
   // prepare Ads API parameters
   const adsConfig: GoogleAdsApiConfig = await getAdsConfig(req);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const {refresh_token, developer_token, ...ads_config_wo_token} = adsConfig;
+  const {refresh_token, ...ads_config_wo_token} = adsConfig;
 
   logger.info('Ads API config', ads_config_wo_token);
 

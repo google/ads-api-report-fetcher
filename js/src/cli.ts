@@ -91,10 +91,6 @@ const argv = yargs(hideBin(process.argv))
     description: 'Path to a YAML/JSON config for Google Ads (google-ads.yaml)',
   })
   .option('ads', {hidden: true})
-  .option('ads.developer_token', {
-    type: 'string',
-    description: 'Ads API developer token',
-  })
   .option('ads.client_id', {type: 'string', description: 'OAuth client_id'})
   .option('ads.client_secret', {
     type: 'string',
@@ -442,7 +438,6 @@ async function main() {
     adsConfig = Object.assign(adsConfig || {}, {
       client_id: ads_cfg.client_id || '',
       client_secret: ads_cfg.client_secret || '',
-      developer_token: ads_cfg.developer_token || '',
       refresh_token: ads_cfg.refresh_token || '',
       login_customer_id: ads_cfg.login_customer_id || '',
     });
@@ -466,8 +461,7 @@ async function main() {
   logger.verbose(
     JSON.stringify(
       Object.assign({}, adsConfig, {
-        refresh_token: '<hidden>',
-        developer_token: '<hidden>',
+        refresh_token: adsConfig.refresh_token ? '<hidden>' : undefined,
       }),
       null,
       2,

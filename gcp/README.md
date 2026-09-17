@@ -125,7 +125,6 @@ There are following functions provided:
 ### Functions Parameters
 Please note that you need to copy your `google-ads.yaml` somewhere where functions (gaarf and gaarf-getcids) can find it. Preferably onto Cloud Storage. Then you should provide `ads_config_path` query argument or `ADS_CONFIG` environment variable with a path to the Ads config (e.g. gs://myproject/path/to/google-ads.yaml). As a last resort the function will search for `google-ads.yaml` locally, so we can just copy your config to function' folder before deployment.  
 Alternatively you can provide all configuration values for Ads API via environment variables (you can supply env vars via `--env-vars-file env.yaml` cli option for gcloud tool - you'll need to adapt the `deploy.sh` for this):
-* DEVELOPER_TOKEN,
 * LOGIN_CUSTOMER_ID
 * CLIENT_ID
 * CLIENT_SECRET
@@ -172,13 +171,13 @@ Returns:
 Query string:
 * `ads_config_path` - a path to Ads config, same as for gaarf
 * `customer_id` - customer id (CID), without '-', can be specified in google-ads.yaml as well, if so then can be omitted
-* `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`, same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID)
+* `customer_ids_query` - GCS path ('gs://...') to a custom Ads query to filter customer accounts expanded from `customer_id`. The query's first column should be the customer id (CID)
 * `customer_ids_ignore` - a list of customer ids to exclude from the result
 * `customer_ids_batchsize` - a size of batches into which account ids list will be split. 
 * `customer_ids_offset` - an offset in the customer ids list resulted from the seed CIDs and optional query in `customer_ids_query`, it allows to implement an external batching. 
 * `flatten` - flatten the list of customer ids. If `customer_ids_offset` is provided then the list will be a subset of CIDs otherwise it will be the whole list of accounts, ignoring batching (regadless of the customer_ids_batchsize's value)
 Body:
-* `customer_ids_query` - same as QueryString's argument as an alternative
+* `customer_ids_query` - same as QueryString's argument as an alternative (must be a GCS path 'gs://...')
 
 Returns:
 if no `flatten` specifiedd then the CF returns an object:

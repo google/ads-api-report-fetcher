@@ -20,10 +20,7 @@ import {AdsApiDefaultVersion} from '../lib/ads-api-schema-base.js';
 
 suite('GoogleAdsRestApiClient', () => {
   test('init API version', () => {
-    const client = new GoogleAdsApiClient(
-      {developer_token: ''},
-      AdsApiDefaultVersion,
-    );
+    const client = new GoogleAdsApiClient({}, AdsApiDefaultVersion);
     assert.equal(client.apiVersion, AdsApiDefaultVersion);
   });
 });

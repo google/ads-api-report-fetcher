@@ -652,59 +652,11 @@ async function initializeGoogleAdsConfig2(
   const useServiceAccount =
     answers1.googleads_credentials_type === 'service_account';
   if (useServiceAccount) {
-    // For running under a SA we need only dev_token, optionally a MCC and key_file
-    const answers2 = await prompt(
-      [
-        {
-          type: 'confirm',
-          name: 'use_secret_manager',
-          message: 'Do you want to use Secret Manager?:',
-          default: true,
-        },
-      ],
-      answers,
-    );
-    if (answers2.use_secret_manager) {
-      const answers3 = await prompt(
-        [
-          {
-            type: 'input',
-            name: 'googleads_config_devtoken',
-            message:
-              'Enter Google Ads API developer token to put into "google-ads-dev-token" secret or leave blank to skip:',
-          },
-        ],
-        answers,
-      );
-      if (answers3.googleads_config_devtoken) {
-        const res = await execCmd(
-          `./${gaarfFolder}/gcp/setup.sh create_secret --secret google-ads-dev-token --value ${answers3.googleads_config_devtoken}`,
-        );
-        if (res.code !== 0 && !ignore_errors) {
-          process.exit(res.code);
-        }
-      } else {
-        console.log(
-          chalk.yellow('You need to create a secret ') +
-            chalk.cyan('google-ads-dev-token') +
-            chalk.yellow(' with a dev token before calling the workflow. '),
-        );
-        console.log(
-          'To do this run the command: ' +
-            chalk.cyan(
-              `./${gaarfFolder}/gcp/setup.sh create_secret --secret google-ads-dev-token --value <YOUR_DEV_TOKEN>`,
-            ),
-        );
-      }
-      // TODO: what about MCC?
-      // regardless of whether the secret was created we won't use google-ads.yaml, we're done
-      return [null, true];
-    }
-    // otherwise, we use service account but with google-ads.yaml
+    return [null, true];
   }
   // prompting the user for credentials to put into google-ads.yaml;
-  // either for a User Account (need refresh_token, client_id, client_secret, dev_token)
-  // or Service Account (need dev_token)
+  // either for a User Account (need refresh_token, client_id, client_secret)
+  // or Service Account
 
   let refresh_token = '';
   const answers_new = await prompt(
@@ -720,11 +672,6 @@ async function initializeGoogleAdsConfig2(
         name: 'googleads_config_clientsecret',
         message: 'OAuth client secret:',
         when: () => !useServiceAccount,
-      },
-      {
-        type: 'input',
-        name: 'googleads_config_devtoken',
-        message: 'Google Ads API developer token:',
       },
       {
         type: 'input',
@@ -775,7 +722,6 @@ async function initializeGoogleAdsConfig2(
   path_to_googleads_config = 'google-ads.yaml';
   const yaml_content =
     `# File was generated with create-gaarf-wf at ${new Date()}
-developer_token: ${answers_new.googleads_config_devtoken || ''}
 login_customer_id: ${sanitizeCustomerId(
       answers_new.googleads_config_mcc || '',
     )}` +
@@ -1166,10 +1112,6 @@ fi
       memory: cf_memory,
     },
   };
-  if (!path_to_googleads_config) {
-    // not using google-ads.yaml means using Secret Manager
-    settings['functions']['use-secret-manager'] = true;
-  }
   let aux_args = '';
   if (answers.disable_grants) {
     aux_args = '--disable-grants';
