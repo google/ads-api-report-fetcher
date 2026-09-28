@@ -19,7 +19,7 @@
 * `ads_config_path` - a path to Ads config, same as for gaarf
 * `customer_id` - a seed customer id (CID), without '-';
    can be specified in google-ads.yaml as well, if so then can be omitted
-* `customer_ids_query` - custom Ads query to filter customer accounts expanded from `customer_id`,
+* `customer_ids_query` - GCS path ('gs://...') to a custom Ads query to filter customer accounts expanded from `customer_id`,
    same as same-name argument for gaarf cli tool. Query's first column should be a customer id (CID).
 * `customer_ids_ignore` - a list of customer ids to exclude from the result
 * `customer_ids_batchsize` - a size of batches into which account ids list will be split.
@@ -88,12 +88,16 @@ async function main_getcids_unsafe(
 
   customerIds = await getCustomerIds(adsClient, customerIds);
   let customer_ids_query = '';
-  if (req.body && req.body.customer_ids_query) {
-    customer_ids_query = <string>req.body.customer_ids_query;
-  } else if (req.query.customer_ids_query) {
-    customer_ids_query = await getFileContent(
-      <string>req.query.customer_ids_query
-    );
+  const customer_ids_query_path = <string>(
+    req.body?.customer_ids_query || req.query.customer_ids_query
+  );
+  if (customer_ids_query_path) {
+    if (!customer_ids_query_path.startsWith('gs://')) {
+      throw new Error(
+        "Invalid customer_ids_query: must be a Google Cloud Storage URI ('gs://...'). Passing inline query text or local file paths is not permitted."
+      );
+    }
+    customer_ids_query = await getFileContent(customer_ids_query_path);
   }
   if (customer_ids_query) {
     logger.info(
