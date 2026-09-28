@@ -248,6 +248,8 @@ suite('AdsQueryExecutor', () => {
         campaign.app_campaign_setting.bidding_strategy_goal_type AS bidding_type,
         #10 indexing and nesting on arrays (repeatable fields)
         (campaign.final_urls[1].key).toString() + '!' as url_key,
+        #11 indexing on repeated numeric field
+        (campaign.frequency_caps[1].cap) * 2 as frequency_cap,
       FROM campaign
     `;
     const mockResult = [
@@ -265,6 +267,7 @@ suite('AdsQueryExecutor', () => {
             {key: 'key1', value: 'value1'},
             {key: 'key2', value: 'value2'},
           ],
+          frequencyCaps: [{cap: 5}],
         },
         metrics: {
           clicks: 10,
@@ -278,6 +281,10 @@ suite('AdsQueryExecutor', () => {
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
     const query = await executor.parseQuery(queryText);
+    assert.strictEqual(
+      query.columns.find(c => c.name === 'frequency_cap')?.type.typeName,
+      'int64',
+    );
     const res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [
@@ -291,6 +298,7 @@ suite('AdsQueryExecutor', () => {
       'https', // protocol
       'OPTIMIZE_INSTALLS_TARGET_INSTALL_COST', // bidding_type
       'key1!', // url_key
+      10, // frequency_cap
     ]);
   });
 
@@ -319,6 +327,7 @@ FROM change_event
     client.setupResult(mockResult);
     const executor = new AdsQueryExecutor(client);
     const query = await executor.parseQuery(queryText);
+    assert.strictEqual(query.columnTypes[0].typeName, 'double');
     const res = await executor.executeOne(query, customerId);
     assert.ok(res.rows);
     assert.deepStrictEqual(res.rows[0], [1]);

@@ -33,9 +33,11 @@ import {
 import {assertIsError, renderTemplate, substituteMacros} from './utils.js';
 import {
   extractFieldAccesses,
+  getFullPropertyChain,
   inferMathExprType,
   mathjs,
 } from './math-engine.js';
+import {isAccessorNode, MathNode} from 'mathjs';
 import {BuiltinQueryProcessor} from './builtins.js';
 import {parse} from './parser.js';
 
@@ -350,50 +352,10 @@ export class AdsQueryEditor implements IAdsQueryEditor {
                 raw_select_fields.push(f);
               }
             }
-            // We already extracted `raw_accessors` representing a list of full paths!
-            // E.g., ['campaign.asset_automation_settings', 'metrics.clicks']
-            // Populate dummyScope with mock values for these known accessors!
-            const flatDummyScope: Record<string, unknown> = {
-              equalText: () => true,
-              match: () => true,
-              some: () => true,
-              every: () => true,
-              filter: () => [],
-              map: () => [],
-            };
-            // Make sure mathjs functions are available in the scope or it will error
-            for (const funcName of Object.keys(functions)) {
-              flatDummyScope[funcName] = functions[funcName];
-            }
-            for (const acc of raw_accessors) {
-              try {
-                // If it's a substituted path (like nested pairs), use the original or substituted?
-                // `raw_accessors` has original like `metrics.clicks`
-                const fieldType = await this.getColumnType(acc, acc);
-                const mockValue = this.createDummyValue(
-                  fieldType.type as string,
-                );
-
-                // Removed double wrap for fieldType.repeated
-                // Set the deeply nested value in flatDummyScope
-                const parts = acc.split('.');
-                let current = flatDummyScope;
-                for (let i = 0; i < parts.length - 1; i++) {
-                  if (!current[parts[i]]) {
-                    current[parts[i]] = {} as Record<string, unknown>;
-                  }
-                  current = current[parts[i]] as Record<string, unknown>;
-                }
-                const last = parts[parts.length - 1];
-                current[last] = fieldType.repeated ? [mockValue] : mockValue;
-              } catch (_) {
-                // If getColumnType fails, ignore and use string mock
-              }
-            }
-
-            const inferredType = inferMathExprType(
+            const inferredType = await this.inferExpressionType(
               parsed_expression,
-              flatDummyScope,
+              raw_accessors,
+              functions,
             );
 
             field = {
@@ -574,6 +536,10 @@ export class AdsQueryEditor implements IAdsQueryEditor {
     return fieldType;
   }
 
+  /**
+   * Creates a dummy value for a given schema field type to be used when
+   * evaluating MathJS expressions for return-type inference.
+   */
   protected createDummyValue(type: string): unknown {
     if (type === 'int64' || type === 'int32') return 1;
     if (type === 'double' || type === 'float') return 1.0;
@@ -603,6 +569,84 @@ export class AdsQueryEditor implements IAdsQueryEditor {
       );
     };
     return buildSafeProxy();
+  }
+
+  /**
+   * Infers the primitive column type ('int64', 'double', 'bool', or 'string')
+   * of a parsed MathJS expression by constructing a nested dummy scope from the
+   * schema types of all referenced field accessors and evaluating the expression.
+   */
+  protected async inferExpressionType(
+    parsedExpression: MathNode,
+    accessors: string[],
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    functions: Record<string, Function> = {},
+  ): Promise<string> {
+    const flatDummyScope: Record<string, unknown> = {
+      equalText: () => true,
+      match: () => true,
+      some: () => true,
+      every: () => true,
+      filter: () => [],
+      map: () => [],
+    };
+    // Make sure mathjs functions are available in the scope or it will error
+    for (const funcName of Object.keys(functions)) {
+      flatDummyScope[funcName] = functions[funcName];
+    }
+
+    const indexedPaths = new Set<string>();
+    parsedExpression.traverse((n: MathNode) => {
+      if (isAccessorNode(n) && !n.index.dotNotation) {
+        const chain = getFullPropertyChain(n.object);
+        if (chain) {
+          indexedPaths.add(chain.replaceAll(':', '.'));
+        }
+      }
+    });
+
+    const normalizedAccessors = accessors.map(acc => acc.replaceAll(':', '.'));
+    for (const acc of normalizedAccessors) {
+      const parts = acc.split('.');
+      const fieldType = await this.getColumnType(acc, acc).catch(() => null);
+
+      // Set the deeply nested value in flatDummyScope
+      let current = flatDummyScope;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const subPath = parts.slice(0, i + 1).join('.');
+        const isRepeated =
+          indexedPaths.has(subPath) ||
+          (await this.getColumnType(subPath, subPath).catch(() => null))
+            ?.repeated;
+
+        if (!current[parts[i]]) {
+          if (isRepeated) {
+            const child = {} as Record<string, unknown>;
+            current[parts[i]] = [child, child, child, child, child];
+            current = child;
+          } else {
+            current[parts[i]] = {} as Record<string, unknown>;
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+        } else {
+          if (Array.isArray(current[parts[i]])) {
+            current = (current[parts[i]] as Record<string, unknown>[])[0];
+          } else {
+            current = current[parts[i]] as Record<string, unknown>;
+          }
+        }
+      }
+
+      const last = parts[parts.length - 1];
+      if (fieldType) {
+        const mockValue = this.createDummyValue(fieldType.type as string);
+        current[last] = fieldType.repeated ? [mockValue] : mockValue;
+      } else if (!current[last]) {
+        current[last] = this.createDummyValue('string');
+      }
+    }
+
+    return inferMathExprType(parsedExpression, flatDummyScope);
   }
 
   protected parseExpression(selectExpr: string): {

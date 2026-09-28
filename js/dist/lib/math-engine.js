@@ -134,8 +134,12 @@ mathjs.import({
         },
     }),
 });
-// Helper to build full property access chain
-function getFullPropertyChain(node) {
+/**
+ * Builds the full dot/colon-separated property access chain from a MathJS AST node.
+ * @param node a mathjs AST node
+ * @returns the property chain string, or null if the node is not a property chain
+ */
+export function getFullPropertyChain(node) {
     if (!node)
         return null;
     if (isRangeNode(node)) {
@@ -169,6 +173,13 @@ function getFullPropertyChain(node) {
     }
     return null;
 }
+/**
+ * Infers the column type of a MathJS expression node by evaluating it against
+ * a dummy scope of mock field values.
+ * @param node a mathjs AST node
+ * @param dummyScope scope populated with dummy values for accessed fields
+ * @returns inferred type name ('int64', 'double', 'bool', or 'string')
+ */
 export function inferMathExprType(node, dummyScope) {
     try {
         const compiled = node.compile();
