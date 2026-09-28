@@ -1,0 +1,4 @@
+dist/
+.clasp.json
+.clasp-dev.json
+.clasp-prod.json

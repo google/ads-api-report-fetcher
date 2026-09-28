@@ -39,6 +39,21 @@ suite('Gaarf Web Flavor', () => {
     assert(loadedSchema && loadedSchema.schemas, 'Expected schemas in loaded schema');
   });
 
+  test('WebSchemaLoader throws when loading a non-existent version', async () => {
+    const loader = new WebSchemaLoader({useCache: false});
+    await assert.rejects(
+      async () => {
+        await loader.loadSchema('v10');
+      },
+      (err: Error) => {
+        assert(
+          err.message.includes('Failed to load Google Ads API schema for v10'),
+        );
+        return true;
+      },
+    );
+  });
+
   test('GoogleAdsApiClient can be instantiated with access_token', () => {
     const client = new GoogleAdsApiClient(
       {

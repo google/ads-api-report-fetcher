@@ -105,6 +105,12 @@ export class WebSchemaLoader implements ISchemaLoader {
         headers: {Accept: 'application/json'},
       });
       const schema = response.data;
+      if (!schema || typeof schema !== 'object' || !schema.schemas) {
+        throw new Error(
+          `Invalid discovery schema response received for ${normVersion}`,
+        );
+      }
+
       this.schemaCache.set(normVersion, schema);
 
       if (
@@ -121,16 +127,10 @@ export class WebSchemaLoader implements ISchemaLoader {
 
       return schema;
     } catch (e: any) {
-      // Fallback: try bundled schema if discovery fetch fails
-      try {
-        const bundled = await this.loadBundledSchema();
-        this.schemaCache.set(normVersion, bundled);
-        return bundled;
-      } catch (_) {
-        // ignore
-      }
+      const detail =
+        e.response?.data?.error?.message || e.message || String(e);
       throw new Error(
-        `Failed to load Google Ads API schema for ${normVersion}: ${e.message}`,
+        `Failed to load Google Ads API schema for ${normVersion}: ${detail}`,
       );
     }
   }

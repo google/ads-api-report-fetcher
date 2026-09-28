@@ -1,6 +1,6 @@
 {
   "name": "gaarf-web",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "Google Ads API Report Fetcher (Gaarf) for Web / Browser",
   "main": "dist/index.js",
   "module": "dist/index.js",
