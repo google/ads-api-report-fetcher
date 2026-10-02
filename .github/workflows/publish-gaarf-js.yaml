@@ -104,7 +104,7 @@ jobs:
               id: cpv
               uses: PostHog/check-package-version@v2
               with:
-                path: "js"
+                path: "js/web"
 
             - name: Echo versions
               run: |
