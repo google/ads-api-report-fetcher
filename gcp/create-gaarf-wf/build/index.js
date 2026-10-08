@@ -592,7 +592,7 @@ refresh_token: ${refresh_token || ''}
     return [path_to_googleads_config, useServiceAccount];
 }
 async function validateGoogleAdsConfig(gaarf_folder, path_to_googleads_config) {
-    await execCmd('npm install --prod', new clui.Spinner('Installing dependencies...'), {
+    await execCmd('npm install --omit=dev', new clui.Spinner('Installing dependencies...'), {
         cwd: `./${gaarf_folder}/js`,
     });
     const res = await execCmd(`./gaarf validate --ads-config=../../${path_to_googleads_config} --api=rest`, new clui.Spinner(`Validating Ads credentials from ${path_to_googleads_config}...`), { cwd: `./${gaarf_folder}/js` });

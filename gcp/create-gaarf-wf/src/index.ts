@@ -747,7 +747,7 @@ async function validateGoogleAdsConfig(
   path_to_googleads_config: string,
 ) {
   await execCmd(
-    'npm install --prod',
+    'npm install --omit=dev',
     new clui.Spinner('Installing dependencies...'),
     {
       cwd: `./${gaarf_folder}/js`,
