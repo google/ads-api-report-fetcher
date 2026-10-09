@@ -35,7 +35,7 @@
     "clean": "rimraf dist",
     "bundle": "rollup -c rollup.config.mjs",
     "build": "npm run clean && npm run bundle",
-    "prepublishOnly": "npm run test && npm run build",
+    "prepublishOnly": "npm run build && npm run test",
     "test": "mocha --ui tdd --loader=ts-node/esm --require ts-node/register --timeout 10s src/test/**/*.ts"
   },
   "dependencies": {

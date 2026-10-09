@@ -25,7 +25,7 @@ import {
   BundledSchemaLoader,
   FieldTypeKind,
   substituteMacros,
-} from '../index.js';
+} from '../../dist/index.js';
 
 suite('Gaarf Web Flavor', () => {
   const schemaLoader = new BundledSchemaLoader();

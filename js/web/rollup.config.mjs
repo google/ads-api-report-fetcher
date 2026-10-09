@@ -186,5 +186,15 @@ export default {
       },
     }),
     terser(),
+    {
+      name: 'emit-root-dts',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'index.d.ts',
+          source: "export * from './web/src/index.js';\n",
+        });
+      },
+    },
   ],
 };

@@ -48,7 +48,7 @@ jobs:
                 NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN2 }}
 
     autopublish-gaarf:
-        name: Autopublish gaarf npm package if package.json version was bumped
+        name: Autopublish gaarf and gaarf-web npm packages if package.json version was bumped
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -57,67 +57,38 @@ jobs:
             - name: Check out repository
               uses: actions/checkout@v2
 
-            - name: Check package version
+            - name: Check gaarf package version
               id: cpv
               uses: PostHog/check-package-version@v2
               with:
                 path: "js"
 
-            - name: Echo versions
-              run: |
-                  echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
-                  echo "Published version: ${{ steps.cpv.outputs.published-version }}"
-
-            - name: Install dependencies
-              if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm install
-
-            - name: Compile and run tests
-              if: steps.cpv.outputs.is-new-version == 'true'
-              run: |
-                  npm run tsc
-                  npm run test
-
-            # NOTE: setting our registry url should be done after installing deps
-            - uses: actions/setup-node@v3
-              with:
-                node-version: '19'
-                registry-url: 'https://wombat-dressing-room.appspot.com/'
-
-            - name: Publish new version
-              if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm publish
-              env:
-                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-    autopublish-gaarf-web:
-        name: Autopublish gaarf-web npm package if package.json version was bumped
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./js/web
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@v2
-
-            - name: Check package version
-              id: cpv
+            - name: Check gaarf-web package version
+              id: cpv_web
               uses: PostHog/check-package-version@v2
               with:
                 path: "js/web"
 
             - name: Echo versions
               run: |
-                  echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
-                  echo "Published version: ${{ steps.cpv.outputs.published-version }}"
+                  echo "gaarf - Committed version: ${{ steps.cpv.outputs.committed-version }}, Published version: ${{ steps.cpv.outputs.published-version }}"
+                  echo "gaarf-web - Committed version: ${{ steps.cpv_web.outputs.committed-version }}, Published version: ${{ steps.cpv_web.outputs.published-version }}"
 
-            - name: Install dependencies
-              if: steps.cpv.outputs.is-new-version == 'true'
+            - name: Install dependencies (gaarf)
+              if: steps.cpv.outputs.is-new-version == 'true' || steps.cpv_web.outputs.is-new-version == 'true'
               run: npm install
 
-            - name: Compile and run tests
+            - name: Compile and run tests (gaarf)
               if: steps.cpv.outputs.is-new-version == 'true'
               run: |
+                  npm run tsc
+                  npm run test
+
+            - name: Install, build and run tests (gaarf-web)
+              if: steps.cpv_web.outputs.is-new-version == 'true'
+              working-directory: ./js/web
+              run: |
+                  npm install
                   npm run build
                   npm test
 
@@ -127,8 +98,15 @@ jobs:
                 node-version: '19'
                 registry-url: 'https://wombat-dressing-room.appspot.com/'
 
-            - name: Publish new version
+            - name: Publish new version (gaarf)
               if: steps.cpv.outputs.is-new-version == 'true'
+              run: npm publish
+              env:
+                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+            - name: Publish new version (gaarf-web)
+              if: steps.cpv_web.outputs.is-new-version == 'true'
+              working-directory: ./js/web
               run: npm publish
               env:
                 NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN_WEB }}
