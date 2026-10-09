@@ -142,7 +142,11 @@ export async function executeGaarfQuery(
       "Customer id is not specified in either 'customer_id' argument or google-ads.yaml"
     );
   if (!adsConfig.login_customer_id) {
-    adsConfig.login_customer_id = (args.rootCid || customerId) as string;
+    if (args.rootCid && !args.rootCid.includes(',')) {
+      adsConfig.login_customer_id = args.rootCid;
+    } else if (!customerId.toString().includes(',')) {
+      adsConfig.login_customer_id = customerId as string;
+    }
   }
 
   const apiVersion = args.apiVersion;
