@@ -37,7 +37,7 @@ const schemaLoaderWeb = path.resolve(
 export default {
   input: {
     index: 'src/index.ts',
-    'schema/v25': 'src/lib/bundled-schema.ts',
+    'schema/v26': 'src/lib/bundled-schema.ts',
   },
   output: [
     {

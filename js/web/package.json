@@ -1,6 +1,6 @@
 {
   "name": "gaarf-web",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Google Ads API Report Fetcher (Gaarf) for Web / Browser",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -11,10 +11,10 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./schema/v25": {
+    "./schema/v26": {
       "types": "./dist/web/src/lib/bundled-schema.d.ts",
-      "import": "./dist/schema/v25.js",
-      "default": "./dist/schema/v25.js"
+      "import": "./dist/schema/v26.js",
+      "default": "./dist/schema/v26.js"
     }
   },
   "files": [

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.5.0 - 2026-10-15
+- added v26 schema
+
+## 4.4.0 - 2026-09-28
+- removed deprecated developer_token support
+- Fix: fixed column type inferring for expressions with nest field accessor customizer 
+- published `gaarf-web` package - Gaarf in browser
+
 ## 4.3.0 - 2026-08-26
 - added v25 schema
 
