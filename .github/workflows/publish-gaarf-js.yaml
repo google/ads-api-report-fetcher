@@ -9,16 +9,19 @@ jobs:
     autopublish-create-gaarf-wf:
         name: Autopublish create-gaarf-wf npm package if package.json version was bumped
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
         defaults:
             run:
                 working-directory: ./gcp/create-gaarf-wf
         steps:
             - name: Check out repository
-              uses: actions/checkout@v2
+              uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2
 
             - name: Check package version
               id: cpv
-              uses: PostHog/check-package-version@v2
+              uses: PostHog/check-package-version@f540540cb12d45ec3c58d42dbf1d60070ed2d268 # v2
               with:
                 path: "gcp/create-gaarf-wf"
 
@@ -35,37 +38,61 @@ jobs:
               if: steps.cpv.outputs.is-new-version == 'true'
               run: npm run tsc
 
-            # NOTE: setting our registry url should be done after installing deps
-            - uses: actions/setup-node@v3
-              with:
-                node-version: '19'
-                registry-url: 'https://wombat-dressing-room.appspot.com/'
-
-            - name: Publish new version
+            - name: Authenticate to Google Cloud for OSS Exit Gate
               if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm publish
+              id: auth
+              uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+              with:
+                token_format: 'access_token'
+                workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
+
+            - name: Set up Cloud SDK
+              if: steps.cpv.outputs.is-new-version == 'true'
+              uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+            - name: Stage new version to Artifact Registry and trigger OSS Exit Gate
+              if: steps.cpv.outputs.is-new-version == 'true'
               env:
-                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN2 }}
+                ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+                RUN_ID: ${{ github.run_id }}
+                RUN_ATTEMPT: ${{ github.run_attempt }}
+              run: |
+                cat << 'NPMRC' > "$HOME/.npmrc"
+                registry=https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:always-auth=true
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:_authToken=${ACCESS_TOKEN}
+                NPMRC
+                trap 'rm -f "$HOME/.npmrc"' EXIT
+                npm publish --access public --registry="https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/"
+                cat << 'MANIFEST' > manifest.json
+                {
+                  "publish_all": true
+                }
+                MANIFEST
+                gcloud storage cp manifest.json "gs://oss-exit-gate-prod-projects-bucket/ads-api-report-fetcher/npm/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}-create-gaarf-wf.json"
 
     autopublish-gaarf:
         name: Autopublish gaarf and gaarf-web npm packages if package.json version was bumped
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
         defaults:
             run:
                 working-directory: ./js
         steps:
             - name: Check out repository
-              uses: actions/checkout@v2
+              uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2
 
             - name: Check gaarf package version
               id: cpv
-              uses: PostHog/check-package-version@v2
+              uses: PostHog/check-package-version@f540540cb12d45ec3c58d42dbf1d60070ed2d268 # v2
               with:
                 path: "js"
 
             - name: Check gaarf-web package version
               id: cpv_web
-              uses: PostHog/check-package-version@v2
+              uses: PostHog/check-package-version@f540540cb12d45ec3c58d42dbf1d60070ed2d268 # v2
               with:
                 path: "js/web"
 
@@ -92,21 +119,54 @@ jobs:
                   npm run build
                   npm test
 
-            # NOTE: setting our registry url should be done after installing deps
-            - uses: actions/setup-node@v3
+            - name: Authenticate to Google Cloud for OSS Exit Gate
+              if: steps.cpv.outputs.is-new-version == 'true' || steps.cpv_web.outputs.is-new-version == 'true'
+              id: auth
+              uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
               with:
-                node-version: '19'
-                registry-url: 'https://wombat-dressing-room.appspot.com/'
+                token_format: 'access_token'
+                workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
 
-            - name: Publish new version (gaarf)
+            - name: Set up Cloud SDK
+              if: steps.cpv.outputs.is-new-version == 'true' || steps.cpv_web.outputs.is-new-version == 'true'
+              uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+            - name: Stage new version (gaarf) to Artifact Registry
               if: steps.cpv.outputs.is-new-version == 'true'
-              run: npm publish
               env:
-                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+                ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+              run: |
+                cat << 'NPMRC' > "$HOME/.npmrc"
+                registry=https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:always-auth=true
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:_authToken=${ACCESS_TOKEN}
+                NPMRC
+                trap 'rm -f "$HOME/.npmrc"' EXIT
+                npm publish --access public --registry="https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/"
 
-            - name: Publish new version (gaarf-web)
+            - name: Stage new version (gaarf-web) to Artifact Registry
               if: steps.cpv_web.outputs.is-new-version == 'true'
               working-directory: ./js/web
-              run: npm publish
               env:
-                NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN_WEB }}
+                ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+              run: |
+                cat << 'NPMRC' > "$HOME/.npmrc"
+                registry=https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:always-auth=true
+                //us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/:_authToken=${ACCESS_TOKEN}
+                NPMRC
+                trap 'rm -f "$HOME/.npmrc"' EXIT
+                npm publish --access public --registry="https://us-npm.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--npm/"
+
+            - name: Trigger OSS Exit Gate release
+              if: steps.cpv.outputs.is-new-version == 'true' || steps.cpv_web.outputs.is-new-version == 'true'
+              env:
+                RUN_ID: ${{ github.run_id }}
+                RUN_ATTEMPT: ${{ github.run_attempt }}
+              run: |
+                cat << 'MANIFEST' > manifest.json
+                {
+                  "publish_all": true
+                }
+                MANIFEST
+                gcloud storage cp manifest.json "gs://oss-exit-gate-prod-projects-bucket/ads-api-report-fetcher/npm/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}-gaarf.json"
