@@ -13,14 +13,15 @@ jobs:
     environment:
       name: pypi
     permissions:
+      contents: read
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
 
       - name: Get versions and check for change
         id: version_check
@@ -41,6 +42,29 @@ jobs:
         if: steps.version_check.outputs.should_publish == 'true'
         run: uv build py
 
-      - name: Publish to PyPI
+      - name: Authenticate to Google Cloud for OSS Exit Gate
         if: steps.version_check.outputs.should_publish == 'true'
-        run: uv publish py/dist/*
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
+
+      - name: Set up Cloud SDK
+        if: steps.version_check.outputs.should_publish == 'true'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Stage to Artifact Registry and trigger OSS Exit Gate
+        if: steps.version_check.outputs.should_publish == 'true'
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          uv publish --publish-url https://us-python.pkg.dev/oss-exit-gate-prod/ads-api-report-fetcher--pypi/ --username oauth2accesstoken --password "${ACCESS_TOKEN}" py/dist/*
+          cat << 'MANIFEST' > manifest.json
+          {
+            "publish_all": true
+          }
+          MANIFEST
+          gcloud storage cp manifest.json "gs://oss-exit-gate-prod-projects-bucket/ads-api-report-fetcher/pypi/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
