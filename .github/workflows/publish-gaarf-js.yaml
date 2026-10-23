@@ -26,9 +26,12 @@ jobs:
                 path: "gcp/create-gaarf-wf"
 
             - name: Echo versions
+              env:
+                COMMITTED_VERSION: ${{ steps.cpv.outputs.committed-version }}
+                PUBLISHED_VERSION: ${{ steps.cpv.outputs.published-version }}
               run: |
-                  echo "Committed version: ${{ steps.cpv.outputs.committed-version }}"
-                  echo "Published version: ${{ steps.cpv.outputs.published-version }}"
+                  echo "Committed version: ${COMMITTED_VERSION}"
+                  echo "Published version: ${PUBLISHED_VERSION}"
 
             - name: Install dependencies
               if: steps.cpv.outputs.is-new-version == 'true'
@@ -97,9 +100,14 @@ jobs:
                 path: "js/web"
 
             - name: Echo versions
+              env:
+                GAARF_COMMITTED: ${{ steps.cpv.outputs.committed-version }}
+                GAARF_PUBLISHED: ${{ steps.cpv.outputs.published-version }}
+                WEB_COMMITTED: ${{ steps.cpv_web.outputs.committed-version }}
+                WEB_PUBLISHED: ${{ steps.cpv_web.outputs.published-version }}
               run: |
-                  echo "gaarf - Committed version: ${{ steps.cpv.outputs.committed-version }}, Published version: ${{ steps.cpv.outputs.published-version }}"
-                  echo "gaarf-web - Committed version: ${{ steps.cpv_web.outputs.committed-version }}, Published version: ${{ steps.cpv_web.outputs.published-version }}"
+                  echo "gaarf - Committed version: ${GAARF_COMMITTED}, Published version: ${GAARF_PUBLISHED}"
+                  echo "gaarf-web - Committed version: ${WEB_COMMITTED}, Published version: ${WEB_PUBLISHED}"
 
             - name: Install dependencies (gaarf)
               if: steps.cpv.outputs.is-new-version == 'true' || steps.cpv_web.outputs.is-new-version == 'true'
