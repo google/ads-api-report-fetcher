@@ -176,4 +176,95 @@ https://www.apache.org/licenses/LICENSE-2.0
     const query = await editor.parseQuery(queryText, {});
     assert.equal(query.columnTypes[0].typeName, 'bool');
   });
+
+  test('macros and identifiers starting with keyword prefixes (from_, as_, select_, limit_, where_)', async () => {
+    const queryText = `
+      SELECT
+        as_number(campaign.name) AS name_num,
+        from_micros(metrics.cost_micros) AS cost
+      FROM campaign
+      WHERE segments.date >= '{from_date}'
+        AND segments.date <= '{limit_1}'
+        AND campaign.name != '{where_filter}'
+      FUNCTIONS
+      function as_number(val) { return Number(val); }
+      function from_micros(val) { return val / 1000000; }
+    `;
+    const query = await editor.parseQuery(queryText, {
+      from_date: '2025-01-01',
+      limit_1: '2025-01-31',
+      where_filter: 'test',
+    });
+    assert.equal(
+      query.queryText.replace(/\s+/g, ' '),
+      "SELECT campaign.name, metrics.cost_micros FROM campaign WHERE segments.date >= '2025-01-01' AND segments.date <= '2025-01-31' AND campaign.name != 'test'",
+    );
+  });
+
+  test('multi-line comment inside WHERE and SELECT clauses', async () => {
+    const queryText = `
+      SELECT
+        metrics.clicks / /* inline comment */ metrics.impressions AS ctr
+      FROM campaign
+      WHERE campaign.id > 0/*inline comment*/AND campaign.status = 'ENABLED'
+    `;
+    const query = await editor.parseQuery(queryText, {});
+    assert.equal(
+      query.queryText.replace(/\s+/g, ' '),
+      "SELECT metrics.clicks, metrics.impressions FROM campaign WHERE campaign.id > 0 AND campaign.status = 'ENABLED'",
+    );
+  });
+
+  test('string literals in WHERE containing comment markers (//, #, --, /*)', async () => {
+    const queryText = `
+      SELECT campaign.id
+      FROM campaign
+      WHERE campaign.tracking_url_template = 'https://example.com/page#section'
+        AND campaign.name != 'Promo -- #1 /* not a comment */'
+    `;
+    const query = await editor.parseQuery(queryText, {});
+    assert.equal(
+      query.queryText.replace(/\s+/g, ' '),
+      "SELECT campaign.id FROM campaign WHERE campaign.tracking_url_template = 'https://example.com/page#section' AND campaign.name != 'Promo -- #1 /* not a comment */'",
+    );
+  });
+
+  test('string literals in WHERE containing keywords and semicolons', async () => {
+    const queryText = `
+      SELECT campaign.id
+      FROM campaign
+      WHERE campaign.name = 'Select from best; order by limit 10'
+    `;
+    const query = await editor.parseQuery(queryText, {});
+    assert.equal(
+      query.queryText,
+      "SELECT campaign.id FROM campaign WHERE campaign.name = 'Select from best; order by limit 10'",
+    );
+  });
+
+  test('string literals in SELECT virtual columns containing commas and keywords (AS, FROM)', async () => {
+    const queryText = `
+      SELECT
+        campaign.name.split(',')[1] AS first_part,
+        'from ' + campaign.name + ' as text' AS label
+      FROM campaign
+    `;
+    const query = await editor.parseQuery(queryText, {});
+    assert.deepEqual(query.columnNames, ['first_part', 'label']);
+    assert.equal(query.queryText, 'SELECT campaign.name FROM campaign');
+  });
+
+  test('multi-argument function calls in SELECT without backticks', async () => {
+    const queryText = `
+      SELECT
+        round(metrics.cost_micros / 1000000, 2) AS cost_rounded
+      FROM campaign
+    `;
+    const query = await editor.parseQuery(queryText, {});
+    assert.deepEqual(query.columnNames, ['cost_rounded']);
+    assert.equal(query.queryText, 'SELECT metrics.cost_micros FROM campaign');
+  });
+
 });
+
+

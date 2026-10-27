@@ -202,8 +202,11 @@ export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
             console.error(e);
             this.logger.error(`An error occurred on executing query and on logging it afterwards: ${query}\n.Raw error: ${e}, logging error:${e}`);
         }
-        const failure = error.details && error.details.length ? error.details[0] : null;
-        if (!failure) {
+        const failure = error.details && error.details.length
+            ? error.details.find((d) => Array.isArray(d.errors) && d.errors.length > 0) ||
+                error.details[0]
+            : null;
+        if (!failure && !error.status && !error.code) {
             this.logger.debug('Could not parse API error into GoogleAdsFailure');
             error.logged = true;
             error.retryable = true;
@@ -213,7 +216,7 @@ export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
         if (error.status) {
             message = error.status + ': ' + message;
         }
-        if (failure.errors && failure.errors.length) {
+        if ((failure === null || failure === void 0 ? void 0 : failure.errors) && failure.errors.length) {
             message += ': ' + failure.errors[0].message;
         }
         const ex = new GoogleAdsError(message);
@@ -221,19 +224,16 @@ export class GoogleAdsApiClient extends GoogleAdsApiClientBase {
         if (error.code && transientStatusCodes.includes(error.code)) {
             ex.retryable = true;
         }
-        if (failure.errors.length) {
+        if ((failure === null || failure === void 0 ? void 0 : failure.errors) && failure.errors.length) {
             if (((_a = failure.errors[0].errorCode) === null || _a === void 0 ? void 0 : _a.internalError) ||
                 ((_b = failure.errors[0].errorCode) === null || _b === void 0 ? void 0 : _b.quotaError)) {
                 ex.retryable = true;
             }
         }
-        else {
-            ex.retryable = true;
-        }
         ex.account = customerId;
         ex.query = query;
         ex.logged = true;
-        this.logger.debug(`API error parsed into GoogleAdsFailure: ${ex.message}, error_code: ${error.errors ? (_c = error.errors[0]) === null || _c === void 0 ? void 0 : _c.errorCode : ''})`, { customerId, query });
+        this.logger.debug(`API error parsed into GoogleAdsFailure: ${ex.message}, error_code: ${(failure === null || failure === void 0 ? void 0 : failure.errors) ? JSON.stringify((_c = failure.errors[0]) === null || _c === void 0 ? void 0 : _c.errorCode) : ''})`, { customerId, query });
         return ex;
     }
 }

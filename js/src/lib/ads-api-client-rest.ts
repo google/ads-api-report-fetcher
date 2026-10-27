@@ -280,8 +280,11 @@ export class GoogleAdsApiClient
       );
     }
     const failure =
-      error.details && error.details.length ? error.details[0] : null;
-    if (!failure) {
+      error.details && error.details.length
+        ? error.details.find((d: any) => Array.isArray(d.errors) && d.errors.length > 0) ||
+          error.details[0]
+        : null;
+    if (!failure && !error.status && !error.code) {
       this.logger.debug('Could not parse API error into GoogleAdsFailure');
       error.logged = true;
       error.retryable = true;
@@ -293,7 +296,7 @@ export class GoogleAdsApiClient
       message = error.status + ': ' + message;
     }
 
-    if (failure.errors && failure.errors.length) {
+    if (failure?.errors && failure.errors.length) {
       message += ': ' + failure.errors[0].message;
     }
     const ex = new GoogleAdsError(message);
@@ -301,22 +304,20 @@ export class GoogleAdsApiClient
     if (error.code && transientStatusCodes.includes(error.code)) {
       ex.retryable = true;
     }
-    if (failure.errors.length) {
+    if (failure?.errors && failure.errors.length) {
       if (
         failure.errors[0].errorCode?.internalError ||
         failure.errors[0].errorCode?.quotaError
       ) {
         ex.retryable = true;
       }
-    } else {
-      ex.retryable = true;
     }
     ex.account = customerId;
     ex.query = query;
     ex.logged = true;
     this.logger.debug(
       `API error parsed into GoogleAdsFailure: ${ex.message}, error_code: ${
-        error.errors ? error.errors[0]?.errorCode : ''
+        failure?.errors ? JSON.stringify(failure.errors[0]?.errorCode) : ''
       })`,
       {customerId, query},
     );

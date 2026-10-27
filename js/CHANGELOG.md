@@ -1,11 +1,18 @@
 # Changelog
 
+## 4.6.0 - 2026-10-26
+- Fix: query parser (`grammar.peg`):
+  - fixed parsing of identifiers and macros starting with GAQL keyword prefixes followed by `_` or digits (e.g. `from_date`, `as_number`, `limit_1`, `where_filter`)
+  - fixed stripping of inline multi-line comments (`/* ... */`) inside `SELECT` expressions and `WHERE` clauses
+  - fixed preserving comment markers (`//`, `#`, `--`, `/*`), semicolons (`;`), commas (`,`), and keywords (`SELECT`, `FROM`, `AS`, `LIMIT`, etc.) inside string literals in `SELECT` and `WHERE` clauses
+  - fixed parsing of multi-argument function calls in `SELECT` (e.g. `round(x, 2)`) without requiring backticks
+
 ## 4.5.0 - 2026-10-15
 - added v26 schema
 
 ## 4.4.0 - 2026-09-28
 - removed deprecated developer_token support
-- Fix: fixed column type inferring for expressions with nest field accessor customizer 
+- Fix: fixed column type inferring for expressions with nest field accessor customizer
 - published `gaarf-web` package - Gaarf in browser
 
 ## 4.3.0 - 2026-08-26

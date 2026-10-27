@@ -53,9 +53,9 @@ OptionalTrailingComma
   / __ &FROM
 
 ExpressionTerminator
-  = __ "AS"i ![a-zA-Z]
-  / __ "," &(__ ("AS"i ![a-zA-Z] / "FROM"i ![a-zA-Z] / SelectedField))
-  / __ "FROM"i ![a-zA-Z]
+  = __ AS
+  / __ ","
+  / __ FROM
 
 SelectedField
   = expr:Expression alias:FieldAlias?
@@ -109,9 +109,12 @@ FieldChain
 Identifier
   = [a-zA-Z_] [a-zA-Z0-9_]*
 
+IdentifierPart
+  = [a-zA-Z0-9_]
+
 // Lookahead to ensure we've reached end of field
 ExpressionEnd
-  = &(__ ("AS"i ![a-zA-Z] / "," / "FROM"i ![a-zA-Z]))
+  = &(__ (AS / "," / FROM))
 
 // For backticked expressions that can contain anything
 BacktickedExpression
@@ -125,24 +128,49 @@ BacktickedExpression
 
 // Anything else becomes a math expression
 MathExpression
-  = expr:(!ExpressionTerminator .)+
+  = expr:MathToken+
     {
       return {
         type: 'mathExpression',
-        selector: expr.map(([_, char]) => char).join('').trim()
+        selector: expr.join('').trim()
       };
     }
 
+MathToken
+  = !ExpressionTerminator token:(
+      StringLiteral
+      / Comment
+      / ParenGroup
+      / BracketGroup
+      / Identifier { return text(); }
+      / .
+    )
+    { return token; }
+
+ParenGroup
+  = "(" inner:(StringLiteral / Comment / ParenGroup / BracketGroup / [^()])* ")"
+    { return "(" + inner.join('') + ")"; }
+
+BracketGroup
+  = "[" inner:(StringLiteral / Comment / ParenGroup / BracketGroup / [^\[\]])* "]"
+    { return "[" + inner.join('') + "]"; }
+
+TemplateInterpolation
+  = "${" (!"}" .)* "}"
 
 StringLiteral
   = "'" chars:SingleQuoteChar* "'"   { return text(); }
   / '"' chars:DoubleQuoteChar* '"'   { return text(); }
 
 SingleQuoteChar
-  = !("'" / LineTerminator) .
+  = "\\" .
+  / TemplateInterpolation
+  / !("'" / LineTerminator) .
 
 DoubleQuoteChar
-  = !('"' / LineTerminator) .
+  = "\\" .
+  / TemplateInterpolation
+  / !('"' / LineTerminator) .
 
 
 FieldAlias
@@ -182,15 +210,15 @@ JavaScriptCode
   = chars:.*
     { return chars.join('').trim(); }
 
-SELECT = [sS][eE][lL][eE][cC][tT]
-FROM = [fF][rR][oO][mM]
-WHERE = [wW][hH][eE][rR][eE]
-ORDER = [oO][rR][dD][eE][rR]
-BY = [bB][yY]
-LIMIT = [lL][iI][mM][iI][tT]
-PARAMETERS = [pP][aA][rR][aA][mM][eE][tT][eE][rR][sS]
-AS = [aA][sS]
-FUNCTIONS = [fF][uU][nN][cC][tT][iI][oO][nN][sS]
+SELECT = [sS][eE][lL][eE][cC][tT] !IdentifierPart
+FROM = [fF][rR][oO][mM] !IdentifierPart
+WHERE = [wW][hH][eE][rR][eE] !IdentifierPart
+ORDER = [oO][rR][dD][eE][rR] !IdentifierPart
+BY = [bB][yY] !IdentifierPart
+LIMIT = [lL][iI][mM][iI][tT] !IdentifierPart
+PARAMETERS = [pP][aA][rR][aA][mM][eE][tT][eE][rR][sS] !IdentifierPart
+AS = [aA][sS] !IdentifierPart
+FUNCTIONS = [fF][uU][nN][cC][tT][iI][oO][nN][sS] !IdentifierPart
 
 Comment "comment"
   = MultiLineComment
@@ -198,24 +226,33 @@ Comment "comment"
 
 MultiLineComment
   = "/*" (!"*/" .)* "*/"
+  { return " "; }
 
 SingleLineComment
   = ("--" / "//" / "#") (!LineTerminator .)* LineTerminator?
-  { return ""; }  // Return empty string for comments
+  { return " "; }
 
 RawClause
-  = content:(
-      Comment
-      / (!(";" / "SELECT"i ![a-zA-Z] / "FROM"i ![a-zA-Z] / "WHERE"i ![a-zA-Z] /
-           "ORDER"i __ "BY"i ![a-zA-Z] / "LIMIT"i ![a-zA-Z] / "PARAMETERS"i ![a-zA-Z] /
-           "FUNCTIONS"i ![a-zA-Z] / Comment) .)
-    )*
+  = content:ClauseToken*
     {
-      return content
-        .map(item => Array.isArray(item) ? item[1] : item)
-        .join('')
-        .trim();
+      return content.join('').trim();
     }
+
+ClauseToken
+  = StringLiteral
+  / Comment
+  / !ClauseEnd token:(Identifier { return text(); } / .)
+    { return token; }
+
+ClauseEnd
+  = ";"
+  / SELECT
+  / FROM
+  / WHERE
+  / ORDER __ BY
+  / LIMIT
+  / PARAMETERS
+  / FUNCTIONS
 
 ResourceName
   = head:[a-z][a-zA-Z0-9_]* tail:("." [a-z][a-zA-Z0-9_]*)*
