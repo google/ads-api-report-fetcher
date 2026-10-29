@@ -265,6 +265,56 @@ https://www.apache.org/licenses/LICENSE-2.0
     assert.equal(query.queryText, 'SELECT metrics.cost_micros FROM campaign');
   });
 
+  suite('strictness (reject invalid queries)', () => {
+    test('reject missing comma between fields in SELECT', async () => {
+      const queryText = `
+        SELECT
+          campaign.id
+          campaign.name
+        FROM campaign
+      `;
+      await assert.rejects(() => editor.parseQuery(queryText, {}));
+    });
+
+    test('reject missing AS keyword before alias in SELECT', async () => {
+      const queryText = `
+        SELECT
+          campaign.id campaign
+        FROM campaign
+      `;
+      await assert.rejects(() => editor.parseQuery(queryText, {}));
+    });
+
+    test('reject reserved keyword as column alias', async () => {
+      const queryText = `
+        SELECT
+          campaign.id AS where
+        FROM campaign
+      `;
+      await assert.rejects(() => editor.parseQuery(queryText, {}));
+    });
+
+    test('reject empty WHERE, ORDER BY, PARAMETERS, or FUNCTIONS clauses', async () => {
+      await assert.rejects(() =>
+        editor.parseQuery('SELECT campaign.id FROM campaign WHERE', {}),
+      );
+      await assert.rejects(() =>
+        editor.parseQuery(
+          'SELECT campaign.id FROM campaign WHERE /* only comment */',
+          {},
+        ),
+      );
+      await assert.rejects(() =>
+        editor.parseQuery('SELECT campaign.id FROM campaign ORDER BY', {}),
+      );
+      await assert.rejects(() =>
+        editor.parseQuery('SELECT campaign.id FROM campaign PARAMETERS', {}),
+      );
+      await assert.rejects(() =>
+        editor.parseQuery('SELECT campaign.id FROM campaign FUNCTIONS', {}),
+      );
+    });
+  });
 });
 
 

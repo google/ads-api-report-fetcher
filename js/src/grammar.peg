@@ -142,10 +142,18 @@ MathToken
       / Comment
       / ParenGroup
       / BracketGroup
-      / Identifier { return text(); }
-      / .
+      / MathIdentifier
+      / !Identifier char:. { return char; }
     )
     { return token; }
+
+MathKeyword
+  = ("and"i / "or"i / "xor"i / "not"i / "mod"i / "to"i / "in"i) !IdentifierPart
+
+MathIdentifier
+  = MathKeyword { return text(); }
+  / Identifier !((WhiteSpace / Comment)+ !(AS / FROM / MathKeyword) Identifier)
+    { return text(); }
 
 ParenGroup
   = "(" inner:(StringLiteral / Comment / ParenGroup / BracketGroup / [^()])* ")"
@@ -178,8 +186,14 @@ FieldAlias
     { return alias; }
 
 AliasName
-  = head:[a-zA-Z_] tail:[a-zA-Z0-9_]*
+  = !ReservedKeyword head:[a-zA-Z_] tail:[a-zA-Z0-9_]*
     { return head + tail.join(''); }
+
+ReservedKeyword
+  = ClauseEnd
+  / AS
+  / ORDER
+  / BY
 
 FromClause
   = __ FROM __ resource:ResourceName __
@@ -207,7 +221,7 @@ FunctionsClause
 
 // Capture all remaining content as JavaScript
 JavaScriptCode
-  = chars:.*
+  = chars:.+
     { return chars.join('').trim(); }
 
 SELECT = [sS][eE][lL][eE][cC][tT] !IdentifierPart
@@ -233,7 +247,7 @@ SingleLineComment
   { return " "; }
 
 RawClause
-  = content:ClauseToken*
+  = content:ClauseToken+
     {
       return content.join('').trim();
     }
